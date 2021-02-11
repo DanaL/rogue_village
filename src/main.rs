@@ -155,7 +155,7 @@ fn run(gui: &mut GameUI, state: &mut GameState) {
             Cmd::Quit => break,
             Cmd::Pass => state.turn += 1,
             Cmd::Chat => {
-                gui.popup_msg("Dale, the Innkeeper", "Welcome to Foxville, stranger!");
+                gui.popup_msg("Dale, the Innkeeper", "Welcome to Skara Brae, stranger! You'll find the dungeon in the foothills but watch out for goblins on the way!");
                 state.turn += 1
             },
             Cmd::PickUp => {

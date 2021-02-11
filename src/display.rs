@@ -412,23 +412,76 @@ impl<'a, 'b> GameUI<'a, 'b> {
 		self.pause_for_more();		
 	}
 
+	fn center_line_for_popup(&mut self, text: &str, width: u16) -> String {
+		let mut line: String = "|".to_owned();
+		let padding = (width as usize - 2) / 2 - (text.len() / 2);
+
+		for _ in 0..padding {
+			line.push(' ');
+		}
+		line.push_str(text);
+		while line.len() < (width - 1) as usize {
+			line.push(' ');
+		}
+		line.push('|');
+
+		line
+	}
+
+	fn pad_line_for_popup(&mut self, text: &str, width: u16) -> String {
+		let mut line: String = "| ".to_owned();
+		line.push_str(text);
+
+		while line.len() < (width - 1) as usize {
+			line.push(' ');
+		}
+		line.push('|');
+
+		line
+	}
+
+	// I'll probably need to eventually add pagination but rendering the text into
+	// lines was plenty for my brain for now...
 	pub fn popup_msg(&mut self, title: &str, text: &str) {
 		//self.canvas.clear();
-		
-		let mut msgs = VecDeque::new();
-		self.write_screen(&mut msgs);
+		//let mut msgs = VecDeque::new();
+		//self.write_screen(&mut msgs);
 		self.write_line(0, "Chatting with a dude.", false);
 
+		let line_width = 45; // eventually this probably shouldn't be hardcoded here
 		let r_offset = self.font_height as i32 * 3;
 		let c_offset = self.font_width as i32 * 3;
 
 		let mut lines = Vec::new();
 		lines.push("+-------------------------------------------+".to_string());
-		for _ in 0..15 {
-			lines.push("+                                           +".to_string());
-		}		
+		lines.push(self.center_line_for_popup(title, line_width));
+		lines.push("|                                           |".to_string());
+
+		// Easiest thing to do is to split the text into words and then append them to 
+		// a line so long as there is room left on the current line.
+		let words = text.split(' ').collect::<Vec<&str>>();
+		let mut wc = 0;
+		let mut line = "".to_string();
+		loop {
+			if line.len() + words[wc].len() < line_width as usize - 5 {
+				line.push_str(words[wc]);
+				line.push(' ');
+				wc += 1;
+			} else {
+				lines.push(self.pad_line_for_popup(&line, line_width));
+				line = "".to_string();
+			}
+
+			if wc == words.len() {
+				lines.push(self.pad_line_for_popup(&line, line_width));
+				break;
+			}
+		}
+
+		lines.push("|                                           |".to_string());
+		lines.push("|                                           |".to_string());
 		lines.push("+-------------------------------------------+".to_string());
-		
+
 		for j in 0..lines.len() {
 			let rect = Rect::new(c_offset, r_offset + (self.sm_font_height as usize * j) as i32, self.sm_font_width * 45, self.sm_font_height);
 			let surface = self.sm_font.render(&lines[j])
