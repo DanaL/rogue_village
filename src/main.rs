@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 extern crate rand;
 extern crate sdl2;
 
@@ -10,6 +12,7 @@ use std::collections::{VecDeque};
 //use std::io::prelude::*;
 //use std::fs;
 //use std::fs::File;
+use std::path::Path;
 
 use rand::Rng;
 
@@ -132,14 +135,6 @@ fn run(gui: &mut GameUI, state: &mut GameState) {
     state.write_msg_buff("Hello, world?");
 
     loop {
-        let start_turn = state.turn;
-        let cmd = gui.get_command(&state);
-        match cmd {
-            Cmd::Quit => break,
-            Cmd::Pass => state.turn += 1,
-            _ => continue,
-        }
-
         let size = FOV_HEIGHT * FOV_WIDTH;
         let mut v_matrix = vec![map::Tile::Blank; size];
 
@@ -149,21 +144,42 @@ fn run(gui: &mut GameUI, state: &mut GameState) {
             } else {
                 v_matrix[j] = map::Tile::Grass;
             }
-        }
-        //if (state.turn > start_turn) {
-        //
-        //}
-
+        }        
         gui.v_matrix = v_matrix;
-		//let sbi = state.curr_sidebar_info();
+
+        gui.write_screen(&mut state.msg_buff);
+
+        let start_turn = state.turn;
+        let cmd = gui.get_command(&state);
+        match cmd {
+            Cmd::Quit => break,
+            Cmd::Pass => state.turn += 1,
+            Cmd::Chat => {
+                gui.popup_msg("Dale, the Innkeeper", "Welcome to Foxville, stranger!");
+                state.turn += 1
+            },
+            Cmd::PickUp => {
+                let s = gui.query_user("Yes, what?", 15).unwrap();
+                println!("result: {}", s);
+            },
+            _ => continue,
+        }
         
-		gui.write_screen(&mut state.msg_buff);
+        gui.write_screen(&mut state.msg_buff);
     }
 }
 
 fn main() {
-    let mut gui = GameUI::init()
-         .expect("Error initializing GameUI object.");
+    let ttf_context = sdl2::ttf::init()
+		.expect("Error creating ttf context on start-up!");
+	let font_path: &Path = Path::new("DejaVuSansMono.ttf");
+    let font = ttf_context.load_font(font_path, 24)
+		.expect("Error loading game font!");
+	let sm_font = ttf_context.load_font(font_path, 18)
+		.expect("Error loading small game font!");
+	let mut gui = GameUI::init(&font, &sm_font)
+		.expect("Error initializing GameUI object.");
+
     let mut state = GameState::init();
 
     title_screen(&mut gui);

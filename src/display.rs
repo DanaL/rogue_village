@@ -51,6 +51,8 @@ const SCREEN_WIDTH: u32 = 58;
 const SCREEN_HEIGHT: u32 = 22;
 const BACKSPACE_CH: char = '\u{0008}';
 const DEFAULT_FONT: &'static str = "DejaVuSansMono.ttf";
+const SM_FONT_PT: u16 = 18;
+const LG_FONT_PT: u16 = 24;
 
 #[derive(Debug)]
 pub struct SidebarInfo {
@@ -91,36 +93,32 @@ fn tuple_to_sdl2_color(ct: &(u8, u8, u8)) -> Color {
 	Color::RGBA(ct.0, ct.1, ct.2, 255)
 }
 
-pub struct GameUI<'a> {
+pub struct GameUI<'a, 'b> {
 	screen_width_px: u32,
 	screen_height_px: u32,
-	//font_width: u32,
-	//font_height: u32,
-	//font: Font,
-	//sm_font_width: u32,
-	//sm_font_height: u32,
-	//sm_font: Font,
+	font_width: u32,
+	font_height: u32,
+	font: &'a Font<'a, 'b>,
+	sm_font_width: u32,
+	sm_font_height: u32,
+	sm_font: &'a Font<'a, 'b>,
 	canvas: WindowCanvas,
 	event_pump: EventPump,
 	pub v_matrix: Vec<map::Tile>,
 	surface_cache: HashMap<(char, Color), Surface<'a>>,
 }
 
-impl<'a> GameUI<'a> {
-	pub fn init() -> Result<GameUI<'a>, String> {
-		let sdl_context = sdl2::init()?;
-
-		let ttf_context = sdl2::ttf::init()
-        	.expect("Error creating ttf context on start-up!");
-    	let font_path: &Path = Path::new(DEFAULT_FONT);
-    	let font = ttf_context.load_font(font_path, 24)?;
-    	
+impl<'a, 'b> GameUI<'a, 'b> {
+	pub fn init(font: &'b Font, sm_font: &'b Font) -> Result<GameUI<'a, 'b>, String> {
 		let (font_width, font_height) = font.size_of_char(' ').unwrap();
 		let screen_width_px = SCREEN_WIDTH * font_width + 50;
 		let screen_height_px = SCREEN_HEIGHT * font_height;
 
+		let (sm_font_width, sm_font_height) = sm_font.size_of_char(' ').unwrap();
+
+		let sdl_context = sdl2::init()?;
 		let video_subsystem = sdl_context.video()?;
-		let window = video_subsystem.window("RV 0.0.1", screen_width_px, screen_height_px)
+		let window = video_subsystem.window("YarrL", screen_width_px, screen_height_px)
 			.position_centered()
 			.opengl()
 			.build()
@@ -130,8 +128,10 @@ impl<'a> GameUI<'a> {
 		let canvas = window.into_canvas().build().map_err(|e| e.to_string())?;
 		let gui = GameUI { 
 			screen_width_px, screen_height_px, 
+			font, font_width, font_height, 
 			canvas,
 			event_pump: sdl_context.event_pump().unwrap(),
+			sm_font, sm_font_width, sm_font_height,
 			v_matrix,
 			surface_cache: HashMap::new(),
 		};
@@ -157,10 +157,6 @@ impl<'a> GameUI<'a> {
 		}
 	}
 
-//	pub fn popup_menu(&mut self, state: &GamteState) {
-//
-//	}
-	
 	pub fn query_single_response(&mut self, question: &str, sbi: &SidebarInfo) -> Option<char> {
 		let mut m = VecDeque::new();
 		m.push_front(question.to_string());
@@ -231,7 +227,7 @@ impl<'a> GameUI<'a> {
 		}
 	}
 
-	pub fn query_user(&mut self, question: &str, max: u8, sbi: &SidebarInfo) -> Option<String> {
+	pub fn query_user(&mut self, question: &str, max: u8) -> Option<String> { //, sbi: &SidebarInfo) -> Option<String> {
 		let mut answer = String::from("");
 
 		loop {
@@ -350,22 +346,36 @@ impl<'a> GameUI<'a> {
 		}
 	}
 
-	fn write_line(&mut self, row: i32, line: &str, font: &Font, font_width: i32, font_height: i32) {
+	fn write_line(&mut self, row: i32, line: &str, small_text: bool) {
+		let fw: u32;
+		let fh: u32;	
+		let f: &Font;
+
+		if small_text {
+			f = self.sm_font;
+			fw = self.sm_font_width;
+			fh = self.sm_font_height;
+		} else {
+			f = self.font;
+			fw = self.font_width;
+			fh = self.font_height;
+		}
+
 		if line.len() == 0 {
 			self.canvas
-				.fill_rect(Rect::new(0, row * font_height, self.screen_width_px, font_height as u32))
+				.fill_rect(Rect::new(0, row * fh as i32, self.screen_width_px, fh))
 				.expect("Error line!");
 
 			return;
 		}
 
-		let surface = font.render(line)
+		let surface = f.render(line)
 			.blended(WHITE)
 			.expect("Error rendering message line!");
 		let texture_creator = self.canvas.texture_creator();
 		let texture = texture_creator.create_texture_from_surface(&surface)
 			.expect("Error create texture for messsage line!");
-		let rect = Rect::new(10, row * font_height as i32, line.len() as u32 * font_width as u32, font_height as u32);
+		let rect = Rect::new(2, row * fh as i32, line.len() as u32 * fw as u32, fh as u32);
 		self.canvas.copy(&texture, None, Some(rect))
 			.expect("Error copying message line texture to canvas!");
 	}
@@ -377,31 +387,18 @@ impl<'a> GameUI<'a> {
 	pub fn write_long_msg(&mut self, lines: &Vec<String>, small_text: bool) {
 		self.canvas.clear();
 		
-		let point_size = if small_text {
-			18
-		} else {
-			24
-		};
-
-		let ttf_context = sdl2::ttf::init()
-        	.expect("Error creating ttf context on start-up!");
-		let font_path: &Path = Path::new(DEFAULT_FONT);    	
-		let font = ttf_context.load_font(font_path, point_size)
-			.expect("Error loading game font!");
-		let (fw, fh) = font.size_of_char(' ').unwrap();
-
 		let display_lines = FOV_HEIGHT as usize;
 		let line_count = lines.len();
 		let mut curr_line = 0;
 		let mut curr_row = 0;
 		while curr_line < line_count {
-			self.write_line(curr_row as i32, &lines[curr_line], &font, fw as i32, fh as i32);
+			self.write_line(curr_row as i32, &lines[curr_line], small_text);
 			curr_line += 1;
 			curr_row += 1;
 
 			if curr_row == display_lines - 2 && curr_line < line_count {
-				self.write_line(curr_row as i32, "", &font, fw as i32, fh as i32);
-				self.write_line(curr_row as i32 + 1, "-- Press space to continue --", &font, fw as i32, fh as i32);
+				self.write_line(curr_row as i32, "", small_text);
+				self.write_line(curr_row as i32 + 1, "-- Press space to continue --", small_text);
 				self.canvas.present();
 				self.pause_for_more();
 				curr_row = 0;
@@ -409,10 +406,44 @@ impl<'a> GameUI<'a> {
 			}
 		}
 
-		self.write_line(curr_row as i32, "", &font, fw as i32, fh as i32);
-		self.write_line(curr_row as i32 + 1, "-- Press space to continue --", &font, fw as i32, fh as i32);
+		self.write_line(curr_row as i32, "", small_text);
+		self.write_line(curr_row as i32 + 1, "-- Press space to continue --", small_text);
 		self.canvas.present();
-		self.pause_for_more();
+		self.pause_for_more();		
+	}
+
+	pub fn popup_msg(&mut self, title: &str, text: &str) {
+		//self.canvas.clear();
+		
+		let mut msgs = VecDeque::new();
+		self.write_screen(&mut msgs);
+		self.write_line(0, "Chatting with a dude.", false);
+
+		let r_offset = self.font_height as i32 * 3;
+		let c_offset = self.font_width as i32 * 3;
+
+		let mut lines = Vec::new();
+		lines.push("+-------------------------------------------+".to_string());
+		for _ in 0..15 {
+			lines.push("+                                           +".to_string());
+		}		
+		lines.push("+-------------------------------------------+".to_string());
+		
+		for j in 0..lines.len() {
+			let rect = Rect::new(c_offset, r_offset + (self.sm_font_height as usize * j) as i32, self.sm_font_width * 45, self.sm_font_height);
+			let surface = self.sm_font.render(&lines[j])
+													 .shaded(WHITE, BLACK)
+													 .expect("Error rendering line!");
+													 
+			let texture_creator = self.canvas.texture_creator();
+			let texture = texture_creator.create_texture_from_surface(&surface)
+										 .expect("Error creating texture!");
+			self.canvas.copy(&texture, None, Some(rect))
+				.expect("Error copying to canvas!");
+		}
+
+		self.canvas.present();
+		self.wait_for_key_input();		
 	}
 
 	pub fn sq_info_for_tile(tile: &map::Tile) -> (char, sdl2::pixels::Color) {
@@ -456,12 +487,11 @@ impl<'a> GameUI<'a> {
 		ti
 	}
 	
-	fn write_sq(&mut self, r: usize, c: usize, tile_info: (char, sdl2::pixels::Color),
-		font: &Font, font_width: i32, font_height: i32) {
+	fn write_sq(&mut self, r: usize, c: usize, tile_info: (char, sdl2::pixels::Color)) {
 		let (ch, char_colour) = tile_info;
 
 		if !self.surface_cache.contains_key(&tile_info) {
-			let s = font.render_char(ch)
+			let s = self.font.render_char(ch)
 				.blended(char_colour)
 				.expect("Error creating character!");  
 			self.surface_cache.insert(tile_info, s);
@@ -471,10 +501,11 @@ impl<'a> GameUI<'a> {
 		let texture_creator = self.canvas.texture_creator();
 		let texture = texture_creator.create_texture_from_surface(&surface)
 			.expect("Error creating texture!");
-		let rect = Rect::new(c as i32 * font_width , 
-			(r as i32 + 1) * font_height, font_width as u32, font_height as u32);
+		let rect = Rect::new(c as i32 * self.font_width as i32, 
+			(r as i32 + 1) * self.font_height as i32, self.font_width, self.font_height);
 		self.canvas.copy(&texture, None, Some(rect))
 			.expect("Error copying to canvas!");
+
 	}
 
 	fn write_sidebar_line(&mut self, line: &str, start_x: i32, row: usize, colour: sdl2::pixels::Color) {
@@ -539,24 +570,16 @@ impl<'a> GameUI<'a> {
 	}
 
 	fn draw_frame(&mut self, msg: &str) { //}, sbi: &SidebarInfo) {
-		let ttf_context = sdl2::ttf::init()
-        	.expect("Error creating ttf context on start-up!");
-    	let font_path: &Path = Path::new(DEFAULT_FONT);    	
-		let font = &ttf_context.load_font(font_path, 24)
-			.expect("Error loading game font!");
-		let (fw, fh) = font.size_of_char(' ').unwrap();
-
 		self.canvas.set_draw_color(BLACK);
 		self.canvas.clear();
 
-		self.write_line(0, msg, &font, fw as i32, fh as i32);
+		self.write_line(0, msg, false);
 		for row in 0..FOV_HEIGHT {
 			for col in 0..FOV_WIDTH {
 				let ti = GameUI::sq_info_for_tile(&self.v_matrix[row * FOV_WIDTH + col]);
-				self.write_sq(row, col, ti, &font, fw as i32, fh as i32);
+				self.write_sq(row, col, ti);
 			}
-			self.write_sq(row, FOV_WIDTH, GameUI::sq_info_for_tile(&map::Tile::Separator),
-				&font, fw as i32, fh as i32);
+			self.write_sq(row, FOV_WIDTH, GameUI::sq_info_for_tile(&map::Tile::Separator));
 		}
 
 		// if sbi.name != "" {
@@ -564,6 +587,7 @@ impl<'a> GameUI<'a> {
 		// }
 
 		self.canvas.present();
+
 	}
 
 	pub fn write_screen(&mut self, msgs: &mut VecDeque<String>) { //}, sbi: &SidebarInfo) {
