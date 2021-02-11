@@ -1,17 +1,17 @@
-// This file is part of YarrL, the pirate roguelike.
+// This file is part of RogueVillage, a roguelike game.
 //
-// YarrL is free software: you can redistribute it and/or modify
+// RogueVillage is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 //
-// YarrL is distributed in the hope that it will be useful,
+// RogueVillage is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
-// along with YarrL.  If not, see <https://www.gnu.org/licenses/>.
+// along with RogueVillage.  If not, see <https://www.gnu.org/licenses/>.
 
 extern crate sdl2;
 
@@ -118,7 +118,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 
 		let sdl_context = sdl2::init()?;
 		let video_subsystem = sdl_context.video()?;
-		let window = video_subsystem.window("YarrL", screen_width_px, screen_height_px)
+		let window = video_subsystem.window("rv 0.0.1", screen_width_px, screen_height_px)
 			.position_centered()
 			.opengl()
 			.build()
