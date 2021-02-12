@@ -19,11 +19,14 @@ extern crate rand;
 extern crate sdl2;
 
 mod display;
+mod fov;
 mod map;
+mod util;
+mod wilderness;
 
 use crate::display::{GameUI};
 
-use std::collections::{VecDeque};
+use std::collections::{VecDeque, HashMap};
 //use std::io::prelude::*;
 //use std::fs;
 //use std::fs::File;
@@ -34,6 +37,8 @@ use rand::Rng;
 const MSG_HISTORY_LENGTH: usize = 50;
 const FOV_WIDTH: usize = 41;
 const FOV_HEIGHT: usize = 21;
+
+pub type Map = HashMap<(u16, u16, i8), map::Tile>;
 
 pub enum Cmd {
 	Quit,
@@ -66,8 +71,10 @@ pub enum Cmd {
 pub struct GameState {
 	msg_buff: VecDeque<String>,
 	msg_history: VecDeque<(String, u32)>,
+	map: Map,
     turn: u32,
     vision_radius: u8,
+	player_loc: (u16, u16, i8),
 }
 
 impl GameState {
@@ -75,8 +82,10 @@ impl GameState {
         let state = GameState {
             msg_buff: VecDeque::new(),
             msg_history: VecDeque::new(),
+			map: HashMap::new(),
             turn: 0,
-            vision_radius: 3,
+            vision_radius: 30,
+			player_loc: (35, 50, 0),
         };
 
         state
@@ -151,16 +160,7 @@ fn run(gui: &mut GameUI, state: &mut GameState) {
 
     loop {
         let size = FOV_HEIGHT * FOV_WIDTH;
-        let mut v_matrix = vec![map::Tile::Blank; size];
-
-        for j in 0..size {
-            if rand::thread_rng().gen_range(0.0, 1.0) < 0.5 {
-                v_matrix[j] = map::Tile::Tree;
-            } else {
-                v_matrix[j] = map::Tile::Grass;
-            }
-        }        
-        gui.v_matrix = v_matrix;
+		gui.v_matrix = fov::calc_v_matrix(state, FOV_HEIGHT, FOV_WIDTH);
 
         gui.write_screen(&mut state.msg_buff);
 
@@ -196,6 +196,7 @@ fn main() {
 		.expect("Error initializing GameUI object.");
 
     let mut state = GameState::init();
+	state.map = wilderness::test_map();	
 
     title_screen(&mut gui);
     gui.write_screen(&mut state.msg_buff);
