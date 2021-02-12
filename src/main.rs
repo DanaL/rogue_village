@@ -165,7 +165,7 @@ fn get_move_tuple(mv: &str) -> (i32, i32) {
 	} else if mv == "E" {
 		return (0, 1);
 	} else if mv == "NW" {
-		return (1, -1);
+		return (-1, -1);
 	} else if mv == "NE" {
 		return (-1, 1);
 	} else if mv == "SW" {

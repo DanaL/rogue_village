@@ -30,6 +30,10 @@ pub fn test_map() -> Map {
 		map.insert((0, col, 0), Tile::WorldEdge);
 		map.insert((99, col, 0), Tile::WorldEdge);
 	}
+	for row in 1..99 {
+		map.insert((row, 0, 0), Tile::WorldEdge);
+		map.insert((row, 99, 0), Tile::WorldEdge);
+	}
 
 	let mut rng = thread_rng();
 	for col in 1..99 {
@@ -39,7 +43,7 @@ pub fn test_map() -> Map {
 		for row in 1..water {
 			map.insert((row, col, 0), Tile::DeepWater);
 		}
-		for row in water+1..water+ground {
+		for row in water..water+ground {
 			let x = rng.gen_range(0, 3);
 			if x == 0 {
 				map.insert((row, col, 0), Tile::Dirt);
@@ -49,7 +53,7 @@ pub fn test_map() -> Map {
 				map.insert((row, col, 0), Tile::Tree);
 			}
 		}
-		for row in water+ground+1..99 {
+		for row in water+ground..99 {
 			map.insert((row, col, 0), Tile::Mountain);
 		}
 	}
