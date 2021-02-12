@@ -155,31 +155,90 @@ fn title_screen(gui: &mut GameUI) {
 	gui.write_long_msg(&lines, true);
 }
 
+fn get_move_tuple(mv: &str) -> (i32, i32) {
+  	if mv == "N" {
+		return (-1, 0);
+	} else if mv == "S" {
+		return (1, 0);
+	} else if mv == "W" {
+		return (0, -1);
+	} else if mv == "E" {
+		return (0, 1);
+	} else if mv == "NW" {
+		return (1, -1);
+	} else if mv == "NE" {
+		return (-1, 1);
+	} else if mv == "SW" {
+		return (1, -1);
+	} else {
+		return (1, 1);
+	}
+}
+
+fn do_move(state: &mut GameState, dir: &str, gui: &mut GameUI) {
+	let mut mv = get_move_tuple(dir);
+
+	let start_tile = &state.map[&state.player_loc];
+	let next_row = (state.player_loc.0 as i32 + mv.0) as usize;
+	let next_col = (state.player_loc.1 as i32 + mv.1) as usize;
+	let next_loc = (next_row as u16, next_col as u16, state.player_loc.2);
+	let tile = &state.map[&next_loc].clone();
+	
+	if map::is_passable(tile) {
+		state.player_loc = next_loc;
+
+		match tile {
+			map::Tile::Water => state.write_msg_buff("You splash in the shallow water."),
+			map::Tile::DeepWater => {
+				if *start_tile != map::Tile::DeepWater {
+					state.write_msg_buff("You begin to swim.");				
+				}
+
+				//if state.player.curr_stamina < 10 {
+				//	state.write_msg_buff("You're getting tired...");
+				//}
+			},
+			map::Tile::Lava => state.write_msg_buff("MOLTEN LAVA!"),
+			map::Tile::FirePit => {
+				state.write_msg_buff("You step in the fire!");
+			},
+			map::Tile::OldFirePit => state.write_msg_buff("An old campsite! Rum runners? A castaway?"),
+            map::Tile::Portal(_) => state.write_msg_buff("Where could this lead..."),
+			_ => {
+				if *start_tile == map::Tile::DeepWater { // && state.player.curr_stamina < 10 {
+					state.write_msg_buff("Whew, you stumble ashore.");
+				}
+			},
+		}
+
+		state.turn += 1;
+	} else  {
+		state.write_msg_buff("You cannot go that way.");
+	}
+}
+
 fn run(gui: &mut GameUI, state: &mut GameState) {
     state.write_msg_buff("Hello, world?");
 
+	gui.v_matrix = fov::calc_v_matrix(state, FOV_HEIGHT, FOV_WIDTH);
+	gui.write_screen(&mut state.msg_buff);
+
     loop {
         let size = FOV_HEIGHT * FOV_WIDTH;
-		gui.v_matrix = fov::calc_v_matrix(state, FOV_HEIGHT, FOV_WIDTH);
-
-        gui.write_screen(&mut state.msg_buff);
 
         let start_turn = state.turn;
         let cmd = gui.get_command(&state);
         match cmd {
-            Cmd::Quit => break,
-            Cmd::Pass => state.turn += 1,
             Cmd::Chat => {
                 gui.popup_msg("Dale, the Innkeeper", "Welcome to Skara Brae, stranger! You'll find the dungeon in the foothills but watch out for goblins on the way!");
-                state.turn += 1
             },
-            Cmd::PickUp => {
-                let s = gui.query_user("Yes, what?", 15).unwrap();
-                println!("result: {}", s);
-            },
+			Cmd::Move(dir) => do_move(state, &dir, gui),
+            Cmd::Pass => state.turn += 1,
+            Cmd::Quit => break,
             _ => continue,
         }
         
+		gui.v_matrix = fov::calc_v_matrix(state, FOV_HEIGHT, FOV_WIDTH);
         gui.write_screen(&mut state.msg_buff);
     }
 }
