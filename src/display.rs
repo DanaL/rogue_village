@@ -30,8 +30,6 @@ use sdl2::surface::Surface;
 use sdl2::ttf::Font;
 use sdl2::pixels::Color;
 
-use std::path::Path;
-
 pub static BLACK: (u8, u8, u8) = (0, 0, 0);
 pub static WHITE: (u8, u8, u8) = (255, 255, 255);
 pub static LIGHT_GREY: (u8, u8, u8) = (220, 220, 220);

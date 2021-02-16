@@ -85,7 +85,7 @@ impl GameState {
 			map: HashMap::new(),
             turn: 0,
             vision_radius: 30,
-			player_loc: (35, 50, 0),
+			player_loc: (127, 127, 0),
         };
 
         state

@@ -14,6 +14,7 @@
 // along with RogueVillage.  If not, see <https://www.gnu.org/licenses/>.
 
 use std::collections::HashMap;
+use std::fs;
 
 use rand::thread_rng;
 use rand::Rng;
@@ -26,36 +27,25 @@ use crate::map::Tile;
 pub fn test_map() -> Map {
 	let mut map: Map = HashMap::new();
 
-	for col in 0..100 {
-		map.insert((0, col, 0), Tile::WorldEdge);
-		map.insert((99, col, 0), Tile::WorldEdge);
-	}
-	for row in 1..99 {
-		map.insert((row, 0, 0), Tile::WorldEdge);
-		map.insert((row, 99, 0), Tile::WorldEdge);
-	}
+	let contents = fs::read_to_string("wilderness.txt")
+								.expect("Unable to find test wilderness file!"); 	
 
-	let mut rng = thread_rng();
-	for col in 1..99 {
-		let water: u16 = rng.gen_range(20, 50);
-		let ground: u16 = rng.gen_range(10, 30);
-		
-		for row in 1..water {
-			map.insert((row, col, 0), Tile::DeepWater);
+	let mut row = 0;								
+	for line in contents.split('\n') {
+		let mut col = 0;		
+		for ch in line.chars() {
+			let tile = match ch {
+				'^' => Tile::Mountain,
+				'#' => Tile::Tree,
+				'.' => Tile::Dirt,
+				'`' => Tile::Grass,
+				'~' => Tile::DeepWater,
+				_ => Tile::Lava, // This shouldn't actually happen...
+			};
+			map.insert((row, col, 0), tile);
+			col += 1;
 		}
-		for row in water..water+ground {
-			let x = rng.gen_range(0, 3);
-			if x == 0 {
-				map.insert((row, col, 0), Tile::Dirt);
-			} else if x == 1 {
-				map.insert((row, col, 0), Tile::Grass);
-			} else {
-				map.insert((row, col, 0), Tile::Tree);
-			}
-		}
-		for row in water+ground..99 {
-			map.insert((row, col, 0), Tile::Mountain);
-		}
+		row += 1;
 	}
 
 	map
