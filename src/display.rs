@@ -18,6 +18,8 @@ extern crate sdl2;
 use std::collections::{HashMap, HashSet, VecDeque};
 
 use crate::map;
+use crate::map::Tile;
+
 use super::{Cmd, GameState, FOV_WIDTH, FOV_HEIGHT};
 
 use sdl2::event::Event;
@@ -607,6 +609,12 @@ impl<'a, 'b> GameUI<'a, 'b> {
 
 		let texture_creator = self.canvas.texture_creator();
 		let mut textures = HashMap::new();
+		let separator = GameUI::sq_info_for_tile(&Tile::Separator);
+		let separator_surface = self.font.render_char(separator.0)
+											.blended(separator.1)
+											.expect("Error creating character!");  
+		let separator_texture = texture_creator.create_texture_from_surface(&separator_surface)
+													   .expect("Error creating texture!");
 
 		for row in 0..FOV_HEIGHT {
 			for col in 0..FOV_WIDTH {
@@ -632,7 +640,10 @@ impl<'a, 'b> GameUI<'a, 'b> {
 				self.canvas.copy(&textures[&ti], None, Some(rect))
 					.expect("Error copying to canvas!");
 			}
-			//self.write_sq(row, FOV_WIDTH, GameUI::sq_info_for_tile(&map::Tile::Separator));
+			let rect = Rect::new(FOV_WIDTH as i32 * self.font_width as i32, 
+				(row as i32 + 1) * self.font_height as i32, self.font_width, self.font_height);
+			self.canvas.copy(&separator_texture, None, Some(rect))
+					.expect("Error copying to canvas!");			
 		}
 
 		// if sbi.name != "" {
