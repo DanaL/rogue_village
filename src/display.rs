@@ -607,6 +607,10 @@ impl<'a, 'b> GameUI<'a, 'b> {
 
 		self.write_line(0, msg, false);
 
+		// I wonder if, since I've got rid of write_sq() and am generating a bunch of textures here,
+		// if I can keep a texture_creator instance in the GUI struct and thereby placate Rust and 
+		// keep a hashmap of textures. I should only have to generate a few since most times in view will
+		// be repeated but still...
 		let texture_creator = self.canvas.texture_creator();
 		let mut textures = HashMap::new();
 		let separator = GameUI::sq_info_for_tile(&Tile::Separator);

@@ -246,7 +246,7 @@ fn run(gui: &mut GameUI, state: &mut GameState) {
 		
         //let write_screen_start = Instant::now();
         gui.write_screen(&mut state.msg_buff);
-        //  let write_screen_duration = write_screen_start.elapsed();
+        //let write_screen_duration = write_screen_start.elapsed();
         //println!("Time for write_screen(): {:?}", write_screen_duration);
     }
 }
