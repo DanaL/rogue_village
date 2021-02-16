@@ -538,27 +538,6 @@ impl<'a, 'b> GameUI<'a, 'b> {
 		ti
 	}
 	
-	fn write_sq(&mut self, r: usize, c: usize, tile_info: (char, sdl2::pixels::Color)) {
-		let (ch, char_colour) = tile_info;
-
-		if !self.surface_cache.contains_key(&tile_info) {
-			let s = self.font.render_char(ch)
-				.blended(char_colour)
-				.expect("Error creating character!");  
-			self.surface_cache.insert(tile_info, s);
-		}
-		let surface = self.surface_cache.get(&tile_info).unwrap();
-
-		let texture_creator = self.canvas.texture_creator();
-		let texture = texture_creator.create_texture_from_surface(&surface)
-			.expect("Error creating texture!");
-		let rect = Rect::new(c as i32 * self.font_width as i32, 
-			(r as i32 + 1) * self.font_height as i32, self.font_width, self.font_height);
-		self.canvas.copy(&texture, None, Some(rect))
-			.expect("Error copying to canvas!");
-
-	}
-
 	fn write_sidebar_line(&mut self, line: &str, start_x: i32, row: usize, colour: sdl2::pixels::Color) {
 		/*
 		let surface = self.font.render(line)
@@ -625,12 +604,35 @@ impl<'a, 'b> GameUI<'a, 'b> {
 		self.canvas.clear();
 
 		self.write_line(0, msg, false);
+
+		let texture_creator = self.canvas.texture_creator();
+		let mut textures = HashMap::new();
+
 		for row in 0..FOV_HEIGHT {
 			for col in 0..FOV_WIDTH {
 				let ti = GameUI::sq_info_for_tile(&self.v_matrix[row * FOV_WIDTH + col]);
-				self.write_sq(row, col, ti);
+				let (ch, char_colour) = ti;
+
+				if !self.surface_cache.contains_key(&ti) {
+					let s = self.font.render_char(ch)
+						.blended(char_colour)
+						.expect("Error creating character!");  
+					self.surface_cache.insert(ti, s);
+				}
+				let surface = self.surface_cache.get(&ti).unwrap();
+				
+				if !textures.contains_key(&ti) {
+					let texture = texture_creator.create_texture_from_surface(&surface)
+														 .expect("Error creating texture!");
+					textures.insert(ti, texture);
+				}
+
+				let rect = Rect::new(col as i32 * self.font_width as i32, 
+					(row as i32 + 1) * self.font_height as i32, self.font_width, self.font_height);
+				self.canvas.copy(&textures[&ti], None, Some(rect))
+					.expect("Error copying to canvas!");
 			}
-			self.write_sq(row, FOV_WIDTH, GameUI::sq_info_for_tile(&map::Tile::Separator));
+			//self.write_sq(row, FOV_WIDTH, GameUI::sq_info_for_tile(&map::Tile::Separator));
 		}
 
 		// if sbi.name != "" {
@@ -638,7 +640,6 @@ impl<'a, 'b> GameUI<'a, 'b> {
 		// }
 
 		self.canvas.present();
-
 	}
 
 	pub fn write_screen(&mut self, msgs: &mut VecDeque<String>) { //}, sbi: &SidebarInfo) {

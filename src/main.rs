@@ -31,6 +31,7 @@ use std::collections::{VecDeque, HashMap};
 //use std::fs;
 //use std::fs::File;
 use std::path::Path;
+use std::time::{Duration, Instant};
 
 use rand::Rng;
 
@@ -238,8 +239,15 @@ fn run(gui: &mut GameUI, state: &mut GameState) {
             _ => continue,
         }
         
-		gui.v_matrix = fov::calc_v_matrix(state, FOV_HEIGHT, FOV_WIDTH);
+        //let fov_start = Instant::now();
+        gui.v_matrix = fov::calc_v_matrix(state, FOV_HEIGHT, FOV_WIDTH);
+        //let fov_duration = fov_start.elapsed();
+        //println!("Time for fov: {:?}", fov_duration);
+		
+        //let write_screen_start = Instant::now();
         gui.write_screen(&mut state.msg_buff);
+        //  let write_screen_duration = write_screen_start.elapsed();
+        //println!("Time for write_screen(): {:?}", write_screen_duration);
     }
 }
 
