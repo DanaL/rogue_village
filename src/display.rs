@@ -57,22 +57,24 @@ const LG_FONT_PT: u16 = 24;
 #[derive(Debug)]
 pub struct SidebarInfo {
 	name: String,
-	ac: u8,
-	curr_hp: u8,
-	max_hp: u8,
-	wheel: i8,
-	bearing: i8,
+	//ac: u8,
+	//curr_hp: u8,
+	//max_hp: u8,
+	//wheel: i8,
+	//bearing: i8,
 	turn: u32,
-	charmed: bool,
-	poisoned: bool,
-	drunkeness: u8,
-	weapon: Option<String>,
-	firearm: Option<String>,
+	//charmed: bool,
+	//poisoned: bool,
+	//drunkeness: u8,
+	//weapon: Option<String>,
+	//firearm: Option<String>,
 }
 
 impl SidebarInfo {
-	pub fn new(name: String, ac: u8, curr_hp: u8, max_hp: u8, wheel: i8, bearing: i8, turn: u32, 
-			charmed: bool, poisoned: bool, drunkeness: u8, w: String, f: String) -> SidebarInfo {
+	pub fn new(name: String, turn: u32) -> SidebarInfo {
+	//pub fn new(name: String, ac: u8, curr_hp: u8, max_hp: u8, wheel: i8, bearing: i8, turn: u32, 
+	//		charmed: bool, poisoned: bool, drunkeness: u8, w: String, f: String) -> SidebarInfo {
+		/*
 		let weapon = if w == "" {
 			None
 		} else {
@@ -83,9 +85,8 @@ impl SidebarInfo {
 		} else {
 			Some(f)
 		};
-
-		SidebarInfo { name, ac, curr_hp, max_hp, wheel, bearing, turn, charmed, poisoned, drunkeness,
-			weapon, firearm }
+		*/
+		SidebarInfo { name, turn, }
 	}
 }
 
@@ -160,7 +161,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 	pub fn query_single_response(&mut self, question: &str, sbi: &SidebarInfo) -> Option<char> {
 		let mut m = VecDeque::new();
 		m.push_front(question.to_string());
-		self.write_screen(&mut m);
+		self.write_screen(&mut m, sbi);
 
 		self.wait_for_key_input()
 	}
@@ -175,10 +176,10 @@ impl<'a, 'b> GameUI<'a, 'b> {
 		}
 	}
 
-	pub fn pick_direction(&mut self, msg: &str) -> Option<(i32, i32)> {
+	pub fn pick_direction(&mut self, msg: &str, sbi: &SidebarInfo) -> Option<(i32, i32)> {
 		let mut m = VecDeque::new();
 		m.push_front(String::from(msg));
-		self.write_screen(&mut m);
+		self.write_screen(&mut m, sbi);
 
 		loop {
 			match self.wait_for_key_input() {
@@ -206,7 +207,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 
 			let mut msgs = VecDeque::new();
 			msgs.push_front(s);
-			self.write_screen(&mut msgs);
+			self.write_screen(&mut msgs, sbi);
 
 			match self.wait_for_key_input() {
 				Some('\n') => { break; },
@@ -227,7 +228,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 		}
 	}
 
-	pub fn query_user(&mut self, question: &str, max: u8) -> Option<String> { //, sbi: &SidebarInfo) -> Option<String> {
+	pub fn query_user(&mut self, question: &str, max: u8, sbi: &SidebarInfo) -> Option<String> { 
 		let mut answer = String::from("");
 
 		loop {
@@ -237,7 +238,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 
 			let mut msgs = VecDeque::new();
 			msgs.push_front(s);
-			self.write_screen(&mut msgs);
+			self.write_screen(&mut msgs, sbi);
 
 			match self.wait_for_key_input() {
 				Some('\n') => { break; },
@@ -543,7 +544,6 @@ impl<'a, 'b> GameUI<'a, 'b> {
 	}
 	
 	fn write_sidebar_line(&mut self, line: &str, start_x: i32, row: usize, colour: sdl2::pixels::Color) {
-		/*
 		let surface = self.font.render(line)
 			.blended(colour)
 			.expect("Error rendering sidebar!");
@@ -553,57 +553,20 @@ impl<'a, 'b> GameUI<'a, 'b> {
 		let rect = Rect::new(start_x, (self.font_height * row as u32) as i32, 
 			line.len() as u32 * self.font_width, self.font_height);
 		self.canvas.copy(&texture, None, Some(rect))
-			.expect("Error copying sbi to canvas!");
-		*/
+			.expect("Error copying sbi to canvas!");		
 	}
 
 	fn write_sidebar(&mut self, sbi: &SidebarInfo) {
-		/*
-		let brown = tuple_to_sdl2_color(&BROWN);
-		let grey = tuple_to_sdl2_color(&GREY);
 		let white = tuple_to_sdl2_color(&WHITE);
-		let green = tuple_to_sdl2_color(&GREEN);
-		let gold = tuple_to_sdl2_color(&GOLD);
-
+		
 		let fov_w = (FOV_WIDTH + 1) as i32 * self.font_width as i32; 
 		self.write_sidebar_line(&sbi.name, fov_w, 1, white);
-
-		let s = format!("AC: {}", sbi.ac);
-		self.write_sidebar_line(&s, fov_w, 2, white);
-
-		let s = format!("Stamina: {}({})", sbi.curr_hp, sbi.max_hp);
-		self.write_sidebar_line(&s, fov_w, 3, white);
-
-		let mut line_num = 3;
-		if let Some(weapon) = &sbi.weapon {
-			line_num += 1;
-			self.write_sidebar_line(&weapon, fov_w, line_num, white);
-		}
-		if let Some(firearm) = &sbi.firearm {
-			line_num += 1;
-			self.write_sidebar_line(&firearm, fov_w, line_num, white);
-		}
-
-
+		
 		let s = format!("Turn: {}", sbi.turn);
-		self.write_sidebar_line(&s, fov_w, 21, white);
-
-		let mut l = 20;
-		if sbi.poisoned {
-			self.write_sidebar_line("POISONED", fov_w, l, green);
-			l -= 1;
-		}
-		if sbi.charmed {
-			self.write_sidebar_line("CHARMED", fov_w, l, gold);
-			l -= 1;
-		}
-		if sbi.drunkeness > 20 {
-			self.write_sidebar_line("TIPSY", fov_w, l, brown);
-		}
-		 */
+		self.write_sidebar_line(&s, fov_w, 21, white);		
 	}
 
-	fn draw_frame(&mut self, msg: &str) { //}, sbi: &SidebarInfo) {
+	fn draw_frame(&mut self, msg: &str, sbi: &SidebarInfo) {
 		self.canvas.set_draw_color(BLACK);
 		self.canvas.clear();
 
@@ -652,16 +615,16 @@ impl<'a, 'b> GameUI<'a, 'b> {
 					.expect("Error copying to canvas!");			
 		}
 
-		// if sbi.name != "" {
-		// 	self.write_sidebar(sbi);
-		// }
+		if sbi.name != "" {
+		 	self.write_sidebar(sbi);
+		}
 
 		self.canvas.present();
 	}
 
-	pub fn write_screen(&mut self, msgs: &mut VecDeque<String>) { //}, sbi: &SidebarInfo) {
+	pub fn write_screen(&mut self, msgs: &mut VecDeque<String>, sbi: &SidebarInfo) {
 		if msgs.len() == 0 {
-			self.draw_frame("");
+			self.draw_frame("", sbi);
 		} else {
 			let mut words = VecDeque::new();
 			while msgs.len() > 0 {
@@ -681,7 +644,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 				if s.len() + word.len() + 1 >=  SCREEN_WIDTH as usize - 9 {
 					words.push_front(word);
 					s.push_str("--More--");
-					self.draw_frame(&s);
+					self.draw_frame(&s, sbi);
 					self.pause_for_more();
 					s = String::from("");	
 				} else {
@@ -691,7 +654,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 			}
 
 			if s.len() > 0 {
-				self.draw_frame(&s);
+				self.draw_frame(&s, sbi);
 			}
 		}
 	}

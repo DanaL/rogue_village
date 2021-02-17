@@ -24,7 +24,7 @@ mod map;
 mod util;
 mod wilderness;
 
-use crate::display::{GameUI};
+use crate::display::{GameUI, SidebarInfo};
 
 use std::collections::{VecDeque, HashMap};
 //use std::io::prelude::*;
@@ -104,6 +104,22 @@ impl GameState {
 				self.msg_history.pop_back();
 			}
 		}
+	}
+
+    pub fn curr_sidebar_info(&self) -> SidebarInfo {
+		/*
+		let w = match self.player.inventory.get_equiped_weapon() {
+			None => String::from(""),
+			Some(item) => util::capitalize_word(&item.name),
+		};
+
+		let f = match self.player.inventory.get_equiped_firearm() {
+			None => String::from(""),
+			Some(item) => util::capitalize_word(&item.name),
+		};
+        */
+
+		SidebarInfo::new("Dana".to_string(), self.turn)
 	}
 
     pub fn calc_vision_radius(&mut self) {
@@ -209,7 +225,7 @@ fn do_open(state: &mut GameState, gui: &mut GameUI) {
     if let Some(d) = adjacent_door(state, false) {
         door = d;
     } else {
-        match gui.pick_direction("Open what?") {
+        match gui.pick_direction("Open what?", &state.curr_sidebar_info()) {
             Some(dir) => {
                 let obj_row =  state.player_loc.0 as i32 + dir.0;
                 let obj_col = state.player_loc.1 as i32 + dir.1;
@@ -237,7 +253,7 @@ fn do_close(state: &mut GameState, gui: &mut GameUI) {
     if let Some(d) = adjacent_door(state, true) {
         door = d;
     } else {
-        match gui.pick_direction("Close what?") {
+        match gui.pick_direction("Close what?", &state.curr_sidebar_info()) {
             Some(dir) => {
                 let obj_row =  state.player_loc.0 as i32 + dir.0;
                 let obj_col = state.player_loc.1 as i32 + dir.1;
@@ -306,7 +322,8 @@ fn run(gui: &mut GameUI, state: &mut GameState) {
     state.write_msg_buff("Hello, world?");
 
 	gui.v_matrix = fov::calc_v_matrix(state, FOV_HEIGHT, FOV_WIDTH);
-	gui.write_screen(&mut state.msg_buff);
+    let sbi = state.curr_sidebar_info();
+	gui.write_screen(&mut state.msg_buff, &sbi);
 
     loop {
         let size = FOV_HEIGHT * FOV_WIDTH;
@@ -331,7 +348,8 @@ fn run(gui: &mut GameUI, state: &mut GameState) {
         //println!("Time for fov: {:?}", fov_duration);
 		
         //let write_screen_start = Instant::now();
-        gui.write_screen(&mut state.msg_buff);
+        let sbi = state.curr_sidebar_info();
+        gui.write_screen(&mut state.msg_buff, &sbi);
         //let write_screen_duration = write_screen_start.elapsed();
         //println!("Time for write_screen(): {:?}", write_screen_duration);
     }
@@ -352,6 +370,9 @@ fn main() {
 	state.map = wilderness::test_map();	
 
     title_screen(&mut gui);
-    gui.write_screen(&mut state.msg_buff);
+
+    let sbi = state.curr_sidebar_info();
+    gui.write_screen(&mut state.msg_buff, &sbi);
+    
     run(&mut gui, &mut state);
 }
