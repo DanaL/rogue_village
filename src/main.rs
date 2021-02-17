@@ -51,14 +51,11 @@ pub enum Cmd {
 	ShowCharacterSheet,
 	ToggleEquipment,
 	Pass,
-	TurnWheelClockwise,
-	TurnWheelAnticlockwise,	
-	ToggleAnchor,
-	ToggleHelm,
+	Open,
+    Close,
 	Quaff,
 	FireGun,
 	Reload,
-	WorldMap,
 	Search,
 	Read,
 	Eat,
@@ -176,8 +173,52 @@ fn get_move_tuple(mv: &str) -> (i32, i32) {
 	}
 }
 
+fn do_open(state: &mut GameState, gui: &mut GameUI) {
+    match gui.pick_direction("Open what?") {
+        Some(dir) => {
+            let obj_row =  state.player_loc.0 as i32 + dir.0;
+            let obj_col = state.player_loc.1 as i32 + dir.1;
+            let loc = (obj_row as u16, obj_col as u16, state.player_loc.2);
+            let tile = &state.map[&loc];
+            match tile {
+                map::Tile::Door(true) => state.write_msg_buff("The door is already open!"),
+                map::Tile::Door(false) => {
+                    state.write_msg_buff("You open the door!");
+                    state.map.insert(loc, map::Tile::Door(true));
+                    state.turn += 1;
+                },
+                _ => state.write_msg_buff("You cannot open that!")
+            }
+            state.turn += 1;
+        },
+        None => state.write_msg_buff("Nevermind."),
+    }
+}
+
+fn do_close(state: &mut GameState, gui: &mut GameUI) {
+    match gui.pick_direction("Close what?") {
+        Some(dir) => {
+            let obj_row =  state.player_loc.0 as i32 + dir.0;
+            let obj_col = state.player_loc.1 as i32 + dir.1;
+            let loc = (obj_row as u16, obj_col as u16, state.player_loc.2);
+            let tile = &state.map[&loc];
+            match tile {
+                map::Tile::Door(false) => state.write_msg_buff("The door is already closed!"),
+                map::Tile::Door(true) => {
+                    state.write_msg_buff("You close the door!");
+                    state.map.insert(loc, map::Tile::Door(false));
+                    state.turn += 1;
+                },
+                _ => state.write_msg_buff("You cannot close that!")
+            }
+            state.turn += 1;
+        },
+        None => state.write_msg_buff("Nevermind."),
+    }
+}
+
 fn do_move(state: &mut GameState, dir: &str, gui: &mut GameUI) {
-	let mut mv = get_move_tuple(dir);
+	let mv = get_move_tuple(dir);
 
 	let start_tile = &state.map[&state.player_loc];
 	let next_row = (state.player_loc.0 as i32 + mv.0) as usize;
@@ -234,6 +275,8 @@ fn run(gui: &mut GameUI, state: &mut GameState) {
                 gui.popup_msg("Dale, the Innkeeper", "Welcome to Skara Brae, stranger! You'll find the dungeon in the foothills but watch out for goblins on the way!");
             },
 			Cmd::Move(dir) => do_move(state, &dir, gui),
+            Cmd::Open => do_open(state, gui),
+            Cmd::Close => do_close(state, gui),
             Cmd::Pass => state.turn += 1,
             Cmd::Quit => break,
             _ => continue,

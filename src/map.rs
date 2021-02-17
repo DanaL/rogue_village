@@ -26,6 +26,7 @@ pub enum Tile {
 	Blank,
 	Wall,
 	WoodWall,
+	Door(bool),
 	Tree,
 	Dirt,
 	Grass,
@@ -93,8 +94,8 @@ pub fn is_clear(tile: &Tile) -> bool {
 pub fn is_passable(tile: &Tile) -> bool {
 	match tile {
 		Tile::Wall | Tile::Blank | Tile::WorldEdge |
-		Tile::Mountain | Tile::SnowPeak | Tile::Gate |
-		Tile::WoodWall | Tile::Window(_) => false,
+		Tile::Mountain | Tile::SnowPeak | Tile::Gate | Tile::Door(false) |
+		Tile::WoodWall | Tile::Window(_) => false,		
 		_ => true,
 	}
 }

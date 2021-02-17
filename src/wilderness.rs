@@ -36,10 +36,14 @@ pub fn test_map() -> Map {
 		for ch in line.chars() {
 			let tile = match ch {
 				'^' => Tile::Mountain,
-				'#' => Tile::Tree,
-				'.' => Tile::Dirt,
+				'T' => Tile::Tree,
+				'.' => Tile::StoneFloor,
 				'`' => Tile::Grass,
 				'~' => Tile::DeepWater,
+				'#' => Tile::Wall,
+				'+' => Tile::Door(false),
+				'-' => Tile::Window(ch),
+				'|' => Tile::Window(ch),
 				_ => Tile::Lava, // This shouldn't actually happen...
 			};
 			map.insert((row, col, 0), tile);

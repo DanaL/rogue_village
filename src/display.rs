@@ -175,7 +175,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 		}
 	}
 
-	pub fn pick_direction(&mut self, msg: &str, sbi: &SidebarInfo) -> Option<(i32, i32)> {
+	pub fn pick_direction(&mut self, msg: &str) -> Option<(i32, i32)> {
 		let mut m = VecDeque::new();
 		m.push_front(String::from(msg));
 		self.write_screen(&mut m);
@@ -274,16 +274,12 @@ impl<'a, 'b> GameUI<'a, 'b> {
 							return Cmd::ToggleEquipment;
 						} else if val == "." {
 							return Cmd::Pass;
-						} else if val == "B" {
-							return Cmd::ToggleHelm;
 						} else if val == "q" {
 							return Cmd::Quaff;
 						} else if val == "f" {
 							return Cmd::FireGun;
 						} else if val == "r" {
-							return Cmd::Reload;
-						} else if val == "M" {
-							return Cmd::WorldMap;
+							return Cmd::Reload;						
 						} else if val == "R" {
 							return Cmd::Read;
 						} else if val == "E" {
@@ -296,6 +292,10 @@ impl<'a, 'b> GameUI<'a, 'b> {
                             return Cmd::Use;
                         } else if val == "?" {
 							return Cmd::Help;
+						} else if val == "o" {
+							return Cmd::Open;
+						} else if val == "c" {
+							return Cmd::Close;
 						} else  if val == "k" {
 							return Cmd::Move(String::from("N"));
 						} else if val == "j" {
@@ -506,6 +506,8 @@ impl<'a, 'b> GameUI<'a, 'b> {
 			map::Tile::WoodWall => ('#', tuple_to_sdl2_color(&BROWN)),
 			map::Tile::Tree => ('\u{03D9}', tuple_to_sdl2_color(&GREEN)),
 			map::Tile::Dirt => ('.', tuple_to_sdl2_color(&BROWN)),
+			map::Tile::Door(false) => ('+', tuple_to_sdl2_color(&BROWN)),
+			map::Tile::Door(true) => ('/', tuple_to_sdl2_color(&BROWN)),
 			map::Tile::Grass => ('\u{0316}', tuple_to_sdl2_color(&GREEN)),
 			map::Tile::Player(colour) => ('@', tuple_to_sdl2_color(colour)),
 			map::Tile::Water => ('}', tuple_to_sdl2_color(&LIGHT_BLUE)),
