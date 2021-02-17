@@ -72,7 +72,7 @@ pub struct GameState {
 	map: Map,
     turn: u32,
     vision_radius: u8,
-	player_loc: (u16, u16, i8),
+    player_loc: (u16, u16, i8),
 }
 
 impl GameState {
@@ -83,7 +83,7 @@ impl GameState {
 			map: HashMap::new(),
             turn: 0,
             vision_radius: 30,
-			player_loc: (127, 127, 0),
+            player_loc: (127, 127, 0),
         };
 
         state
@@ -125,6 +125,10 @@ impl GameState {
     pub fn calc_vision_radius(&mut self) {
         let prev_vr = self.vision_radius;
         let curr_time = (self.turn / 100 + 12) % 24;
+
+        // This should be moved to Player struct/impl once that exists
+        // because different backgrounds (human, elf, dwarf, etc) will 
+        // have different default radiuses for different times of the day
         self.vision_radius = if curr_time >= 6 && curr_time <= 19 {
             99
         } else if curr_time >= 20 && curr_time <= 21 {
@@ -139,10 +143,11 @@ impl GameState {
             9
         };
 
-        if prev_vr == 99 && self.vision_radius == 9 {
+        // Announce sunrise and sunset if the player is on the surface
+        if prev_vr == 99 && self.vision_radius == 9 && self.player_loc.2 == 0 {
             self.write_msg_buff("The sun is beginning to set.");
         }
-        if prev_vr == 5 && self.vision_radius == 7 {
+        if prev_vr == 5 && self.vision_radius == 7 && self.player_loc.2 == 0 {
             self.write_msg_buff("Sunrise soon.");
         }
     }
@@ -343,6 +348,7 @@ fn run(gui: &mut GameUI, state: &mut GameState) {
         }
         
         //let fov_start = Instant::now();
+        state.calc_vision_radius();
         gui.v_matrix = fov::calc_v_matrix(state, FOV_HEIGHT, FOV_WIDTH);
         //let fov_duration = fov_start.elapsed();
         //println!("Time for fov: {:?}", fov_duration);
