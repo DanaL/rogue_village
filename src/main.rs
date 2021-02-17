@@ -173,47 +173,90 @@ fn get_move_tuple(mv: &str) -> (i32, i32) {
 	}
 }
 
-fn do_open(state: &mut GameState, gui: &mut GameUI) {
-    match gui.pick_direction("Open what?") {
-        Some(dir) => {
-            let obj_row =  state.player_loc.0 as i32 + dir.0;
-            let obj_col = state.player_loc.1 as i32 + dir.1;
-            let loc = (obj_row as u16, obj_col as u16, state.player_loc.2);
-            let tile = &state.map[&loc];
-            match tile {
-                map::Tile::Door(true) => state.write_msg_buff("The door is already open!"),
-                map::Tile::Door(false) => {
-                    state.write_msg_buff("You open the door!");
-                    state.map.insert(loc, map::Tile::Door(true));
-                    state.turn += 1;
-                },
-                _ => state.write_msg_buff("You cannot open that!")
+fn adjacent_door(state: &mut GameState, closed: bool) -> Option<(u16, u16, i8)> {
+    let mut doors = 0;
+    let mut door: (u16, u16, i8) = (0, 0, 0);
+    for r in -1..2 {
+        for c in -1..2 {
+            if r == 0 && c == 0 {
+                continue;
             }
-            state.turn += 1;
-        },
-        None => state.write_msg_buff("Nevermind."),
+
+            let dr = state.player_loc.0 as i32 + r;
+            let dc = state.player_loc.1 as i32 + c;
+            let loc = (dr as u16, dc as u16, state.player_loc.2);
+            match &state.map[&loc] {
+                map::Tile::Door(open) => {
+                    if *open == closed {
+                        doors += 1;
+                        door = loc;
+                    }
+                },
+                _ => { }
+            }
+        }
+    }
+
+    if doors == 1 {
+        Some(door)
+    } else {
+        None
     }
 }
 
+fn do_open(state: &mut GameState, gui: &mut GameUI) {
+    let mut door = (0, 0, 0);
+    if let Some(d) = adjacent_door(state, false) {
+        door = d;
+    } else {
+        match gui.pick_direction("Open what?") {
+            Some(dir) => {
+                let obj_row =  state.player_loc.0 as i32 + dir.0;
+                let obj_col = state.player_loc.1 as i32 + dir.1;
+                let loc = (obj_row as u16, obj_col as u16, state.player_loc.2);
+                let tile = &state.map[&loc];
+                match tile {
+                    map::Tile::Door(true) => state.write_msg_buff("The door is already open!"),
+                    map::Tile::Door(false) => door = loc,
+                    _ => state.write_msg_buff("You cannot open that!"),
+                }
+                state.turn += 1;
+            },
+            None => state.write_msg_buff("Nevermind."),
+        }
+    }
+    
+    if door != (0, 0, 0) {
+        state.write_msg_buff("You open the door!");
+        state.map.insert(door, map::Tile::Door(true));    
+    }    
+}
+
 fn do_close(state: &mut GameState, gui: &mut GameUI) {
-    match gui.pick_direction("Close what?") {
-        Some(dir) => {
-            let obj_row =  state.player_loc.0 as i32 + dir.0;
-            let obj_col = state.player_loc.1 as i32 + dir.1;
-            let loc = (obj_row as u16, obj_col as u16, state.player_loc.2);
-            let tile = &state.map[&loc];
-            match tile {
-                map::Tile::Door(false) => state.write_msg_buff("The door is already closed!"),
-                map::Tile::Door(true) => {
-                    state.write_msg_buff("You close the door!");
-                    state.map.insert(loc, map::Tile::Door(false));
-                    state.turn += 1;
-                },
-                _ => state.write_msg_buff("You cannot close that!")
-            }
-            state.turn += 1;
-        },
-        None => state.write_msg_buff("Nevermind."),
+    let mut door = (0, 0, 0);
+    if let Some(d) = adjacent_door(state, true) {
+        door = d;
+    } else {
+        match gui.pick_direction("Close what?") {
+            Some(dir) => {
+                let obj_row =  state.player_loc.0 as i32 + dir.0;
+                let obj_col = state.player_loc.1 as i32 + dir.1;
+                let loc = (obj_row as u16, obj_col as u16, state.player_loc.2);
+                let tile = &state.map[&loc];
+                match tile {
+                    map::Tile::Door(false) => state.write_msg_buff("The door is already closed!"),
+                    map::Tile::Door(true) => door = loc,
+                    _ => state.write_msg_buff("You cannot close that!")
+                }
+                state.turn += 1;
+            },
+            None => state.write_msg_buff("Nevermind."),
+        }
+    }
+
+    if door != (0, 0, 0) {
+        state.write_msg_buff("You close the door!");
+        state.map.insert(door, map::Tile::Door(false));
     }
 }
 
