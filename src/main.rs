@@ -132,7 +132,7 @@ impl GameState {
         self.vision_radius = if curr_time >= 6 && curr_time <= 19 {
             99
         } else if curr_time >= 20 && curr_time <= 21 {
-            9
+            8
         } else if curr_time >= 21 && curr_time <= 23 {
             7
         } else if curr_time < 4 {
@@ -151,6 +151,22 @@ impl GameState {
             self.write_msg_buff("Sunrise soon.");
         }
     }
+}
+
+fn show_message_history(state: &GameState, gui: &mut GameUI) {
+	let mut lines = Vec::new();
+	lines.push("".to_string());
+	for j in 0..state.msg_history.len() {
+		let mut s = state.msg_history[j].0.to_string();
+		if state.msg_history[j].1 > 1 {
+			s.push_str(" (x");
+			s.push_str(&state.msg_history[j].1.to_string());
+			s.push_str(")");
+		}
+		lines.push(s);
+	}
+
+	gui.write_long_msg(&lines, true);
 }
 
 fn title_screen(gui: &mut GameUI) {
@@ -344,6 +360,7 @@ fn run(gui: &mut GameUI, state: &mut GameState) {
             Cmd::Close => do_close(state, gui),
             Cmd::Pass => state.turn += 1,
             Cmd::Quit => break,
+            Cmd::MsgHistory => show_message_history(state, gui),
             _ => continue,
         }
         
