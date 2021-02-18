@@ -423,6 +423,201 @@ fn add_extra_doors(level: &mut Vec<Tile>, rooms: &Vec<(Vec<Vec<Tile>>, u16, u16,
     }
 }
 
+fn draw_corridor_north(level: &mut Vec<Tile>, row: usize, col: usize, width: usize) -> bool {
+    let mut pts = vec![row * width + col];
+    let mut dr = row;
+    loop {
+        dr -= 1;        
+        if dr < 2 {
+            return false;
+        }
+        let i = dr * width + col;
+        if level[i - 1] != Tile::Wall || level[i + 1] != Tile::Wall {
+            return false;
+        }
+        pts.push(i);
+        if level[(dr - 1) * width + col] == Tile::StoneFloor {
+            break;
+        }
+    }
+
+    for i in pts {
+        level[i] = Tile::StoneFloor;
+    }
+
+    true
+}
+
+fn draw_corridor_south(level: &mut Vec<Tile>, row: usize, col: usize, width: usize) -> bool {
+    let mut pts = vec![row * width + col];
+    let mut dr = row;
+    let height = level.len() / width;
+    loop {
+        dr += 1;        
+        if dr > height - 2 {
+            return false;
+        }
+        let i = dr * width + col;
+        if level[i - 1] != Tile::Wall || level[i + 1] != Tile::Wall {
+            return false;
+        }
+        pts.push(i);
+        if level[(dr + 1) * width + col] == Tile::StoneFloor {
+            break;
+        }
+    }
+
+    for i in pts {
+        level[i] = Tile::StoneFloor;
+    }
+
+    true
+}
+
+fn draw_corridor_west(level: &mut Vec<Tile>, row: usize, col: usize, width: usize) -> bool {
+    let mut pts = vec![row * width + col];
+    let mut dc = col;
+    loop {
+        dc -= 1;
+        if dc < 3 {
+            return false;
+        }
+        let i = row * width + dc;
+        if level[i - width] != Tile::Wall || level[i + width] != Tile::Wall {
+            return false;
+        }
+        pts.push(i);
+        if level[i - 1] == Tile::StoneFloor {
+            break;
+        }
+    }
+
+    for i in pts {
+        level[i] = Tile::StoneFloor;
+    }
+
+    true
+}
+
+fn draw_corridor_east(level: &mut Vec<Tile>, row: usize, col: usize, width: usize) -> bool {
+    let mut pts = vec![row * width + col];
+    let mut dc = col;
+    loop {
+        dc += 1;
+        if dc >= width - 3 {
+            return false;
+        }
+        let i = row * width + dc;
+        if level[i - width] != Tile::Wall || level[i + width] != Tile::Wall {
+            return false;
+        }
+        pts.push(i);
+        if level[i + 1] == Tile::StoneFloor {
+            break;
+        }
+    }
+
+    for i in pts {
+        level[i] = Tile::StoneFloor;
+    }
+    
+    true
+}
+
+// Once again, we'll look for walls that don't already have an egress
+fn try_to_add_corridor(level: &mut Vec<Tile>, rooms: &Vec<(Vec<Vec<Tile>>, u16, u16, u16, u16, &str)>, width: usize) {
+    let mut rng = rand::thread_rng();
+    for room in rooms {
+        // check east wall
+        let col = room.4 as usize - 1;
+        let mut options = Vec::new();
+        let mut already_connected = false;
+        for row in room.1 as usize + 1..room.3 as usize - 1 {
+            if level[row * width + col - 1] != Tile::StoneFloor {
+                continue;
+            }
+            if level[row * width + col] != Tile::Wall {
+                already_connected = true;                                
+                break;
+            }
+            options.push(row);            
+        }
+        if !already_connected && options.len() > 0 {
+            let x = rng.gen_range(0, options.len());
+            let row = options[x];
+            if draw_corridor_east(level, row, col, width) {
+                return;
+            }
+        }
+        
+        // check west wall
+        let col = room.2 as usize;
+        let mut options = Vec::new();
+        let mut already_connected = false;
+        for row in room.1 as usize + 1..room.3 as usize - 1 {
+            if level[row * width + col + 1] != Tile::StoneFloor {
+                continue;
+            }
+            if level[row * width + col] != Tile::Wall {
+                already_connected = true;                                
+                break;
+            }
+            options.push(row);
+        }
+        if !already_connected && options.len() > 0 {
+            let x = rng.gen_range(0, options.len());
+            let row = options[x];
+            if draw_corridor_west(level, row, col, width) {
+                return;
+            }
+        }
+
+        // check north wall
+        let row = room.1 as usize;
+        let mut options = Vec::new();
+        let mut already_connected = false;
+        for col in room.2 as usize + 1..room.4 as usize - 1 {
+            if level[(row + 1) * width + col] != Tile::StoneFloor {
+                continue;
+            }
+            if level[row * width + col] != Tile::Wall {
+                already_connected = true;
+                break;
+            }
+            options.push(col);
+        }
+        if !already_connected && options.len() > 0 {
+            let x = rng.gen_range(0, options.len());
+            let col = options[x];            
+            if draw_corridor_north(level, row, col, width) {
+                 return;
+            }
+        }
+
+        // check south wall
+        let row = room.3 as usize - 1;
+        let mut options = Vec::new();
+        let mut already_connected = false;
+        for col in room.2 as usize + 1..room.4 as usize - 1 {
+            if level[(row - 1) * width + col] != Tile::StoneFloor {
+                continue;
+            }
+            if level[row * width + col] != Tile::Wall {
+                already_connected = true;
+                break;
+            }
+            options.push(col);
+        }
+        if !already_connected && options.len() > 0 {
+            let x = rng.gen_range(0, options.len());
+            let col = options[x];            
+            if draw_corridor_south(level, row, col, width) {
+                 return;
+            }
+        }
+    }
+}
+
 fn carve(level: &mut Vec<Tile>, width: u16, height: u16) {
     let mut rooms = Vec::new();
     let mut rng = rand::thread_rng();
@@ -447,6 +642,11 @@ fn carve(level: &mut Vec<Tile>, width: u16, height: u16) {
     }
 
     add_extra_doors(level, &rooms, width as usize);
+
+    // try to add up to three extra corridors between rooms
+    for _ in 0..3 {
+        try_to_add_corridor(level, &rooms, width as usize);
+    }
 }
 
 fn dump_level(level: &Vec<Tile>, width: usize, height: usize) {
