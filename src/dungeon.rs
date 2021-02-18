@@ -190,8 +190,6 @@ fn add_doorway_vertical(level: &mut Vec<Tile>, col: usize, lo: usize, hi: usize,
     if options.len() > 0 {        
         let x = rng.gen_range(0, options.len());
         let row = options[x];
-        println!("fuckcunt {:?}", options);
-        println!("cunt {} {} {} {}", lo, hi, row, col);
         if rng.gen_range(0.0, 1.0) < 0.8 {
             level[row * width + col] = Tile::Door(false);
         } else {
@@ -202,7 +200,6 @@ fn add_doorway_vertical(level: &mut Vec<Tile>, col: usize, lo: usize, hi: usize,
         // hallway between the two rooms.        
         let row = (lo + hi) / 2;
         let mut col2 = col;
-        println!("fuck {} {} {} {}", lo, hi, row, col);
         
         while level[row * width + col2] != Tile::StoneFloor {
             level[row * width + col2] = Tile::StoneFloor;
@@ -354,9 +351,39 @@ fn find_spot_for_room(level: &mut Vec<Tile>, rooms: &mut Vec<(Vec<Vec<Tile>>, u1
     false
 }
 
+// The first pass of placing rooms and connecting each new one by an entrance
+// yields a map that has only a single path through it, ie acyclic. It's more 
+// interesting to explore a dungeon with some loops. So this function finds places
+// we can add doors between rooms that aren't currently connected.
+// (These are probably also good candidates for secret doors once I implement those!)
+fn add_extra_doors(level: &mut Vec<Tile>, rooms: &Vec<(Vec<Vec<Tile>>, u16, u16, u16, u16, &str)>, width: usize) {
+    let mut rng = rand::thread_rng();
+    for room in rooms {
+        // check north wall
+        let mut already_connected = false;
+        let mut options = Vec::new();
+        let row = room.1 as usize;
+        for col in room.2 as usize + 1..room.4 as usize - 1 {
+            if level[row * width + col] != Tile::Wall {
+                already_connected = true;
+                break;
+            }
+            if level[(row - 1) * width + col] == Tile::StoneFloor && level[(row + 1) * width + col] == Tile::StoneFloor {
+                options.push(col);
+            }
+        }
+        if !already_connected && options.len() > 0 {
+            let x = rng.gen_range(0, options.len());
+            let col = options[x];
+            level[row * width + col] = Tile::Door(false);
+            continue;
+        }
+    }
+}
+
 fn carve(level: &mut Vec<Tile>, width: u16, height: u16) {
     let mut rooms = Vec::new();
-    let mut rng = rand::thread_rng();    
+    let mut rng = rand::thread_rng();
     let center_row = (height / 2) as i16;
     let center_col = (width / 2) as i16;
     let row = (center_row + rng.gen_range(-10, 10)) as u16;
@@ -370,9 +397,14 @@ fn carve(level: &mut Vec<Tile>, width: u16, height: u16) {
 
     loop {
         let room = pick_room();
-        find_spot_for_room(level, &mut rooms, &room, width as usize);
-        break;
+        // keep trying to add new rooms until we fail to place one and that's probably
+        // enough rooms for a decent dungeon level
+        if !find_spot_for_room(level, &mut rooms, &room, width as usize) {
+            break;
+        }
     }
+
+    add_extra_doors(level, &rooms, width as usize);
 }
 
 fn dump_level(level: &Vec<Tile>, width: usize, height: usize) {
