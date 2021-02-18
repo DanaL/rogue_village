@@ -326,8 +326,6 @@ fn place_room(level: &mut Vec<Tile>, rooms: &mut Vec<(Vec<Vec<Tile>>, u16, u16, 
                 }
             }
         }
-
-        //break;
     }
     
     false
@@ -665,14 +663,33 @@ fn dump_level(level: &Vec<Tile>, width: usize, height: usize) {
 }
 
 pub fn draw_level(width: u16, height: u16) -> Vec<Tile> {
-    let mut level = Vec::new();
+    let mut level;
     
-    for _ in 0..width*height {
-        level.push(Tile::Wall);
+    // Loop unitl we generate a level with sufficient open space. 35% seems
+    // to be decently full maps. Alternatively, I could have just kept trying
+    // to add rooms until the level was sufficiently full, but this is simpler
+    // and 80% of the time a generated map is more thna 35% open squares.
+    loop {
+        level = Vec::new();
+        for _ in 0..width*height {
+            level.push(Tile::Wall);
+        }
+
+        carve(&mut level, width, height);
+
+        let mut non_walls = 0;
+        for &sq in &level {
+            if sq != Tile::Wall {
+                non_walls += 1;
+            }
+        }
+        let ratio = non_walls as f32 / level.len() as f32;
+        if ratio > 0.35 {
+            break;
+        }
     }
 
-    carve(&mut level, width, height);
-
-    dump_level(&level, width as usize, height as usize);
+    //dump_level(&level, width as usize, height as usize);
+    
     level
 }

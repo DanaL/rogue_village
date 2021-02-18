@@ -391,8 +391,14 @@ fn main() {
 		.expect("Error initializing GameUI object.");
 
     let mut state = GameState::init();
-	state.map = wilderness::test_map();	
-    dungeon::draw_level(125, 40);
+	state.map = wilderness::test_map();
+
+    let start = Instant::now();
+    for _ in 0..20 {
+        dungeon::draw_level(125, 40);
+    }
+    let time = start.elapsed();
+    println!("Time to make 20 dungeon levels: {:?}", time);
 
     title_screen(&mut gui);
 
