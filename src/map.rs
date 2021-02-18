@@ -21,7 +21,7 @@ use std::collections::HashSet;
 use std::f32;
 use rand::Rng;
 
-#[derive(Debug, Clone, Hash, Eq, PartialEq)]
+#[derive(Debug, Clone, Hash, Eq, PartialEq, Copy)]
 pub enum Tile {
 	Blank,
 	Wall,

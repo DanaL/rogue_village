@@ -19,6 +19,7 @@ extern crate rand;
 extern crate sdl2;
 
 mod display;
+mod dungeon;
 mod fov;
 mod map;
 mod util;
@@ -391,7 +392,8 @@ fn main() {
 
     let mut state = GameState::init();
 	state.map = wilderness::test_map();	
-
+    dungeon::make_level(125, 40);
+    
     title_screen(&mut gui);
 
     let sbi = state.curr_sidebar_info();
