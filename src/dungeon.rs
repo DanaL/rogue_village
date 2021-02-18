@@ -13,7 +13,6 @@
 // You should have received a copy of the GNU General Public License
 // along with RogueVillage.  If not, see <https://www.gnu.org/licenses/>.
 
-use core::num;
 use std::u16;
 
 use rand::thread_rng;
