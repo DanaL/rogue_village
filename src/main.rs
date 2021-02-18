@@ -395,10 +395,10 @@ fn main() {
 
     let start = Instant::now();
     for _ in 0..20 {
-        dungeon::draw_level(125, 40);
+        dungeon::draw_level(125, 40);    
     }
     let time = start.elapsed();
-    println!("Time to make 20 dungeon levels: {:?}", time);
+    println!("Time to make dungeon levels: {:?}", time);
 
     title_screen(&mut gui);
 

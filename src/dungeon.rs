@@ -13,6 +13,7 @@
 // You should have received a copy of the GNU General Public License
 // along with RogueVillage.  If not, see <https://www.gnu.org/licenses/>.
 
+use std::collections::{HashSet};
 use std::u16;
 
 use rand::thread_rng;
@@ -121,14 +122,15 @@ fn draw_room(level: &mut Vec<Tile>, row: usize, col: usize, room: &Vec<Vec<Tile>
     }
 }
 
+// (start_row, end_row, start_col, end_col)
 fn room_fits(level: &mut Vec<Tile>, bounds: (i32, i32, i32, i32), width: usize) -> bool {    
     if bounds.0 <= 0 {
         return false;
-    } else if bounds.1 as usize >= level.len() / width {
+    } else if bounds.1 as usize >= level.len() / width - 1 {
         return false;
-    } else if bounds.2 <= 0 {
+    } else if bounds.2 <= 1 {
         return false;
-    } else if bounds.3 as usize >= width {
+    } else if bounds.3 as usize >= width - 1 {
         return false;
     }
 
@@ -357,6 +359,10 @@ fn add_extra_door_to_horizontal_wall(level: &mut Vec<Tile>, width: usize, row: u
             already_connected = true;
             break;
         }
+
+        if (row + 1) * width + col >= level.len() {
+            println!("Hmm this shouldn't happen {} {} {}", row, col, (row + 1) * width + col);
+        }
         if level[(row - 1) * width + col] == Tile::StoneFloor && level[(row + 1) * width + col] == Tile::StoneFloor {
             options.push(col);
         }
@@ -400,13 +406,14 @@ fn add_extra_door_to_vertical_wall(level: &mut Vec<Tile>, width: usize, col: usi
 // we can add doors between rooms that aren't currently connected.
 // (These are probably also good candidates for secret doors once I implement those!)
 fn add_extra_doors(level: &mut Vec<Tile>, rooms: &Vec<(Vec<Vec<Tile>>, u16, u16, u16, u16, &str)>, width: usize) {    
+    let height = level.len() / width;
+
     for room in rooms {
         // check north wall
         if add_extra_door_to_horizontal_wall(level, width, room.1 as usize, room.2 as usize + 1,room.4 as usize - 1)  {
             continue;
-        }
-        // check south wall
-        if add_extra_door_to_horizontal_wall(level, width, room.3 as usize - 1, room.2 as usize + 1,room.4 as usize - 1)  {
+        }        
+        if (room.3 as usize) < height - 2 && add_extra_door_to_horizontal_wall(level, width, room.3 as usize - 1, room.2 as usize + 1,room.4 as usize - 1)  {
             continue;
         }
         // check west wall
@@ -620,7 +627,7 @@ fn carve(level: &mut Vec<Tile>, width: u16, height: u16) {
     let mut rng = rand::thread_rng();
     let center_row = (height / 2) as i16;
     let center_col = (width / 2) as i16;
-    let row = (center_row + rng.gen_range(-10, 10)) as u16;
+    let row = (center_row + rng.gen_range(-6, 6)) as u16;
     let col = (center_col + rng.gen_range(-10, 10)) as u16;
 
     // Draw the starting room to the dungeon map. (This is just the first room we make on the
@@ -662,6 +669,9 @@ fn dump_level(level: &Vec<Tile>, width: usize, height: usize) {
     }
 }
 
+// I originally had a floodfill check to make sure the level was fully connected 
+// but after generating 100,000 levels and not hitting a single disjoint map, I 
+//dropped the check.
 pub fn draw_level(width: u16, height: u16) -> Vec<Tile> {
     let mut level;
     
