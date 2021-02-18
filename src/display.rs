@@ -538,6 +538,8 @@ impl<'a, 'b> GameUI<'a, 'b> {
 					('^', tuple_to_sdl2_color(&WHITE))
 				}
 			},
+			map::Tile::StairsUp => ('<', tuple_to_sdl2_color(&GREY)),
+			map::Tile::StairsDown => ('>', tuple_to_sdl2_color(&GREY)),
 		};
 
 		ti
@@ -558,7 +560,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 
 	fn write_sidebar(&mut self, sbi: &SidebarInfo) {
 		let white = tuple_to_sdl2_color(&WHITE);
-		
+
 		let fov_w = (FOV_WIDTH + 1) as i32 * self.font_width as i32; 
 		self.write_sidebar_line(&sbi.name, fov_w, 1, white);
 		

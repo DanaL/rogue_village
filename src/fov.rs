@@ -136,7 +136,7 @@ fn mark_visible(r1: i32, c1: i32, r2: i32, c2: i32,
 				break;
 			}
 
-			if !state.map.contains_key(&(r as u16, c as u16, depth)) {
+			if !state.map.contains_key(&(r, c, depth)) {
 				return;
 			}
 
@@ -145,7 +145,7 @@ fn mark_visible(r1: i32, c1: i32, r2: i32, c2: i32,
             let vmi = (vm_r * width as i32 + vm_c) as usize;
 			v_matrix[vmi] = true;
 
-			if !map::is_clear(&state.map[&(r as u16, c as u16, depth)]) {
+			if !map::is_clear(&state.map[&(r, c, depth)]) {
 				return;
 			}
 
@@ -177,7 +177,7 @@ fn mark_visible(r1: i32, c1: i32, r2: i32, c2: i32,
 				break;
 			}
 
-			if !state.map.contains_key(&(r as u16, c as u16, depth)) {
+			if !state.map.contains_key(&(r, c, depth)) {
 				return;
 			}
 
@@ -186,7 +186,7 @@ fn mark_visible(r1: i32, c1: i32, r2: i32, c2: i32,
             let vmi = (vm_r * width as i32 + vm_c) as usize;
 			v_matrix[vmi] = true;
 
-			if !map::is_clear(&state.map[&(r as u16, c as u16, depth)]) {
+			if !map::is_clear(&state.map[&(r, c, depth)]) {
 				return;
 			}
 		
@@ -275,8 +275,8 @@ pub fn calc_v_matrix(
             if visible[j] {
                 let row = pr - fov_center_r as i32 + r as i32;
                 let col = pc - fov_center_c as i32 + c as i32;
-				if state.map.contains_key(&(row as u16, col as u16, state.player_loc.2)) {
-					v_matrix[j] = state.map[&(row as u16, col as u16, state.player_loc.2)].clone();
+				if state.map.contains_key(&(row, col, state.player_loc.2)) {
+					v_matrix[j] = state.map[&(row, col, state.player_loc.2)].clone();
                 }
             }
         }

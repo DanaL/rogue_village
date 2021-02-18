@@ -24,6 +24,7 @@ mod fov;
 mod map;
 mod util;
 mod wilderness;
+mod world;
 
 use crate::display::{GameUI, SidebarInfo};
 
@@ -40,7 +41,7 @@ const MSG_HISTORY_LENGTH: usize = 50;
 const FOV_WIDTH: usize = 41;
 const FOV_HEIGHT: usize = 21;
 
-pub type Map = HashMap<(u16, u16, i8), map::Tile>;
+pub type Map = HashMap<(i32, i32, i8), map::Tile>;
 
 pub enum Cmd {
 	Quit,
@@ -73,7 +74,7 @@ pub struct GameState {
 	map: Map,
     turn: u32,
     vision_radius: u8,
-    player_loc: (u16, u16, i8),
+    player_loc: (i32, i32, i8),
 }
 
 impl GameState {
@@ -211,9 +212,9 @@ fn get_move_tuple(mv: &str) -> (i32, i32) {
 	}
 }
 
-fn adjacent_door(state: &mut GameState, closed: bool) -> Option<(u16, u16, i8)> {
+fn adjacent_door(state: &mut GameState, closed: bool) -> Option<(i32, i32, i8)> {
     let mut doors = 0;
-    let mut door: (u16, u16, i8) = (0, 0, 0);
+    let mut door: (i32, i32, i8) = (0, 0, 0);
     for r in -1..2 {
         for c in -1..2 {
             if r == 0 && c == 0 {
@@ -222,7 +223,7 @@ fn adjacent_door(state: &mut GameState, closed: bool) -> Option<(u16, u16, i8)> 
 
             let dr = state.player_loc.0 as i32 + r;
             let dc = state.player_loc.1 as i32 + c;
-            let loc = (dr as u16, dc as u16, state.player_loc.2);
+            let loc = (dr, dc, state.player_loc.2);
             match &state.map[&loc] {
                 map::Tile::Door(open) => {
                     if *open == closed {
@@ -251,7 +252,7 @@ fn do_open(state: &mut GameState, gui: &mut GameUI) {
             Some(dir) => {
                 let obj_row =  state.player_loc.0 as i32 + dir.0;
                 let obj_col = state.player_loc.1 as i32 + dir.1;
-                let loc = (obj_row as u16, obj_col as u16, state.player_loc.2);
+                let loc = (obj_row, obj_col, state.player_loc.2);
                 let tile = &state.map[&loc];
                 match tile {
                     map::Tile::Door(true) => state.write_msg_buff("The door is already open!"),
@@ -279,7 +280,7 @@ fn do_close(state: &mut GameState, gui: &mut GameUI) {
             Some(dir) => {
                 let obj_row =  state.player_loc.0 as i32 + dir.0;
                 let obj_col = state.player_loc.1 as i32 + dir.1;
-                let loc = (obj_row as u16, obj_col as u16, state.player_loc.2);
+                let loc = (obj_row, obj_col, state.player_loc.2);
                 let tile = &state.map[&loc];
                 match tile {
                     map::Tile::Door(false) => state.write_msg_buff("The door is already closed!"),
@@ -302,9 +303,9 @@ fn do_move(state: &mut GameState, dir: &str, gui: &mut GameUI) {
 	let mv = get_move_tuple(dir);
 
 	let start_tile = &state.map[&state.player_loc];
-	let next_row = (state.player_loc.0 as i32 + mv.0) as usize;
-	let next_col = (state.player_loc.1 as i32 + mv.1) as usize;
-	let next_loc = (next_row as u16, next_col as u16, state.player_loc.2);
+	let next_row = state.player_loc.0 + mv.0;
+	let next_col = state.player_loc.1 + mv.1;
+	let next_loc = (next_row, next_col, state.player_loc.2);
 	let tile = &state.map[&next_loc].clone();
 	
 	if map::is_passable(tile) {
@@ -391,15 +392,13 @@ fn main() {
 		.expect("Error initializing GameUI object.");
 
     let mut state = GameState::init();
-	state.map = wilderness::test_map();
+	state.map = world::generate_world();
 
-    let start = Instant::now();
+    // 
     for _ in 0..20 {
         dungeon::draw_level(125, 40);    
     }
-    let time = start.elapsed();
-    println!("Time to make dungeon levels: {:?}", time);
-
+    
     title_screen(&mut gui);
 
     let sbi = state.curr_sidebar_info();
