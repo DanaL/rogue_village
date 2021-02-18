@@ -351,31 +351,73 @@ fn find_spot_for_room(level: &mut Vec<Tile>, rooms: &mut Vec<(Vec<Vec<Tile>>, u1
     false
 }
 
+fn add_extra_door_to_horizontal_wall(level: &mut Vec<Tile>, width: usize, row: usize, col_lo: usize, col_hi: usize) -> bool {
+    let mut rng = rand::thread_rng();
+    let mut already_connected = false;
+    let mut options = Vec::new();
+    for col in col_lo..col_hi {
+        if level[row * width + col] != Tile::Wall {
+            already_connected = true;
+            break;
+        }
+        if level[(row - 1) * width + col] == Tile::StoneFloor && level[(row + 1) * width + col] == Tile::StoneFloor {
+            options.push(col);
+        }
+    }
+    if !already_connected && options.len() > 0 {
+        let x = rng.gen_range(0, options.len());
+        let col = options[x];
+        level[row * width + col] = Tile::Door(false);
+        return true;
+    }
+
+    false
+}
+
+fn add_extra_door_to_vertical_wall(level: &mut Vec<Tile>, width: usize, col: usize, row_lo: usize, row_hi: usize) -> bool {
+    let mut rng = rand::thread_rng();
+    let mut already_connected = false;
+    let mut options = Vec::new();
+    for row in row_lo..row_hi {
+        if level[row * width + col] != Tile::Wall {
+            already_connected = true;
+            break;
+        }
+        if level[row * width + col - 1] == Tile::StoneFloor && level[row * width + col + 1] == Tile::StoneFloor {
+            options.push(row);
+        }
+    }
+    if !already_connected && options.len() > 0 {
+        let x = rng.gen_range(0, options.len());
+        let row = options[x];
+        level[row * width + col] = Tile::Door(false);
+        return true;
+    }
+
+    false
+}
+
 // The first pass of placing rooms and connecting each new one by an entrance
 // yields a map that has only a single path through it, ie acyclic. It's more 
 // interesting to explore a dungeon with some loops. So this function finds places
 // we can add doors between rooms that aren't currently connected.
 // (These are probably also good candidates for secret doors once I implement those!)
-fn add_extra_doors(level: &mut Vec<Tile>, rooms: &Vec<(Vec<Vec<Tile>>, u16, u16, u16, u16, &str)>, width: usize) {
-    let mut rng = rand::thread_rng();
+fn add_extra_doors(level: &mut Vec<Tile>, rooms: &Vec<(Vec<Vec<Tile>>, u16, u16, u16, u16, &str)>, width: usize) {    
     for room in rooms {
         // check north wall
-        let mut already_connected = false;
-        let mut options = Vec::new();
-        let row = room.1 as usize;
-        for col in room.2 as usize + 1..room.4 as usize - 1 {
-            if level[row * width + col] != Tile::Wall {
-                already_connected = true;
-                break;
-            }
-            if level[(row - 1) * width + col] == Tile::StoneFloor && level[(row + 1) * width + col] == Tile::StoneFloor {
-                options.push(col);
-            }
+        if add_extra_door_to_horizontal_wall(level, width, room.1 as usize, room.2 as usize + 1,room.4 as usize - 1)  {
+            continue;
         }
-        if !already_connected && options.len() > 0 {
-            let x = rng.gen_range(0, options.len());
-            let col = options[x];
-            level[row * width + col] = Tile::Door(false);
+        // check south wall
+        if add_extra_door_to_horizontal_wall(level, width, room.3 as usize - 1, room.2 as usize + 1,room.4 as usize - 1)  {
+            continue;
+        }
+        // check west wall
+        if add_extra_door_to_vertical_wall(level, width, room.2 as usize, room.1 as usize + 1, room.3 as usize - 1) {
+            continue;
+        }
+        // check east wall
+        if add_extra_door_to_vertical_wall(level, width, room.4 as usize - 1, room.1 as usize + 1, room.3 as usize - 1) {
             continue;
         }
     }
@@ -423,7 +465,7 @@ fn dump_level(level: &Vec<Tile>, width: usize, height: usize) {
     }
 }
 
-pub fn make_level(width: u16, height: u16) -> Vec<Tile> {
+pub fn draw_level(width: u16, height: u16) -> Vec<Tile> {
     let mut level = Vec::new();
     
     for _ in 0..width*height {

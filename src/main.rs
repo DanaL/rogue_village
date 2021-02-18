@@ -392,8 +392,8 @@ fn main() {
 
     let mut state = GameState::init();
 	state.map = wilderness::test_map();	
-    dungeon::make_level(125, 40);
-    
+    dungeon::draw_level(125, 40);
+
     title_screen(&mut gui);
 
     let sbi = state.curr_sidebar_info();
