@@ -394,11 +394,6 @@ fn main() {
     let mut state = GameState::init();
 	state.map = world::generate_world();
 
-    // 
-    for _ in 0..20 {
-        dungeon::draw_level(125, 40);    
-    }
-    
     title_screen(&mut gui);
 
     let sbi = state.curr_sidebar_info();

@@ -21,7 +21,7 @@ use rand::seq::SliceRandom;
 
 use crate::map::Tile;
 
-fn pick_room() -> (Vec<Vec<Tile>>, u16, u16) {
+fn pick_room() -> (Vec<Vec<Tile>>, usize, usize) {
     let mut rng = rand::thread_rng();
     let rn = rng.gen_range(0.0, 1.0);
     let mut height;
@@ -95,7 +95,7 @@ fn pick_room() -> (Vec<Vec<Tile>>, u16, u16) {
         }
     }
 
-    (room, height as u16, width as u16)
+    (room, height, width)
 }
 
 fn copy_room(room: &Vec<Vec<Tile>>) -> Vec<Vec<Tile>> {
@@ -213,8 +213,8 @@ fn add_doorway_vertical(level: &mut Vec<Tile>, col: usize, lo: usize, hi: usize,
     }
 }
 
-fn place_room(level: &mut Vec<Tile>, rooms: &mut Vec<(Vec<Vec<Tile>>, u16, u16, u16, u16, &str)>,
-    parent_index: usize, room: &(Vec<Vec<Tile>>, u16, u16), width: usize) -> bool {
+fn place_room(level: &mut Vec<Tile>, rooms: &mut Vec<(Vec<Vec<Tile>>, usize, usize, usize, usize, &str)>,
+    parent_index: usize, room: &(Vec<Vec<Tile>>, usize, usize), width: usize) -> bool {
 
     let mut rng = thread_rng();
     let mut sides = vec!['n', 's', 'e', 'w'];
@@ -234,17 +234,17 @@ fn place_room(level: &mut Vec<Tile>, rooms: &mut Vec<(Vec<Vec<Tile>>, u16, u16, 
                 if room_fits(level, bounds, width) {
                     let new_room = copy_room(&room.0);
                     draw_room(level, start_row as usize, start_col as usize, &new_room, width);
-                    rooms.push((new_room, start_row as u16, start_col as u16, end_row as u16, end_col as u16, "N"));
+                    rooms.push((new_room, start_row as usize, start_col as usize, end_row as usize, end_col as usize, "N"));
                     
-                    let lo = if rooms[parent_index].2 + 1 > start_col as u16 {
+                    let lo = if rooms[parent_index].2 + 1 > start_col as usize {
                         rooms[parent_index].2 + 1
                     } else {
-                        start_col as u16
+                        start_col as usize
                     };
-                    let hi = if rooms[parent_index].4 - 1 < end_col as u16 {
+                    let hi = if rooms[parent_index].4 - 1 < end_col as usize {
                         rooms[parent_index].4 - 1
                     } else {
-                        end_col as u16
+                        end_col as usize
                     };
                     add_doorway_horizonal(level, end_row as usize - 1, lo as usize, hi as usize, width);
                     return true;
@@ -260,17 +260,17 @@ fn place_room(level: &mut Vec<Tile>, rooms: &mut Vec<(Vec<Vec<Tile>>, u16, u16, 
                 if room_fits(level, bounds, width) {
                     let new_room = copy_room(&room.0);
                     draw_room(level, start_row as usize, start_col as usize, &new_room, width);
-                    rooms.push((new_room, start_row as u16, start_col as u16, end_row as u16, end_col as u16, "S"));
+                    rooms.push((new_room, start_row as usize, start_col as usize, end_row as usize, end_col as usize, "S"));
                     
-                    let lo = if rooms[parent_index].2 + 1 > start_col as u16 {
+                    let lo = if rooms[parent_index].2 + 1 > start_col as usize {
                         rooms[parent_index].2 + 1
                     } else {
-                        start_col as u16
+                        start_col as usize
                     };
-                    let hi = if rooms[parent_index].4 - 1 < end_col as u16 {
+                    let hi = if rooms[parent_index].4 - 1 < end_col as usize {
                         rooms[parent_index].4 - 1
                     } else {
-                        end_col as u16
+                        end_col as usize
                     };
                     add_doorway_horizonal(level, start_row as usize, lo as usize, hi as usize, width);
                     return true;
@@ -286,16 +286,16 @@ fn place_room(level: &mut Vec<Tile>, rooms: &mut Vec<(Vec<Vec<Tile>>, u16, u16, 
                 if room_fits(level, bounds, width) {
                     let new_room = copy_room(&room.0);
                     draw_room(level, start_row as usize, start_col as usize, &new_room, width);
-                    rooms.push((new_room, start_row as u16, start_col as u16, end_row as u16, end_col as u16, "W"));
-                    let lo = if rooms[parent_index].1 + 1 > start_row as u16 {
+                    rooms.push((new_room, start_row as usize, start_col as usize, end_row as usize, end_col as usize, "W"));
+                    let lo = if rooms[parent_index].1 + 1 > start_row as usize {
                         rooms[parent_index].1 + 1
                     } else {
-                        start_row as u16
+                        start_row as usize
                     };
-                    let hi = if rooms[parent_index].3 - 1 < end_row as u16 {
+                    let hi = if rooms[parent_index].3 - 1 < end_row as usize {
                         rooms[parent_index].3 - 1
                     } else {
-                        end_row as u16
+                        end_row as usize
                     };
                     add_doorway_vertical(level, end_col as usize - 1, lo as usize, hi as usize, width);
                     return true;
@@ -311,16 +311,16 @@ fn place_room(level: &mut Vec<Tile>, rooms: &mut Vec<(Vec<Vec<Tile>>, u16, u16, 
                 if room_fits(level, bounds, width) {
                     let new_room = copy_room(&room.0);
                     draw_room(level, start_row as usize, start_col as usize, &new_room, width);
-                    rooms.push((new_room, start_row as u16, start_col as u16, end_row as u16, end_col as u16, "E"));
-                    let lo = if rooms[parent_index].1 + 1 > start_row as u16 {
+                    rooms.push((new_room, start_row as usize, start_col as usize, end_row as usize, end_col as usize, "E"));
+                    let lo = if rooms[parent_index].1 + 1 > start_row as usize {
                         rooms[parent_index].1 + 1
                     } else {
-                        start_row as u16
+                        start_row as usize
                     };
-                    let hi = if rooms[parent_index].3 - 1 < end_row as u16 {
+                    let hi = if rooms[parent_index].3 - 1 < end_row as usize {
                         rooms[parent_index].3 - 1
                     } else {
-                        end_row as u16
+                        end_row as usize
                     };
                     add_doorway_vertical(level, start_col as usize, lo as usize, hi as usize, width);
                     return true;
@@ -332,8 +332,8 @@ fn place_room(level: &mut Vec<Tile>, rooms: &mut Vec<(Vec<Vec<Tile>>, u16, u16, 
     false
 }
 
-fn find_spot_for_room(level: &mut Vec<Tile>, rooms: &mut Vec<(Vec<Vec<Tile>>, u16, u16, u16, u16, &str)>,
-                            room: &(Vec<Vec<Tile>>, u16, u16), width: usize) -> bool {
+fn find_spot_for_room(level: &mut Vec<Tile>, rooms: &mut Vec<(Vec<Vec<Tile>>, usize, usize, usize, usize, &str)>,
+                            room: &(Vec<Vec<Tile>>, usize, usize), width: usize) -> bool {
     // We want to try every room in the dungeon so far to see if we can attach the new room to it
     let mut rng = thread_rng();
     let mut tries: Vec<usize> = (0..rooms.len()).collect();
@@ -404,23 +404,23 @@ fn add_extra_door_to_vertical_wall(level: &mut Vec<Tile>, width: usize, col: usi
 // interesting to explore a dungeon with some loops. So this function finds places
 // we can add doors between rooms that aren't currently connected.
 // (These are probably also good candidates for secret doors once I implement those!)
-fn add_extra_doors(level: &mut Vec<Tile>, rooms: &Vec<(Vec<Vec<Tile>>, u16, u16, u16, u16, &str)>, width: usize) {    
+fn add_extra_doors(level: &mut Vec<Tile>, rooms: &Vec<(Vec<Vec<Tile>>, usize, usize, usize, usize, &str)>, width: usize) {    
     let height = level.len() / width;
 
     for room in rooms {
         // check north wall
-        if add_extra_door_to_horizontal_wall(level, width, room.1 as usize, room.2 as usize + 1,room.4 as usize - 1)  {
+        if add_extra_door_to_horizontal_wall(level, width, room.1, room.2 + 1,room.4 - 1)  {
             continue;
         }        
-        if (room.3 as usize) < height - 2 && add_extra_door_to_horizontal_wall(level, width, room.3 as usize - 1, room.2 as usize + 1,room.4 as usize - 1)  {
+        if (room.3 as usize) < height - 2 && add_extra_door_to_horizontal_wall(level, width, room.3 - 1, room.2 + 1,room.4 - 1)  {
             continue;
         }
         // check west wall
-        if add_extra_door_to_vertical_wall(level, width, room.2 as usize, room.1 as usize + 1, room.3 as usize - 1) {
+        if add_extra_door_to_vertical_wall(level, width, room.2, room.1 + 1, room.3 - 1) {
             continue;
         }
         // check east wall
-        if add_extra_door_to_vertical_wall(level, width, room.4 as usize - 1, room.1 as usize + 1, room.3 as usize - 1) {
+        if add_extra_door_to_vertical_wall(level, width, room.4 - 1, room.1 + 1, room.3 - 1) {
             continue;
         }
     }
@@ -528,14 +528,14 @@ fn draw_corridor_east(level: &mut Vec<Tile>, row: usize, col: usize, width: usiz
 }
 
 // Once again, we'll look for walls that don't already have an egress
-fn try_to_add_corridor(level: &mut Vec<Tile>, rooms: &Vec<(Vec<Vec<Tile>>, u16, u16, u16, u16, &str)>, width: usize) {
+fn try_to_add_corridor(level: &mut Vec<Tile>, rooms: &Vec<(Vec<Vec<Tile>>, usize, usize, usize, usize, &str)>, width: usize) {
     let mut rng = rand::thread_rng();
     for room in rooms {
         // check east wall
-        let col = room.4 as usize - 1;
+        let col = room.4 - 1;
         let mut options = Vec::new();
         let mut already_connected = false;
-        for row in room.1 as usize + 1..room.3 as usize - 1 {
+        for row in room.1 + 1..room.3 - 1 {
             if level[row * width + col - 1] != Tile::StoneFloor {
                 continue;
             }
@@ -554,10 +554,10 @@ fn try_to_add_corridor(level: &mut Vec<Tile>, rooms: &Vec<(Vec<Vec<Tile>>, u16, 
         }
         
         // check west wall
-        let col = room.2 as usize;
+        let col = room.2;
         let mut options = Vec::new();
         let mut already_connected = false;
-        for row in room.1 as usize + 1..room.3 as usize - 1 {
+        for row in room.1 + 1..room.3 - 1 {
             if level[row * width + col + 1] != Tile::StoneFloor {
                 continue;
             }
@@ -576,10 +576,10 @@ fn try_to_add_corridor(level: &mut Vec<Tile>, rooms: &Vec<(Vec<Vec<Tile>>, u16, 
         }
 
         // check north wall
-        let row = room.1 as usize;
+        let row = room.1;
         let mut options = Vec::new();
         let mut already_connected = false;
-        for col in room.2 as usize + 1..room.4 as usize - 1 {
+        for col in room.2 + 1..room.4 - 1 {
             if level[(row + 1) * width + col] != Tile::StoneFloor {
                 continue;
             }
@@ -598,10 +598,10 @@ fn try_to_add_corridor(level: &mut Vec<Tile>, rooms: &Vec<(Vec<Vec<Tile>>, u16, 
         }
 
         // check south wall
-        let row = room.3 as usize - 1;
+        let row = room.3 - 1;
         let mut options = Vec::new();
         let mut already_connected = false;
-        for col in room.2 as usize + 1..room.4 as usize - 1 {
+        for col in room.2 + 1..room.4 - 1 {
             if level[(row - 1) * width + col] != Tile::StoneFloor {
                 continue;
             }
@@ -621,13 +621,13 @@ fn try_to_add_corridor(level: &mut Vec<Tile>, rooms: &Vec<(Vec<Vec<Tile>>, u16, 
     }
 }
 
-fn carve(level: &mut Vec<Tile>, width: u16, height: u16) {
+fn carve(level: &mut Vec<Tile>, width: usize, height: usize) {
     let mut rooms = Vec::new();
     let mut rng = rand::thread_rng();
     let center_row = (height / 2) as i16;
     let center_col = (width / 2) as i16;
-    let row = (center_row + rng.gen_range(-6, 6)) as u16;
-    let col = (center_col + rng.gen_range(-10, 10)) as u16;
+    let row = (center_row + rng.gen_range(-6, 6)) as usize;
+    let col = (center_col + rng.gen_range(-10, 10)) as usize;
 
     // Draw the starting room to the dungeon map. (This is just the first room we make on the
     // level, not necessaily the entrance room)
@@ -671,7 +671,7 @@ fn dump_level(level: &Vec<Tile>, width: usize, height: usize) {
 // I originally had a floodfill check to make sure the level was fully connected 
 // but after generating 100,000 levels and not hitting a single disjoint map, I 
 //dropped the check.
-pub fn draw_level(width: u16, height: u16) -> Vec<Tile> {
+pub fn draw_level(width: usize, height: usize) -> Vec<Tile> {
     let mut level;
     
     // Loop unitl we generate a level with sufficient open space. 35% seems
@@ -698,7 +698,7 @@ pub fn draw_level(width: u16, height: u16) -> Vec<Tile> {
         }
     }
 
-    //dump_level(&level, width as usize, height as usize);
+    dump_level(&level, width as usize, height as usize);
     
     level
 }
