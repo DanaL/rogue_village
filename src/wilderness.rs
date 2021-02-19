@@ -16,12 +16,10 @@
 use std::collections::HashMap;
 use std::fs;
 
-use rand::thread_rng;
-use rand::Rng;
+use rand::{Rng, thread_rng};
 
 use super::Map;
 
-use crate::map;
 use crate::map::Tile;
 
 pub fn test_map() -> Map {
@@ -35,7 +33,12 @@ pub fn test_map() -> Map {
 		let mut col = 0;		
 		for ch in line.chars() {
 			let tile = match ch {
-				'^' => Tile::Mountain,
+				'^' => 
+					if thread_rng().gen_range(0.0, 1.0) < 0.9 {
+						Tile::Mountain
+					} else {
+						Tile::SnowPeak
+					},
 				'T' => Tile::Tree,
 				'.' => Tile::StoneFloor,
 				'`' => Tile::Grass,
