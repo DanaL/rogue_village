@@ -69,7 +69,7 @@ fn find_valley(map: &Map, start_loc: (i32, i32, i8)) -> HashSet<(i32, i32, i8)> 
     visited
 }
 
-pub fn find_lost_valleys(map: &Map, width: i32) {
+pub fn find_all_valleys(map: &Map) -> Vec<HashSet<(i32, i32, i8)>> {
     let mut valleys = vec![find_valley(map, (0, 0, 0))];
 
     for loc in map.keys() {
@@ -91,15 +91,56 @@ pub fn find_lost_valleys(map: &Map, width: i32) {
         }
     }
 
-    for valley in valleys {
-        println!("Size of valley: {}", valley.len());
+    valleys
+}
+
+fn count_adj_mountains(map: &Map, loc: (i32, i32, i8)) -> u32 {
+    let mut adj = 0;
+    for r in -1..2 {
+        for c in -1..2 {
+            let nl = (loc.0 + r, loc.1 + c, loc.2);
+            if map.contains_key(&nl) && (map[&nl] == Tile::Mountain || map[&nl] == Tile::SnowPeak) {
+                adj += 1;
+            }
+        }
     }
+
+    adj
+}
+
+// We want the entrance to the main dungeon to be nicely nestled into the mountains so we'll look
+// for locations that are surround by at least 4 mountains
+fn find_good_dungeon_entrance(map: &Map, sqs: &HashSet<(i32, i32, i8)>) -> (i32, i32, i8) {
+    let mut options = Vec::new();
+
+    for loc in sqs {
+        if count_adj_mountains(map, *loc) >= 4 {
+            options.push(loc);
+        }
+    }
+
+    let j = thread_rng().gen_range(0, options.len());
+    *options[j]
 }
 
 pub fn generate_world() -> Map {
     let mut map = wilderness::test_map();
-    let dungeon_entrance = (234, 216);
+    let valleys = find_all_valleys(&map);
+    // We want to place the dungeon entrance somewhere in the largest 'valley', which will be
+    // the main section of the overworld
 
+    // tbh, I start searching for valleys at 0, 0 so valley[0] will always be the main one
+    let mut max = 0;
+    let mut max_id = 0;
+    for v in 0..valleys.len() {
+        if valleys[v].len() > max {
+            max = valleys[v].len();
+            max_id = v;
+        }
+    }
+    
+    let dungeon_entrance = find_good_dungeon_entrance(&map, &valleys[max_id]);
+    
     let dungeon_width = 125;
     let dungeon_height = 40;
     let mut dungeon_level = dungeon::draw_level(125, 40);
@@ -113,16 +154,20 @@ pub fn generate_world() -> Map {
     dungeon_level[stairs_loc] = Tile::StairsUp;
     let stairs_row = stairs_loc / dungeon_width;
     let stairs_col = stairs_loc - (stairs_row * dungeon_width);
+    let stairs_row_delta = dungeon_entrance.0 - stairs_row as i32;
+    let stairs_col_delta = dungeon_entrance.1 - stairs_col as i32;
     for r in 0..dungeon_height {
         for c in 0..dungeon_width {
             let i = r * dungeon_width + c;
-            let curr_row = dungeon_entrance.0 - stairs_row + r;
-            let curr_col = dungeon_entrance.1 - stairs_col + c;
-            map.insert((curr_row as i32, curr_col as i32, 1), dungeon_level[i]);
+            let curr_row = stairs_row_delta + r as i32;
+            let curr_col = stairs_col_delta + c as i32;
+                        
+            map.insert((curr_row, curr_col, 1), dungeon_level[i]);
         }
     }
     
     map.insert((dungeon_entrance.0 as i32, dungeon_entrance.1 as i32, 0), Tile::Portal);
-
+    
+    println!("Dungeon entrance: {:?}", dungeon_entrance);
     map
 }

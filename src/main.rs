@@ -366,6 +366,7 @@ fn run(gui: &mut GameUI, state: &mut GameState, player: &mut Player) {
         //let write_screen_start = Instant::now();
         let sbi = state.curr_sidebar_info(player);
         gui.write_screen(&mut state.msg_buff, &sbi);
+        
         //let write_screen_duration = write_screen_start.elapsed();
         //println!("Time for write_screen(): {:?}", write_screen_duration);
     }
@@ -384,8 +385,7 @@ fn main() {
 
     let mut state = GameState::init();
 	state.map = world::generate_world();
-    world::find_lost_valleys(&state.map, 257);
-
+    
     title_screen(&mut gui);
 
     let mut player = Player::new(String::from("Dana"));
