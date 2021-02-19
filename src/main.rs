@@ -55,8 +55,8 @@ pub enum Cmd {
 	ShowCharacterSheet,
 	ToggleEquipment,
 	Pass,
-	Open,
-    Close,
+	Open((i32, i32, i8)),
+    Close((i32, i32, i8)),
 	Quaff,
 	FireGun,
 	Reload,
@@ -202,60 +202,30 @@ fn adjacent_door(state: &mut GameState, player: &Player, closed: bool) -> Option
     }
 }
 
-fn do_open(state: &mut GameState, gui: &mut GameUI, player: &Player) {
-    let mut door = (0, 0, 0);
-    if let Some(d) = adjacent_door(state, player, false) {
-        door = d;
-    } else {
-        match gui.pick_direction("Open what?", &state.curr_sidebar_info(player)) {
-            Some(dir) => {
-                let obj_row =  player.location.0 as i32 + dir.0;
-                let obj_col = player.location.1 as i32 + dir.1;
-                let loc = (obj_row, obj_col, player.location.2);
-                let tile = &state.map[&loc];
-                match tile {
-                    map::Tile::Door(true) => state.write_msg_buff("The door is already open!"),
-                    map::Tile::Door(false) => door = loc,
-                    _ => state.write_msg_buff("You cannot open that!"),
-                }
-                state.turn += 1;
-            },
-            None => state.write_msg_buff("Nevermind."),
-        }
+fn do_open(state: &mut GameState, loc: (i32, i32, i8)) {
+    let tile = &state.map[&loc];
+    match tile {
+        map::Tile::Door(true) => state.write_msg_buff("The door is already open!"),
+        map::Tile::Door(false) => {
+            state.write_msg_buff("You open the door.");
+            state.map.insert(loc, map::Tile::Door(true));
+        },
+        _ => state.write_msg_buff("You cannot open that!"),
     }
-    
-    if door != (0, 0, 0) {
-        state.write_msg_buff("You open the door!");
-        state.map.insert(door, map::Tile::Door(true));    
-    }    
+    state.turn += 1;
 }
 
-fn do_close(state: &mut GameState, gui: &mut GameUI, player: &Player) {
-    let mut door = (0, 0, 0);
-    if let Some(d) = adjacent_door(state, player,true) {
-        door = d;
-    } else {
-        match gui.pick_direction("Close what?", &state.curr_sidebar_info(player)) {
-            Some(dir) => {
-                let obj_row =  player.location.0 as i32 + dir.0;
-                let obj_col = player.location.1 as i32 + dir.1;
-                let loc = (obj_row, obj_col, player.location.2);
-                let tile = &state.map[&loc];
-                match tile {
-                    map::Tile::Door(false) => state.write_msg_buff("The door is already closed!"),
-                    map::Tile::Door(true) => door = loc,
-                    _ => state.write_msg_buff("You cannot close that!")
-                }
-                state.turn += 1;
-            },
-            None => state.write_msg_buff("Nevermind."),
-        }
+fn do_close(state: &mut GameState, loc: (i32, i32, i8)) {
+    let tile = &state.map[&loc];
+    match tile {
+        map::Tile::Door(false) => state.write_msg_buff("The door is already closed!"),
+        map::Tile::Door(true) => {
+            state.write_msg_buff("You close the door.");
+            state.map.insert(loc, map::Tile::Door(false));
+        },
+        _ => state.write_msg_buff("You cannot open that!"),
     }
-
-    if door != (0, 0, 0) {
-        state.write_msg_buff("You close the door!");
-        state.map.insert(door, map::Tile::Door(false));
-    }
+    state.turn += 1;
 }
 
 fn take_stairs(state: &mut GameState, gui: &mut GameUI, player: &mut Player, down: bool) {
@@ -288,7 +258,7 @@ fn take_stairs(state: &mut GameState, gui: &mut GameUI, player: &mut Player, dow
     }
 }
 
-fn do_move(state: &mut GameState, player: &mut Player, dir: &str, gui: &mut GameUI) {
+fn do_move(state: &mut GameState, player: &mut Player, dir: &str) {
 	let mv = get_move_tuple(dir);
 
 	let start_tile = &state.map[&player.location];
@@ -341,7 +311,7 @@ fn run(gui: &mut GameUI, state: &mut GameState, player: &mut Player) {
         let size = FOV_HEIGHT * FOV_WIDTH;
 
         let start_turn = state.turn;
-        let cmd = gui.get_command(&state);
+        let cmd = gui.get_command(&state, &player);
         match cmd {
             // Cmd::Chat => {
             //     gui.popup_msg("Dale, the Innkeeper", "Welcome to Skara Brae, stranger! You'll find the dungeon in the foothills but watch out for goblins on the way!");
@@ -349,9 +319,9 @@ fn run(gui: &mut GameUI, state: &mut GameState, player: &mut Player) {
             Cmd::Pass => state.turn += 1,
             Cmd::Quit => break,
             Cmd::MsgHistory => show_message_history(state, gui),
-			Cmd::Move(dir) => do_move(state, player, &dir, gui),
-            Cmd::Open => do_open(state, gui, player),
-            Cmd::Close => do_close(state, gui, player),            
+			Cmd::Move(dir) => do_move(state, player, &dir),
+            Cmd::Open(loc) => do_open(state, loc),
+            Cmd::Close(loc) => do_close(state, loc),            
             Cmd::Down => take_stairs(state, gui, player,true),
             Cmd::Up => take_stairs(state, gui, player,false),
             _ => continue,

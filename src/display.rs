@@ -17,6 +17,7 @@ extern crate sdl2;
 
 use std::collections::{HashMap, HashSet, VecDeque};
 
+use crate::actor::Player;
 use crate::map;
 use crate::map::Tile;
 
@@ -72,7 +73,7 @@ impl SidebarInfo {
 fn tuple_to_sdl2_color(ct: &(u8, u8, u8)) -> Color {
 	Color::RGBA(ct.0, ct.1, ct.2, 255)
 }
-
+ 
 pub struct GameUI<'a, 'b> {
 	screen_width_px: u32,
 	screen_height_px: u32,
@@ -234,9 +235,39 @@ impl<'a, 'b> GameUI<'a, 'b> {
 		Some(answer)
 	}
 
-	pub fn get_command(&mut self, state: &GameState) -> Cmd {
+	fn select_door(&mut self, state: &GameState, player: &Player, closed: bool) -> Option<(i32, i32, i8)> {	
+		if let Some(d) = map::adjacent_door(&state.map, player.location, closed) {
+			Some(d)
+		} else {
+			match self.pick_direction("Which door?", &state.curr_sidebar_info(player)) {
+				Some(dir) => {
+					let obj_row =  player.location.0 as i32 + dir.0;
+					let obj_col = player.location.1 as i32 + dir.1;
+					let loc = (obj_row, obj_col, player.location.2);
+					Some(loc)
+				},
+				None => { 
+					let mut msgs = VecDeque::new();
+					msgs.push_front("Nevermind.".to_string());
+					let sbi = state.curr_sidebar_info(player);
+					self.write_screen(&mut msgs, &sbi);
+					None
+				},
+			}
+		}		
+	}
+
+	pub fn get_command(&mut self, state: &GameState, player: &Player) -> Cmd {
 		loop {
+			// I collect the events into a vector and then loop over them so that I can
+			// call gui functions inside the event loop without Rust's fucking borrow checker
+			// screeching at me.
+			let mut events = Vec::new();
 			for event in self.event_pump.poll_iter() {
+				events.push(event);
+			}
+
+			for event in events {
 				match event {
 					Event::Quit {..} => { return Cmd::Quit },
 					Event::KeyDown {keycode: Some(Keycode::H), keymod: Mod::LCTRLMOD, .. } |
@@ -273,9 +304,15 @@ impl<'a, 'b> GameUI<'a, 'b> {
                         } else if val == "?" {
 							return Cmd::Help;
 						} else if val == "o" {
-							return Cmd::Open;
+							match self.select_door(state, player, false) {
+								Some(loc) => return Cmd::Open(loc),
+								None => { },
+							}							
 						} else if val == "c" {
-							return Cmd::Close;
+							match self.select_door(state, player, true) {
+								Some(loc) => return Cmd::Close(loc),
+								None => { },
+							}	
 						} else  if val == "k" {
 							return Cmd::Move(String::from("N"));
 						} else if val == "j" {

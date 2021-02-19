@@ -18,8 +18,9 @@ extern crate sdl2;
 
 use std::collections::HashMap;
 use std::collections::HashSet;
-use std::f32;
 use rand::Rng;
+
+use super::Map;
 
 use crate::util;
 
@@ -74,6 +75,37 @@ impl Tile {
 			Tile::WoodWall | Tile::Window(_) => false,		
 			_ => true,
 		}
+	}
+}
+
+pub fn adjacent_door(map: &Map, loc: (i32, i32, i8), closed: bool) -> Option<(i32, i32, i8)> {
+	let mut doors = 0;
+	let mut door: (i32, i32, i8) = (0, 0, 0);
+	for r in -1..2 {
+		for c in -1..2 {
+			if r == 0 && c == 0 {
+				continue;
+			}
+
+			let dr = loc.0 as i32 + r;
+			let dc = loc.1 as i32 + c;
+			let loc = (dr, dc, loc.2);
+			match map[&loc] {
+				Tile::Door(open) => {
+					if open == closed {
+						doors += 1;
+						door = loc;
+					}
+				},
+				_ => { }
+			}
+		}
+	}
+
+	if doors == 1 {
+		Some(door)
+	} else {
+		None
 	}
 }
 
