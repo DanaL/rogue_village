@@ -62,10 +62,11 @@ pub enum Cmd {
 	Read,
 	Eat,
 	Save,
-    EnterPortal,
-	Chat,
+    Chat,
     Use,
 	Help,
+    Down,
+    //Up,
 }
 
 pub struct GameState {
@@ -299,6 +300,28 @@ fn do_close(state: &mut GameState, gui: &mut GameUI) {
     }
 }
 
+fn take_stairs(state: &mut GameState, gui: &mut GameUI, down: bool) {
+    let tile = &state.map[&state.player_loc];
+
+    if down {
+        if *tile == map::Tile::Portal {
+            state.write_msg_buff("You enter the beckoning portal.");
+            state.player_loc = (state.player_loc.0, state.player_loc.1, state.player_loc.2 + 1);
+            state.turn += 1;
+        } else if *tile == map::Tile::StairsDown {
+            
+        } else {
+            state.write_msg_buff("You cannot do that here.");
+        }
+    } else {
+        if *tile == map::Tile::StairsUp {
+
+        } else {
+            state.write_msg_buff("You cannot do that here.");
+        }
+    }
+}
+
 fn do_move(state: &mut GameState, dir: &str, gui: &mut GameUI) {
 	let mv = get_move_tuple(dir);
 
@@ -327,7 +350,7 @@ fn do_move(state: &mut GameState, dir: &str, gui: &mut GameUI) {
 				state.write_msg_buff("You step in the fire!");
 			},
 			map::Tile::OldFirePit => state.write_msg_buff("An old campsite! Rum runners? A castaway?"),
-            map::Tile::Portal(_) => state.write_msg_buff("Where could this lead..."),
+            map::Tile::Portal => state.write_msg_buff("Where could this lead..."),
 			_ => {
 				if *start_tile == map::Tile::DeepWater { // && state.player.curr_stamina < 10 {
 					state.write_msg_buff("Whew, you stumble ashore.");
@@ -363,6 +386,7 @@ fn run(gui: &mut GameUI, state: &mut GameState) {
             Cmd::Pass => state.turn += 1,
             Cmd::Quit => break,
             Cmd::MsgHistory => show_message_history(state, gui),
+            Cmd::Down => take_stairs(state, gui, true),
             _ => continue,
         }
         

@@ -319,8 +319,8 @@ impl<'a, 'b> GameUI<'a, 'b> {
 							return Cmd::DropItem;
 						} else if val == "s" {
 							return Cmd::Search;
-						} else if val == "e" {
-							return Cmd::EnterPortal;
+						} else if val == ">" {
+							return Cmd::Down;
 						}						
 					},
 					_ => { continue },
@@ -529,7 +529,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 			map::Tile::Floor => ('.', tuple_to_sdl2_color(&BEIGE)),
 			map::Tile::Window(ch) => (*ch, tuple_to_sdl2_color(&BROWN)),
 			map::Tile::Spring => ('~', tuple_to_sdl2_color(&LIGHT_BLUE)),
-            map::Tile::Portal(_) => ('Ո', tuple_to_sdl2_color(&GREY)),
+            map::Tile::Portal => ('Ո', tuple_to_sdl2_color(&GREY)),
             map::Tile::Fog => ('#', tuple_to_sdl2_color(&LIGHT_GREY)),
 			map::Tile::BoulderTrap(colour, hidden, _, _, _) => {
 				if *hidden {

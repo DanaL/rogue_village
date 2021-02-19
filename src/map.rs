@@ -49,7 +49,7 @@ pub enum Tile {
 	Floor,
 	Window(char),
 	Spring,
-    Portal((usize, usize, u8)),
+    Portal,
     Fog,
 	BoulderTrap((u8, u8, u8), bool, bool, (usize, usize), (i32, i32)),
 	StairsUp,
@@ -88,7 +88,7 @@ pub fn in_bounds(map: &Vec<Vec<Tile>>, r: i32, c: i32) -> bool {
 pub fn is_clear(tile: &Tile) -> bool {
 	match tile {
 		Tile::Wall | Tile::Blank | Tile::Mountain | Tile::SnowPeak |
-			Tile::WoodWall => false,
+		Tile::Door(false) | Tile::WoodWall => false,
 		_ => true,
 	}
 }

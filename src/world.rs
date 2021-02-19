@@ -27,7 +27,10 @@ use crate::wilderness;
 
 pub fn generate_world() -> Map {
     let mut map = wilderness::test_map();
+    let dungeon_entrance = (234, 216);
 
+    let dungeon_width = 125;
+    let dungeon_height = 40;
     let mut dungeon_level = dungeon::draw_level(125, 40);
     let mut floors = Vec::new();
     for i in 0..dungeon_level.len() {
@@ -37,6 +40,21 @@ pub fn generate_world() -> Map {
     }
     let stairs_loc = floors[thread_rng().gen_range(0, floors.len())];
     dungeon_level[stairs_loc] = Tile::StairsUp;
+    let stairs_row = stairs_loc / dungeon_width;
+    let stairs_col = stairs_loc - (stairs_row * dungeon_width);
+    for r in 0..dungeon_height {
+        for c in 0..dungeon_width {
+            let i = r * dungeon_width + c;
+            let curr_row = dungeon_entrance.0 - stairs_row + r;
+            let curr_col = dungeon_entrance.1 - stairs_col + c;
+            map.insert((curr_row as i32, curr_col as i32, 1), dungeon_level[i]);
+        }
+    }
+    println!("{} {} {:?}", stairs_row, stairs_col, dungeon_level[stairs_row * dungeon_width + stairs_col]);
+    //let delta_row = dungeon_entrance.0 - stairs_loc
+    //dungeon_level[stairs_loc] = map::Tile::Portal;
+
+    map.insert((dungeon_entrance.0 as i32, dungeon_entrance.1 as i32, 0), Tile::Portal);
 
     map
 }

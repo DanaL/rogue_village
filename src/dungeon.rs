@@ -698,7 +698,7 @@ pub fn draw_level(width: usize, height: usize) -> Vec<Tile> {
         }
     }
 
-    dump_level(&level, width as usize, height as usize);
+    //dump_level(&level, width as usize, height as usize);
     
     level
 }
