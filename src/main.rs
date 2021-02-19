@@ -18,6 +18,7 @@
 extern crate rand;
 extern crate sdl2;
 
+mod actor;  
 mod display;
 mod dungeon;
 mod fov;
@@ -35,6 +36,7 @@ use std::collections::{VecDeque, HashMap};
 use std::path::Path;
 use std::time::{Duration, Instant};
 
+use actor::Player;
 use rand::Rng;
 
 const MSG_HISTORY_LENGTH: usize = 50;
@@ -109,51 +111,9 @@ impl GameState {
 		}
 	}
 
-    pub fn curr_sidebar_info(&self) -> SidebarInfo {
-		/*
-		let w = match self.player.inventory.get_equiped_weapon() {
-			None => String::from(""),
-			Some(item) => util::capitalize_word(&item.name),
-		};
-
-		let f = match self.player.inventory.get_equiped_firearm() {
-			None => String::from(""),
-			Some(item) => util::capitalize_word(&item.name),
-		};
-        */
-
-		SidebarInfo::new("Dana".to_string(), self.turn)
+    pub fn curr_sidebar_info(&self, player: &Player) -> SidebarInfo {
+		SidebarInfo::new(player.name.to_string(), player.curr_hp, player.max_hp, self.turn)
 	}
-
-    pub fn calc_vision_radius(&mut self) {
-        let prev_vr = self.vision_radius;
-        let curr_time = (self.turn / 100 + 12) % 24;
-
-        // This should be moved to Player struct/impl once that exists
-        // because different backgrounds (human, elf, dwarf, etc) will 
-        // have different default radiuses for different times of the day
-        self.vision_radius = if curr_time >= 6 && curr_time <= 19 {
-            99
-        } else if curr_time >= 20 && curr_time <= 21 {
-            8
-        } else if curr_time >= 21 && curr_time <= 23 {
-            7
-        } else if curr_time < 4 {
-            5
-        } else if curr_time >= 4 && curr_time < 5 {
-            7
-        } else {
-            9
-        };
-
-        // Announce sunrise and sunset if the player is on the surface
-        if prev_vr == 99 && self.vision_radius == 9 && self.player_loc.2 == 0 {
-            self.write_msg_buff("The sun is beginning to set.");
-        }
-        if prev_vr == 5 && self.vision_radius == 7 && self.player_loc.2 == 0 {
-            self.write_msg_buff("Sunrise soon.");
-        }
-    }
 }
 
 fn show_message_history(state: &GameState, gui: &mut GameUI) {
@@ -244,12 +204,12 @@ fn adjacent_door(state: &mut GameState, closed: bool) -> Option<(i32, i32, i8)> 
     }
 }
 
-fn do_open(state: &mut GameState, gui: &mut GameUI) {
+fn do_open(state: &mut GameState, gui: &mut GameUI, player: &Player) {
     let mut door = (0, 0, 0);
     if let Some(d) = adjacent_door(state, false) {
         door = d;
     } else {
-        match gui.pick_direction("Open what?", &state.curr_sidebar_info()) {
+        match gui.pick_direction("Open what?", &state.curr_sidebar_info(player)) {
             Some(dir) => {
                 let obj_row =  state.player_loc.0 as i32 + dir.0;
                 let obj_col = state.player_loc.1 as i32 + dir.1;
@@ -272,12 +232,12 @@ fn do_open(state: &mut GameState, gui: &mut GameUI) {
     }    
 }
 
-fn do_close(state: &mut GameState, gui: &mut GameUI) {
+fn do_close(state: &mut GameState, gui: &mut GameUI, player: &Player) {
     let mut door = (0, 0, 0);
     if let Some(d) = adjacent_door(state, true) {
         door = d;
     } else {
-        match gui.pick_direction("Close what?", &state.curr_sidebar_info()) {
+        match gui.pick_direction("Close what?", &state.curr_sidebar_info(player)) {
             Some(dir) => {
                 let obj_row =  state.player_loc.0 as i32 + dir.0;
                 let obj_col = state.player_loc.1 as i32 + dir.1;
@@ -372,11 +332,11 @@ fn do_move(state: &mut GameState, dir: &str, gui: &mut GameUI) {
 	}
 }
 
-fn run(gui: &mut GameUI, state: &mut GameState) {
+fn run(gui: &mut GameUI, state: &mut GameState, player: &mut Player) {
     state.write_msg_buff("Hello, world?");
 
 	gui.v_matrix = fov::calc_v_matrix(state, FOV_HEIGHT, FOV_WIDTH);
-    let sbi = state.curr_sidebar_info();
+    let sbi = state.curr_sidebar_info(player);
 	gui.write_screen(&mut state.msg_buff, &sbi);
 
     loop {
@@ -385,28 +345,28 @@ fn run(gui: &mut GameUI, state: &mut GameState) {
         let start_turn = state.turn;
         let cmd = gui.get_command(&state);
         match cmd {
-            Cmd::Chat => {
-                gui.popup_msg("Dale, the Innkeeper", "Welcome to Skara Brae, stranger! You'll find the dungeon in the foothills but watch out for goblins on the way!");
-            },
-			Cmd::Move(dir) => do_move(state, &dir, gui),
-            Cmd::Open => do_open(state, gui),
-            Cmd::Close => do_close(state, gui),
+            // Cmd::Chat => {
+            //     gui.popup_msg("Dale, the Innkeeper", "Welcome to Skara Brae, stranger! You'll find the dungeon in the foothills but watch out for goblins on the way!");
+            // },
             Cmd::Pass => state.turn += 1,
             Cmd::Quit => break,
             Cmd::MsgHistory => show_message_history(state, gui),
+			Cmd::Move(dir) => do_move(state, &dir, gui),
+            Cmd::Open => do_open(state, gui, player),
+            Cmd::Close => do_close(state, gui, player),            
             Cmd::Down => take_stairs(state, gui, true),
             Cmd::Up => take_stairs(state, gui, false),
             _ => continue,
         }
         
         //let fov_start = Instant::now();
-        state.calc_vision_radius();
+        player.calc_vision_radius(state);
         gui.v_matrix = fov::calc_v_matrix(state, FOV_HEIGHT, FOV_WIDTH);
         //let fov_duration = fov_start.elapsed();
         //println!("Time for fov: {:?}", fov_duration);
 		
         //let write_screen_start = Instant::now();
-        let sbi = state.curr_sidebar_info();
+        let sbi = state.curr_sidebar_info(player);
         gui.write_screen(&mut state.msg_buff, &sbi);
         //let write_screen_duration = write_screen_start.elapsed();
         //println!("Time for write_screen(): {:?}", write_screen_duration);
@@ -429,8 +389,10 @@ fn main() {
 
     title_screen(&mut gui);
 
-    let sbi = state.curr_sidebar_info();
+    let mut player = Player::new(String::from("Dana"));
+
+    let sbi = state.curr_sidebar_info(&player);
     gui.write_screen(&mut state.msg_buff, &sbi);
     
-    run(&mut gui, &mut state);
+    run(&mut gui, &mut state, &mut player);
 }

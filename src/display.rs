@@ -58,35 +58,14 @@ const LG_FONT_PT: u16 = 24;
 pub struct SidebarInfo {
 	name: String,
 	//ac: u8,
-	//curr_hp: u8,
-	//max_hp: u8,
-	//wheel: i8,
-	//bearing: i8,
+	curr_hp: u8,
+	max_hp: u8,
 	turn: u32,
-	//charmed: bool,
-	//poisoned: bool,
-	//drunkeness: u8,
-	//weapon: Option<String>,
-	//firearm: Option<String>,
 }
 
 impl SidebarInfo {
-	pub fn new(name: String, turn: u32) -> SidebarInfo {
-	//pub fn new(name: String, ac: u8, curr_hp: u8, max_hp: u8, wheel: i8, bearing: i8, turn: u32, 
-	//		charmed: bool, poisoned: bool, drunkeness: u8, w: String, f: String) -> SidebarInfo {
-		/*
-		let weapon = if w == "" {
-			None
-		} else {
-			Some(w)
-		};
-		let firearm = if f == "" {
-			None
-		} else {
-			Some(f)
-		};
-		*/
-		SidebarInfo { name, turn, }
+	pub fn new(name: String, curr_hp: u8, max_hp: u8, turn: u32) -> SidebarInfo {
+		SidebarInfo { name, curr_hp, max_hp, turn, }
 	}
 }
 
@@ -565,7 +544,9 @@ impl<'a, 'b> GameUI<'a, 'b> {
 
 		let fov_w = (FOV_WIDTH + 1) as i32 * self.font_width as i32; 
 		self.write_sidebar_line(&sbi.name, fov_w, 1, white);
-		
+		let s = format!("HP: {} ({})", sbi.curr_hp, sbi.max_hp);
+		self.write_sidebar_line(&s, fov_w, 2, white);
+
 		let s = format!("Turn: {}", sbi.turn);
 		self.write_sidebar_line(&s, fov_w, 21, white);		
 	}
