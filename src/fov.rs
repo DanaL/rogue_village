@@ -100,13 +100,13 @@ fn radius_full() -> Vec<(i32, i32)> {
 // As well, I wanted to have the trees obscure/reduce the FOV instead of outright
 // blocking vision and I couldn't think of a simple way to do that with 
 // shadowcasting.
-fn mark_visible(r1: i32, c1: i32, r2: i32, c2: i32, 
+fn mark_visible(r1: i32, c1: i32, r2: i32, c2: i32,
+		depth: i8,
 		state: &mut GameState, 
 		v_matrix: &mut Vec<bool>, 
         width: usize) {
     //let curr_weather = &state.weather[&state.map_id];
 
-	let depth = state.player_loc.2;
 	let mut r = r1;
 	let mut c = c1;
 	let mut error = 0;
@@ -210,6 +210,7 @@ fn mark_visible(r1: i32, c1: i32, r2: i32, c2: i32,
 
 pub fn calc_v_matrix(
 		state: &mut GameState,
+		from_loc: (i32, i32, i8),
 		//items: &ItemsTable,
 		height: usize, width: usize) -> Vec<map::Tile> {
     let size = height * width;
@@ -248,8 +249,8 @@ pub fn calc_v_matrix(
     }
     */
 
-    let pr = state.player_loc.0 as i32;
-    let pc = state.player_loc.1 as i32;
+    let pr = from_loc.0;
+    let pc = from_loc.1;
 	// Beamcast to all the points around the perimiter of the viewing
 	// area. For YarrL's fixed size FOV this seems to work just fine
 	// and cuts about a whole bunch of redundant looping and beam
@@ -258,7 +259,7 @@ pub fn calc_v_matrix(
 		let actual_r = pr + loc.0;
 		let actual_c = pc + loc.1;
 
-		mark_visible(pr, pc, actual_r as i32, actual_c as i32, state, &mut visible, width);
+		mark_visible(pr, pc, actual_r as i32, actual_c as i32, from_loc.2, state, &mut visible, width);
 	}
 
     // Now we know which locations are actually visible from the player's loc, 
@@ -272,8 +273,8 @@ pub fn calc_v_matrix(
             if visible[j] {
                 let row = pr - fov_center_r as i32 + r as i32;
                 let col = pc - fov_center_c as i32 + c as i32;
-				if state.map.contains_key(&(row, col, state.player_loc.2)) {
-					v_matrix[j] = state.map[&(row, col, state.player_loc.2)].clone();
+				if state.map.contains_key(&(row, col, from_loc.2)) {
+					v_matrix[j] = state.map[&(row, col, from_loc.2)].clone();
                 }
             }
         }
@@ -283,7 +284,7 @@ pub fn calc_v_matrix(
 	// is always visible but when they are hit by a boulder, for comedic/dramatic effect
 	// I wanted the boulder to appear over top of them.
 	let fov_center_i = fov_center_r * width + fov_center_c;
-	if state.map[&state.player_loc] == map::Tile::DeepWater {
+	if state.map[&from_loc] == map::Tile::DeepWater {
 		v_matrix[fov_center_i] = map::Tile::Player(LIGHT_BLUE);
 	} else {
 		v_matrix[fov_center_i] = map::Tile::Player(WHITE);

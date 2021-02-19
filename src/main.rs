@@ -77,7 +77,6 @@ pub struct GameState {
 	map: Map,
     turn: u32,
     vision_radius: u8,
-    player_loc: (i32, i32, i8),
 }
 
 impl GameState {
@@ -87,8 +86,7 @@ impl GameState {
             msg_history: VecDeque::new(),
 			map: HashMap::new(),
             turn: 0,
-            vision_radius: 30,
-            player_loc: (127, 127, 0),
+            vision_radius: 30,            
         };
 
         state
@@ -173,7 +171,7 @@ fn get_move_tuple(mv: &str) -> (i32, i32) {
 	}
 }
 
-fn adjacent_door(state: &mut GameState, closed: bool) -> Option<(i32, i32, i8)> {
+fn adjacent_door(state: &mut GameState, player: &Player, closed: bool) -> Option<(i32, i32, i8)> {
     let mut doors = 0;
     let mut door: (i32, i32, i8) = (0, 0, 0);
     for r in -1..2 {
@@ -182,9 +180,9 @@ fn adjacent_door(state: &mut GameState, closed: bool) -> Option<(i32, i32, i8)> 
                 continue;
             }
 
-            let dr = state.player_loc.0 as i32 + r;
-            let dc = state.player_loc.1 as i32 + c;
-            let loc = (dr, dc, state.player_loc.2);
+            let dr = player.location.0 as i32 + r;
+            let dc = player.location.1 as i32 + c;
+            let loc = (dr, dc, player.location.2);
             match &state.map[&loc] {
                 map::Tile::Door(open) => {
                     if *open == closed {
@@ -206,14 +204,14 @@ fn adjacent_door(state: &mut GameState, closed: bool) -> Option<(i32, i32, i8)> 
 
 fn do_open(state: &mut GameState, gui: &mut GameUI, player: &Player) {
     let mut door = (0, 0, 0);
-    if let Some(d) = adjacent_door(state, false) {
+    if let Some(d) = adjacent_door(state, player, false) {
         door = d;
     } else {
         match gui.pick_direction("Open what?", &state.curr_sidebar_info(player)) {
             Some(dir) => {
-                let obj_row =  state.player_loc.0 as i32 + dir.0;
-                let obj_col = state.player_loc.1 as i32 + dir.1;
-                let loc = (obj_row, obj_col, state.player_loc.2);
+                let obj_row =  player.location.0 as i32 + dir.0;
+                let obj_col = player.location.1 as i32 + dir.1;
+                let loc = (obj_row, obj_col, player.location.2);
                 let tile = &state.map[&loc];
                 match tile {
                     map::Tile::Door(true) => state.write_msg_buff("The door is already open!"),
@@ -234,14 +232,14 @@ fn do_open(state: &mut GameState, gui: &mut GameUI, player: &Player) {
 
 fn do_close(state: &mut GameState, gui: &mut GameUI, player: &Player) {
     let mut door = (0, 0, 0);
-    if let Some(d) = adjacent_door(state, true) {
+    if let Some(d) = adjacent_door(state, player,true) {
         door = d;
     } else {
         match gui.pick_direction("Close what?", &state.curr_sidebar_info(player)) {
             Some(dir) => {
-                let obj_row =  state.player_loc.0 as i32 + dir.0;
-                let obj_col = state.player_loc.1 as i32 + dir.1;
-                let loc = (obj_row, obj_col, state.player_loc.2);
+                let obj_row =  player.location.0 as i32 + dir.0;
+                let obj_col = player.location.1 as i32 + dir.1;
+                let loc = (obj_row, obj_col, player.location.2);
                 let tile = &state.map[&loc];
                 match tile {
                     map::Tile::Door(false) => state.write_msg_buff("The door is already closed!"),
@@ -260,17 +258,17 @@ fn do_close(state: &mut GameState, gui: &mut GameUI, player: &Player) {
     }
 }
 
-fn take_stairs(state: &mut GameState, gui: &mut GameUI, down: bool) {
-    let tile = &state.map[&state.player_loc];
+fn take_stairs(state: &mut GameState, gui: &mut GameUI, player: &mut Player, down: bool) {
+    let tile = &state.map[&player.location];
 
     if down {
         if *tile == map::Tile::Portal {
             state.write_msg_buff("You enter the beckoning portal.");
-            state.player_loc = (state.player_loc.0, state.player_loc.1, state.player_loc.2 + 1);
+            player.location = (player.location.0, player.location.1, player.location.2 + 1);
             state.turn += 1;
         } else if *tile == map::Tile::StairsDown {
             state.write_msg_buff("You brave the stairs downward.");
-            state.player_loc = (state.player_loc.0, state.player_loc.1, state.player_loc.2 + 1);
+            player.location = (player.location.0, player.location.1, player.location.2 + 1);
             state.turn += 1;
         } else {
             state.write_msg_buff("You cannot do that here.");
@@ -278,10 +276,10 @@ fn take_stairs(state: &mut GameState, gui: &mut GameUI, down: bool) {
     } else {
         if *tile == map::Tile::StairsUp {
             state.write_msg_buff("You climb the stairway.");
-            state.player_loc = (state.player_loc.0, state.player_loc.1, state.player_loc.2 - 1);
+            player.location = (player.location.0, player.location.1, player.location.2 - 1);
             state.turn += 1;
             
-            if state.player_loc.2 == 0 {
+            if player.location.2 == 0 {
                 state.write_msg_buff("Fresh air!");
             }
         } else {
@@ -290,17 +288,17 @@ fn take_stairs(state: &mut GameState, gui: &mut GameUI, down: bool) {
     }
 }
 
-fn do_move(state: &mut GameState, dir: &str, gui: &mut GameUI) {
+fn do_move(state: &mut GameState, player: &mut Player, dir: &str, gui: &mut GameUI) {
 	let mv = get_move_tuple(dir);
 
-	let start_tile = &state.map[&state.player_loc];
-	let next_row = state.player_loc.0 + mv.0;
-	let next_col = state.player_loc.1 + mv.1;
-	let next_loc = (next_row, next_col, state.player_loc.2);
+	let start_tile = &state.map[&player.location];
+	let next_row = player.location.0 + mv.0;
+	let next_col = player.location.1 + mv.1;
+	let next_loc = (next_row, next_col, player.location.2);
 	let tile = &state.map[&next_loc].clone();
 	
 	if tile.is_passable() {
-		state.player_loc = next_loc;
+		player.location = next_loc;
 
 		match tile {
 			map::Tile::Water => state.write_msg_buff("You splash in the shallow water."),
@@ -335,7 +333,7 @@ fn do_move(state: &mut GameState, dir: &str, gui: &mut GameUI) {
 fn run(gui: &mut GameUI, state: &mut GameState, player: &mut Player) {
     state.write_msg_buff("Hello, world?");
 
-	gui.v_matrix = fov::calc_v_matrix(state, FOV_HEIGHT, FOV_WIDTH);
+	gui.v_matrix = fov::calc_v_matrix(state, player.location, FOV_HEIGHT, FOV_WIDTH);
     let sbi = state.curr_sidebar_info(player);
 	gui.write_screen(&mut state.msg_buff, &sbi);
 
@@ -351,17 +349,17 @@ fn run(gui: &mut GameUI, state: &mut GameState, player: &mut Player) {
             Cmd::Pass => state.turn += 1,
             Cmd::Quit => break,
             Cmd::MsgHistory => show_message_history(state, gui),
-			Cmd::Move(dir) => do_move(state, &dir, gui),
+			Cmd::Move(dir) => do_move(state, player, &dir, gui),
             Cmd::Open => do_open(state, gui, player),
             Cmd::Close => do_close(state, gui, player),            
-            Cmd::Down => take_stairs(state, gui, true),
-            Cmd::Up => take_stairs(state, gui, false),
+            Cmd::Down => take_stairs(state, gui, player,true),
+            Cmd::Up => take_stairs(state, gui, player,false),
             _ => continue,
         }
         
         //let fov_start = Instant::now();
         player.calc_vision_radius(state);
-        gui.v_matrix = fov::calc_v_matrix(state, FOV_HEIGHT, FOV_WIDTH);
+        gui.v_matrix = fov::calc_v_matrix(state, player.location, FOV_HEIGHT, FOV_WIDTH);
         //let fov_duration = fov_start.elapsed();
         //println!("Time for fov: {:?}", fov_duration);
 		
@@ -391,6 +389,7 @@ fn main() {
     title_screen(&mut gui);
 
     let mut player = Player::new(String::from("Dana"));
+    player.location = (127, 127, 0);
 
     let sbi = state.curr_sidebar_info(&player);
     gui.write_screen(&mut state.msg_buff, &sbi);
