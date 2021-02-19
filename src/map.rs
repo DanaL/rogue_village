@@ -21,6 +21,8 @@ use std::collections::HashSet;
 use std::f32;
 use rand::Rng;
 
+use crate::util;
+
 #[derive(Debug, Clone, Hash, Eq, PartialEq, Copy)]
 pub enum Tile {
 	Blank,
@@ -79,30 +81,11 @@ impl Tile {
 // storing the map in a struct with extra info instead of just
 // a matrix of Tiles. Then, I won't have to recalculate height and
 // width every time I call the in_bounds() method
-pub fn in_bounds(map: &Vec<Vec<Tile>>, r: i32, c: i32) -> bool {
+pub fn iin_bounds(map: &Vec<Vec<Tile>>, r: i32, c: i32) -> bool {
 	let height = map.len() as i32;
 	let width = map[0].len() as i32;
 
 	r >= 0 && c >= 0 && r < height && c < width
-}
-
-fn ds_union(ds: &mut Vec<i32>, r1: i32, r2: i32) {
-	let x = ds_find(ds, r1);
-	let y = ds_find(ds, r2);
-
-	if x != y {
-		ds[y as usize] = x;
-	}
-}
-
-// It would be smarter to do path compression on find()s
-// but I don't think the performance boost is needed here. 
-fn ds_find(ds: &Vec<i32>, x: i32) -> i32 {
-	if ds[x as usize] < 0 {
-		x
-	} else {
-		ds_find(ds, ds[x as usize])
-	}
 }
 
 fn find_isolated_caves(grid: &Vec<Vec<bool>>, width: usize, depth: usize) -> Vec<i32> {
@@ -114,23 +97,23 @@ fn find_isolated_caves(grid: &Vec<Vec<bool>>, width: usize, depth: usize) -> Vec
 			if grid[r][c] { continue; }
 			let v = (r * width + c) as i32;
 		
-			if !grid[r - 1][c] { ds_union(&mut ds, v, v - width as i32); }
-			if !grid[r + 1][c] { ds_union(&mut ds, v, v + width as i32); }
-			if !grid[r][c - 1] { ds_union(&mut ds, v, v - 1); }
-			if !grid[r][c + 1] { ds_union(&mut ds, v, v + 1); }
+			if !grid[r - 1][c] { util::ds_union(&mut ds, v, v - width as i32); }
+			if !grid[r + 1][c] { util::ds_union(&mut ds, v, v + width as i32); }
+			if !grid[r][c - 1] { util::ds_union(&mut ds, v, v - 1); }
+			if !grid[r][c + 1] { util::ds_union(&mut ds, v, v + 1); }
 		}
 	}
 
 	ds
 }
 
-fn find_sets(grid: &Vec<Vec<bool>>, ds: &Vec<i32>, width: usize, depth: usize) -> HashMap<i32, i32> {
+fn find_sets(grid: &Vec<Vec<bool>>, ds: &mut Vec<i32>, width: usize, depth: usize) -> HashMap<i32, i32> {
 	let mut sets: HashMap<i32, i32> = HashMap::new();
 	for r in 1..depth - 1 {
 		for c in 1..width - 1 {
 			if grid[r][c] { continue; }
 			let v = (r * width + c) as i32;
-			let root = ds_find(ds, v);
+			let root = util::ds_find(ds, v);
 			let set = sets.entry(root).or_insert(0);
 			*set += 1;
 		}
@@ -169,31 +152,31 @@ fn cave_qa(grid: &mut Vec<Vec<bool>>, width: usize, depth: usize) {
 			let mut wf = false;
 
 			if !grid[r - 1][c] { 
-				adj_sets.insert(ds_find(&ds, i - width as i32));
+				adj_sets.insert(util::ds_find(&mut ds, i - width as i32));
 				nf = true;
 			}
 						
 			if !grid[r + 1][c] { 
-				adj_sets.insert(ds_find(&ds, i + width as i32));
+				adj_sets.insert(util::ds_find(&mut ds, i + width as i32));
 				sf = true;
 			}
 
 			if !grid[r][c - 1] { 
-				adj_sets.insert(ds_find(&ds, i - 1));
+				adj_sets.insert(util::ds_find(&mut ds, i - 1));
 				wf = true;
 			}
 
 			if !grid[r][c + 1] { 
-				adj_sets.insert(ds_find(&ds, i + 1));
+				adj_sets.insert(util::ds_find(&mut ds, i + 1));
 				ef = true;
 			}
 
 			if adj_sets.len() > 1 {
 				grid[r][c] = false;
-				if nf { ds_union(&mut ds, i, i - width as i32); }
-				if sf { ds_union(&mut ds, i, i + width as i32); }
-				if wf { ds_union(&mut ds, i, i - 1); }
-				if ef { ds_union(&mut ds, i, i + 1); }
+				if nf { util::ds_union(&mut ds, i, i - width as i32); }
+				if sf { util::ds_union(&mut ds, i, i + width as i32); }
+				if wf { util::ds_union(&mut ds, i, i - 1); }
+				if ef { util::ds_union(&mut ds, i, i + 1); }
 			}
 		}
 	}
@@ -211,7 +194,7 @@ fn cave_qa(grid: &mut Vec<Vec<bool>>, width: usize, depth: usize) {
 	for r in 1..depth - 1 {
 		for c in 1..width - 1 {
 			if grid[r][c] { continue; }
-			let set = ds_find(&ds, (r * width + c) as i32);
+			let set = util::ds_find(&mut ds, (r * width + c) as i32);
 			if set != largest_set {
 				grid[r][c] = true;
 			}

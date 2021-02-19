@@ -26,6 +26,28 @@ use rand::Rng;
 use crate::map;
 use super::GameState;
 
+// Union-find functions to implement disjoint sets
+// (handy for finding isolated pockets in maps)
+pub fn ds_union(ds: &mut Vec<i32>, r1: i32, r2: i32) {
+	ds[r2 as usize] = r1;
+	// if ds[r2 as usize] < ds[r1 as usize] {
+	// 	ds[r1 as usize] = r2;
+	// } else {
+	// 	if ds[r1 as usize] == ds[r2 as usize] {
+	// 		ds[r1 as usize] -= 1;
+	// 	}
+	// 	ds[r2 as usize] = r1;
+	// }
+}
+
+pub fn ds_find(ds: &mut Vec<i32>, x: i32) -> i32 {
+	if ds[x as usize] < 0 {
+		x
+	} else {
+		ds_find(ds, ds[x as usize])
+	}
+}
+
 pub fn capitalize_word(word: &str) -> String {
 	// Rust is so intuitive...
 	let mut c = word.chars();

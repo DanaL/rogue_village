@@ -13,6 +13,7 @@
 // You should have received a copy of the GNU General Public License
 // along with RogueVillage.  If not, see <https://www.gnu.org/licenses/>.
 
+use std::collections::{HashMap, HashSet};
 use rand::thread_rng;
 use rand::Rng;
 
@@ -20,7 +21,80 @@ use super::Map;
 
 use crate::dungeon;
 use crate::map::Tile;
+use crate::util;
 use crate::wilderness;
+
+// The random wilderness generator will inevitably create pockets of
+// traversable land complately surrounded by mountains. I don't want to 
+// stick the main dungeon in one of those, and they might also be useful
+// for hidden secrets later on.
+// I could/should generalize this so it takes a set of tiles to ignore and
+// then I can search for any kind of distinct pockets on any level
+fn find_valley(map: &Map, start_loc: (i32, i32, i8)) -> HashSet<(i32, i32, i8)> {
+    let mut queue = vec![start_loc];
+    let mut visited = HashSet::new();
+
+    while queue.len() > 0 {
+        let loc = queue.pop().unwrap();
+        visited.insert(loc);
+
+        // I'm going to only consider adjacent NESW squares in case I later decide
+        // diaganol movement isn't a thing 
+        let nl = (loc.0 - 1, loc.1, loc.2);
+        if !visited.contains(&nl) && map.contains_key(&nl) {
+            if map[&nl] != Tile::Mountain && map[&nl] != Tile::SnowPeak { 
+                queue.push(nl); 
+            }
+        }
+        let nl = (loc.0 + 1, loc.1, loc.2);
+        if !visited.contains(&nl) && map.contains_key(&nl) {
+            if map[&nl] != Tile::Mountain && map[&nl] != Tile::SnowPeak { 
+                queue.push(nl); 
+            }
+        }
+        let nl = (loc.0, loc.1 - 1, loc.2);
+        if !visited.contains(&nl) && map.contains_key(&nl) {
+            if map[&nl] != Tile::Mountain && map[&nl] != Tile::SnowPeak { 
+                queue.push(nl); 
+            }
+        }
+        let nl = (loc.0, loc.1 + 1, loc.2);
+        if !visited.contains(&nl) && map.contains_key(&nl) {
+            if map[&nl] != Tile::Mountain && map[&nl] != Tile::SnowPeak { 
+                queue.push(nl); 
+            }
+        }
+    }
+    
+    visited
+}
+
+pub fn find_lost_valleys(map: &Map, width: i32) {
+    let mut valleys = vec![find_valley(map, (0, 0, 0))];
+
+    for loc in map.keys() {
+        if loc.2 != 0 || map[&loc] == Tile::Mountain || map[&loc] == Tile::SnowPeak {
+            continue;
+        }
+
+        let mut already_found = false;
+        for valley in &valleys {
+            if valley.contains(loc) {
+                already_found = true;
+                break;
+            }            
+        }
+        
+        if !already_found {
+            let valley = find_valley(map, *loc);
+            valleys.push(valley);
+        }
+    }
+
+    for valley in valleys {
+        println!("Size of valley: {}", valley.len());
+    }
+}
 
 pub fn generate_world() -> Map {
     let mut map = wilderness::test_map();

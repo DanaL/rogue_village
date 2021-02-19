@@ -386,6 +386,7 @@ fn main() {
 
     let mut state = GameState::init();
 	state.map = world::generate_world();
+    world::find_lost_valleys(&state.map, 257);
 
     title_screen(&mut gui);
 
