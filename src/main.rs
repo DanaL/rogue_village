@@ -66,7 +66,7 @@ pub enum Cmd {
     Use,
 	Help,
     Down,
-    //Up,
+    Up,
 }
 
 pub struct GameState {
@@ -309,13 +309,21 @@ fn take_stairs(state: &mut GameState, gui: &mut GameUI, down: bool) {
             state.player_loc = (state.player_loc.0, state.player_loc.1, state.player_loc.2 + 1);
             state.turn += 1;
         } else if *tile == map::Tile::StairsDown {
-            
+            state.write_msg_buff("You brave the stairs downward.");
+            state.player_loc = (state.player_loc.0, state.player_loc.1, state.player_loc.2 + 1);
+            state.turn += 1;
         } else {
             state.write_msg_buff("You cannot do that here.");
         }
     } else {
         if *tile == map::Tile::StairsUp {
-
+            state.write_msg_buff("You climb the stairway.");
+            state.player_loc = (state.player_loc.0, state.player_loc.1, state.player_loc.2 - 1);
+            state.turn += 1;
+            
+            if state.player_loc.2 == 0 {
+                state.write_msg_buff("Fresh air!");
+            }
         } else {
             state.write_msg_buff("You cannot do that here.");
         }
@@ -387,6 +395,7 @@ fn run(gui: &mut GameUI, state: &mut GameState) {
             Cmd::Quit => break,
             Cmd::MsgHistory => show_message_history(state, gui),
             Cmd::Down => take_stairs(state, gui, true),
+            Cmd::Up => take_stairs(state, gui, false),
             _ => continue,
         }
         

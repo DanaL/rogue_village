@@ -321,7 +321,9 @@ impl<'a, 'b> GameUI<'a, 'b> {
 							return Cmd::Search;
 						} else if val == ">" {
 							return Cmd::Down;
-						}						
+						} else if val == "<" {
+							return Cmd::Up;
+						}
 					},
 					_ => { continue },
 				}
