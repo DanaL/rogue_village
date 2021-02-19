@@ -13,9 +13,6 @@
 // You should have received a copy of the GNU General Public License
 // along with RogueVillage.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::collections::HashMap;
-use std::fs;
-
 use rand::thread_rng;
 use rand::Rng;
 
@@ -50,10 +47,7 @@ pub fn generate_world() -> Map {
             map.insert((curr_row as i32, curr_col as i32, 1), dungeon_level[i]);
         }
     }
-    println!("{} {} {:?}", stairs_row, stairs_col, dungeon_level[stairs_row * dungeon_width + stairs_col]);
-    //let delta_row = dungeon_entrance.0 - stairs_loc
-    //dungeon_level[stairs_loc] = map::Tile::Portal;
-
+    
     map.insert((dungeon_entrance.0 as i32, dungeon_entrance.1 as i32, 0), Tile::Portal);
 
     map

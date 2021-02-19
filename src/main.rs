@@ -339,7 +339,7 @@ fn do_move(state: &mut GameState, dir: &str, gui: &mut GameUI) {
 	let next_loc = (next_row, next_col, state.player_loc.2);
 	let tile = &state.map[&next_loc].clone();
 	
-	if map::is_passable(tile) {
+	if tile.is_passable() {
 		state.player_loc = next_loc;
 
 		match tile {

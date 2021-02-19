@@ -145,7 +145,7 @@ fn mark_visible(r1: i32, c1: i32, r2: i32, c2: i32,
             let vmi = (vm_r * width as i32 + vm_c) as usize;
 			v_matrix[vmi] = true;
 
-			if !map::is_clear(&state.map[&(r, c, depth)]) {
+			if !&state.map[&(r, c, depth)].is_clear() {
 				return;
 			}
 
@@ -186,10 +186,10 @@ fn mark_visible(r1: i32, c1: i32, r2: i32, c2: i32,
             let vmi = (vm_r * width as i32 + vm_c) as usize;
 			v_matrix[vmi] = true;
 
-			if !map::is_clear(&state.map[&(r, c, depth)]) {
+			if !&state.map[&(r, c, depth)].is_clear() {
 				return;
 			}
-		
+
 			// Same as above, trees partially block vision instead of cutting it off
             //if curr_weather.clouds.contains(&(r as usize, c as usize)) && !no_fog.contains(&(r as usize, c as usize)) {
             //    return;

@@ -56,6 +56,25 @@ pub enum Tile {
 	StairsDown,
 }
 
+impl Tile {
+	pub fn is_clear(&self) -> bool {
+		match self {
+			Tile::Wall | Tile::Blank | Tile::Mountain | Tile::SnowPeak |
+			Tile::Door(false) | Tile::WoodWall => false,
+			_ => true,
+		}
+	}
+
+	pub fn is_passable(&self) -> bool {
+		match self {
+			Tile::Wall | Tile::Blank | Tile::WorldEdge |
+			Tile::Mountain | Tile::SnowPeak | Tile::Gate | Tile::Door(false) |
+			Tile::WoodWall | Tile::Window(_) => false,		
+			_ => true,
+		}
+	}
+}
+
 pub fn all_passable() -> HashSet<Tile> {
 	let mut passable = HashSet::new();
 	passable.insert(Tile::Water);
@@ -83,23 +102,6 @@ pub fn in_bounds(map: &Vec<Vec<Tile>>, r: i32, c: i32) -> bool {
 	let width = map[0].len() as i32;
 
 	r >= 0 && c >= 0 && r < height && c < width
-}
-
-pub fn is_clear(tile: &Tile) -> bool {
-	match tile {
-		Tile::Wall | Tile::Blank | Tile::Mountain | Tile::SnowPeak |
-		Tile::Door(false) | Tile::WoodWall => false,
-		_ => true,
-	}
-}
-
-pub fn is_passable(tile: &Tile) -> bool {
-	match tile {
-		Tile::Wall | Tile::Blank | Tile::WorldEdge |
-		Tile::Mountain | Tile::SnowPeak | Tile::Gate | Tile::Door(false) |
-		Tile::WoodWall | Tile::Window(_) => false,		
-		_ => true,
-	}
 }
 
 fn val_to_terrain(val: f32) -> Tile {
