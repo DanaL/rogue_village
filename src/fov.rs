@@ -150,16 +150,14 @@ fn mark_visible(r1: i32, c1: i32, r2: i32, c2: i32,
 			}
 
 			// I want trees to not totally block light, but instead reduce visibility, but fog 
-            // completely blocks light.
-            //if curr_weather.clouds.contains(&(r as usize, c as usize)) && !no_fog.contains(&(r as usize, c as usize)) {
-            //    return;
-            //} else if map::Tile::Tree == curr_map[r as usize][c as usize] && !(r == r1 && c == c1) {
-			//	if r_step > 0 {
-			//		r_end -= 3;
-			//	} else {
-			//		r_end += 3;
-			//	}
-			//}
+            // completely blocks light.           
+			if map::Tile::Tree == state.map[&(r, c, depth)] && !(r == r1 && c == c1) {
+				if r_step > 0 {
+					r_end -= 3;
+				} else {
+					r_end += 3;
+				}
+			}
 
 			r += r_step;
 			error += delta_c;
@@ -192,14 +190,13 @@ fn mark_visible(r1: i32, c1: i32, r2: i32, c2: i32,
 
 			// Same as above, trees partially block vision instead of cutting it off
             //if curr_weather.clouds.contains(&(r as usize, c as usize)) && !no_fog.contains(&(r as usize, c as usize)) {
-            //    return;
-            //} else if map::Tile::Tree == curr_map[r as usize][c as usize] && !(r == r1 && c == c1) {
-			//	if c_step > 0 {
-			//		c_end -= 3;
-			//	} else {
-			//		c_end += 3;
-			//	}
-			//}
+            if map::Tile::Tree == state.map[&(r, c, depth)] && !(r == r1 && c == c1) {
+				if c_step > 0 {
+					c_end -= 3;
+				} else {
+					c_end += 3;
+				}
+			}
 			
 			c += c_step;
 			error += delta_r;
