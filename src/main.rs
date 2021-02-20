@@ -39,6 +39,7 @@ use std::time::{Duration, Instant};
 
 use actor::Player;
 use rand::Rng;
+use world::WorldInfo;
 
 const MSG_HISTORY_LENGTH: usize = 50;
 const FOV_WIDTH: usize = 41;
@@ -79,16 +80,20 @@ pub struct GameState {
 	map: Map,
     turn: u32,
     vision_radius: u8,
+    player_loc: (i32, i32, i8),
+    world_info: WorldInfo,
 }
 
 impl GameState {
-    pub fn init() -> GameState {
+    pub fn init(map: Map, world_info: WorldInfo) -> GameState {
         let state = GameState {
             msg_buff: VecDeque::new(),
             msg_history: VecDeque::new(),
-			map: HashMap::new(),
+			map: map,
             turn: 0,
-            vision_radius: 30,            
+            vision_radius: 30,
+            player_loc: (-1, -1, -1),
+            world_info: world_info,
         };
 
         state
@@ -366,8 +371,10 @@ fn run(gui: &mut GameUI, state: &mut GameState, player: &mut Player, npcs: &mut 
             }            
         }
 
-        //let fov_start = Instant::now();
         player.calc_vision_radius(state);
+        state.player_loc = player.location;
+
+        //let fov_start = Instant::now();        
         let tiles = get_top_tiles(&state.map, player, npcs);
         gui.v_matrix = fov::calc_v_matrix(&tiles, player, FOV_HEIGHT, FOV_WIDTH);
         //let fov_duration = fov_start.elapsed();
@@ -393,13 +400,12 @@ fn main() {
 	let mut gui = GameUI::init(&font, &sm_font)
 		.expect("Error initializing GameUI object.");
 
-    let mut state = GameState::init();
     let w = world::generate_world();
-	state.map = w.0;
-    let mut world_info = w.1;
     let mut npcs = w.2;
 
-    println!("{} {:?}", world_info.facts[0].detail, world_info.facts[0].location);
+    let mut state = GameState::init(w.0, w.1);    
+	
+    println!("{} {:?}", state.world_info.facts[0].detail, state.world_info.facts[0].location);
 
     title_screen(&mut gui);
 

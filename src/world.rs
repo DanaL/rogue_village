@@ -23,7 +23,6 @@ use crate::actor::{Actor, Mayor, SimpleMonster};
 use crate::display::{BRIGHT_RED};
 use crate::dungeon;
 use crate::map::Tile;
-use crate::util;
 use crate::wilderness;
 
 pub struct Fact {
@@ -41,11 +40,12 @@ impl Fact {
 pub struct WorldInfo {
     pub facts: Vec<Fact>,
     pub town_boundary: (i32, i32, i32, i32),
+    pub town_name: String,
 }
 
 impl WorldInfo {
-    pub fn new(town_boundary: (i32, i32, i32, i32)) -> WorldInfo {
-        WorldInfo { facts: Vec::new(), town_boundary }
+    pub fn new(town_name: String, town_boundary: (i32, i32, i32, i32)) -> WorldInfo {
+        WorldInfo { town_name, facts: Vec::new(), town_boundary }
     }
 }
 
@@ -150,15 +150,6 @@ fn find_good_dungeon_entrance(map: &Map, sqs: &HashSet<(i32, i32, i8)>) -> (i32,
 
 pub fn generate_world() -> (Map, WorldInfo, NPCTable) {
     let mut map = wilderness::test_map();
-    let mut world_info = WorldInfo::new((100, 100, 135, 135));
-
-    // Assuming in the future we've generated a fresh town and now want to add in townsfolk
-    let mayor = Mayor::new("Ed".to_string(), (120, 79, 0));
-    let mut npcs: NPCTable = HashMap::new();
-    npcs.insert(mayor.location, Box::new(mayor));
-    let g1 = SimpleMonster::new("goblin".to_string(), (140, 140, 0), 'o', BRIGHT_RED);
-    npcs.insert(g1.location, Box::new(g1));
-
     let valleys = find_all_valleys(&map);
     // We want to place the dungeon entrance somewhere in the largest 'valley', which will be
     // the main section of the overworld
@@ -172,8 +163,23 @@ pub fn generate_world() -> (Map, WorldInfo, NPCTable) {
             max_id = v;
         }
     }
-    
+
     let dungeon_entrance = find_good_dungeon_entrance(&map, &valleys[max_id]);
+    let town_name = "Skara Brae";
+
+    let mut world_info = WorldInfo::new(town_name.to_string(),(100, 100, 135, 135));
+    world_info.facts.push(Fact::new("dungeon location".to_string(), 0, dungeon_entrance));
+    world_info.facts.push(Fact::new("town name is Skara Brae".to_string(), 0, (0, 0, 0)));
+
+    // Assuming in the future we've generated a fresh town and now want to add in townsfolk
+    let mut mayor = Mayor::new("Quimby".to_string(), (120, 79, 0));
+    mayor.facts_known.push(0);
+    mayor.facts_known.push(1);
+    
+    let mut npcs: NPCTable = HashMap::new();
+    npcs.insert(mayor.location, Box::new(mayor));
+    let g1 = SimpleMonster::new("goblin".to_string(), (140, 140, 0), 'o', BRIGHT_RED);
+    npcs.insert(g1.location, Box::new(g1));
     
     let dungeon_width = 125;
     let dungeon_height = 40;
@@ -202,7 +208,7 @@ pub fn generate_world() -> (Map, WorldInfo, NPCTable) {
     
     map.insert((dungeon_entrance.0 as i32, dungeon_entrance.1 as i32, 0), Tile::Portal);
     
-    world_info.facts.push(Fact::new("dungeon location".to_string(), 0, dungeon_entrance));
-
+    
+    
     (map, world_info, npcs)
 }

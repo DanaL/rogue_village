@@ -20,6 +20,7 @@ use rand::Rng;
 use rand::seq::SliceRandom;
 
 use crate::map::Tile;
+use crate::util;
 
 fn pick_room() -> (Vec<Vec<Tile>>, usize, usize) {
     let mut rng = rand::thread_rng();
@@ -87,10 +88,9 @@ fn pick_room() -> (Vec<Vec<Tile>>, usize, usize) {
         // Now turn all the squares inside the circle into floors
         for r in 1..height - 1 {
             for c in 1..width - 1 {
-                let d = (i32::abs(i32::pow(r as i32 - rc as i32, 2)) + i32::abs(i32::pow(c as i32 - cc as i32, 2))) as f64;
-                if d.sqrt() <= radius as f64 {
+                if util::distance(r as i32, c as i32, rc as i32, cc as i32) <= radius as i32 {
                     room[r][c] = Tile::StoneFloor;
-                }
+                }                
             }
         }
     }

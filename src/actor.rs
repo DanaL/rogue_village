@@ -17,6 +17,7 @@ use super::{GameState};
 
 use crate::display::{LIGHT_GREY, BRIGHT_RED};
 use crate::map::Tile;
+use crate::util;
 
 pub trait Actor {
     fn act(&mut self, state: &mut GameState);
@@ -75,17 +76,40 @@ pub struct Mayor {
 	pub location: (i32, i32, i8),
     pub ch: char,
     pub color: (u8, u8, u8),
+    pub facts_known: Vec<usize>,
+    pub greeted_player: bool,
 }
 
 impl Mayor {
     pub fn new(name: String, location: (i32, i32, i8)) -> Mayor {
-        Mayor { name, max_hp: 8, curr_hp: 8, location, ch: '@', color: LIGHT_GREY }
+        Mayor { name, max_hp: 8, curr_hp: 8, location, ch: '@', color: LIGHT_GREY, 
+            facts_known: Vec::new(), greeted_player: false }
     }
 }
 
 impl Actor for Mayor {
     fn act(&mut self, state: &mut GameState) {
-        println!("The mayor does stuff at {:?}", self.location);
+        let pl = state.player_loc;
+        if !self.greeted_player && pl.2 == self.location.2 && util::distance(pl.0, pl.1, self.location.0,self.location.1) <= 4 {     
+            for j in 0..self.facts_known.len() {
+                if state.world_info.facts[j].detail.starts_with("town name is ") {
+                    let town_name = &state.world_info.facts[j].detail[13..];
+                    let s = format!("Hello stranger, welcome to {}!", town_name);
+                    state.write_msg_buff(&s);
+                    self.greeted_player = true;
+                }
+            }
+        }
+
+        let tb = state.world_info.town_boundary;
+        let town_centre = ((tb.0 + tb.2) / 2, (tb.1 + tb.3) / 2);
+        // During business hours, the mayor will just wander around but not too far from town centre. If they are
+        // too far from town centre, move back towards it
+        if util::distance(self.location.0, self.location.1, town_centre.0, town_centre.1) > 4 {
+            
+        } else {
+            
+        }        
     }
 
     fn get_tile(&self) -> Tile {

@@ -40,6 +40,11 @@ pub fn ds_union(ds: &mut Vec<i32>, r1: i32, r2: i32) {
 	// }
 }
 
+pub fn distance(x1: i32, y1: i32, x2: i32, y2: i32) -> i32 {
+	let d = (i32::abs(i32::pow(x1 - x2, 2)) + i32::abs(i32::pow(y1 - y2, 2))) as f64;
+	return d.sqrt() as i32;
+}
+
 pub fn ds_find(ds: &mut Vec<i32>, x: i32) -> i32 {
 	if ds[x as usize] < 0 {
 		x
