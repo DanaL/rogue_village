@@ -14,7 +14,7 @@
 // along with RogueVillage.  If not, see <https://www.gnu.org/licenses/>.
 
 use super::{GameState};
-trait Actor {
+pub trait Actor {
     fn act(&mut self, state: &mut GameState);
 }
 
@@ -60,5 +60,44 @@ impl Player {
         Player {            
             name, max_hp: 10, curr_hp: 10, location: (0, 0, 0), vision_radius: default_vision_radius, 
         }
+    }
+}
+
+pub struct Mayor {
+    pub name: String,
+	pub max_hp: u8,
+	pub curr_hp: u8,
+	pub location: (i32, i32, i8),
+}
+
+impl Mayor {
+    pub fn new(name: String, location: (i32, i32, i8)) -> Mayor {
+        Mayor { name, max_hp: 8, curr_hp: 8, location }
+    }
+}
+
+impl Actor for Mayor {
+    fn act(&mut self, state: &mut GameState) {
+        println!("The mayor does stuff");
+    }
+}
+
+pub struct SimpleMonster {
+    pub name: String,
+    pub max_hp: u8,
+    pub curr_hp: u8,
+    pub location: (i32, i32, i8),
+}
+
+impl SimpleMonster {
+    pub fn new(name: String, location:( i32, i32, i8)) -> SimpleMonster {
+        SimpleMonster { name, max_hp: 8, curr_hp: 8, location }
+    }
+}
+
+impl Actor for SimpleMonster {
+    fn act(&mut self, state: &mut GameState) {
+        let s = format!("The {} looks around for prey!", self.name);
+        println!("{}", s);
     }
 }

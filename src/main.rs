@@ -27,6 +27,7 @@ mod util;
 mod wilderness;
 mod world;
 
+use crate::actor::Actor;
 use crate::display::{GameUI, SidebarInfo};
 
 use std::collections::{VecDeque, HashMap};
@@ -300,7 +301,8 @@ fn do_move(state: &mut GameState, player: &mut Player, dir: &str) {
 	}
 }
 
-fn run(gui: &mut GameUI, state: &mut GameState, player: &mut Player) {
+fn run(gui: &mut GameUI, state: &mut GameState, player: &mut Player,
+        npcs: &mut HashMap<(i32, i32, i8), Box<dyn Actor>>) {
     state.write_msg_buff("Hello, world?");
 
 	gui.v_matrix = fov::calc_v_matrix(state, player.location, FOV_HEIGHT, FOV_WIDTH);
@@ -322,11 +324,21 @@ fn run(gui: &mut GameUI, state: &mut GameState, player: &mut Player) {
 			Cmd::Move(dir) => do_move(state, player, &dir),
             Cmd::Open(loc) => do_open(state, loc),
             Cmd::Close(loc) => do_close(state, loc),            
-            Cmd::Down => take_stairs(state, gui, player,true),
-            Cmd::Up => take_stairs(state, gui, player,false),
+            Cmd::Down => take_stairs(state, gui, player, true),
+            Cmd::Up => take_stairs(state, gui, player, false),
             _ => continue,
         }
         
+        if state.turn > start_turn {
+            let npc_locs = npcs.keys()
+						.map(|k| k.clone())
+						.collect::<Vec<(i32, i32, i8)>>();
+            for loc in npc_locs {
+                let npc = npcs.get_mut(&loc).unwrap();
+                npc.act(state);
+            }            
+        }
+
         //let fov_start = Instant::now();
         player.calc_vision_radius(state);
         gui.v_matrix = fov::calc_v_matrix(state, player.location, FOV_HEIGHT, FOV_WIDTH);
@@ -357,6 +369,7 @@ fn main() {
     let w = world::generate_world();
 	state.map = w.0;
     let mut world_info = w.1;
+    let mut npcs = w.2;
 
     println!("{} {:?}", world_info.facts[0].detail, world_info.facts[0].location);
 
@@ -368,5 +381,5 @@ fn main() {
     let sbi = state.curr_sidebar_info(&player);
     gui.write_screen(&mut state.msg_buff, &sbi);
     
-    run(&mut gui, &mut state, &mut player);
+    run(&mut gui, &mut state, &mut player, &mut npcs);
 }
