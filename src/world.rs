@@ -24,6 +24,29 @@ use crate::map::Tile;
 use crate::util;
 use crate::wilderness;
 
+pub struct Fact {
+    pub detail: String,
+    pub timestamp: i32,
+    pub location: (i32, i32, i8),
+}
+
+impl Fact {
+    pub fn new(detail: String, timestamp: i32, location: (i32, i32, i8)) -> Fact {
+        Fact { detail, timestamp, location }
+    }
+}
+
+pub struct WorldInfo {
+    pub facts: Vec<Fact>,
+    pub town_boundary: (i32, i32, i32, i32),
+}
+
+impl WorldInfo {
+    pub fn new(town_boundary: (i32, i32, i32, i32)) -> WorldInfo {
+        WorldInfo { facts: Vec::new(), town_boundary }
+    }
+}
+
 // The random wilderness generator will inevitably create pockets of
 // traversable land complately surrounded by mountains. I don't want to 
 // stick the main dungeon in one of those, and they might also be useful
@@ -123,8 +146,10 @@ fn find_good_dungeon_entrance(map: &Map, sqs: &HashSet<(i32, i32, i8)>) -> (i32,
     *options[j]
 }
 
-pub fn generate_world() -> Map {
+pub fn generate_world() -> (Map, WorldInfo) {
     let mut map = wilderness::test_map();
+    let mut world_info = WorldInfo::new((100, 100, 135, 135));
+
     let valleys = find_all_valleys(&map);
     // We want to place the dungeon entrance somewhere in the largest 'valley', which will be
     // the main section of the overworld
@@ -168,6 +193,7 @@ pub fn generate_world() -> Map {
     
     map.insert((dungeon_entrance.0 as i32, dungeon_entrance.1 as i32, 0), Tile::Portal);
     
-    println!("Dungeon entrance: {:?}", dungeon_entrance);
-    map
+    world_info.facts.push(Fact::new("dungeon location".to_string(), 0, dungeon_entrance));
+
+    (map, world_info)
 }

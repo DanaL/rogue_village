@@ -354,8 +354,12 @@ fn main() {
 		.expect("Error initializing GameUI object.");
 
     let mut state = GameState::init();
-	state.map = world::generate_world();
-    
+    let w = world::generate_world();
+	state.map = w.0;
+    let mut world_info = w.1;
+
+    println!("{} {:?}", world_info.facts[0].detail, world_info.facts[0].location);
+
     title_screen(&mut gui);
 
     let mut player = Player::new(String::from("Dana"));
