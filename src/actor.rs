@@ -14,8 +14,13 @@
 // along with RogueVillage.  If not, see <https://www.gnu.org/licenses/>.
 
 use super::{GameState};
+
+use crate::display::{LIGHT_GREY, BRIGHT_RED};
+use crate::map::Tile;
+
 pub trait Actor {
     fn act(&mut self, state: &mut GameState);
+    fn get_tile(&self) -> Tile;
 }
 
 pub struct Player {
@@ -68,17 +73,23 @@ pub struct Mayor {
 	pub max_hp: u8,
 	pub curr_hp: u8,
 	pub location: (i32, i32, i8),
+    pub ch: char,
+    pub color: (u8, u8, u8),
 }
 
 impl Mayor {
     pub fn new(name: String, location: (i32, i32, i8)) -> Mayor {
-        Mayor { name, max_hp: 8, curr_hp: 8, location }
+        Mayor { name, max_hp: 8, curr_hp: 8, location, ch: '@', color: LIGHT_GREY }
     }
 }
 
 impl Actor for Mayor {
     fn act(&mut self, state: &mut GameState) {
-        println!("The mayor does stuff");
+        println!("The mayor does stuff at {:?}", self.location);
+    }
+
+    fn get_tile(&self) -> Tile {
+        Tile::Creature(self.color, self.ch)
     }
 }
 
@@ -87,17 +98,23 @@ pub struct SimpleMonster {
     pub max_hp: u8,
     pub curr_hp: u8,
     pub location: (i32, i32, i8),
+    pub ch: char,
+    pub color: (u8, u8, u8),
 }
 
 impl SimpleMonster {
-    pub fn new(name: String, location:( i32, i32, i8)) -> SimpleMonster {
-        SimpleMonster { name, max_hp: 8, curr_hp: 8, location }
+    pub fn new(name: String, location:( i32, i32, i8), ch: char, color: (u8, u8, u8)) -> SimpleMonster {
+        SimpleMonster { name, max_hp: 8, curr_hp: 8, location, ch, color }
     }
 }
 
 impl Actor for SimpleMonster {
     fn act(&mut self, state: &mut GameState) {
-        let s = format!("The {} looks around for prey!", self.name);
-        println!("{}", s);
+        //let s = format!("The {} looks around for prey!", self.name);
+        //println!("{}", s);
+    }
+
+    fn get_tile(&self) -> Tile {
+        Tile::Creature(self.color, self.ch)
     }
 }

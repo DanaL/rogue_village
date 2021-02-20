@@ -28,7 +28,7 @@ mod wilderness;
 mod world;
 
 use crate::actor::Actor;
-use crate::display::{GameUI, SidebarInfo};
+use crate::display::{GameUI, SidebarInfo, WHITE};
 
 use std::collections::{VecDeque, HashMap};
 //use std::io::prelude::*;
@@ -45,6 +45,7 @@ const FOV_WIDTH: usize = 41;
 const FOV_HEIGHT: usize = 21;
 
 pub type Map = HashMap<(i32, i32, i8), map::Tile>;
+pub type NPCTable = HashMap<(i32, i32, i8), Box<dyn Actor>>;
 
 pub enum Cmd {
 	Quit,
@@ -259,7 +260,7 @@ fn take_stairs(state: &mut GameState, gui: &mut GameUI, player: &mut Player, dow
     }
 }
 
-fn do_move(state: &mut GameState, player: &mut Player, dir: &str) {
+fn do_move(state: &mut GameState, player: &mut Player, npcs: &NPCTable, dir: &str) {
 	let mv = get_move_tuple(dir);
 
 	let start_tile = &state.map[&player.location];
@@ -268,7 +269,10 @@ fn do_move(state: &mut GameState, player: &mut Player, dir: &str) {
 	let next_loc = (next_row, next_col, player.location.2);
 	let tile = &state.map[&next_loc].clone();
 	
-	if tile.is_passable() {
+    if npcs.contains_key(&next_loc) {
+        // Not quite ready to implement combat yet...
+        state.write_msg_buff("There's someone in your way!");
+    } else if tile.is_passable() {
 		player.location = next_loc;
 
 		match tile {
@@ -301,11 +305,34 @@ fn do_move(state: &mut GameState, player: &mut Player, dir: &str) {
 	}
 }
 
-fn run(gui: &mut GameUI, state: &mut GameState, player: &mut Player,
-        npcs: &mut HashMap<(i32, i32, i8), Box<dyn Actor>>) {
+// Top tiles as in which tile is sitting on top of the square. NPC, items (eventually, once I 
+// implement them), weather (ditto), etc and at the bottom, the terrain tile
+fn get_top_tiles(map: &Map, player: &Player, npcs: &NPCTable) -> Map {
+    let mut tiles = HashMap::new();
+    let half_fov_h = FOV_HEIGHT as i32 / 2;
+    let half_fov_w = FOV_WIDTH as i32 / 2;
+    
+    for r in player.location.0 - half_fov_h..player.location.0 + half_fov_h{
+        for c in player.location.1 - half_fov_w..player.location.1 + half_fov_w {
+            let loc = (r, c, player.location.2);
+            if npcs.contains_key(&loc) {
+                tiles.insert(loc, npcs[&loc].get_tile());
+            } else if map.contains_key(&loc) {
+                tiles.insert(loc, map[&loc]);
+            }
+        }
+    }
+
+    tiles.insert(player.location, map::Tile::Player(WHITE));
+
+    tiles
+}
+
+fn run(gui: &mut GameUI, state: &mut GameState, player: &mut Player, npcs: &mut NPCTable) {
     state.write_msg_buff("Hello, world?");
 
-	gui.v_matrix = fov::calc_v_matrix(state, player.location, FOV_HEIGHT, FOV_WIDTH);
+    let tiles = get_top_tiles(&state.map, player, npcs);
+	gui.v_matrix = fov::calc_v_matrix(&tiles, player, FOV_HEIGHT, FOV_WIDTH);
     let sbi = state.curr_sidebar_info(player);
 	gui.write_screen(&mut state.msg_buff, &sbi);
 
@@ -321,7 +348,7 @@ fn run(gui: &mut GameUI, state: &mut GameState, player: &mut Player,
             Cmd::Pass => state.turn += 1,
             Cmd::Quit => break,
             Cmd::MsgHistory => show_message_history(state, gui),
-			Cmd::Move(dir) => do_move(state, player, &dir),
+			Cmd::Move(dir) => do_move(state, player, npcs, &dir),
             Cmd::Open(loc) => do_open(state, loc),
             Cmd::Close(loc) => do_close(state, loc),            
             Cmd::Down => take_stairs(state, gui, player, true),
@@ -341,7 +368,8 @@ fn run(gui: &mut GameUI, state: &mut GameState, player: &mut Player,
 
         //let fov_start = Instant::now();
         player.calc_vision_radius(state);
-        gui.v_matrix = fov::calc_v_matrix(state, player.location, FOV_HEIGHT, FOV_WIDTH);
+        let tiles = get_top_tiles(&state.map, player, npcs);
+        gui.v_matrix = fov::calc_v_matrix(&tiles, player, FOV_HEIGHT, FOV_WIDTH);
         //let fov_duration = fov_start.elapsed();
         //println!("Time for fov: {:?}", fov_duration);
 		

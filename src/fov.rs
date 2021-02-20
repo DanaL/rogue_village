@@ -15,13 +15,10 @@
 
 use std::collections::{HashMap, HashSet};
 
-//use crate::actor::NPCTracker;
 use crate::display::{WHITE, LIGHT_BLUE, BROWN};
+use crate::actor::Player;
 use crate::map;
-use super::{GameState, Map};
-//use crate::items::{ItemsTable, TileInfo};
-//use crate::util;
-//use crate::weather::Weather;
+use super::Map;
 use super::{FOV_WIDTH, FOV_HEIGHT};
 
 // Kind of ugly by why recalculate these everytime?
@@ -94,7 +91,7 @@ fn radius_full() -> Vec<(i32, i32)> {
 // away you get and also is rather ineffecient (you visit the same squares 
 // several times). My original plan, after making a prototype with beamcasting,
 // was to switch to shadowcasting. But bresenham seemed sufficiently fast
-// and I haven't seen and blindspots (perhaps because I'm keeping the FOV at
+// and I haven't seen any blindspots (perhaps because I'm keeping the FOV at
 // 40x20).
 //
 // As well, I wanted to have the trees obscure/reduce the FOV instead of outright
@@ -102,12 +99,10 @@ fn radius_full() -> Vec<(i32, i32)> {
 // shadowcasting.
 fn mark_visible(r1: i32, c1: i32, r2: i32, c2: i32,
 		depth: i8,
-		state: &mut GameState, 
+		tiles: &Map, 
 		v_matrix: &mut Vec<bool>, 
         width: usize) {
-    //let curr_weather = &state.weather[&state.map_id];
-
-	let mut r = r1;
+    let mut r = r1;
 	let mut c = c1;
 	let mut error = 0;
 
@@ -136,7 +131,7 @@ fn mark_visible(r1: i32, c1: i32, r2: i32, c2: i32,
 				break;
 			}
 
-			if !state.map.contains_key(&(r, c, depth)) {
+			if !tiles.contains_key(&(r, c, depth)) {
 				return;
 			}
 
@@ -145,13 +140,13 @@ fn mark_visible(r1: i32, c1: i32, r2: i32, c2: i32,
             let vmi = (vm_r * width as i32 + vm_c) as usize;
 			v_matrix[vmi] = true;
 
-			if !&state.map[&(r, c, depth)].is_clear() {
+			if !&tiles[&(r, c, depth)].is_clear() {
 				return;
 			}
 
 			// I want trees to not totally block light, but instead reduce visibility, but fog 
             // completely blocks light.           
-			if map::Tile::Tree == state.map[&(r, c, depth)] && !(r == r1 && c == c1) {
+			if map::Tile::Tree == tiles[&(r, c, depth)] && !(r == r1 && c == c1) {
 				if r_step > 0 {
 					r_end -= 3;
 				} else {
@@ -175,7 +170,7 @@ fn mark_visible(r1: i32, c1: i32, r2: i32, c2: i32,
 				break;
 			}
 
-			if !state.map.contains_key(&(r, c, depth)) {
+			if !tiles.contains_key(&(r, c, depth)) {
 				return;
 			}
 
@@ -184,13 +179,13 @@ fn mark_visible(r1: i32, c1: i32, r2: i32, c2: i32,
             let vmi = (vm_r * width as i32 + vm_c) as usize;
 			v_matrix[vmi] = true;
 
-			if !&state.map[&(r, c, depth)].is_clear() {
+			if !&tiles[&(r, c, depth)].is_clear() {
 				return;
 			}
 
 			// Same as above, trees partially block vision instead of cutting it off
             //if curr_weather.clouds.contains(&(r as usize, c as usize)) && !no_fog.contains(&(r as usize, c as usize)) {
-            if map::Tile::Tree == state.map[&(r, c, depth)] && !(r == r1 && c == c1) {
+            if map::Tile::Tree == tiles[&(r, c, depth)] && !(r == r1 && c == c1) {
 				if c_step > 0 {
 					c_end -= 3;
 				} else {
@@ -208,64 +203,39 @@ fn mark_visible(r1: i32, c1: i32, r2: i32, c2: i32,
 	}
 }
 
-pub fn calc_v_matrix(
-		state: &mut GameState,
-		from_loc: (i32, i32, i8),
-		//items: &ItemsTable,
-		height: usize, width: usize) -> Vec<map::Tile> {
+pub fn calc_v_matrix(tiles: &Map, player: &Player, height: usize, width: usize) -> Vec<map::Tile> {
     let size = height * width;
     let mut visible = vec![false; size];
 	let fov_center_r = height / 2;
 	let fov_center_c = width / 2;
+	visible[fov_center_r * width + fov_center_c] = true;
 
-	let perimeter = if state.vision_radius == 3 {
+	let perimeter = if player.vision_radius == 3 {
 		radius_3()
-	} else if state.vision_radius == 5 {
+	} else if player.vision_radius == 5 {
 		radius_5()
-	} else if state.vision_radius == 7 {
+	} else if player.vision_radius == 7 {
 		radius_7()
-	} else if state.vision_radius == 9 {
+	} else if player.vision_radius == 9 {
 		radius_9()
 	} else {
 		radius_full()
 	};
 
-    //let mut no_fog = HashSet::new();
-	/*
-    no_fog.insert((state.player.row - 1, state.player.col - 1));
-    no_fog.insert((state.player.row - 1, state.player.col));
-    no_fog.insert((state.player.row - 1, state.player.col + 1));
-    no_fog.insert((state.player.row, state.player.col - 1));
-    no_fog.insert((state.player.row, state.player.col));
-    no_fog.insert((state.player.row, state.player.col + 1));
-    no_fog.insert((state.player.row + 1, state.player.col - 1));
-    no_fog.insert((state.player.row + 1, state.player.col));
-    no_fog.insert((state.player.row + 1, state.player.col + 1));
-    if state.player.inventory.active_light_source() {
-        let pts = util::bresenham_circle(state.player.row as i32, state.player.col as i32, 2);
-        for pt in pts {
-            no_fog.insert((pt.0 as usize, pt.1 as usize));
-        }
-    }
-    */
-
-    let pr = from_loc.0;
-    let pc = from_loc.1;
+    let pr = player.location.0;
+    let pc = player.location.1;
 	// Beamcast to all the points around the perimiter of the viewing
-	// area. For YarrL's fixed size FOV this seems to work just fine
-	// and cuts about a whole bunch of redundant looping and beam
-	// casting.
+	// area. For RogueVillage's fixed size FOV this seems to work just fine in
+	// terms of performance.
 	for loc in perimeter {
 		let actual_r = pr + loc.0;
 		let actual_c = pc + loc.1;
 
-		mark_visible(pr, pc, actual_r as i32, actual_c as i32, from_loc.2, state, &mut visible, width);
+		mark_visible(pr, pc, actual_r as i32, actual_c as i32, player.location.2, tiles, &mut visible, width);
 	}
 
     // Now we know which locations are actually visible from the player's loc, 
-    // figure out what tile should be shown. no_fog is a set of squares to ignore
-    // fog in. (To make it slightly more difficult for the player to blunder into
-    // lava and so they can see neighbouring enemies)
+    // copy the tiles into the v_matrix
     let mut v_matrix = vec![map::Tile::Blank; size];
     for r in 0..height {
         for c in 0..width {
@@ -273,22 +243,10 @@ pub fn calc_v_matrix(
             if visible[j] {
                 let row = pr - fov_center_r as i32 + r as i32;
                 let col = pc - fov_center_c as i32 + c as i32;
-				if state.map.contains_key(&(row, col, from_loc.2)) {
-					v_matrix[j] = state.map[&(row, col, from_loc.2)].clone();
-                }
+				v_matrix[j] = tiles[&(row, col, player.location.2)].clone();
             }
         }
     }
-
-	// This is where we insert the player into the view matrix. Normally the player token
-	// is always visible but when they are hit by a boulder, for comedic/dramatic effect
-	// I wanted the boulder to appear over top of them.
-	let fov_center_i = fov_center_r * width + fov_center_c;
-	if state.map[&from_loc] == map::Tile::DeepWater {
-		v_matrix[fov_center_i] = map::Tile::Player(LIGHT_BLUE);
-	} else {
-		v_matrix[fov_center_i] = map::Tile::Player(WHITE);
-	}
 
 	v_matrix
 }
