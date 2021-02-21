@@ -23,33 +23,46 @@ use super::Map;
 use crate::map;
 use crate::util;
 
-#[derive(Eq, Debug)]
+const ADJ: [(i32, i32); 8] = [(0, -1), (0, 1), (-1, 0), (1, 0), (-1, -1), (-1, 1), (1, -1), (1, 1)];
+
+#[derive(Debug)]
 struct ASQueueItem {
 	loc: (i32, i32),
-	f: i32,
+	f: f64,
 }
 
 impl ASQueueItem {
-	fn new(loc: (i32, i32), f: i32) -> ASQueueItem {
+	fn new(loc: (i32, i32), f: f64) -> ASQueueItem {
 		ASQueueItem { loc, f }
 	}
 }
 
+impl Eq for ASQueueItem { }
+
 impl Ord for ASQueueItem {
+	#[inline]
 	fn cmp(&self, other: &Self) -> Ordering {
-        self.f.cmp(&other.f)
+		return if f64::abs(self.f - other.f) < 0.00001 {
+			Ordering::Equal
+		} else if self.f > other.f {
+			Ordering::Greater
+		} else {
+			Ordering::Less
+		}        
     }
 }
 
 impl PartialOrd for ASQueueItem {
+	#[inline]
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
 impl PartialEq for ASQueueItem {
+	#[inline]
     fn eq(&self, other: &Self) -> bool {
-        self.f == other.f
+        f64::abs(self.f - other.f) < 0.00001
     }
 }
 
@@ -129,7 +142,7 @@ fn astar(
 	g_scores.insert((start_r, start_c), 0);
 	let goal = (end_r, end_c);
 
-	queue.push(ASQueueItem::new((start_r, start_c), 0)); 
+	queue.push(ASQueueItem::new((start_r, start_c), 0.0)); 
 	in_queue.insert((start_r, start_c));
 
 	while queue.len() > 0 {
@@ -139,42 +152,39 @@ fn astar(
 			return backtrace_path(end_r, end_c, &parents);
 		}
 
-		for r in -1..2 {
-			for c in -1..2 {
-				if r == 0 && c == 0 { continue; }
-				let nr = curr.0 + r;
-				let nc = curr.1 + c;
-				if !map.contains_key(&(nr, nc, level)) { continue; }
+		for adj in ADJ.iter() {			
+			let nr = curr.0 + adj.0;
+			let nc = curr.1 + adj.1;
+			if !map.contains_key(&(nr, nc, level)) { continue; }
 
-				let n_loc = (nr, nc);
-				if !passable_by_me(&map[&(n_loc.0, n_loc.1, level)], passable_tiles) { continue; }
-				//if n_loc != goal && !super::sq_is_open(state, n_loc.0, n_loc.1) { continue; }
+			let n_loc = (nr, nc);
+			if !passable_by_me(&map[&(n_loc.0, n_loc.1, level)], passable_tiles) { continue; }
+			//if n_loc != goal && !super::sq_is_open(state, n_loc.0, n_loc.1) { continue; }
 
-				let tentative_score = *g_scores.get(&curr).unwrap() + 1;
-				let mut g = std::u32::MAX;
-				if g_scores.contains_key(&n_loc) {
-					g = *g_scores.get(&n_loc).unwrap();
+			let tentative_score = *g_scores.get(&curr).unwrap() + 1;
+			let mut g = std::u32::MAX;
+			if g_scores.contains_key(&n_loc) {
+				g = *g_scores.get(&n_loc).unwrap();
+			}
+
+			if tentative_score < g {
+				g_scores.entry(n_loc)
+						.and_modify(|v| { *v = tentative_score } )
+						.or_insert(tentative_score);
+
+				let mut d_to_goal = util::distance(nr, nc, end_r, end_c);
+				if d_to_goal as i32 > max_distance {
+					continue;
 				}
 
-				if tentative_score < g {
-					g_scores.entry(n_loc)
-							.and_modify(|v| { *v = tentative_score } )
-							.or_insert(tentative_score);
+				d_to_goal += tentative_score as f64;
 
-					let mut d_to_goal = util::distance(nr, nc, end_r, end_c);
-					if d_to_goal > max_distance {
-                        continue;
-                    }
-
-					d_to_goal += tentative_score as i32;
-
-					if !in_queue.contains(&n_loc) {
-						let p = parents.entry(n_loc).or_insert(curr);
-						*p = curr;
-						queue.push(ASQueueItem::new(n_loc, -d_to_goal)); 
-						in_queue.insert(n_loc);
-					}
-				}
+				if !in_queue.contains(&n_loc) {
+					let p = parents.entry(n_loc).or_insert(curr);
+					*p = curr;
+					queue.push(ASQueueItem::new(n_loc, -d_to_goal)); 
+					in_queue.insert(n_loc);
+				}				
 			}
 		}
 	}

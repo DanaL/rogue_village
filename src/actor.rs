@@ -17,6 +17,7 @@ use std::collections::{HashSet, VecDeque};
 
 use rand::thread_rng;
 use rand::Rng;
+use std::time::{Duration, Instant};
 
 use super::{GameState, NPCTable};
 
@@ -126,6 +127,7 @@ impl Mayor {
 
             let mut path = find_path(&state.map, self.location.0, self.location.1, self.location.2,
                 goal.0, goal.1, 50, &passable);
+            
             path.pop(); // first square in path is the start location
             while path.len() > 0 {
                 let sq = path.pop().unwrap();
@@ -137,7 +139,9 @@ impl Mayor {
     // There's a bug here in that if the mayor's door was already open, they don't close it upon
     // entering their house because atm I'm only adding closing it to the plan after they open it.
     // What I should do is update their behaviour so that if they are in their house and the door is open
-    // they'll try to close it.
+    // they'll try to close it. This probably means I need to add support for more than one Goal and
+    // also currently the mayor doesn't know about the door to their house. They probably want to lock it
+    // at night too.
     fn try_to_move_to_loc(&mut self, loc: (i32, i32, i8), state: &mut GameState, npcs: &mut NPCTable) {
         if npcs.contains_key(&loc) || state.player_loc == loc {
             state.write_msg_buff("\"Excuse me.\"");
@@ -179,12 +183,10 @@ impl Mayor {
 }
 
 impl Actor for Mayor {
-    
-
     fn act(&mut self, state: &mut GameState, npcs: &mut NPCTable) {
         // It's a mayoral duty to greet newcomers to town
         let pl = state.player_loc;
-        if !self.greeted_player && pl.2 == self.location.2 && util::distance(pl.0, pl.1, self.location.0,self.location.1) <= 4 {     
+        if !self.greeted_player && pl.2 == self.location.2 && util::distance(pl.0, pl.1, self.location.0,self.location.1) <= 4.0 {     
             for j in 0..self.facts_known.len() {
                 if state.world_info.facts[j].detail.starts_with("town name is ") {
                     let town_name = &state.world_info.facts[j].detail[13..];
@@ -205,7 +207,7 @@ impl Actor for Mayor {
         // Gotta think of a good structure for schedules so that I don't have to hardcode all the rules
         // So: if between 9:00 and 21:00, mayor wants to be Idle near the town center. From 21:00 to 9:00
         // they want to be idle in their home
-        else if (state.curr_hour() >= 21 || state.curr_hour() <= 9) {
+        else if state.curr_hour() >= 21 || state.curr_hour() <= 9 {
             if !self.home.contains(&self.location) {
                 let j = thread_rng().gen_range(0, self.home.len());
                 let goal_loc = self.home.iter().nth(j).unwrap();
@@ -221,12 +223,13 @@ impl Actor for Mayor {
             //println!("{} {}, {} {}", self.location.0, self.location.1, town_centre.0, town_centre.1);
             //println!("{}", util::distance(self.location.0, self.location.1, town_centre.0, town_centre.1));
             //println!("{:?}", state.map[&(town_centre.0, town_centre.1, self.location.2)]);
-            if util::distance(self.location.0, self.location.1, town_centre.0, town_centre.1) > 4 {
+            
+            if util::distance(self.location.0, self.location.1, town_centre.0, town_centre.1) > 4.0 {
                 self.goal = Goal::GoTo((town_centre.0, town_centre.1, self.location.2));
             }
             else {
                 self.goal = Goal::Idle;
-            }
+            }            
         }
         
         // Maybe create 'plans' for NPCs? So they have can a series of goals they want to 
@@ -236,7 +239,10 @@ impl Actor for Mayor {
                 if self.location == loc {
                     self.goal = Goal::Idle; // We've reached our goal
                 } else {
+                    //let pf_start = Instant::now();
                     self.calc_plan_to_move(state, loc);
+                    //let pf_duration = pf_start.elapsed();
+                    //println!("Time for pf: {:?}", pf_duration);
                 }
             },
             Goal::Idle => { /* do nothing for moment */ },

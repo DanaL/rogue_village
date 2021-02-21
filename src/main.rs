@@ -384,7 +384,7 @@ fn run(gui: &mut GameUI, state: &mut GameState, player: &mut Player, npcs: &mut 
 
         player.calc_vision_radius(state);
         
-        //let fov_start = Instant::now();        
+        //let fov_start = Instant::now();
         let tiles = get_top_tiles(&state.map, player, npcs);
         gui.v_matrix = fov::calc_v_matrix(&tiles, player, FOV_HEIGHT, FOV_WIDTH);
         //let fov_duration = fov_start.elapsed();
