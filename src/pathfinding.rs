@@ -148,7 +148,7 @@ fn astar(
 	while queue.len() > 0 {
 		let node = queue.pop().unwrap();
 		let curr = node.loc;
-		if stop_before && util::distance(curr.0, curr.1, end_r, end_c) < 1.25 {
+		if stop_before && util::distance(curr.0, curr.1, end_r, end_c) < 1.5 {
 			return backtrace_path(curr.0, curr.1, &parents);
 		} else if curr == goal {
 			return backtrace_path(end_r, end_c, &parents);

@@ -223,6 +223,11 @@ impl Actor for Mayor {
                 } else if state.map[&entrance] == Tile::Door(DoorState::Open) {
                     self.calc_plan_to_move(state, entrance, true);
                     self.plan.push_back(Action::CloseDoor(entrance));
+                } else {
+                    // for now, just wander about home
+                    let j = thread_rng().gen_range(0, self.home.len());
+                    let goal_loc = self.home.iter().nth(j).unwrap();
+                    self.calc_plan_to_move(state, *goal_loc, false);
                 }
             }
         }
