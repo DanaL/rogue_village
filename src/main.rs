@@ -23,6 +23,7 @@ mod display;
 mod dungeon;
 mod fov;
 mod map;
+mod pathfinding;
 mod util;
 mod wilderness;
 mod world;
@@ -119,6 +120,10 @@ impl GameState {
     pub fn curr_sidebar_info(&self, player: &Player) -> SidebarInfo {
 		SidebarInfo::new(player.name.to_string(), player.curr_hp, player.max_hp, self.turn)
 	}
+
+    pub fn curr_hour(&self) -> u32 {
+        return (self.turn / 100 + 12) % 24;
+    }
 }
 
 fn show_message_history(state: &GameState, gui: &mut GameUI) {
