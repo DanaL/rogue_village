@@ -64,8 +64,6 @@ fn backtrace_path(goal_r: i32, goal_c: i32, parents: &HashMap<(i32, i32), (i32, 
 		c = *p;
 	}
 	
-	v.reverse();
-
 	v
 }
 
@@ -164,8 +162,7 @@ fn astar(
 							.or_insert(tentative_score);
 
 					let mut d_to_goal = util::distance(nr, nc, end_r, end_c);
-					println!("{}", d_to_goal);
-                    if d_to_goal > max_distance {
+					if d_to_goal > max_distance {
                         continue;
                     }
 

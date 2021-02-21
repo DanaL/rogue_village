@@ -73,6 +73,7 @@ pub enum Cmd {
 	Help,
     Down,
     Up,
+    WizardCommand,
 }
 
 pub struct GameState {
@@ -315,6 +316,27 @@ fn do_move(state: &mut GameState, player: &mut Player, npcs: &NPCTable, dir: &st
 	}
 }
 
+fn wiz_command(state: &mut GameState, gui: &mut GameUI, player: &mut Player) {
+    let sbi = state.curr_sidebar_info(player);
+    match gui.query_user(":", 20, &sbi) {
+        Some(result) => {
+            let pieces: Vec<&str> = result.trim().split('=').collect();
+            if pieces.len() != 2 {
+                state.write_msg_buff("Invalid wizard command");
+            } else if pieces[0] == "turn" {
+                let num = pieces[1].parse::<u32>();
+                match num {
+                    Ok(v) => state.turn = v,
+                    Err(e) => state.write_msg_buff("Invalid wizard command"),
+                }
+            } else {
+                state.write_msg_buff("Invalid wizard command");
+            }
+        },
+        None => { },
+    }
+}
+
 // Top tiles as in which tile is sitting on top of the square. NPC, items (eventually, once I 
 // implement them), weather (ditto), etc and at the bottom, the terrain tile
 fn get_top_tiles(map: &Map, player: &Player, npcs: &NPCTable) -> Map {
@@ -363,6 +385,7 @@ fn run(gui: &mut GameUI, state: &mut GameState, player: &mut Player, npcs: &mut 
             Cmd::Close(loc) => do_close(state, loc),            
             Cmd::Down => take_stairs(state, gui, player, true),
             Cmd::Up => take_stairs(state, gui, player, false),
+            Cmd::WizardCommand => wiz_command(state, gui, player),
             _ => continue,
         }
         
@@ -370,9 +393,12 @@ fn run(gui: &mut GameUI, state: &mut GameState, player: &mut Player, npcs: &mut 
             let npc_locs = npcs.keys()
 						.map(|k| k.clone())
 						.collect::<Vec<(i32, i32, i8)>>();
+
             for loc in npc_locs {
                 let npc = npcs.get_mut(&loc).unwrap();
-                npc.act(state);
+                //let foo = *npc.clone();
+                //println!("{:?}", *npc);
+                //npc.act(state, npcs);
             }            
         }
 

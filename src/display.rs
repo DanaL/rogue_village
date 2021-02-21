@@ -339,6 +339,8 @@ impl<'a, 'b> GameUI<'a, 'b> {
 							return Cmd::Down;
 						} else if val == "<" {
 							return Cmd::Up;
+						} else if val == ":" {
+							return Cmd::WizardCommand;
 						}
 					},
 					_ => { continue },

@@ -5,7 +5,7 @@
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 //
-// YarrL is distributed in the hope that it will be useful,
+// RogueVillage is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
@@ -13,15 +13,45 @@
 // You should have received a copy of the GNU General Public License
 // along with RogueVillage.  If not, see <https://www.gnu.org/licenses/>.
 
-use super::{GameState};
+use std::collections::HashSet;
+
+use rand::thread_rng;
+use rand::Rng;
+
+use super::{GameState, NPCTable};
 
 use crate::display::{LIGHT_GREY, BRIGHT_RED};
 use crate::map::Tile;
+use crate::pathfinding::find_path;
 use crate::util;
 
-pub trait Actor {
-    fn act(&mut self, state: &mut GameState);
+#[derive(Clone, Debug)]
+pub enum Goal {
+    Idle,
+    GoTo((i32, i32, i8)),
+}
+
+pub trait Actor: ActorClone {
+    fn act(&mut self, state: &mut GameState, npcs: &mut NPCTable);
     fn get_tile(&self) -> Tile;
+}
+
+pub trait ActorClone {
+    fn clone_box(&self) -> Box<dyn Actor>;
+}
+
+impl<T> ActorClone for T 
+where T: 'static + Actor + Clone,
+{
+    fn clone_box(&self) -> Box<dyn Actor> {
+        Box::new(self.clone())
+    }
+}
+
+impl Clone for Box<dyn Actor> {
+    fn clone(&self) -> Box<dyn Actor> {
+        self.clone_box()
+    }
 }
 
 pub struct Player {
@@ -35,7 +65,7 @@ pub struct Player {
 impl Player {
     pub fn calc_vision_radius(&mut self, state: &mut GameState) {
         let prev_vr = self.vision_radius;
-        let curr_time = (state.turn / 100 + 12) % 24;
+        let curr_time = state.curr_hour();
 
         self.vision_radius = if curr_time >= 6 && curr_time <= 19 {
             99
@@ -69,6 +99,7 @@ impl Player {
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct Mayor {
     pub name: String,
 	pub max_hp: u8,
@@ -78,17 +109,46 @@ pub struct Mayor {
     pub color: (u8, u8, u8),
     pub facts_known: Vec<usize>,
     pub greeted_player: bool,
+    pub home: HashSet<(i32, i32, i8)>,
+    pub goal: Goal,
+    pub curr_path: Vec<(i32, i32)>,
 }
 
 impl Mayor {
     pub fn new(name: String, location: (i32, i32, i8)) -> Mayor {
         Mayor { name, max_hp: 8, curr_hp: 8, location, ch: '@', color: LIGHT_GREY, 
-            facts_known: Vec::new(), greeted_player: false }
+            facts_known: Vec::new(), greeted_player: false, home: HashSet::new(),
+            goal: Goal::Idle, curr_path: Vec::new(),
+        }
+    }
+
+    fn move_to(&mut self, state: &GameState, goal: (i32, i32, i8)) {
+        if self.curr_path.len() == 0 {
+            let mut passable = HashSet::new();
+            passable.insert(Tile::Grass);
+            passable.insert(Tile::Dirt);
+            passable.insert(Tile::Tree);
+            passable.insert(Tile::Door(true));
+            passable.insert(Tile::Door(false));
+            passable.insert(Tile::StoneFloor);
+            passable.insert(Tile::Floor);
+
+            let mut path = find_path(&state.map, self.location.0, self.location.1, self.location.2,
+                goal.0, goal.1, 50, &passable);
+            path.pop(); // first square in path is the start location
+            println!("{:?}", path);
+            self.curr_path = path;
+        }
+
+        let loc = &self.curr_path[0];
+        self.location = (loc.0, loc.1, self.location.2);
+        self.curr_path.pop();
     }
 }
 
 impl Actor for Mayor {
-    fn act(&mut self, state: &mut GameState) {
+    fn act(&mut self, state: &mut GameState, npcs: &mut NPCTable) {
+        // It's a mayoral duty to greet newcomers to town
         let pl = state.player_loc;
         if !self.greeted_player && pl.2 == self.location.2 && util::distance(pl.0, pl.1, self.location.0,self.location.1) <= 4 {     
             for j in 0..self.facts_known.len() {
@@ -101,15 +161,48 @@ impl Actor for Mayor {
             }
         }
 
-        let tb = state.world_info.town_boundary;
-        let town_centre = ((tb.0 + tb.2) / 2, (tb.1 + tb.3) / 2);
-        // During business hours, the mayor will just wander around but not too far from town centre. If they are
-        // too far from town centre, move back towards it
-        if util::distance(self.location.0, self.location.1, town_centre.0, town_centre.1) > 4 {
-            
-        } else {
-            
-        }        
+        // Their schedule is: during 'business hours', hang out in the centre of the village. After
+        // hours they want to hang out in their home. (Eventually of course there will also be the pub)
+        // Gotta think of a good structure for schedules so that I don't have to hardcode all the rules
+        // So: if between 9:00 and 21:00, mayor wants to be Idle near the town center. From 21:00 to 9:00
+        // they want to be idle in their home
+        if (state.curr_hour() >= 21 || state.curr_hour() <= 9) {
+            if !self.home.contains(&self.location) {
+                let j = thread_rng().gen_range(0, self.home.len());
+                let goal_loc = self.home.iter().nth(j).unwrap();
+                self.goal = Goal::GoTo(*goal_loc);
+            } else {
+                // hang out and be idle
+                self.goal = Goal::Idle;
+            }
+        }
+        else {
+            let tb = state.world_info.town_boundary;
+            //let town_centre = ((tb.0 + tb.2) / 2, (tb.1 + tb.3) / 2);
+            let town_centre = (120, 79, 0);
+            //println!("{} {}, {} {}", self.location.0, self.location.1, town_centre.0, town_centre.1);
+            //println!("{}", util::distance(self.location.0, self.location.1, town_centre.0, town_centre.1));
+            //println!("{:?}", state.map[&(town_centre.0, town_centre.1, self.location.2)]);
+            if util::distance(self.location.0, self.location.1, town_centre.0, town_centre.1) > 4 {
+                self.goal = Goal::GoTo((town_centre.0, town_centre.1, self.location.2));
+            }
+            else {
+                self.goal = Goal::Idle;
+            }
+        }
+        
+        // Maybe create 'plans' for NPCs? So they have can a series of goals they want to 
+        // accompalish?
+        match self.goal {
+            Goal::GoTo(loc) => {
+                if self.location == loc {
+                    self.goal = Goal::Idle; // We've reached our goal
+                } else {
+                    self.move_to(state, loc);
+                }
+            },
+            Goal::Idle => { /* do nothing for moment */ },
+        } 
     }
 
     fn get_tile(&self) -> Tile {
@@ -117,6 +210,7 @@ impl Actor for Mayor {
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct SimpleMonster {
     pub name: String,
     pub max_hp: u8,
@@ -124,16 +218,17 @@ pub struct SimpleMonster {
     pub location: (i32, i32, i8),
     pub ch: char,
     pub color: (u8, u8, u8),
+    pub goal: Goal,
 }
 
 impl SimpleMonster {
     pub fn new(name: String, location:( i32, i32, i8), ch: char, color: (u8, u8, u8)) -> SimpleMonster {
-        SimpleMonster { name, max_hp: 8, curr_hp: 8, location, ch, color }
+        SimpleMonster { name, max_hp: 8, curr_hp: 8, location, ch, color, goal: Goal::Idle }
     }
 }
 
 impl Actor for SimpleMonster {
-    fn act(&mut self, state: &mut GameState) {
+    fn act(&mut self, state: &mut GameState, npcs: &mut NPCTable) {
         //let s = format!("The {} looks around for prey!", self.name);
         //println!("{}", s);
     }

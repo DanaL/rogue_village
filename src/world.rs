@@ -5,7 +5,7 @@
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 //
-// YarrL is distributed in the hope that it will be useful,
+// RogueVillage is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
@@ -167,12 +167,33 @@ pub fn generate_world() -> (Map, WorldInfo, NPCTable) {
     let dungeon_entrance = find_good_dungeon_entrance(&map, &valleys[max_id]);
     let town_name = "Skara Brae";
 
-    let mut world_info = WorldInfo::new(town_name.to_string(),(100, 100, 135, 135));
+    let mut world_info = WorldInfo::new(town_name.to_string(),(100, 100, 135, 110));
     world_info.facts.push(Fact::new("dungeon location".to_string(), 0, dungeon_entrance));
     world_info.facts.push(Fact::new("town name is Skara Brae".to_string(), 0, (0, 0, 0)));
 
     // Assuming in the future we've generated a fresh town and now want to add in townsfolk
     let mut mayor = Mayor::new("Quimby".to_string(), (120, 79, 0));
+    mayor.home.insert((115, 104, 0));
+    mayor.home.insert((115, 105, 0));
+    mayor.home.insert((116, 104, 0));
+    mayor.home.insert((116, 105, 0));
+    mayor.home.insert((117, 104, 0));
+    mayor.home.insert((117, 105, 0));
+    mayor.home.insert((118, 101, 0));
+    mayor.home.insert((118, 102, 0));
+    mayor.home.insert((118, 103, 0));
+    mayor.home.insert((118, 104, 0));
+    mayor.home.insert((118, 105, 0));
+    mayor.home.insert((119, 101, 0));
+    mayor.home.insert((119, 102, 0));
+    mayor.home.insert((119, 103, 0));
+    mayor.home.insert((119, 104, 0));
+    mayor.home.insert((119, 105, 0));
+    mayor.home.insert((120, 101, 0));
+    mayor.home.insert((120, 102, 0));
+    mayor.home.insert((120, 103, 0));
+    mayor.home.insert((120, 104, 0));
+    mayor.home.insert((120, 105, 0));
     mayor.facts_known.push(0);
     mayor.facts_known.push(1);
     
@@ -207,8 +228,6 @@ pub fn generate_world() -> (Map, WorldInfo, NPCTable) {
     }
     
     map.insert((dungeon_entrance.0 as i32, dungeon_entrance.1 as i32, 0), Tile::Portal);
-    
-    
     
     (map, world_info, npcs)
 }
