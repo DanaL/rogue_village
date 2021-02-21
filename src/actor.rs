@@ -20,8 +20,8 @@ use rand::Rng;
 
 use super::{GameState, NPCTable};
 
-use crate::display::{LIGHT_GREY, BRIGHT_RED};
-use crate::map::Tile;
+use crate::display::{LIGHT_GREY};
+use crate::map::{Tile, DoorState};
 use crate::pathfinding::find_path;
 use crate::util;
 
@@ -117,8 +117,10 @@ impl Mayor {
             passable.insert(Tile::Grass);
             passable.insert(Tile::Dirt);
             passable.insert(Tile::Tree);
-            passable.insert(Tile::Door(true));
-            passable.insert(Tile::Door(false));
+            passable.insert(Tile::Door(DoorState::Open));
+            passable.insert(Tile::Door(DoorState::Closed));
+            passable.insert(Tile::Door(DoorState::Broken));
+            passable.insert(Tile::Door(DoorState::Locked));
             passable.insert(Tile::StoneFloor);
             passable.insert(Tile::Floor);
 
@@ -132,11 +134,15 @@ impl Mayor {
         }
     }
 
+    // There's a bug here in that if the mayor's door was already open, they don't close it upon
+    // entering their house because atm I'm only adding closing it to the plan after they open it.
+    // What I should do is update their behaviour so that if they are in their house and the door is open
+    // they'll try to close it.
     fn try_to_move_to_loc(&mut self, loc: (i32, i32, i8), state: &mut GameState, npcs: &mut NPCTable) {
         if npcs.contains_key(&loc) || state.player_loc == loc {
             state.write_msg_buff("\"Excuse me.\"");
             self.plan.push_front(Action::Move(loc));
-        } else if state.map[&loc] == Tile::Door(false) {
+        } else if state.map[&loc] == Tile::Door(DoorState::Closed) {
             let next = self.plan.pop_front().unwrap();
             self.plan.push_front(Action::CloseDoor(loc));
             self.plan.push_front(next);
@@ -149,7 +155,7 @@ impl Mayor {
 
     fn open_door(&mut self, loc: (i32, i32, i8), state: &mut GameState) {
         state.write_msg_buff("The mayor opens the door.");
-        state.map.insert(loc, Tile::Door(true));
+        state.map.insert(loc, Tile::Door(DoorState::Open));
     }
 
     fn close_door(&mut self, loc: (i32, i32, i8), state: &mut GameState, npcs: &mut NPCTable) {
@@ -158,7 +164,7 @@ impl Mayor {
             self.plan.push_front(Action::CloseDoor(loc));
         } else {
             state.write_msg_buff("The mayor closes the door.");
-            state.map.insert(loc, Tile::Door(false));
+            state.map.insert(loc, Tile::Door(DoorState::Closed));
         }
     }
 

@@ -19,7 +19,7 @@ use rand::thread_rng;
 use rand::Rng;
 use rand::seq::SliceRandom;
 
-use crate::map::Tile;
+use crate::map::{Tile, DoorState};
 use crate::util;
 
 fn pick_room() -> (Vec<Vec<Tile>>, usize, usize) {
@@ -157,7 +157,8 @@ fn add_doorway_horizonal(level: &mut Vec<Tile>, row: usize, lo: usize, hi: usize
         let x = rng.gen_range(0, options.len());
         let col = options[x];
         if rng.gen_range(0.0, 1.0) < 0.8 {
-            level[row * width + col] = Tile::Door(false);
+            // Have to make them locked sometimes too...
+            level[row * width + col] = Tile::Door(DoorState::Closed);
         } else {
             level[row * width + col] = Tile::StoneFloor;
         }
@@ -191,7 +192,7 @@ fn add_doorway_vertical(level: &mut Vec<Tile>, col: usize, lo: usize, hi: usize,
         let x = rng.gen_range(0, options.len());
         let row = options[x];
         if rng.gen_range(0.0, 1.0) < 0.8 {
-            level[row * width + col] = Tile::Door(false);
+            level[row * width + col] = Tile::Door(DoorState::Closed);
         } else {
             level[row * width + col] = Tile::StoneFloor;
         }
@@ -369,7 +370,7 @@ fn add_extra_door_to_horizontal_wall(level: &mut Vec<Tile>, width: usize, row: u
     if !already_connected && options.len() > 0 {
         let x = rng.gen_range(0, options.len());
         let col = options[x];
-        level[row * width + col] = Tile::Door(false);
+        level[row * width + col] = Tile::Door(DoorState::Closed);
         return true;
     }
 
@@ -392,7 +393,7 @@ fn add_extra_door_to_vertical_wall(level: &mut Vec<Tile>, width: usize, col: usi
     if !already_connected && options.len() > 0 {
         let x = rng.gen_range(0, options.len());
         let row = options[x];
-        level[row * width + col] = Tile::Door(false);
+        level[row * width + col] = Tile::Door(DoorState::Closed);
         return true;
     }
 
@@ -659,8 +660,7 @@ fn dump_level(level: &Vec<Tile>, width: usize, height: usize) {
             match level[width * r + c] {
                 Tile::StoneFloor => s.push_str("."),
                 Tile::Wall => s.push_str("#"),
-                Tile::Door(true) => s.push_str("/"),
-                Tile::Door(false) => s.push_str("+"),
+                Tile::Door(_) => s.push_str("+"),
                 _ => s.push_str("?"),
             }            
         }

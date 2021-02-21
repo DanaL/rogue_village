@@ -19,7 +19,7 @@ use std::collections::{HashMap, HashSet, VecDeque};
 
 use crate::actor::Player;
 use crate::map;
-use crate::map::Tile;
+use crate::map::{Tile, DoorState};
 
 use super::{Cmd, GameState, FOV_WIDTH, FOV_HEIGHT};
 
@@ -235,8 +235,8 @@ impl<'a, 'b> GameUI<'a, 'b> {
 		Some(answer)
 	}
 
-	fn select_door(&mut self, state: &GameState, player: &Player, closed: bool) -> Option<(i32, i32, i8)> {	
-		if let Some(d) = map::adjacent_door(&state.map, player.location, closed) {
+	fn select_door(&mut self, state: &GameState, player: &Player, door_state: DoorState) -> Option<(i32, i32, i8)> {	
+		if let Some(d) = map::adjacent_door(&state.map, player.location, door_state) {
 			Some(d)
 		} else {
 			match self.pick_direction("Which door?", &state.curr_sidebar_info(player)) {
@@ -304,12 +304,12 @@ impl<'a, 'b> GameUI<'a, 'b> {
                         } else if val == "?" {
 							return Cmd::Help;
 						} else if val == "o" {
-							match self.select_door(state, player, false) {
+							match self.select_door(state, player, DoorState::Closed) {
 								Some(loc) => return Cmd::Open(loc),
 								None => { },
 							}							
 						} else if val == "c" {
-							match self.select_door(state, player, true) {
+							match self.select_door(state, player, DoorState::Open) {
 								Some(loc) => return Cmd::Close(loc),
 								None => { },
 							}	
@@ -527,8 +527,10 @@ impl<'a, 'b> GameUI<'a, 'b> {
 			map::Tile::WoodWall => ('#', tuple_to_sdl2_color(&BROWN)),
 			map::Tile::Tree => ('\u{03D9}', tuple_to_sdl2_color(&GREEN)),
 			map::Tile::Dirt => ('.', tuple_to_sdl2_color(&BROWN)),
-			map::Tile::Door(false) => ('+', tuple_to_sdl2_color(&BROWN)),
-			map::Tile::Door(true) => ('/', tuple_to_sdl2_color(&BROWN)),
+			map::Tile::Door(DoorState::Closed) => ('+', tuple_to_sdl2_color(&BROWN)),
+			map::Tile::Door(DoorState::Locked) => ('+', tuple_to_sdl2_color(&BROWN)),
+			map::Tile::Door(DoorState::Open) => ('/', tuple_to_sdl2_color(&BROWN)),
+			map::Tile::Door(DoorState::Broken) => ('/', tuple_to_sdl2_color(&BROWN)),
 			map::Tile::Grass => ('\u{0316}', tuple_to_sdl2_color(&GREEN)),
 			map::Tile::Player(colour) => ('@', tuple_to_sdl2_color(colour)),
 			map::Tile::Water => ('}', tuple_to_sdl2_color(&LIGHT_BLUE)),

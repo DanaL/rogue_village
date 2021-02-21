@@ -20,7 +20,7 @@ use rand::{Rng, thread_rng};
 
 use super::Map;
 
-use crate::map::Tile;
+use crate::map::{Tile, DoorState};
 
 pub fn test_map() -> Map {
 	let mut map: Map = HashMap::new();
@@ -44,7 +44,7 @@ pub fn test_map() -> Map {
 				'`' => Tile::Grass,
 				'~' => Tile::DeepWater,
 				'#' => Tile::Wall,
-				'+' => Tile::Door(false),
+				'+' => Tile::Door(DoorState::Closed),
 				'-' => Tile::Window(ch),
 				'|' => Tile::Window(ch),
 				_ => Tile::Lava, // This shouldn't actually happen...

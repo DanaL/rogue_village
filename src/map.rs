@@ -24,12 +24,20 @@ use super::Map;
 
 use crate::util;
 
+#[derive(Clone, Copy, Debug, Hash, Eq, PartialEq)]
+pub enum DoorState {
+	Open,
+	Closed,
+	Locked,
+	Broken,
+}
+
 #[derive(Debug, Clone, Hash, Eq, PartialEq, Copy)]
 pub enum Tile {
 	Blank,
 	Wall,
 	WoodWall,
-	Door(bool),
+	Door(DoorState),
 	Tree,
 	Dirt,
 	Grass,
@@ -63,7 +71,7 @@ impl Tile {
 	pub fn is_clear(&self) -> bool {
 		match self {
 			Tile::Wall | Tile::Blank | Tile::Mountain | Tile::SnowPeak |
-			Tile::Door(false) | Tile::WoodWall => false,
+			Tile::Door(DoorState::Closed) | Tile::Door(DoorState::Locked) | Tile::WoodWall => false,
 			_ => true,
 		}
 	}
@@ -71,14 +79,14 @@ impl Tile {
 	pub fn is_passable(&self) -> bool {
 		match self {
 			Tile::Wall | Tile::Blank | Tile::WorldEdge |
-			Tile::Mountain | Tile::SnowPeak | Tile::Gate | Tile::Door(false) |
-			Tile::WoodWall | Tile::Window(_) => false,		
+			Tile::Mountain | Tile::SnowPeak | Tile::Gate | Tile::Door(DoorState::Closed) |
+			Tile::Door(DoorState::Locked) | Tile::WoodWall | Tile::Window(_) => false,		
 			_ => true,
 		}
 	}
 }
 
-pub fn adjacent_door(map: &Map, loc: (i32, i32, i8), closed: bool) -> Option<(i32, i32, i8)> {
+pub fn adjacent_door(map: &Map, loc: (i32, i32, i8), door_state: DoorState) -> Option<(i32, i32, i8)> {
 	let mut doors = 0;
 	let mut door: (i32, i32, i8) = (0, 0, 0);
 	for r in -1..2 {
@@ -91,8 +99,8 @@ pub fn adjacent_door(map: &Map, loc: (i32, i32, i8), closed: bool) -> Option<(i3
 			let dc = loc.1 as i32 + c;
 			let loc = (dr, dc, loc.2);
 			match map[&loc] {
-				Tile::Door(open) => {
-					if open == closed {
+				Tile::Door(state) => {
+					if state == door_state {
 						doors += 1;
 						door = loc;
 					}

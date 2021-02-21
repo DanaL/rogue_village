@@ -38,8 +38,10 @@ use std::collections::{VecDeque, HashMap};
 use std::path::Path;
 use std::time::{Duration, Instant};
 
-use actor::Player;
 use rand::Rng;
+
+use actor::Player;
+use map::{Tile, DoorState};
 use world::WorldInfo;
 
 const MSG_HISTORY_LENGTH: usize = 50;
@@ -184,45 +186,15 @@ fn get_move_tuple(mv: &str) -> (i32, i32) {
 	}
 }
 
-fn adjacent_door(state: &mut GameState, player: &Player, closed: bool) -> Option<(i32, i32, i8)> {
-    let mut doors = 0;
-    let mut door: (i32, i32, i8) = (0, 0, 0);
-    for r in -1..2 {
-        for c in -1..2 {
-            if r == 0 && c == 0 {
-                continue;
-            }
-
-            let dr = player.location.0 as i32 + r;
-            let dc = player.location.1 as i32 + c;
-            let loc = (dr, dc, player.location.2);
-            match &state.map[&loc] {
-                map::Tile::Door(open) => {
-                    if *open == closed {
-                        doors += 1;
-                        door = loc;
-                    }
-                },
-                _ => { }
-            }
-        }
-    }
-
-    if doors == 1 {
-        Some(door)
-    } else {
-        None
-    }
-}
-
 fn do_open(state: &mut GameState, loc: (i32, i32, i8)) {
     let tile = &state.map[&loc];
     match tile {
-        map::Tile::Door(true) => state.write_msg_buff("The door is already open!"),
-        map::Tile::Door(false) => {
+        Tile::Door(DoorState::Open) | Tile::Door(DoorState::Broken) => state.write_msg_buff("The door is already open!"),
+        Tile::Door(DoorState::Closed) => {
             state.write_msg_buff("You open the door.");
-            state.map.insert(loc, map::Tile::Door(true));
+            state.map.insert(loc, map::Tile::Door(DoorState::Open));
         },
+        Tile::Door(DoorState::Closed) => state.write_msg_buff("That door is locked!"),
         _ => state.write_msg_buff("You cannot open that!"),
     }
     state.turn += 1;
@@ -231,11 +203,12 @@ fn do_open(state: &mut GameState, loc: (i32, i32, i8)) {
 fn do_close(state: &mut GameState, loc: (i32, i32, i8)) {
     let tile = &state.map[&loc];
     match tile {
-        map::Tile::Door(false) => state.write_msg_buff("The door is already closed!"),
-        map::Tile::Door(true) => {
+        Tile::Door(DoorState::Closed) | Tile::Door(DoorState::Locked) => state.write_msg_buff("The door is already closed!"),
+        Tile::Door(DoorState::Open) => {
             state.write_msg_buff("You close the door.");
-            state.map.insert(loc, map::Tile::Door(false));
+            state.map.insert(loc, map::Tile::Door(DoorState::Closed));
         },
+        Tile::Door(DoorState::Broken) => state.write_msg_buff("That door is broken."),
         _ => state.write_msg_buff("You cannot open that!"),
     }
     state.turn += 1;
