@@ -34,7 +34,7 @@ fn pick_room() -> (Vec<Vec<Tile>>, usize, usize) {
         width = rng.gen_range(5, 26);
         let row = vec![Tile::Wall; width + 2];
         room.push(row);
-        for j in 0..height {
+        for _ in 0..height {
             let mut row = Vec::new();
             row.push(Tile::Wall);
             for _ in 0..width {

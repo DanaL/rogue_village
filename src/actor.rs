@@ -112,7 +112,7 @@ impl Mayor {
         }
     }
 
-    fn calc_plan_to_move(&mut self, state: &GameState, goal: (i32, i32, i8)) {
+    fn calc_plan_to_move(&mut self, state: &GameState, goal: (i32, i32, i8), stop_before: bool) {
         if self.plan.len() == 0 {
             let mut passable = HashSet::new();
             passable.insert(Tile::Grass);
@@ -125,8 +125,8 @@ impl Mayor {
             passable.insert(Tile::StoneFloor);
             passable.insert(Tile::Floor);
 
-            let mut path = find_path(&state.map, self.location.0, self.location.1, self.location.2,
-                goal.0, goal.1, 50, &passable);
+            let mut path = find_path(&state.map, stop_before, self.location.0, self.location.1, 
+                self.location.2, goal.0, goal.1, 50, &passable);
             
             path.pop(); // first square in path is the start location
             while path.len() > 0 {
@@ -148,8 +148,6 @@ impl Mayor {
             self.plan.push_front(Action::Move(loc));
         } else if state.map[&loc] == Tile::Door(DoorState::Closed) {
             let next = self.plan.pop_front().unwrap();
-            self.plan.push_front(Action::CloseDoor(loc));
-            self.plan.push_front(next);
             self.plan.push_front(Action::Move(loc));
             self.open_door(loc, state);
         } else {
@@ -200,53 +198,86 @@ impl Actor for Mayor {
         if self.plan.len() > 0 {
             self.follow_plan(state, npcs);
             return;
+        } else {
+            // We have to pick their new plan, if any. Their schedule is: during 'business hours', 
+            // hang around the centre of the village. In the evening, they want to go home. If they
+            // are home in the evening and the door is open, close it
+            let is_evening = state.curr_hour() >= 21 || state.curr_hour() <= 9;
+            if is_evening {
+                let in_home = self.home.contains(&self.location) 
+                    && state.map[&self.location] != Tile::Door(DoorState::Open)
+                    && state.map[&self.location] != Tile::Door(DoorState::Broken);
+                
+                let mut entrance = (0, 0, 0);
+                for sq in &self.home {
+                    if let Tile::Door(DoorState::Open) = state.map[&sq] {
+                        entrance = *sq;
+                        break;
+                    }                    
+                }
+                
+                if !in_home {
+                    let j = thread_rng().gen_range(0, self.home.len());
+                    let goal_loc = self.home.iter().nth(j).unwrap();
+                    self.calc_plan_to_move(state, *goal_loc, false);
+                } else if state.map[&entrance] == Tile::Door(DoorState::Open) {
+                    self.calc_plan_to_move(state, entrance, true);
+                    self.plan.push_back(Action::CloseDoor(entrance));
+                }
+            }
         }
 
         // Their schedule is: during 'business hours', hang out in the centre of the village. After
         // hours they want to hang out in their home. (Eventually of course there will also be the pub)
         // Gotta think of a good structure for schedules so that I don't have to hardcode all the rules
         // So: if between 9:00 and 21:00, mayor wants to be Idle near the town center. From 21:00 to 9:00
-        // they want to be idle in their home
-        else if state.curr_hour() >= 21 || state.curr_hour() <= 9 {
-            if !self.home.contains(&self.location) {
-                let j = thread_rng().gen_range(0, self.home.len());
-                let goal_loc = self.home.iter().nth(j).unwrap();
-                self.goal = Goal::GoTo(*goal_loc);
-            } else {
-                // hang out and be idle
-                self.goal = Goal::Idle;
-            }
-        } else {
-            let tb = state.world_info.town_boundary;
-            //let town_centre = ((tb.0 + tb.2) / 2, (tb.1 + tb.3) / 2);
-            let town_centre = (120, 79, 0);
-            //println!("{} {}, {} {}", self.location.0, self.location.1, town_centre.0, town_centre.1);
-            //println!("{}", util::distance(self.location.0, self.location.1, town_centre.0, town_centre.1));
-            //println!("{:?}", state.map[&(town_centre.0, town_centre.1, self.location.2)]);
+        // // they want to be idle in their home
+        // else if state.curr_hour() >= 21 || state.curr_hour() <= 9 {
+        //     let in_home = self.home.contains(&self.location) 
+        //         && state.map[&self.location] != Tile::Door(DoorState::Open)
+        //         && state.map[&self.location] != Tile::Door(DoorState::Broken);
+
+        //     if !in_home {
+        //             && state.map[&self.location] != Tile::Door(DoorState::Open)
+        //             && state.map[&self.location] != Tile::Door(DoorState::Broken) {
+        //         let j = thread_rng().gen_range(0, self.home.len());
+        //         let goal_loc = self.home.iter().nth(j).unwrap();
+        //         self.calc_plan_to_move(state, goal_loc);
+        //     } else {
+        //         // hang out and be idle
+        //         self.goal = Goal::Idle;
+        //     }
+        // } else {
+        //     let tb = state.world_info.town_boundary;
+        //     //let town_centre = ((tb.0 + tb.2) / 2, (tb.1 + tb.3) / 2);
+        //     let town_centre = (120, 79, 0);
+        //     //println!("{} {}, {} {}", self.location.0, self.location.1, town_centre.0, town_centre.1);
+        //     //println!("{}", util::distance(self.location.0, self.location.1, town_centre.0, town_centre.1));
+        //     //println!("{:?}", state.map[&(town_centre.0, town_centre.1, self.location.2)]);
             
-            if util::distance(self.location.0, self.location.1, town_centre.0, town_centre.1) > 4.0 {
-                self.goal = Goal::GoTo((town_centre.0, town_centre.1, self.location.2));
-            }
-            else {
-                self.goal = Goal::Idle;
-            }            
-        }
+        //     if util::distance(self.location.0, self.location.1, town_centre.0, town_centre.1) > 4.0 {
+        //         self.goal = Goal::GoTo((town_centre.0, town_centre.1, self.location.2));
+        //     }
+        //     else {
+        //         self.goal = Goal::Idle;
+        //     }            
+        // }
         
         // Maybe create 'plans' for NPCs? So they have can a series of goals they want to 
         // accompalish?
-        match self.goal {
-            Goal::GoTo(loc) => {
-                if self.location == loc {
-                    self.goal = Goal::Idle; // We've reached our goal
-                } else {
-                    //let pf_start = Instant::now();
-                    self.calc_plan_to_move(state, loc);
-                    //let pf_duration = pf_start.elapsed();
-                    //println!("Time for pf: {:?}", pf_duration);
-                }
-            },
-            Goal::Idle => { /* do nothing for moment */ },
-        } 
+        // match self.goal {
+        //     Goal::GoTo(loc) => {
+        //         if self.location == loc {
+        //             self.goal = Goal::Idle; // We've reached our goal
+        //         } else {
+        //             //let pf_start = Instant::now();
+        //             self.calc_plan_to_move(state, loc);
+        //             //let pf_duration = pf_start.elapsed();
+        //             //println!("Time for pf: {:?}", pf_duration);
+        //         }
+        //     },
+        //     Goal::Idle => { /* do nothing for moment */ },
+        // } 
     }
 
     fn get_tile(&self) -> Tile {

@@ -420,7 +420,7 @@ fn main() {
     title_screen(&mut gui);
 
     let mut player = Player::new(String::from("Dana"));
-    player.location = (127, 127, 0);
+    player.location = (125, 100, 0);
 
     let sbi = state.curr_sidebar_info(&player);
     gui.write_screen(&mut state.msg_buff, &sbi);

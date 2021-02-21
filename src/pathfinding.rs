@@ -132,7 +132,7 @@ fn backtrace_path(goal_r: i32, goal_c: i32, parents: &HashMap<(i32, i32), (i32, 
 // This is based straight-up on the algorithm description on Wikipedia.
 // For now, I'm limiting pathfinding to being on the same level
 fn astar(
-		map: &Map, start_r: i32, start_c: i32, level: i8,
+		map: &Map, stop_before: bool, start_r: i32, start_c: i32, level: i8,
 		end_r: i32, end_c: i32, max_distance: i32,
 		passable_tiles: &HashSet<map::Tile>) -> Vec<(i32, i32)> {
 	let mut queue = BinaryHeap::new();
@@ -148,7 +148,9 @@ fn astar(
 	while queue.len() > 0 {
 		let node = queue.pop().unwrap();
 		let curr = node.loc;
-		if curr == goal {
+		if stop_before && util::distance(curr.0, curr.1, end_r, end_c) < 1.25 {
+			return backtrace_path(curr.0, curr.1, &parents);
+		} else if curr == goal {
 			return backtrace_path(end_r, end_c, &parents);
 		}
 
@@ -197,7 +199,7 @@ pub fn passable_by_me(tile: &map::Tile, valid: &HashSet<map::Tile>) -> bool {
 }
 
 pub fn find_path(
-		map: &Map,
+		map: &Map, stop_before: bool /* stop one square before the target*/,
 		start_r: i32, start_c: i32, level: i8,
 		end_r: i32, end_c: i32, max_distance: i32,
 		passable_tiles: &HashSet<map::Tile>) -> Vec<(i32, i32)> {
@@ -223,5 +225,5 @@ pub fn find_path(
 	// 	goal_c = res.1;
 	// }
 
-	astar(map, start_r, start_c, level, goal_r, goal_c, max_distance, passable_tiles)
+	astar(map, stop_before, start_r, start_c, level, goal_r, goal_c, max_distance, passable_tiles)
 }

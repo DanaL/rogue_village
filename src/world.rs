@@ -189,6 +189,7 @@ pub fn generate_world() -> (Map, WorldInfo, NPCTable) {
     mayor.home.insert((119, 103, 0));
     mayor.home.insert((119, 104, 0));
     mayor.home.insert((119, 105, 0));
+    mayor.home.insert((120, 100, 0));
     mayor.home.insert((120, 101, 0));
     mayor.home.insert((120, 102, 0));
     mayor.home.insert((120, 103, 0));
