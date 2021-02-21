@@ -30,34 +30,10 @@ pub enum Goal {
     Idle,
     GoTo((i32, i32, i8)),
 }
-
-// The ActorClone stuff is crap I need to clone the Box<dyn Actor> entries
-// I store in the NPC hashmap because rust forces me to clone them. (See
-// the game loop code in main.rs). I cribbed this from Stackoverflow. I don't 
-// really get it. Or, well, I can sort of see see what it's doing that I've typed
-// it out but never would have come up with it on its own
-pub trait Actor: ActorClone {
+pub trait Actor {
     fn act(&mut self, state: &mut GameState, npcs: &mut NPCTable);
     fn get_tile(&self) -> Tile;
     fn get_loc(&self) -> (i32, i32, i8);
-}
-
-pub trait ActorClone {
-    fn clone_box(&self) -> Box<dyn Actor>;
-}
-
-impl<T> ActorClone for T 
-where T: 'static + Actor + Clone,
-{
-    fn clone_box(&self) -> Box<dyn Actor> {
-        Box::new(self.clone())
-    }
-}
-
-impl Clone for Box<dyn Actor> {
-    fn clone(&self) -> Box<dyn Actor> {
-        self.clone_box()
-    }
 }
 
 pub struct Player {

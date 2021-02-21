@@ -395,20 +395,16 @@ fn run(gui: &mut GameUI, state: &mut GameState, player: &mut Player, npcs: &mut 
             let npc_locs = npcs.keys()
 						.map(|k| k.clone())
 						.collect::<Vec<(i32, i32, i8)>>();
-
-            // Right, because rust won't let me pass the npcs table to the act()
-            // method because of the fucking borrow checker, I have to clone the
-            // npc and then update their record after. Simple, intuitive
-            // program flow fom a modern programming language...
+            
             for loc in npc_locs {
-                let mut npc = npcs.get_mut(&loc).unwrap().clone();
+                // remove the npc from the table so that we can pass a reference
+                // to the NPCTable to its act() function
+                let mut npc = npcs.remove(&loc).unwrap();
+
                 npc.act(state, npcs);
                 let curr_loc = npc.get_loc();
 
-                // Since I've cloned the npc who acted so that I could pass
-                // the NPCTable to its act() function, I have to delete the
-                // old entry and insert the new one
-                npcs.remove(&loc);
+                // after it's done its turn, re-insert it back into the table
                 npcs.insert(curr_loc, npc);
             }            
         }
