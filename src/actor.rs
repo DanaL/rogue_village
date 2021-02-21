@@ -165,8 +165,10 @@ impl Mayor {
             state.write_msg_buff("Please don't stand in the doorway.");
             self.plan.push_front(Action::CloseDoor(loc));
         } else {
+            if let Tile::Door(DoorState::Open) = state.map[&loc] {
             state.write_msg_buff("The mayor closes the door.");
             state.map.insert(loc, Tile::Door(DoorState::Closed));
+            }
         }
     }
 
@@ -178,8 +180,47 @@ impl Mayor {
             Action::CloseDoor(loc) => self.close_door(loc, state, npcs),
         }
     }
+
+    fn set_evening_schedule(&mut self, state: &mut GameState) {
+        // We have to pick their new plan, if any. Their schedule is: during 'business hours', 
+        // hang around the centre of the village. In the evening, they want to go home. If they
+        // are home in the evening and the door is open, close it
+        let is_evening = state.curr_hour() >= 21 || state.curr_hour() <= 9;
+        if is_evening {
+            let in_home = self.home.contains(&self.location) 
+                && state.map[&self.location] != Tile::Door(DoorState::Open)
+                && state.map[&self.location] != Tile::Door(DoorState::Broken);
+            
+            let mut entrance = (0, 0, 0);
+            for sq in &self.home {
+                if let Tile::Door(DoorState::Open) = state.map[&sq] {
+                    entrance = *sq;
+                    break;
+                }                    
+            }
+                
+            if !in_home {
+                let j = thread_rng().gen_range(0, self.home.len());
+                let goal_loc = self.home.iter().nth(j).unwrap();
+                self.calc_plan_to_move(state, *goal_loc, false);
+            } else if state.map[&entrance] == Tile::Door(DoorState::Open) {
+                self.calc_plan_to_move(state, entrance, true);
+                self.plan.push_back(Action::CloseDoor(entrance));
+            } else {
+                // for now, just wander about home
+                let j = thread_rng().gen_range(0, self.home.len());
+                let goal_loc = self.home.iter().nth(j).unwrap();
+                if let Tile::Door(_) = state.map[&goal_loc] { }
+                else {
+                    self.calc_plan_to_move(state, *goal_loc, false);
+                }
+            }
+        }
+    }
 }
 
+// Eventually I'll be able to reuse a bunch of this behaviour code for all Villagers
+// (I hope) without cutting and pasting everywhere.
 impl Actor for Mayor {
     fn act(&mut self, state: &mut GameState, npcs: &mut NPCTable) {
         // It's a mayoral duty to greet newcomers to town
@@ -199,37 +240,7 @@ impl Actor for Mayor {
             self.follow_plan(state, npcs);
             return;
         } else {
-            // We have to pick their new plan, if any. Their schedule is: during 'business hours', 
-            // hang around the centre of the village. In the evening, they want to go home. If they
-            // are home in the evening and the door is open, close it
-            let is_evening = state.curr_hour() >= 21 || state.curr_hour() <= 9;
-            if is_evening {
-                let in_home = self.home.contains(&self.location) 
-                    && state.map[&self.location] != Tile::Door(DoorState::Open)
-                    && state.map[&self.location] != Tile::Door(DoorState::Broken);
-                
-                let mut entrance = (0, 0, 0);
-                for sq in &self.home {
-                    if let Tile::Door(DoorState::Open) = state.map[&sq] {
-                        entrance = *sq;
-                        break;
-                    }                    
-                }
-                
-                if !in_home {
-                    let j = thread_rng().gen_range(0, self.home.len());
-                    let goal_loc = self.home.iter().nth(j).unwrap();
-                    self.calc_plan_to_move(state, *goal_loc, false);
-                } else if state.map[&entrance] == Tile::Door(DoorState::Open) {
-                    self.calc_plan_to_move(state, entrance, true);
-                    self.plan.push_back(Action::CloseDoor(entrance));
-                } else {
-                    // for now, just wander about home
-                    let j = thread_rng().gen_range(0, self.home.len());
-                    let goal_loc = self.home.iter().nth(j).unwrap();
-                    self.calc_plan_to_move(state, *goal_loc, false);
-                }
-            }
+            self.set_evening_schedule(state);
         }
 
         // Their schedule is: during 'business hours', hang out in the centre of the village. After
