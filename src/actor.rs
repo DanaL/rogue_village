@@ -13,7 +13,7 @@
 // You should have received a copy of the GNU General Public License
 // along with RogueVillage.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::collections::HashSet;
+use std::collections::{HashSet, VecDeque};
 
 use rand::thread_rng;
 use rand::Rng;
@@ -31,9 +31,15 @@ pub enum Goal {
     GoTo((i32, i32, i8)),
 }
 
+// The ActorClone stuff is crap I need to clone the Box<dyn Actor> entries
+// I store in the NPC hashmap because rust forces me to clone them. (See
+// the game loop code in main.rs). I cribbed this from Stackoverflow. I don't 
+// really get it. Or, well, I can sort of see see what it's doing that I've typed
+// it out but never would have come up with it on its own
 pub trait Actor: ActorClone {
     fn act(&mut self, state: &mut GameState, npcs: &mut NPCTable);
     fn get_tile(&self) -> Tile;
+    fn get_loc(&self) -> (i32, i32, i8);
 }
 
 pub trait ActorClone {
@@ -100,6 +106,13 @@ impl Player {
 }
 
 #[derive(Clone, Debug)]
+pub enum Action {
+    Move((i32, i32, i8)),
+    OpenDoor((i32, i32, i8)),
+    CloseDoor((i32, i32, i8)),
+}
+
+#[derive(Clone, Debug)]
 pub struct Mayor {
     pub name: String,
 	pub max_hp: u8,
@@ -111,19 +124,19 @@ pub struct Mayor {
     pub greeted_player: bool,
     pub home: HashSet<(i32, i32, i8)>,
     pub goal: Goal,
-    pub curr_path: Vec<(i32, i32)>,
+    pub plan: VecDeque<Action>,
 }
 
 impl Mayor {
     pub fn new(name: String, location: (i32, i32, i8)) -> Mayor {
         Mayor { name, max_hp: 8, curr_hp: 8, location, ch: '@', color: LIGHT_GREY, 
             facts_known: Vec::new(), greeted_player: false, home: HashSet::new(),
-            goal: Goal::Idle, curr_path: Vec::new(),
+            goal: Goal::Idle, plan: VecDeque::new(),
         }
     }
 
-    fn move_to(&mut self, state: &GameState, goal: (i32, i32, i8)) {
-        if self.curr_path.len() == 0 {
+    fn calc_plan_to_move(&mut self, state: &GameState, goal: (i32, i32, i8)) {
+        if self.plan.len() == 0 {
             let mut passable = HashSet::new();
             passable.insert(Tile::Grass);
             passable.insert(Tile::Dirt);
@@ -136,17 +149,56 @@ impl Mayor {
             let mut path = find_path(&state.map, self.location.0, self.location.1, self.location.2,
                 goal.0, goal.1, 50, &passable);
             path.pop(); // first square in path is the start location
-            println!("{:?}", path);
-            self.curr_path = path;
+            while path.len() > 0 {
+                let sq = path.pop().unwrap();
+                self.plan.push_back(Action::Move((sq.0, sq.1, self.location.2)));
+            }
         }
+    }
 
-        let loc = &self.curr_path[0];
-        self.location = (loc.0, loc.1, self.location.2);
-        self.curr_path.pop();
+    fn try_to_move_to_loc(&mut self, loc: (i32, i32, i8), state: &mut GameState, npcs: &mut NPCTable) {
+        if npcs.contains_key(&loc) || state.player_loc == loc {
+            state.write_msg_buff("\"Excuse me.\"");
+            self.plan.push_front(Action::Move(loc));
+        } else if state.map[&loc] == Tile::Door(false) {
+            let next = self.plan.pop_front().unwrap();
+            self.plan.push_front(Action::CloseDoor(loc));
+            self.plan.push_front(next);
+            self.plan.push_front(Action::Move(loc));
+            self.open_door(loc, state);
+        } else {
+            self.location = loc;
+        }
+    }
+
+    fn open_door(&mut self, loc: (i32, i32, i8), state: &mut GameState) {
+        state.write_msg_buff("The mayor opens the door.");
+        state.map.insert(loc, Tile::Door(true));
+    }
+
+    fn close_door(&mut self, loc: (i32, i32, i8), state: &mut GameState, npcs: &mut NPCTable) {
+        if npcs.contains_key(&loc) || loc == state.player_loc {
+            state.write_msg_buff("Please don't stand in the doorway.");
+            self.plan.push_front(Action::CloseDoor(loc));
+        } else {
+            state.write_msg_buff("The mayor closes the door.");
+            state.map.insert(loc, Tile::Door(false));
+        }
+    }
+
+    fn follow_plan(&mut self, state: &mut GameState, npcs: &mut NPCTable) {
+        let action = self.plan.pop_front().unwrap();
+        match action {
+            Action::Move(loc) => self.try_to_move_to_loc(loc, state, npcs),
+            Action::OpenDoor(loc) => self.open_door(loc, state),
+            Action::CloseDoor(loc) => self.close_door(loc, state, npcs),
+        }
     }
 }
 
 impl Actor for Mayor {
+    
+
     fn act(&mut self, state: &mut GameState, npcs: &mut NPCTable) {
         // It's a mayoral duty to greet newcomers to town
         let pl = state.player_loc;
@@ -161,12 +213,17 @@ impl Actor for Mayor {
             }
         }
 
+        if self.plan.len() > 0 {
+            self.follow_plan(state, npcs);
+            return;
+        }
+
         // Their schedule is: during 'business hours', hang out in the centre of the village. After
         // hours they want to hang out in their home. (Eventually of course there will also be the pub)
         // Gotta think of a good structure for schedules so that I don't have to hardcode all the rules
         // So: if between 9:00 and 21:00, mayor wants to be Idle near the town center. From 21:00 to 9:00
         // they want to be idle in their home
-        if (state.curr_hour() >= 21 || state.curr_hour() <= 9) {
+        else if (state.curr_hour() >= 21 || state.curr_hour() <= 9) {
             if !self.home.contains(&self.location) {
                 let j = thread_rng().gen_range(0, self.home.len());
                 let goal_loc = self.home.iter().nth(j).unwrap();
@@ -175,8 +232,7 @@ impl Actor for Mayor {
                 // hang out and be idle
                 self.goal = Goal::Idle;
             }
-        }
-        else {
+        } else {
             let tb = state.world_info.town_boundary;
             //let town_centre = ((tb.0 + tb.2) / 2, (tb.1 + tb.3) / 2);
             let town_centre = (120, 79, 0);
@@ -198,7 +254,7 @@ impl Actor for Mayor {
                 if self.location == loc {
                     self.goal = Goal::Idle; // We've reached our goal
                 } else {
-                    self.move_to(state, loc);
+                    self.calc_plan_to_move(state, loc);
                 }
             },
             Goal::Idle => { /* do nothing for moment */ },
@@ -207,6 +263,10 @@ impl Actor for Mayor {
 
     fn get_tile(&self) -> Tile {
         Tile::Creature(self.color, self.ch)
+    }
+
+    fn get_loc(&self) -> (i32, i32, i8) {
+        self.location
     }
 }
 
@@ -235,5 +295,9 @@ impl Actor for SimpleMonster {
 
     fn get_tile(&self) -> Tile {
         Tile::Creature(self.color, self.ch)
+    }
+
+    fn get_loc(&self) -> (i32, i32, i8) {
+        self.location
     }
 }

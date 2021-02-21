@@ -389,22 +389,32 @@ fn run(gui: &mut GameUI, state: &mut GameState, player: &mut Player, npcs: &mut 
             _ => continue,
         }
         
+        state.player_loc = player.location;
+
         if state.turn > start_turn {
             let npc_locs = npcs.keys()
 						.map(|k| k.clone())
 						.collect::<Vec<(i32, i32, i8)>>();
 
+            // Right, because rust won't let me pass the npcs table to the act()
+            // method because of the fucking borrow checker, I have to clone the
+            // npc and then update their record after. Simple, intuitive
+            // program flow fom a modern programming language...
             for loc in npc_locs {
-                let npc = npcs.get_mut(&loc).unwrap();
-                //let foo = *npc.clone();
-                //println!("{:?}", *npc);
-                //npc.act(state, npcs);
+                let mut npc = npcs.get_mut(&loc).unwrap().clone();
+                npc.act(state, npcs);
+                let curr_loc = npc.get_loc();
+
+                // Since I've cloned the npc who acted so that I could pass
+                // the NPCTable to its act() function, I have to delete the
+                // old entry and insert the new one
+                npcs.remove(&loc);
+                npcs.insert(curr_loc, npc);
             }            
         }
 
         player.calc_vision_radius(state);
-        state.player_loc = player.location;
-
+        
         //let fov_start = Instant::now();        
         let tiles = get_top_tiles(&state.map, player, npcs);
         gui.v_matrix = fov::calc_v_matrix(&tiles, player, FOV_HEIGHT, FOV_WIDTH);
