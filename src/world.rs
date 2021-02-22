@@ -86,7 +86,7 @@ fn draw_paths_in_town(map: &mut Map, town_square: &HashSet<(i32, i32, i8)>) {
     let mut path = Vec::new();
     for door in doors {
         path = find_path(map, false, door.0, door.1, 0, centre.0, centre.1, 150, &passable);
-        if (path.len() > 0) {
+        if path.len() > 0 {
             //path.pop();
             for sq in path {
                 let loc = (sq.0, sq.1, 0);

@@ -13,10 +13,13 @@
 // You should have received a copy of the GNU General Public License
 // along with RogueVillage.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::{collections::HashMap, ops::Index};
+use std::{collections::HashMap};
 use std::fs;
 
-use crate::actor::{Attitude};
+use rand::{Rng, thread_rng};
+
+use crate::actor::{Attitude, BasicStats, Player};
+use crate::world::{Fact, WorldInfo};
 
 pub type DialogueLibrary = HashMap<String, HashMap<Attitude, Vec<String>>>;
 
@@ -61,4 +64,59 @@ pub fn read_dialogue_lib() -> DialogueLibrary {
     }
 
     dl
+}
+
+pub fn pick_voice_line(lib: &DialogueLibrary, voice: &str, attitude: Attitude) -> String {
+    let j = thread_rng().gen_range(0, lib[voice][&attitude].len());
+    
+    String::from(&lib[voice][&attitude][j])
+}
+
+pub fn calc_direction(start: (i32, i32, i8), dest: (i32, i32, i8)) -> String {
+    let x = (dest.0 - start.0) as f64;
+    let y = (dest.1 - start.1) as f64;
+    let angle = f64::atan2(x, y);
+
+    // I feel like there is some trig or conversion to make this less gross...
+    let dir = 
+        if f64::abs(angle) < 0.236 {
+            "east".to_string()
+        } else if f64::abs(angle) > 2.904 {
+            "west".to_string()
+        } else if angle <= -0.236 && angle >= -1.334 {
+            "northeast".to_string()
+        } else if angle < -1.334 && angle >= -1.81 {
+            "north".to_string()
+        } else if angle < -1.81 && angle >= -2.904 {
+            "northwest".to_string()
+        } else if angle >= 0.236 && angle <= 1.334 {
+            "southeast".to_string()
+        } else if angle > 1.334 && angle <= 1.81 {
+            "south".to_string()
+        } else {
+            "southwest".to_string()
+        };
+ 
+    println!("{}", dir);
+
+    return "".to_string();
+}
+
+pub fn parse_voice_line(line: &str, world_info: &WorldInfo, player: &Player, speaker: BasicStats) -> String {
+    // this is a dead stupid implementation but at the moment my dialogue lines are pretty simple
+    let mut s = line.replace("{village}", &world_info.town_name);
+    s = s.replace("{player-name}", &player.name);
+    s = s.replace("{name}", &speaker.name);
+
+    if line.contains("{dungeon-dir}") {
+        for fact in &world_info.facts {
+            if fact.detail == "dungeon location" {
+                let dir = calc_direction(speaker.location, fact.location);
+                s = s.replace("{dungeon-dir}", &dir);
+                break;
+            }
+        }        
+    }
+
+    String::from("")
 }

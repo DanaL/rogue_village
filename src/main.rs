@@ -412,7 +412,8 @@ fn main() {
 		.expect("Error initializing GameUI object.");
 
     let dialogue_library = dialogue::read_dialogue_lib();
-    println!("{:?}", dialogue_library);
+    //println!("{}", dialogue::pick_voice_line(&dialogue_library, "mayor1", actor::Attitude::Indifferent));
+    //println!("{}", dialogue::pick_voice_line(&dialogue_library, "mayor1", actor::Attitude::Indifferent));
     
     let w = world::generate_world();
     let mut npcs = w.2;
