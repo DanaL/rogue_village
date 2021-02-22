@@ -17,7 +17,7 @@ use std::collections::{HashMap, HashSet, VecDeque};
 
 use rand::thread_rng;
 use rand::Rng;
-use std::time::{Duration, Instant};
+//use std::time::{Duration, Instant};
 
 use super::{GameState, Map, NPCTable};
 
@@ -230,7 +230,7 @@ impl Mayor {
                 && map[&self.stats.location] != Tile::Door(DoorState::Broken)
     }
 
-    fn pick_spot_outside_home(&mut self, map: &Map) -> Option<(i32, i32, i8)> {
+    fn pick_spot_outside_home(&self, map: &Map) -> Option<(i32, i32, i8)> {
         let mut options = Vec::new();
         let entrance = self.entrance_location(map).unwrap();
         for adj in util::ADJ.iter() {
@@ -248,7 +248,7 @@ impl Mayor {
         }        
     }
 
-    fn set_day_schedule(&mut self, state: &mut GameState) {
+    fn set_day_schedule(&mut self, state: &GameState) {
         // During the day, mayor hangs around roughly in the town square.
         // When they leave their house in the morning, they'll want to close
         // their door.
@@ -277,13 +277,13 @@ impl Mayor {
         }
     }
 
-    fn set_evening_schedule(&mut self, state: &mut GameState) {
+    fn set_evening_schedule(&mut self, state: &GameState) {
         // The evening plan is: the mayor wants to go home. Once home, they just
         // wander around in their house, although if their door is open, they close it.
         if !self.is_at_home(&state.map) {
             let j = thread_rng().gen_range(0, self.home.len());
-            let goal_loc = self.home.iter().nth(j).unwrap();
-            self.calc_plan_to_move(state, *goal_loc, false);
+            let goal_loc = self.home.iter().nth(j).unwrap().clone(); // Clone prevents a compiler warning...
+            self.calc_plan_to_move(state, goal_loc, false);
         } else if self.is_home_open(&state.map) {
             let entrance = self.entrance_location(&state.map).unwrap();
             self.calc_plan_to_move(state, entrance, true);
@@ -291,10 +291,10 @@ impl Mayor {
         } else {
             // for now, just wander about home
             let j = thread_rng().gen_range(0, self.home.len());
-            let goal_loc = self.home.iter().nth(j).unwrap();
+            let goal_loc = self.home.iter().nth(j).unwrap().clone();
             if let Tile::Door(_) = state.map[&goal_loc] { }
             else {
-                self.calc_plan_to_move(state, *goal_loc, false);
+                self.calc_plan_to_move(state, goal_loc, false); // Clone prevents a compiler warning...
             }
         }
     }
@@ -362,9 +362,8 @@ impl SimpleMonster {
 }
 
 impl Actor for SimpleMonster {
-    fn act(&mut self, state: &mut GameState, npcs: &mut NPCTable) {
-        //let s = format!("The {} looks around for prey!", self.name);
-        //println!("{}", s);
+    fn act(&mut self, _state: &mut GameState, _npcs: &mut NPCTable) {
+        
     }
 
     fn get_tile(&self) -> Tile {
@@ -379,7 +378,7 @@ impl Actor for SimpleMonster {
         String::from(&self.stats.name)
     }
 
-    fn talk_to(&mut self, state: &mut GameState, player: &Player, dialogue: &DialogueLibrary) -> String {
+    fn talk_to(&mut self, _state: &mut GameState, _player: &Player, _dialogue: &DialogueLibrary) -> String {
         format!("The {} growls at you!", self.stats.name)
     }
 }

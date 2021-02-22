@@ -13,9 +13,6 @@
 // You should have received a copy of the GNU General Public License
 // along with RogueVillage.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::collections::{HashMap, HashSet};
-
-use crate::display::{WHITE, LIGHT_BLUE, BROWN};
 use crate::actor::Player;
 use crate::map;
 use super::Map;

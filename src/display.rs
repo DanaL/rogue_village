@@ -692,8 +692,8 @@ impl<'a, 'b> GameUI<'a, 'b> {
 
 	// Making the assumption I'll never display a menu with more options than there are 
 	// lines on the screen...
-	pub fn menu_picker(&mut self, menu: &Vec<String>, answer_count: u8,
-				single_choice: bool, small_font: bool) -> Option<HashSet<u8>> {
+	pub fn menu_picker(&mut self, _menu: &Vec<String>, answer_count: u8,
+				single_choice: bool, _small_font: bool) -> Option<HashSet<u8>> {
 		let mut answers: HashSet<u8> = HashSet::new();
 
 		loop {

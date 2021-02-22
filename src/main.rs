@@ -33,14 +33,10 @@ use crate::actor::Actor;
 use crate::display::{GameUI, SidebarInfo, WHITE};
 
 use std::collections::{VecDeque, HashMap};
-//use std::io::prelude::*;
-//use std::fs;
-//use std::fs::File;
 use std::path::Path;
-use std::time::{Duration, Instant};
+//use std::time::{Duration, Instant};
 
 use dialogue::DialogueLibrary;
-use rand::Rng;
 
 use actor::Player;
 use map::{Tile, DoorState};
@@ -200,7 +196,7 @@ fn do_open(state: &mut GameState, loc: (i32, i32, i8)) {
             state.write_msg_buff("You open the door.");
             state.map.insert(loc, map::Tile::Door(DoorState::Open));
         },
-        Tile::Door(DoorState::Closed) => state.write_msg_buff("That door is locked!"),
+        Tile::Door(DoorState::Locked) => state.write_msg_buff("That door is locked!"),
         _ => state.write_msg_buff("You cannot open that!"),
     }
     state.turn += 1;
@@ -220,7 +216,7 @@ fn do_close(state: &mut GameState, loc: (i32, i32, i8)) {
     state.turn += 1;
 }
 
-fn take_stairs(state: &mut GameState, gui: &mut GameUI, player: &mut Player, down: bool) {
+fn take_stairs(state: &mut GameState, player: &mut Player, down: bool) {
     let tile = &state.map[&player.location];
 
     if down {
@@ -324,7 +320,7 @@ fn wiz_command(state: &mut GameState, gui: &mut GameUI, player: &mut Player) {
                 let num = pieces[1].parse::<u32>();
                 match num {
                     Ok(v) => state.turn = v,
-                    Err(e) => state.write_msg_buff("Invalid wizard command"),
+                    Err(_) => state.write_msg_buff("Invalid wizard command"),
                 }
             } else {
                 state.write_msg_buff("Invalid wizard command");
@@ -364,14 +360,9 @@ fn run(gui: &mut GameUI, state: &mut GameState, player: &mut Player, npcs: &mut 
 	gui.write_screen(&mut state.msg_buff, &sbi);
 
     loop {
-        let size = FOV_HEIGHT * FOV_WIDTH;
-
         let start_turn = state.turn;
         let cmd = gui.get_command(&state, &player);
         match cmd {
-            // Cmd::Chat => {
-            //     gui.popup_msg("Dale, the Innkeeper", "Welcome to Skara Brae, stranger! You'll find the dungeon in the foothills but watch out for goblins on the way!");
-            // },
             Cmd::Chat(loc) => chat_with(state, gui, loc, player, npcs, dialogue),
             Cmd::Pass => state.turn += 1,
             Cmd::Quit => break,
@@ -379,8 +370,8 @@ fn run(gui: &mut GameUI, state: &mut GameState, player: &mut Player, npcs: &mut 
 			Cmd::Move(dir) => do_move(state, player, npcs, &dir),
             Cmd::Open(loc) => do_open(state, loc),
             Cmd::Close(loc) => do_close(state, loc),            
-            Cmd::Down => take_stairs(state, gui, player, true),
-            Cmd::Up => take_stairs(state, gui, player, false),
+            Cmd::Down => take_stairs(state, player, true),
+            Cmd::Up => take_stairs(state, player, false),
             Cmd::WizardCommand => wiz_command(state, gui, player),
             _ => continue,
         }
@@ -415,8 +406,7 @@ fn run(gui: &mut GameUI, state: &mut GameState, player: &mut Player, npcs: &mut 
 		
         //let write_screen_start = Instant::now();
         let sbi = state.curr_sidebar_info(player);
-        gui.write_screen(&mut state.msg_buff, &sbi);
-        
+        gui.write_screen(&mut state.msg_buff, &sbi);        
         //let write_screen_duration = write_screen_start.elapsed();
         //println!("Time for write_screen(): {:?}", write_screen_duration);
     }

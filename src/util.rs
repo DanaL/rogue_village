@@ -14,17 +14,7 @@
 // along with RogueVillage.  If not, see <https://www.gnu.org/licenses/>.
 
 
-// Some miscellaneous strucs and functions used in a few plces
-
-use std::f32;
-use std::fs;
-
-use rand::Rng;
-
-//use crate::dice::roll;
-//use crate::items::Item;
-use crate::map;
-use super::GameState;
+// Some miscellaneous structs and functions used in a few plces
 
 pub const ADJ: [(i32, i32); 8] = [(0, -1), (0, 1), (-1, 0), (1, 0), (-1, -1), (-1, 1), (1, -1), (1, 1)];
 
