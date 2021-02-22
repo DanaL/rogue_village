@@ -415,12 +415,36 @@ impl<'a, 'b> GameUI<'a, 'b> {
 	pub fn write_long_msg(&mut self, lines: &Vec<String>, small_text: bool) {
 		self.canvas.clear();
 		
+		// lines may contain strings at that are too wide for our screen, so we'll run through and check that 
+		// before writing to the screen. Some of this code is more or less duplicated with similar functionality
+		// in popup_msg() but I dunno if it's worth splitting it out.
+		let width = SCREEN_WIDTH as usize + 10;
+		let mut line_buff = Vec::new();
+		for line in lines.iter() {
+			if line.len() < width {
+				line_buff.push(String::from(line));
+			} else {
+				let mut s = String::from("");
+				for word in line.split(' ').into_iter() {
+					if s.len() + word.len() > width {
+						line_buff.push(String::from(s));
+						s = String::from("");
+					}
+					s.push_str(word);
+					s.push(' ');
+				}
+				if s.len() > 0 {
+					line_buff.push(String::from(s));
+				}
+			}
+		}
+
 		let display_lines = FOV_HEIGHT as usize;
-		let line_count = lines.len();
+		let line_count = line_buff.len();
 		let mut curr_line = 0;
 		let mut curr_row = 0;
 		while curr_line < line_count {
-			self.write_line(curr_row as i32, &lines[curr_line], small_text);
+			self.write_line(curr_row as i32, &line_buff[curr_line], small_text);
 			curr_line += 1;
 			curr_row += 1;
 
