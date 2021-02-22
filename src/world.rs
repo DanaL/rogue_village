@@ -41,11 +41,12 @@ pub struct WorldInfo {
     pub facts: Vec<Fact>,
     pub town_boundary: (i32, i32, i32, i32),
     pub town_name: String,
+    pub town_square: HashSet<(i32, i32, i8)>,
 }
 
 impl WorldInfo {
     pub fn new(town_name: String, town_boundary: (i32, i32, i32, i32)) -> WorldInfo {
-        WorldInfo { town_name, facts: Vec::new(), town_boundary }
+        WorldInfo { town_name, facts: Vec::new(), town_boundary, town_square: HashSet::new() }
     }
 }
 
@@ -170,6 +171,14 @@ pub fn generate_world() -> (Map, WorldInfo, NPCTable) {
     let mut world_info = WorldInfo::new(town_name.to_string(),(100, 100, 135, 110));
     world_info.facts.push(Fact::new("dungeon location".to_string(), 0, dungeon_entrance));
     world_info.facts.push(Fact::new("town name is Skara Brae".to_string(), 0, (0, 0, 0)));
+    world_info.town_square = HashSet::new();
+    for r in 118..123 {
+        for c in 65..85 {
+            if map[&(r, c, 0)].is_passable() && map[&(r, c, 0)] != Tile::DeepWater {
+                world_info.town_square.insert((r, c, 0));
+            }
+        }
+    }
 
     // Assuming in the future we've generated a fresh town and now want to add in townsfolk
     let mut mayor = Mayor::new("Quimby".to_string(), (120, 79, 0));

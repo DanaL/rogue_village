@@ -23,8 +23,6 @@ use super::Map;
 use crate::map;
 use crate::util;
 
-const ADJ: [(i32, i32); 8] = [(0, -1), (0, 1), (-1, 0), (1, 0), (-1, -1), (-1, 1), (1, -1), (1, 1)];
-
 #[derive(Debug)]
 struct ASQueueItem {
 	loc: (i32, i32),
@@ -154,7 +152,7 @@ fn astar(
 			return backtrace_path(end_r, end_c, &parents);
 		}
 
-		for adj in ADJ.iter() {			
+		for adj in util::ADJ.iter() {
 			let nr = curr.0 + adj.0;
 			let nc = curr.1 + adj.1;
 			if !map.contains_key(&(nr, nc, level)) { continue; }
