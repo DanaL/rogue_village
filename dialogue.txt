@@ -8,3 +8,13 @@ Friendly
 - How are you feeling? Getting enough rest? Not pushing yourself too hard?
 Hostile
 - Get out of {village} before we through you out.
+#
+voice:mayor2
+Stranger
+- Welcome to {village}. Hope you're not here to stir up trouble.
+Indifferent
+- Adventurers are storm crows. Ill winds follow them.
+Friendly
+- If you truly think you can help, I've heard the dungeon is off {dungeon-dir} of town.
+Hostile
+- Get out of {village} before we through you out.

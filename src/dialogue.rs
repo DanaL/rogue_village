@@ -47,7 +47,9 @@ pub fn read_dialogue_lib() -> DialogueLibrary {
         } else if line.starts_with("-") {
             let v = dl.get_mut(curr_voice).unwrap();
             let a = v.get_mut(&curr_attitude).unwrap();
-            a.push(line[2..].to_string());            
+            a.push(line[2..].to_string());
+        } else if line.starts_with('#') {
+            continue;   
         } else {
             curr_attitude = match line {
                 "Indifferent" => Attitude::Indifferent,
