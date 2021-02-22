@@ -1,0 +1,10 @@
+voice:mayor1
+Stranger
+- {name} is it? Here in {village} you can find respite from your adventurers. Relax in the tavern! Spread a little of that adventurer gold around!
+Indifferent
+- Hello, {name}. Staying out of trouble?
+- The old dungeon? You'll find it in the mountains away to the {dungeon-dir}.
+Friendly
+- How are you feeling? Getting enough rest? Not pushing yourself too hard?
+Hostile
+- Get out of {village} before we through you out.

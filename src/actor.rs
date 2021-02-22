@@ -26,6 +26,15 @@ use crate::map::{Tile, DoorState};
 use crate::pathfinding::find_path;
 use crate::util;
 
+#[derive(Debug, Clone, Hash, Eq, PartialEq, Copy)]
+pub enum Attitude 
+{
+    Stranger,
+    Indifferent,
+    Friendly,
+    Hostile,
+}
+
 pub trait Actor {
     fn act(&mut self, state: &mut GameState, npcs: &mut NPCTable);
     fn get_tile(&self) -> Tile;
@@ -41,13 +50,14 @@ pub struct BasicStats {
 	pub location: (i32, i32, i8),
     pub ch: char,
     pub color: (u8, u8, u8),
+    pub attitude: Attitude,
 }
 
 impl BasicStats {
-    pub fn new(name: String, max_hp: u8, curr_hp: u8, location: (i32, i32, i8), ch: char, color: (u8, u8, u8)) -> BasicStats {
+    pub fn new(name: String, max_hp: u8, curr_hp: u8, location: (i32, i32, i8), ch: char, color: (u8, u8, u8), attitude: Attitude) -> BasicStats {
         let bs = BasicStats {
-            name, max_hp, curr_hp, location, ch, color,
-        };
+            name, max_hp, curr_hp, location, ch, color, attitude,
+        };  
 
         bs
     }
@@ -116,7 +126,7 @@ pub struct Mayor {
 
 impl Mayor {
     pub fn new(name: String, location: (i32, i32, i8)) -> Mayor {
-        Mayor { stats: BasicStats::new(name, 8,  8, location,  '@',  LIGHT_GREY), 
+        Mayor { stats: BasicStats::new(name, 8,  8, location,  '@',  LIGHT_GREY, Attitude::Stranger), 
             facts_known: Vec::new(), greeted_player: false, home: HashSet::new(),
             plan: VecDeque::new(),
         }
@@ -328,7 +338,7 @@ pub struct SimpleMonster {
 
 impl SimpleMonster {
     pub fn new(name: String, location:( i32, i32, i8), ch: char, color: (u8, u8, u8)) -> SimpleMonster {
-        SimpleMonster { stats: BasicStats::new(name,  8,  8, location, ch, color) }
+        SimpleMonster { stats: BasicStats::new(name,  8,  8, location, ch, color, Attitude::Hostile) }
     }
 }
 

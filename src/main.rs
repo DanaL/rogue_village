@@ -18,7 +18,8 @@
 extern crate rand;
 extern crate sdl2;
 
-mod actor;  
+mod actor;
+mod dialogue;
 mod display;
 mod dungeon;
 mod fov;
@@ -410,6 +411,9 @@ fn main() {
 	let mut gui = GameUI::init(&font, &sm_font)
 		.expect("Error initializing GameUI object.");
 
+    let dialogue_library = dialogue::read_dialogue_lib();
+    println!("{:?}", dialogue_library);
+    
     let w = world::generate_world();
     let mut npcs = w.2;
 
