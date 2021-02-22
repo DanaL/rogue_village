@@ -39,6 +39,7 @@ use std::collections::{VecDeque, HashMap};
 use std::path::Path;
 use std::time::{Duration, Instant};
 
+use dialogue::DialogueLibrary;
 use rand::Rng;
 
 use actor::Player;
@@ -71,7 +72,7 @@ pub enum Cmd {
 	Read,
 	Eat,
 	Save,
-    Chat,
+    Chat((i32, i32, i8)),
     Use,
 	Help,
     Down,
@@ -104,20 +105,24 @@ impl GameState {
         state
     }
 
+    pub fn add_to_msg_history(&mut self, msg: &str) {
+        if self.msg_history.len() == 0 || msg != self.msg_history[0].0 {
+            self.msg_history.push_front((String::from(msg), 1));
+        } else {
+            self.msg_history[0].1 += 1;
+        }
+
+        if self.msg_history.len() > MSG_HISTORY_LENGTH {
+            self.msg_history.pop_back();
+        }
+    }
+
 	pub fn write_msg_buff(&mut self, msg: &str) {
 		let s = String::from(msg);
 		self.msg_buff.push_back(s);
 
 		if msg.len() > 0 {
-			if self.msg_history.len() == 0 || msg != self.msg_history[0].0 {
-				self.msg_history.push_front((String::from(msg), 1));
-			} else {
-				self.msg_history[0].1 += 1;
-			}
-
-			if self.msg_history.len() > MSG_HISTORY_LENGTH {
-				self.msg_history.pop_back();
-			}
+			self.add_to_msg_history(msg);
 		}
 	}
 
@@ -290,6 +295,24 @@ fn do_move(state: &mut GameState, player: &mut Player, npcs: &NPCTable, dir: &st
 	}
 }
 
+fn chat_with(state: &mut GameState, gui: &mut GameUI, loc: (i32, i32, i8), player: &mut Player, npcs: &mut NPCTable, dialogue: &DialogueLibrary) {
+    if !npcs.contains_key(&loc) {
+        if let Tile::Door(_) = state.map[&loc] {
+            state.write_msg_buff("The door is ignoring you.");
+        } else {
+            state.write_msg_buff("Oh no, talking to yourself?");
+        } 
+    } else {
+        let mut npc = npcs.remove(&loc).unwrap();
+        let line = npc.talk_to(state, player, dialogue);
+        state.add_to_msg_history(&line);
+        gui.popup_msg(&npc.get_name(), &line);
+        npcs.insert(loc, npc);
+        
+        state.turn += 1;
+    }    
+}
+
 fn wiz_command(state: &mut GameState, gui: &mut GameUI, player: &mut Player) {
     let sbi = state.curr_sidebar_info(player);
     match gui.query_user(":", 20, &sbi) {
@@ -334,9 +357,7 @@ fn get_top_tiles(map: &Map, player: &Player, npcs: &NPCTable) -> Map {
     tiles
 }
 
-fn run(gui: &mut GameUI, state: &mut GameState, player: &mut Player, npcs: &mut NPCTable) {
-    state.write_msg_buff("Hello, world?");
-
+fn run(gui: &mut GameUI, state: &mut GameState, player: &mut Player, npcs: &mut NPCTable, dialogue: &DialogueLibrary) {
     let tiles = get_top_tiles(&state.map, player, npcs);
 	gui.v_matrix = fov::calc_v_matrix(&tiles, player, FOV_HEIGHT, FOV_WIDTH);
     let sbi = state.curr_sidebar_info(player);
@@ -351,6 +372,7 @@ fn run(gui: &mut GameUI, state: &mut GameState, player: &mut Player, npcs: &mut 
             // Cmd::Chat => {
             //     gui.popup_msg("Dale, the Innkeeper", "Welcome to Skara Brae, stranger! You'll find the dungeon in the foothills but watch out for goblins on the way!");
             // },
+            Cmd::Chat(loc) => chat_with(state, gui, loc, player, npcs, dialogue),
             Cmd::Pass => state.turn += 1,
             Cmd::Quit => break,
             Cmd::MsgHistory => show_message_history(state, gui),
@@ -412,16 +434,12 @@ fn main() {
 		.expect("Error initializing GameUI object.");
 
     let dialogue_library = dialogue::read_dialogue_lib();
-    //println!("{}", dialogue::pick_voice_line(&dialogue_library, "mayor1", actor::Attitude::Indifferent));
-    //println!("{}", dialogue::pick_voice_line(&dialogue_library, "mayor1", actor::Attitude::Indifferent));
     
     let w = world::generate_world();
     let mut npcs = w.2;
 
     let mut state = GameState::init(w.0, w.1);    
 	
-    println!("{} {:?}", state.world_info.facts[0].detail, state.world_info.facts[0].location);
-
     title_screen(&mut gui);
 
     let mut player = Player::new(String::from("Dana"));
@@ -430,5 +448,5 @@ fn main() {
     let sbi = state.curr_sidebar_info(&player);
     gui.write_screen(&mut state.msg_buff, &sbi);
     
-    run(&mut gui, &mut state, &mut player, &mut npcs);
+    run(&mut gui, &mut state, &mut player, &mut npcs, &dialogue_library);
 }

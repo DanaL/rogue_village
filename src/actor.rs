@@ -21,6 +21,8 @@ use std::time::{Duration, Instant};
 
 use super::{GameState, Map, NPCTable};
 
+use crate::dialogue;
+use crate::dialogue::DialogueLibrary;
 use crate::display::{LIGHT_GREY};
 use crate::map::{Tile, DoorState};
 use crate::pathfinding::find_path;
@@ -39,6 +41,8 @@ pub trait Actor {
     fn act(&mut self, state: &mut GameState, npcs: &mut NPCTable);
     fn get_tile(&self) -> Tile;
     fn get_loc(&self) -> (i32, i32, i8);
+    fn get_name(&self) -> String;
+    fn talk_to(&mut self, state: &mut GameState, player: &Player, dialogue: &DialogueLibrary) -> String;
 }
 
 
@@ -122,13 +126,14 @@ pub struct Mayor {
     pub greeted_player: bool,
     pub home: HashSet<(i32, i32, i8)>,
     pub plan: VecDeque<Action>,
+    pub voice: String,
 }
 
 impl Mayor {
-    pub fn new(name: String, location: (i32, i32, i8)) -> Mayor {
+    pub fn new(name: String, location: (i32, i32, i8), voice: &str) -> Mayor {
         Mayor { stats: BasicStats::new(name, 8,  8, location,  '@',  LIGHT_GREY, Attitude::Stranger), 
             facts_known: Vec::new(), greeted_player: false, home: HashSet::new(),
-            plan: VecDeque::new(),
+            plan: VecDeque::new(), voice: String::from(voice),
         }
     }
 
@@ -329,6 +334,20 @@ impl Actor for Mayor {
     fn get_loc(&self) -> (i32, i32, i8) {
         self.stats.location
     }
+
+    fn get_name(&self) -> String {
+        String::from(&self.stats.name)
+    }
+
+    fn talk_to(&mut self, state: &mut GameState, player: &Player, dialogue: &DialogueLibrary) -> String {
+        let line = dialogue::parse_voice_line(&dialogue::pick_voice_line(dialogue, &self.voice, self.stats.attitude), &state.world_info, player, &self.stats);        
+        if self.stats.attitude == Attitude::Stranger {
+            // Perhaps a charisma check to possibly jump straight to friendly?
+            self.stats.attitude = Attitude::Indifferent;
+        }
+
+        line
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -354,5 +373,13 @@ impl Actor for SimpleMonster {
 
     fn get_loc(&self) -> (i32, i32, i8) {
         self.stats.location
+    }
+    
+    fn get_name(&self) -> String {
+        String::from(&self.stats.name)
+    }
+
+    fn talk_to(&mut self, state: &mut GameState, player: &Player, dialogue: &DialogueLibrary) -> String {
+        format!("The {} growls at you!", self.stats.name)
     }
 }

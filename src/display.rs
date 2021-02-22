@@ -235,26 +235,30 @@ impl<'a, 'b> GameUI<'a, 'b> {
 		Some(answer)
 	}
 
-	fn select_door(&mut self, state: &GameState, player: &Player, door_state: DoorState) -> Option<(i32, i32, i8)> {	
+	fn select_door(&mut self, prompt: &str, state: &GameState, player: &Player, door_state: DoorState) -> Option<(i32, i32, i8)> {	
 		if let Some(d) = map::adjacent_door(&state.map, player.location, door_state) {
 			Some(d)
 		} else {
-			match self.pick_direction("Which door?", &state.curr_sidebar_info(player)) {
-				Some(dir) => {
-					let obj_row =  player.location.0 as i32 + dir.0;
-					let obj_col = player.location.1 as i32 + dir.1;
-					let loc = (obj_row, obj_col, player.location.2);
-					Some(loc)
-				},
-				None => { 
-					let mut msgs = VecDeque::new();
-					msgs.push_front("Nevermind.".to_string());
-					let sbi = state.curr_sidebar_info(player);
-					self.write_screen(&mut msgs, &sbi);
-					None
-				},
-			}
+			self.select_dir(prompt, state, player)
 		}		
+	}
+
+	fn select_dir(&mut self, prompt: &str, state: &GameState, player: &Player) -> Option<(i32, i32, i8)> {
+		match self.pick_direction(prompt, &state.curr_sidebar_info(player)) {
+			Some(dir) => {
+				let obj_row =  player.location.0 as i32 + dir.0;
+				let obj_col = player.location.1 as i32 + dir.1;
+				let loc = (obj_row, obj_col, player.location.2);
+				Some(loc)
+			},
+			None => { 
+				let mut msgs = VecDeque::new();
+				msgs.push_front("Nevermind.".to_string());
+				let sbi = state.curr_sidebar_info(player);
+				self.write_screen(&mut msgs, &sbi);
+				None
+			},
+		}
 	}
 
 	pub fn get_command(&mut self, state: &GameState, player: &Player) -> Cmd {
@@ -298,18 +302,21 @@ impl<'a, 'b> GameUI<'a, 'b> {
 						} else if val == "S" {
 							return Cmd::Save; 
 						} else if val == "C" {
-							return Cmd::Chat;
+							match self.select_dir("Chat with whom?", state, player) {
+								Some(loc) => return Cmd::Chat(loc),
+								None => { },
+							}
 						} else if val == "U" {
                             return Cmd::Use;
                         } else if val == "?" {
 							return Cmd::Help;
 						} else if val == "o" {
-							match self.select_door(state, player, DoorState::Closed) {
+							match self.select_door("Open what?", state, player, DoorState::Closed) {
 								Some(loc) => return Cmd::Open(loc),
 								None => { },
 							}							
 						} else if val == "c" {
-							match self.select_door(state, player, DoorState::Open) {
+							match self.select_door("Close what?", state, player, DoorState::Open) {
 								Some(loc) => return Cmd::Close(loc),
 								None => { },
 							}	
@@ -464,10 +471,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 	// I'll probably need to eventually add pagination but rendering the text into
 	// lines was plenty for my brain for now...
 	pub fn popup_msg(&mut self, title: &str, text: &str) {
-		//self.canvas.clear();
-		//let mut msgs = VecDeque::new();
-		//self.write_screen(&mut msgs);
-		self.write_line(0, "Chatting with a dude.", false);
+		self.write_line(0, "", false);
 
 		let line_width = 45; // eventually this probably shouldn't be hardcoded here
 		let r_offset = self.font_height as i32 * 3;

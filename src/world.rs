@@ -243,7 +243,7 @@ pub fn generate_world() -> (Map, WorldInfo, NPCTable) {
     draw_paths_in_town(&mut map, &world_info.town_square);
 
     // Assuming in the future we've generated a fresh town and now want to add in townsfolk
-    let mut mayor = Mayor::new("Quimby".to_string(), (120, 79, 0));
+    let mut mayor = Mayor::new("Quimby".to_string(), (120, 79, 0), "mayor1");
     mayor.home.insert((115, 104, 0));
     mayor.home.insert((115, 105, 0));
     mayor.home.insert((116, 104, 0));

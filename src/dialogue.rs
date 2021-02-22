@@ -77,32 +77,27 @@ pub fn calc_direction(start: (i32, i32, i8), dest: (i32, i32, i8)) -> String {
     let y = (dest.1 - start.1) as f64;
     let angle = f64::atan2(x, y);
 
-    // I feel like there is some trig or conversion to make this less gross...
-    let dir = 
-        if f64::abs(angle) < 0.236 {
-            "east".to_string()
-        } else if f64::abs(angle) > 2.904 {
-            "west".to_string()
-        } else if angle <= -0.236 && angle >= -1.334 {
-            "northeast".to_string()
-        } else if angle < -1.334 && angle >= -1.81 {
-            "north".to_string()
-        } else if angle < -1.81 && angle >= -2.904 {
-            "northwest".to_string()
-        } else if angle >= 0.236 && angle <= 1.334 {
-            "southeast".to_string()
-        } else if angle > 1.334 && angle <= 1.81 {
-            "south".to_string()
-        } else {
-            "southwest".to_string()
-        };
- 
-    println!("{}", dir);
-
-    return "".to_string();
+    // I feel like there is some trig or conversion to make this less gross...    
+    if f64::abs(angle) < 0.236 {
+        "east".to_string()
+    } else if f64::abs(angle) > 2.904 {
+        "west".to_string()
+    } else if angle <= -0.236 && angle >= -1.334 {
+        "northeast".to_string()
+    } else if angle < -1.334 && angle >= -1.81 {
+        "north".to_string()
+    } else if angle < -1.81 && angle >= -2.904 {
+        "northwest".to_string()
+    } else if angle >= 0.236 && angle <= 1.334 {
+        "southeast".to_string()
+    } else if angle > 1.334 && angle <= 1.81 {
+        "south".to_string()
+    } else {
+        "southwest".to_string()
+    }
 }
 
-pub fn parse_voice_line(line: &str, world_info: &WorldInfo, player: &Player, speaker: BasicStats) -> String {
+pub fn parse_voice_line(line: &str, world_info: &WorldInfo, player: &Player, speaker: &BasicStats) -> String {
     // this is a dead stupid implementation but at the moment my dialogue lines are pretty simple
     let mut s = line.replace("{village}", &world_info.town_name);
     s = s.replace("{player-name}", &player.name);
@@ -118,5 +113,5 @@ pub fn parse_voice_line(line: &str, world_info: &WorldInfo, player: &Player, spe
         }        
     }
 
-    String::from("")
+    s
 }
