@@ -270,9 +270,9 @@ pub fn generate_world() -> (Map, WorldInfo, NPCTable) {
     mayor.facts_known.push(1);
     
     let mut npcs: NPCTable = HashMap::new();
-    npcs.insert(mayor.location, Box::new(mayor));
+    npcs.insert(mayor.get_loc(), Box::new(mayor));
     let g1 = SimpleMonster::new("goblin".to_string(), (140, 140, 0), 'o', BRIGHT_RED);
-    npcs.insert(g1.location, Box::new(g1));
+    npcs.insert(g1.get_loc(), Box::new(g1));
     
     let dungeon_width = 125;
     let dungeon_height = 40;

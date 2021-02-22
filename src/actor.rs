@@ -26,15 +26,31 @@ use crate::map::{Tile, DoorState};
 use crate::pathfinding::find_path;
 use crate::util;
 
-#[derive(Clone, Debug)]
-pub enum Goal {
-    Idle,
-    GoTo((i32, i32, i8)),
-}
 pub trait Actor {
     fn act(&mut self, state: &mut GameState, npcs: &mut NPCTable);
     fn get_tile(&self) -> Tile;
     fn get_loc(&self) -> (i32, i32, i8);
+}
+
+
+#[derive(Clone, Debug)]
+pub struct BasicStats {
+    pub name: String,
+	pub max_hp: u8,
+	pub curr_hp: u8,
+	pub location: (i32, i32, i8),
+    pub ch: char,
+    pub color: (u8, u8, u8),
+}
+
+impl BasicStats {
+    pub fn new(name: String, max_hp: u8, curr_hp: u8, location: (i32, i32, i8), ch: char, color: (u8, u8, u8)) -> BasicStats {
+        let bs = BasicStats {
+            name, max_hp, curr_hp, location, ch, color,
+        };
+
+        bs
+    }
 }
 
 pub struct Player {
@@ -91,24 +107,18 @@ pub enum Action {
 
 #[derive(Clone, Debug)]
 pub struct Mayor {
-    pub name: String,
-	pub max_hp: u8,
-	pub curr_hp: u8,
-	pub location: (i32, i32, i8),
-    pub ch: char,
-    pub color: (u8, u8, u8),
+    pub stats: BasicStats,	
     pub facts_known: Vec<usize>,
     pub greeted_player: bool,
     pub home: HashSet<(i32, i32, i8)>,
-    pub goal: Goal,
     pub plan: VecDeque<Action>,
 }
 
 impl Mayor {
     pub fn new(name: String, location: (i32, i32, i8)) -> Mayor {
-        Mayor { name, max_hp: 8, curr_hp: 8, location, ch: '@', color: LIGHT_GREY, 
+        Mayor { stats: BasicStats::new(name, 8,  8, location,  '@',  LIGHT_GREY), 
             facts_known: Vec::new(), greeted_player: false, home: HashSet::new(),
-            goal: Goal::Idle, plan: VecDeque::new(),
+            plan: VecDeque::new(),
         }
     }
 
@@ -128,13 +138,13 @@ impl Mayor {
             passable.insert(Tile::StoneFloor, 1.0);
             passable.insert(Tile::Floor, 1.0);
 
-            let mut path = find_path(&state.map, stop_before, self.location.0, self.location.1, 
-                self.location.2, goal.0, goal.1, 50, &passable);
+            let mut path = find_path(&state.map, stop_before, self.stats.location.0, self.stats.location.1, 
+                self.stats.location.2, goal.0, goal.1, 50, &passable);
             
             path.pop(); // first square in path is the start location
             while path.len() > 0 {
                 let sq = path.pop().unwrap();
-                self.plan.push_back(Action::Move((sq.0, sq.1, self.location.2)));
+                self.plan.push_back(Action::Move((sq.0, sq.1, self.stats.location.2)));
             }
         }
     }
@@ -147,7 +157,7 @@ impl Mayor {
             self.plan.push_front(Action::Move(loc));
             self.open_door(loc, state);
         } else {
-            self.location = loc;
+            self.stats.location = loc;
         }
     }
 
@@ -200,9 +210,9 @@ impl Mayor {
     }
 
     fn is_at_home(&self, map: &Map) -> bool {
-        self.home.contains(&self.location) 
-                && map[&self.location] != Tile::Door(DoorState::Open)
-                && map[&self.location] != Tile::Door(DoorState::Broken)
+        self.home.contains(&self.stats.location) 
+                && map[&self.stats.location] != Tile::Door(DoorState::Open)
+                && map[&self.stats.location] != Tile::Door(DoorState::Broken)
     }
 
     fn pick_spot_outside_home(&mut self, map: &Map) -> Option<(i32, i32, i8)> {
@@ -236,7 +246,7 @@ impl Mayor {
                 },
                 None => { /* This shouldn't happen... */ },
             }
-        } else if !state.world_info.town_square.contains(&self.location) {
+        } else if !state.world_info.town_square.contains(&self.stats.location) {
             // Pick a random spot in the town square to move to
             let j = thread_rng().gen_range(0, state.world_info.town_square.len());
             let goal = state.world_info.town_square.iter().nth(j).unwrap();
@@ -245,7 +255,7 @@ impl Mayor {
             // otherwise just wander about the town square
             let j = thread_rng().gen_range(0, util::ADJ.len()) as usize;
             let d = util::ADJ[j];
-            let adj = (self.location.0 + d.0, self.location.1 + d.1, self.location.2);
+            let adj = (self.stats.location.0 + d.0, self.stats.location.1 + d.1, self.stats.location.2);
             if state.world_info.town_square.contains(&adj) {
                 self.calc_plan_to_move(state, adj, false);
             }
@@ -281,7 +291,7 @@ impl Actor for Mayor {
     fn act(&mut self, state: &mut GameState, npcs: &mut NPCTable) {
         // It's a mayoral duty to greet newcomers to town
         let pl = state.player_loc;
-        if !self.greeted_player && pl.2 == self.location.2 && util::distance(pl.0, pl.1, self.location.0,self.location.1) <= 4.0 {     
+        if !self.greeted_player && pl.2 == self.stats.location.2 && util::distance(pl.0, pl.1, self.stats.location.0,self.stats.location.1) <= 4.0 {     
             for j in 0..self.facts_known.len() {
                 if state.world_info.facts[j].detail.starts_with("town name is ") {
                     let town_name = &state.world_info.facts[j].detail[13..];
@@ -303,28 +313,22 @@ impl Actor for Mayor {
     }
 
     fn get_tile(&self) -> Tile {
-        Tile::Creature(self.color, self.ch)
+        Tile::Creature(self.stats.color, self.stats.ch)
     }
 
     fn get_loc(&self) -> (i32, i32, i8) {
-        self.location
+        self.stats.location
     }
 }
 
 #[derive(Clone, Debug)]
 pub struct SimpleMonster {
-    pub name: String,
-    pub max_hp: u8,
-    pub curr_hp: u8,
-    pub location: (i32, i32, i8),
-    pub ch: char,
-    pub color: (u8, u8, u8),
-    pub goal: Goal,
+    pub stats: BasicStats,    
 }
 
 impl SimpleMonster {
     pub fn new(name: String, location:( i32, i32, i8), ch: char, color: (u8, u8, u8)) -> SimpleMonster {
-        SimpleMonster { name, max_hp: 8, curr_hp: 8, location, ch, color, goal: Goal::Idle }
+        SimpleMonster { stats: BasicStats::new(name,  8,  8, location, ch, color) }
     }
 }
 
@@ -335,10 +339,10 @@ impl Actor for SimpleMonster {
     }
 
     fn get_tile(&self) -> Tile {
-        Tile::Creature(self.color, self.ch)
+        Tile::Creature(self.stats.color, self.stats.ch)
     }
 
     fn get_loc(&self) -> (i32, i32, i8) {
-        self.location
+        self.stats.location
     }
 }
