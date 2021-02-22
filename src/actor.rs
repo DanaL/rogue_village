@@ -13,7 +13,7 @@
 // You should have received a copy of the GNU General Public License
 // along with RogueVillage.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::collections::{HashSet, VecDeque};
+use std::collections::{HashMap, HashSet, VecDeque};
 
 use rand::thread_rng;
 use rand::Rng;
@@ -117,16 +117,16 @@ impl Mayor {
     // will be in how NPCs set their plans/schedules. 
     fn calc_plan_to_move(&mut self, state: &GameState, goal: (i32, i32, i8), stop_before: bool) {
         if self.plan.len() == 0 {
-            let mut passable = HashSet::new();
-            passable.insert(Tile::Grass);
-            passable.insert(Tile::Dirt);
-            passable.insert(Tile::Tree);
-            passable.insert(Tile::Door(DoorState::Open));
-            passable.insert(Tile::Door(DoorState::Closed));
-            passable.insert(Tile::Door(DoorState::Broken));
-            passable.insert(Tile::Door(DoorState::Locked));
-            passable.insert(Tile::StoneFloor);
-            passable.insert(Tile::Floor);
+            let mut passable = HashMap::new();
+            passable.insert(Tile::Grass, 1.0);
+            passable.insert(Tile::Dirt, 1.0);
+            passable.insert(Tile::Tree, 1.0);
+            passable.insert(Tile::Door(DoorState::Open), 1.0);
+            passable.insert(Tile::Door(DoorState::Closed), 2.0);
+            passable.insert(Tile::Door(DoorState::Broken), 1.0);
+            passable.insert(Tile::Door(DoorState::Locked), 2.5);
+            passable.insert(Tile::StoneFloor, 1.0);
+            passable.insert(Tile::Floor, 1.0);
 
             let mut path = find_path(&state.map, stop_before, self.location.0, self.location.1, 
                 self.location.2, goal.0, goal.1, 50, &passable);

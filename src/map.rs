@@ -40,6 +40,7 @@ pub enum Tile {
 	Door(DoorState),
 	Tree,
 	Dirt,
+	Bridge,
 	Grass,
 	Player((u8, u8, u8)),
 	Water,

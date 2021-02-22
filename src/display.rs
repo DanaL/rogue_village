@@ -527,6 +527,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 			map::Tile::WoodWall => ('#', tuple_to_sdl2_color(&BROWN)),
 			map::Tile::Tree => ('\u{03D9}', tuple_to_sdl2_color(&GREEN)),
 			map::Tile::Dirt => ('.', tuple_to_sdl2_color(&BROWN)),
+			map::Tile::Bridge => ('=', tuple_to_sdl2_color(&GREY)),
 			map::Tile::Door(DoorState::Closed) => ('+', tuple_to_sdl2_color(&BROWN)),
 			map::Tile::Door(DoorState::Locked) => ('+', tuple_to_sdl2_color(&BROWN)),
 			map::Tile::Door(DoorState::Open) => ('/', tuple_to_sdl2_color(&BROWN)),

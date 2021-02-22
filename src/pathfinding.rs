@@ -132,7 +132,7 @@ fn backtrace_path(goal_r: i32, goal_c: i32, parents: &HashMap<(i32, i32), (i32, 
 fn astar(
 		map: &Map, stop_before: bool, start_r: i32, start_c: i32, level: i8,
 		end_r: i32, end_c: i32, max_distance: i32,
-		passable_tiles: &HashSet<map::Tile>) -> Vec<(i32, i32)> {
+		passable_tiles: &HashMap<map::Tile, f64>) -> Vec<(i32, i32)> {
 	let mut queue = BinaryHeap::new();
 	let mut in_queue = HashSet::new();
 	let mut parents = HashMap::new();
@@ -158,7 +158,8 @@ fn astar(
 			if !map.contains_key(&(nr, nc, level)) { continue; }
 
 			let n_loc = (nr, nc);
-			if !passable_by_me(&map[&(n_loc.0, n_loc.1, level)], passable_tiles) { continue; }
+			let tile = map[&(n_loc.0, n_loc.1, level)];
+			if !passable_by_me(&tile, passable_tiles) { continue; }
 			//if n_loc != goal && !super::sq_is_open(state, n_loc.0, n_loc.1) { continue; }
 
 			let tentative_score = *g_scores.get(&curr).unwrap() + 1;
@@ -177,7 +178,8 @@ fn astar(
 					continue;
 				}
 
-				d_to_goal += tentative_score as f64;
+				let tile_cost = passable_tiles[&tile];
+				d_to_goal += tentative_score as f64 + tile_cost;
 
 				if !in_queue.contains(&n_loc) {
 					let p = parents.entry(n_loc).or_insert(curr);
@@ -192,15 +194,15 @@ fn astar(
 	Vec::new()
 }
 	
-pub fn passable_by_me(tile: &map::Tile, valid: &HashSet<map::Tile>) -> bool {
-	valid.contains(&tile)
+pub fn passable_by_me(tile: &map::Tile, valid: &HashMap<map::Tile, f64>) -> bool {
+	valid.contains_key(&tile)
 }
 
 pub fn find_path(
 		map: &Map, stop_before: bool /* stop one square before the target*/,
 		start_r: i32, start_c: i32, level: i8,
 		end_r: i32, end_c: i32, max_distance: i32,
-		passable_tiles: &HashSet<map::Tile>) -> Vec<(i32, i32)> {
+		passable_tiles: &HashMap<map::Tile, f64>) -> Vec<(i32, i32)> {
 
 	let goal_r = end_r;
 	let goal_c = end_c;
