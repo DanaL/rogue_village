@@ -23,6 +23,7 @@ use crate::actor::{Actor, Mayor, SimpleMonster};
 use crate::display::{BRIGHT_RED};
 use crate::dungeon;
 use crate::map::Tile;
+use crate::pathfinding::find_path;
 use crate::wilderness;
 
 pub struct Fact {
@@ -47,6 +48,44 @@ pub struct WorldInfo {
 impl WorldInfo {
     pub fn new(town_name: String, town_boundary: (i32, i32, i32, i32)) -> WorldInfo {
         WorldInfo { town_name, facts: Vec::new(), town_boundary, town_square: HashSet::new() }
+    }
+}
+
+// Draw paths in town. Once I've trqnslated the town generation code from Python 
+// to rust and am making a new town eah game, this should be moved to that code
+// (And I'll be calculating the townsquare then anyhow)
+fn draw_paths_in_town(map: &mut Map, town_square: &HashSet<(i32, i32, i8)>) {
+    let mut doors = HashSet::new();
+
+    for r in 100..138 {
+        for c in 45..112 {
+            let loc = (r, c, 0);
+            if let Tile::Door(_) = map[&loc] {
+                doors.insert(loc);
+            }
+        }
+    }
+
+    // pick random spot in the town square for paths to converge on
+    let mut passable = HashSet::new();
+        passable.insert(Tile::Grass);
+        passable.insert(Tile::Dirt);
+        passable.insert(Tile::Water);
+        passable.insert(Tile::DeepWater);
+    let j = thread_rng().gen_range(0, town_square.len());
+    let centre = town_square.iter().nth(j).unwrap();
+    let mut path = Vec::new();
+    for door in doors {
+        path = find_path(map, false, door.0, door.1, 0, centre.0, centre.1, 150, &passable);
+        if (path.len() > 0) {
+            path.pop();
+            for sq in path {
+                let loc = (sq.0, sq.1, 0);
+                if let Tile::Grass = map[&loc] {
+                    map.insert(loc, Tile::Dirt);
+                }
+            }
+        }
     }
 }
 
@@ -179,6 +218,8 @@ pub fn generate_world() -> (Map, WorldInfo, NPCTable) {
             }
         }
     }
+
+    draw_paths_in_town(&mut map, &world_info.town_square);
 
     // Assuming in the future we've generated a fresh town and now want to add in townsfolk
     let mut mayor = Mayor::new("Quimby".to_string(), (120, 79, 0));
