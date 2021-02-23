@@ -145,9 +145,9 @@ fn mark_visible(r1: i32, c1: i32, r2: i32, c2: i32,
             // completely blocks light.           
 			if map::Tile::Tree == tiles[&(r, c, depth)] && !(r == r1 && c == c1) {
 				if r_step > 0 {
-					r_end -= 3;
+					r_end -= 2;
 				} else {
-					r_end += 3;
+					r_end += 2;
 				}
 			}
 
@@ -184,9 +184,9 @@ fn mark_visible(r1: i32, c1: i32, r2: i32, c2: i32,
             //if curr_weather.clouds.contains(&(r as usize, c as usize)) && !no_fog.contains(&(r as usize, c as usize)) {
             if map::Tile::Tree == tiles[&(r, c, depth)] && !(r == r1 && c == c1) {
 				if c_step > 0 {
-					c_end -= 3;
+					c_end -= 2;
 				} else {
-					c_end += 3;
+					c_end += 2;
 				}
 			}
 			

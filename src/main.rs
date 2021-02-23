@@ -30,16 +30,18 @@ mod util;
 mod wilderness;
 mod world;
 
-use crate::actor::Actor;
-use crate::display::{GameUI, SidebarInfo, WHITE};
+
 
 use std::collections::{VecDeque, HashMap};
 use std::path::Path;
 //use std::time::{Duration, Instant};
 
-use dialogue::DialogueLibrary;
+use rand::{Rng, thread_rng};
 
+use actor::Actor;
 use actor::Player;
+use dialogue::DialogueLibrary;
+use display::{GameUI, SidebarInfo, WHITE};
 use map::{Tile, DoorState};
 use world::WorldInfo;
 
@@ -331,6 +333,21 @@ fn wiz_command(state: &mut GameState, gui: &mut GameUI, player: &mut Player) {
     }
 }
 
+fn pick_player_start_loc(state: &GameState) -> (i32, i32, i8) {
+    let x = thread_rng().gen_range(0, 4);
+    let b = state.world_info.town_boundary;
+
+    if x == 0 {
+        (b.0 - 5, thread_rng().gen_range(b.1, b.3), 0)
+    } else if x == 1 {
+        (b.2 + 5, thread_rng().gen_range(b.1, b.3), 0)
+    } else if x == 2 {
+        (thread_rng().gen_range(b.0, b.2), b.1 - 5, 0)
+    } else {
+        (thread_rng().gen_range(b.0, b.2), b.3 + 5, 0)
+    }
+}
+
 // Top tiles as in which tile is sitting on top of the square. NPC, items (eventually, once I 
 // implement them), weather (ditto), etc and at the bottom, the terrain tile
 fn get_top_tiles(map: &Map, player: &Player, npcs: &NPCTable) -> Map {
@@ -434,7 +451,8 @@ fn main() {
     title_screen(&mut gui);
 
     let mut player = Player::new(String::from("Dana"));
-    player.location = (125, 100, 0);
+    player.location = pick_player_start_loc(&state);
+    state.player_loc = player.location;
 
     let sbi = state.curr_sidebar_info(&player);
     gui.write_screen(&mut state.msg_buff, &sbi);

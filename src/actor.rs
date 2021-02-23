@@ -306,15 +306,11 @@ impl Actor for Mayor {
     fn act(&mut self, state: &mut GameState, npcs: &mut NPCTable) {
         // It's a mayoral duty to greet newcomers to town
         let pl = state.player_loc;
-        if !self.greeted_player && pl.2 == self.stats.location.2 && util::distance(pl.0, pl.1, self.stats.location.0,self.stats.location.1) <= 4.0 {     
-            for j in 0..self.facts_known.len() {
-                if state.world_info.facts[j].detail.starts_with("town name is ") {
-                    let town_name = &state.world_info.facts[j].detail[13..];
-                    let s = format!("Hello stranger, welcome to {}!", town_name);
-                    state.write_msg_buff(&s);
-                    self.greeted_player = true;
-                }
-            }
+        
+        if !self.greeted_player && pl.2 == self.stats.location.2 && util::distance(pl.0, pl.1, self.stats.location.0,self.stats.location.1) <= 4.0 {                 
+            let s = format!("Hello stranger, welcome to {}!", state.world_info.town_name);
+            state.write_msg_buff(&s);
+            self.greeted_player = true;
         }
 
         if self.plan.len() > 0 {
