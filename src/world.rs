@@ -208,7 +208,7 @@ fn find_good_dungeon_entrance(map: &Map, sqs: &HashSet<(i32, i32, i8)>) -> (i32,
 }
 
 pub fn generate_world() -> (Map, WorldInfo, NPCTable) {
-    let mut map = wilderness::test_map();
+    let mut map = wilderness::gen_wilderness_map();
     let valleys = find_all_valleys(&map);
     // We want to place the dungeon entrance somewhere in the largest 'valley', which will be
     // the main section of the overworld
@@ -238,6 +238,7 @@ pub fn generate_world() -> (Map, WorldInfo, NPCTable) {
         }
     }
 
+    /*
     draw_paths_in_town(&mut map, &world_info.town_square);
 
     // Assuming in the future we've generated a fresh town and now want to add in townsfolk
@@ -296,7 +297,13 @@ pub fn generate_world() -> (Map, WorldInfo, NPCTable) {
             map.insert((curr_row, curr_col, 1), dungeon_level[i]);
         }
     }
-    
+    */
+
+    let mut npcs: NPCTable = HashMap::new();
+    //npcs.insert(mayor.get_loc(), Box::new(mayor));
+    let g1 = SimpleMonster::new("goblin".to_string(), (140, 140, 0), 'o', BRIGHT_RED);
+    npcs.insert(g1.get_loc(), Box::new(g1));
+
     map.insert((dungeon_entrance.0 as i32, dungeon_entrance.1 as i32, 0), Tile::Portal);
     
     (map, world_info, npcs)
