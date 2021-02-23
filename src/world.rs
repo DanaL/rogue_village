@@ -23,7 +23,6 @@ use crate::actor::{Actor, Mayor, SimpleMonster};
 use crate::display::{BRIGHT_RED};
 use crate::dungeon;
 use crate::map::Tile;
-use crate::pathfinding::find_path;
 use crate::town;
 use crate::wilderness;
 
@@ -156,7 +155,8 @@ fn find_good_dungeon_entrance(map: &Map, sqs: &HashSet<(i32, i32, i8)>) -> (i32,
 
 pub fn generate_world() -> (Map, WorldInfo, NPCTable) {
     let mut map = wilderness::gen_wilderness_map();
-    town::create_town(&mut map);
+    let mut npcs: NPCTable = HashMap::new();
+    let mut world_info = town::create_town(&mut map, &mut npcs);
 
     let valleys = find_all_valleys(&map);
     // We want to place the dungeon entrance somewhere in the largest 'valley', which will be
@@ -173,54 +173,6 @@ pub fn generate_world() -> (Map, WorldInfo, NPCTable) {
     }
 
     let dungeon_entrance = find_good_dungeon_entrance(&map, &valleys[max_id]);
-    let town_name = "Skara Brae";
-
-    let mut world_info = WorldInfo::new(town_name.to_string(),(100, 100, 135, 110));
-    world_info.facts.push(Fact::new("dungeon location".to_string(), 0, dungeon_entrance));
-    world_info.facts.push(Fact::new("town name is Skara Brae".to_string(), 0, (0, 0, 0)));
-    world_info.town_square = HashSet::new();
-    for r in 118..123 {
-        for c in 65..85 {
-            if map[&(r, c, 0)].is_passable() && map[&(r, c, 0)] != Tile::DeepWater {
-                world_info.town_square.insert((r, c, 0));
-            }
-        }
-    }
-
-    /*
-    draw_paths_in_town(&mut map, &world_info.town_square);
-
-    // Assuming in the future we've generated a fresh town and now want to add in townsfolk
-    let mut mayor = Mayor::new("Quimby".to_string(), (120, 79, 0), "mayor1");
-    mayor.home.insert((115, 104, 0));
-    mayor.home.insert((115, 105, 0));
-    mayor.home.insert((116, 104, 0));
-    mayor.home.insert((116, 105, 0));
-    mayor.home.insert((117, 104, 0));
-    mayor.home.insert((117, 105, 0));
-    mayor.home.insert((118, 101, 0));
-    mayor.home.insert((118, 102, 0));
-    mayor.home.insert((118, 103, 0));
-    mayor.home.insert((118, 104, 0));
-    mayor.home.insert((118, 105, 0));
-    mayor.home.insert((119, 101, 0));
-    mayor.home.insert((119, 102, 0));
-    mayor.home.insert((119, 103, 0));
-    mayor.home.insert((119, 104, 0));
-    mayor.home.insert((119, 105, 0));
-    mayor.home.insert((120, 100, 0));
-    mayor.home.insert((120, 101, 0));
-    mayor.home.insert((120, 102, 0));
-    mayor.home.insert((120, 103, 0));
-    mayor.home.insert((120, 104, 0));
-    mayor.home.insert((120, 105, 0));
-    mayor.facts_known.push(0);
-    mayor.facts_known.push(1);
-    
-    let mut npcs: NPCTable = HashMap::new();
-    npcs.insert(mayor.get_loc(), Box::new(mayor));
-    let g1 = SimpleMonster::new("goblin".to_string(), (140, 140, 0), 'o', BRIGHT_RED);
-    npcs.insert(g1.get_loc(), Box::new(g1));
     
     let dungeon_width = 125;
     let dungeon_height = 40;
@@ -246,13 +198,11 @@ pub fn generate_world() -> (Map, WorldInfo, NPCTable) {
             map.insert((curr_row, curr_col, 1), dungeon_level[i]);
         }
     }
-    */
+    
+    //let g1 = SimpleMonster::new("goblin".to_string(), (140, 140, 0), 'o', BRIGHT_RED);
+    //npcs.insert(g1.get_loc(), Box::new(g1));
 
-    let mut npcs: NPCTable = HashMap::new();
-    //npcs.insert(mayor.get_loc(), Box::new(mayor));
-    let g1 = SimpleMonster::new("goblin".to_string(), (140, 140, 0), 'o', BRIGHT_RED);
-    npcs.insert(g1.get_loc(), Box::new(g1));
-
+    world_info.facts.push(Fact::new("dungeon location".to_string(), 0, dungeon_entrance));
     map.insert((dungeon_entrance.0 as i32, dungeon_entrance.1 as i32, 0), Tile::Portal);
     
     (map, world_info, npcs)

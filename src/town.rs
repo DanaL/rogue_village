@@ -19,12 +19,31 @@ use std::fs;
 use rand::Rng;
 use rand::seq::IteratorRandom;
 
-use super::Map;
+use super::{Map, NPCTable};
 
+use crate::actor::{Mayor};
 use crate::map::{DoorState, Tile};
 use crate::pathfinding;
 use crate::world::WILDERNESS_SIZE;
 use crate::world::WorldInfo;
+
+enum BuildingType {
+    Shrine,
+    Home,
+}
+
+#[derive(Clone, Debug)]
+struct TownBuildings {
+    shrine: HashSet<(i32, i32, i8)>,
+    homes: Vec<HashSet<(i32, i32, i8)>>,
+    taken_homes: Vec<usize>,
+}
+
+impl TownBuildings {
+    pub fn new() -> TownBuildings {
+        TownBuildings { shrine: HashSet::new(), homes: Vec::new(), taken_homes: Vec::new() }
+    }
+}
 
 fn lot_has_water(map: &Map, start_r: i32, start_c: i32, lot_r: i32, lot_c: i32) -> bool {
     for r in 0..12 {
@@ -61,7 +80,7 @@ fn rotate(building: &Vec<char>) -> Vec<char> {
     rotated
 }
 
-fn draw_building(map: &mut Map, r: i32, c: i32, loc: (i32, i32), template: &Vec<char>) {
+fn draw_building(map: &mut Map, r: i32, c: i32, loc: (i32, i32), template: &Vec<char>, buildings: &mut TownBuildings, cat: BuildingType) {
     let mut rng = rand::thread_rng();
     let start_r = r + 12 * loc.0;
     let start_c = c + 12 * loc.1;
@@ -120,6 +139,7 @@ fn draw_building(map: &mut Map, r: i32, c: i32, loc: (i32, i32), template: &Vec<
     let stagger_r = rng.gen_range(0, 3) as i32;
     let stagger_c = rng.gen_range(0, 3) as i32;
 
+    let mut building_sqs = HashSet::new();
     for row in 0..9 {
         for col in 0..9 {
             // I should add a mix of stone and wood buildings
@@ -133,14 +153,27 @@ fn draw_building(map: &mut Map, r: i32, c: i32, loc: (i32, i32), template: &Vec<
                 '.' => Tile::StoneFloor,
                 _ => panic!("Illegal character in building template!"),
             };
-            let coord = (start_r + stagger_r + row as i32, start_c + stagger_c + col as i32, 0);
+            let coord = (start_r + stagger_r + row as i32, start_c + stagger_c + col as i32, 0);            
             map.insert(coord, tile);
+
+            match map[&coord] {
+                Tile::Door(_) => { building_sqs.insert(coord); },
+                Tile::Floor => { building_sqs.insert(coord); },
+                Tile::StoneFloor => { building_sqs.insert(coord); },
+                _ => {  false; },
+            }
         }
+    }
+
+    match cat {
+        BuildingType::Shrine => buildings.shrine = building_sqs,
+        BuildingType::Home => buildings.homes.push(building_sqs),
     }
 }
 
 // Town is laid out with 5x3 lots, each lot being 12x12 squares
-fn place_town_buildings(map: &mut Map, start_r: usize, start_c: usize, buildings: &HashMap<&str, Vec<char>>) {   
+fn place_town_buildings(map: &mut Map, start_r: usize, start_c: usize, 
+            templates: &HashMap<&str, Vec<char>>, buildings: &mut TownBuildings) {   
     let mut rng = rand::thread_rng();
 
     // Step one, get rid of most but not all of the trees in town and replace with grass.
@@ -168,18 +201,18 @@ fn place_town_buildings(map: &mut Map, start_r: usize, start_c: usize, buildings
         }
     }
     
-    // The town will have only 1 shrine. (Maybe in the future I can implement religious rivalries...)
+    // The town will have only 1 shrine. (Maybe in the future I can implement relisgious rivalries...)
     let loc = available_lots.iter().choose(&mut rng).unwrap().clone();
     available_lots.remove(&loc);
-    draw_building(map, start_r as i32, start_c as i32, loc, &buildings["shrine"]);
+    draw_building(map, start_r as i32, start_c as i32, loc, &templates["shrine"], buildings, BuildingType::Shrine);
 
     for _ in 0..6 {
         let loc = available_lots.iter().choose(&mut rng).unwrap().clone();
         available_lots.remove(&loc);
         if rng.gen_range(0.0, 1.0) < 0.5 {
-            draw_building(map, start_r as i32, start_c as i32, loc, &buildings["cottage 1"]);
+            draw_building(map, start_r as i32, start_c as i32, loc, &templates["cottage 1"], buildings, BuildingType::Home);
         } else {
-            draw_building(map, start_r as i32, start_c as i32, loc, &buildings["cottage 2"]);
+            draw_building(map, start_r as i32, start_c as i32, loc, &templates["cottage 2"], buildings, BuildingType::Home);
         }
     }
 }
@@ -250,7 +283,7 @@ fn random_town_name() -> String {
     String::from(*names.iter().choose(&mut rng).unwrap())
 }
 
-pub fn create_town(map: &mut Map) {
+pub fn create_town(map: &mut Map, npcs: &mut NPCTable) -> WorldInfo {
     // load the building templates
     let mut buildings = HashMap::new();
     let contents = fs::read_to_string("buildings.txt")
@@ -271,12 +304,12 @@ pub fn create_town(map: &mut Map) {
 	let start_r = rng.gen_range(WILDERNESS_SIZE /4 , WILDERNESS_SIZE / 2);
 	let start_c = rng.gen_range(WILDERNESS_SIZE /4 , WILDERNESS_SIZE / 2);
 
-    place_town_buildings(map, start_r, start_c, &buildings);
+    let mut tb = TownBuildings::new();
+    place_town_buildings(map, start_r, start_c, &buildings, &mut tb);
 
     let town_name = random_town_name();
     let mut world_info = WorldInfo::new(town_name.to_string(),
-        (start_r as i32, start_c as i32, start_r as i32 + 35, start_c as i32 + 60));
-    //world_info.facts.push(Fact::new("dungeon location".to_string(), 0, dungeon_entrance));
+        (start_r as i32, start_c as i32, start_r as i32 + 35, start_c as i32 + 60));    
     world_info.town_square = HashSet::new();
     // The town square is in lot (1, 2)
     for r in start_r + 12..start_r + 24 {
@@ -288,4 +321,15 @@ pub fn create_town(map: &mut Map) {
     }
 
     draw_paths_in_town(map, &world_info);
+
+    let mayor_loc = world_info.town_square.iter().choose(&mut rng).unwrap();
+    let mut mayor = Mayor::new("Quimby".to_string(), *mayor_loc, "mayor1");
+    // pick the mayor's home
+    let h = rng.gen_range(0, tb.homes.len());
+    tb.taken_homes.push(h);
+    mayor.home = tb.homes[h].clone();
+    
+    npcs.insert(*mayor_loc, Box::new(mayor));
+
+    world_info
 }
