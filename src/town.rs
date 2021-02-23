@@ -22,7 +22,9 @@ use rand::seq::IteratorRandom;
 use super::Map;
 
 use crate::map::{DoorState, Tile};
+use crate::pathfinding;
 use crate::world::WILDERNESS_SIZE;
+use crate::world::WorldInfo;
 
 fn lot_has_water(map: &Map, start_r: i32, start_c: i32, lot_r: i32, lot_c: i32) -> bool {
     for r in 0..12 {
@@ -138,11 +140,8 @@ fn draw_building(map: &mut Map, r: i32, c: i32, loc: (i32, i32), template: &Vec<
 }
 
 // Town is laid out with 5x3 lots, each lot being 12x12 squares
-fn place_town(map: &mut Map, buildings: &HashMap<&str, Vec<char>>) {
+fn place_town_buildings(map: &mut Map, start_r: usize, start_c: usize, buildings: &HashMap<&str, Vec<char>>) {   
     let mut rng = rand::thread_rng();
-    // pick starting co-ordinates that are in the centre-ish part of the map
-	let start_r = rng.gen_range(WILDERNESS_SIZE /4 , WILDERNESS_SIZE / 2);
-	let start_c = rng.gen_range(WILDERNESS_SIZE /4 , WILDERNESS_SIZE / 2);
 
     // Step one, get rid of most but not all of the trees in town and replace with grass.
 	for r in start_r..start_r + 36 {
@@ -185,6 +184,72 @@ fn place_town(map: &mut Map, buildings: &HashMap<&str, Vec<char>>) {
     }
 }
 
+// Draw paths in town. For now they just converge on the town square but I might in the future have
+// some of them move from one neighbour to another
+fn draw_paths_in_town(map: &mut Map, world_info: &WorldInfo) {
+    let mut rng = rand::thread_rng();
+    let mut doors = HashSet::new();
+
+    let adj: [(i32, i32); 4] = [(0, -1), (0, 1), (-1, 0), (1, 0)];
+    for r in world_info.town_boundary.0..world_info.town_boundary.2 {
+        for c in world_info.town_boundary.1..world_info.town_boundary.3 {
+            let loc = (r, c, 0);
+            if let Tile::Door(_) = map[&loc] {
+                // Draw dirt outside each door
+                for a in adj.iter() {
+                    let t = map[&(loc.0 + a.0, loc.1 + a.1, 0)];
+                    if t == Tile::Grass || t == Tile::Tree {
+                        map.insert((loc.0 + a.0, loc.1 + a.1, 0), Tile::Dirt);
+                    }
+                }
+                doors.insert(loc);
+            }
+        }
+    }
+
+    // pick random spot in the town square for paths to converge on
+    let mut passable = HashMap::new();
+    passable.insert(Tile::Grass, 1.0);
+    passable.insert(Tile::Dirt, 1.0);
+    passable.insert(Tile::Bridge, 1.0);
+    passable.insert(Tile::Water, 3.0);
+    passable.insert(Tile::DeepWater, 3.0);
+    let j = rng.gen_range(0, world_info.town_square.len());
+    let centre = world_info.town_square.iter().nth(j).unwrap();
+    for door in doors {
+        let path = pathfinding::find_path(map, false, door.0, door.1, 0, centre.0, centre.1, 150, &passable);
+        if path.len() > 0 {
+            for sq in path {
+                let loc = (sq.0, sq.1, 0);
+                if let Tile::Grass = map[&loc] {
+                    map.insert(loc, Tile::Dirt);
+                } else if let Tile::DeepWater = map[&loc] {
+                    map.insert(loc, Tile::Bridge);
+                    let mut col = loc.1 + 1;
+                    while map[&(loc.0, col, loc.2)] == Tile::DeepWater {
+                         map.insert((loc.0, col, loc.2), Tile::Bridge);
+                         col += 1;
+                    }
+                    let mut col = loc.1 - 1;
+                    while map[&(loc.0, col, loc.2)] == Tile::DeepWater {
+                         map.insert((loc.0, col, loc.2), Tile::Bridge);
+                         col -= 1;
+                    }
+                }
+            }
+        }
+    }
+}
+
+fn random_town_name() -> String {
+    let mut rng = rand::thread_rng();
+
+    // This will one day be more fancy and expansive...
+    let names = ["Skara Brae", "Jhelom", "Yew", "Moonglow", "Magincia", "Antioch"];
+
+    String::from(*names.iter().choose(&mut rng).unwrap())
+}
+
 pub fn create_town(map: &mut Map) {
     // load the building templates
     let mut buildings = HashMap::new();
@@ -201,5 +266,26 @@ pub fn create_town(map: &mut Map) {
         buildings.insert(name, building);
     }
 
-    place_town(map, &buildings);   
+    let mut rng = rand::thread_rng();
+    // pick starting co-ordinates that are in the centre-ish part of the map
+	let start_r = rng.gen_range(WILDERNESS_SIZE /4 , WILDERNESS_SIZE / 2);
+	let start_c = rng.gen_range(WILDERNESS_SIZE /4 , WILDERNESS_SIZE / 2);
+
+    place_town_buildings(map, start_r, start_c, &buildings);
+
+    let town_name = random_town_name();
+    let mut world_info = WorldInfo::new(town_name.to_string(),
+        (start_r as i32, start_c as i32, start_r as i32 + 35, start_c as i32 + 60));
+    //world_info.facts.push(Fact::new("dungeon location".to_string(), 0, dungeon_entrance));
+    world_info.town_square = HashSet::new();
+    // The town square is in lot (1, 2)
+    for r in start_r + 12..start_r + 24 {
+        for c in start_c + 24..start_c + 36 {
+            if map[&(r as i32, c as i32, 0)].is_passable() && map[&(r as i32, c as i32, 0)] != Tile::DeepWater {
+                world_info.town_square.insert((r as i32, c as i32, 0));
+            }
+        }
+    }
+
+    draw_paths_in_town(map, &world_info);
 }

@@ -54,62 +54,6 @@ impl WorldInfo {
     }
 }
 
-// Draw paths in town. Once I've trqnslated the town generation code from Python 
-// to rust and am making a new town eah game, this should be moved to that code
-// (And I'll be calculating the townsquare then anyhow)
-fn draw_paths_in_town(map: &mut Map, town_square: &HashSet<(i32, i32, i8)>) {
-    let mut doors = HashSet::new();
-
-    let adj: [(i32, i32); 4] = [(0, -1), (0, 1), (-1, 0), (1, 0)];
-    for r in 100..138 {
-        for c in 45..112 {
-            let loc = (r, c, 0);
-            if let Tile::Door(_) = map[&loc] {
-                // Draw dirt outside each door
-                for a in adj.iter() {
-                    let t = map[&(loc.0 + a.0, loc.1 + a.1, 0)];
-                    if t == Tile::Grass || t == Tile::Tree {
-                        map.insert((loc.0 + a.0, loc.1 + a.1, 0), Tile::Dirt);
-                    }
-                }
-                doors.insert(loc);
-            }
-        }
-    }
-
-    // pick random spot in the town square for paths to converge on
-    let mut passable = HashMap::new();
-    passable.insert(Tile::Grass, 1.0);
-    passable.insert(Tile::Dirt, 1.0);
-    passable.insert(Tile::Bridge, 1.0);
-    passable.insert(Tile::Water, 3.0);
-    passable.insert(Tile::DeepWater, 3.0);
-    let j = thread_rng().gen_range(0, town_square.len());
-    let centre = town_square.iter().nth(j).unwrap();
-    for door in doors {
-        let path = find_path(map, false, door.0, door.1, 0, centre.0, centre.1, 150, &passable);
-        if path.len() > 0 {
-            for sq in path {
-                let loc = (sq.0, sq.1, 0);
-                if let Tile::Grass = map[&loc] {
-                    map.insert(loc, Tile::Dirt);
-                } else if let Tile::DeepWater = map[&loc] {
-                    map.insert(loc, Tile::Bridge);
-                    let mut col = loc.1 + 1;
-                    while map[&(loc.0, col, loc.2)] == Tile::DeepWater {
-                         map.insert((loc.0, col, loc.2), Tile::Bridge);
-                         col += 1;
-                    }
-                    let mut col = loc.1 - 1;
-                    while map[&(loc.0, col, loc.2)] == Tile::DeepWater {
-                         map.insert((loc.0, col, loc.2), Tile::Bridge);
-                         col -= 1;
-                    }
-                }
-            }
-        }
-    }
-}
 
 // The random wilderness generator will inevitably create pockets of
 // traversable land complately surrounded by mountains. I don't want to 
