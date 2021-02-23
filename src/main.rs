@@ -25,6 +25,7 @@ mod dungeon;
 mod fov;
 mod map;
 mod pathfinding;
+mod town;
 mod util;
 mod wilderness;
 mod world;

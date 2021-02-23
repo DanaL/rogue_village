@@ -22,41 +22,40 @@ use super::Map;
 
 use crate::map::Tile;
 use crate::util;
-
-const SIZE: usize = 257;
+use crate::world::WILDERNESS_SIZE;
 
 fn fuzz() -> f64 {
 	thread_rng().gen_range(-0.5, 0.5)
 }
 
 fn diamond_step(grid: &mut [f64], r: usize, c: usize, width: usize) {
-	let avg = (grid[SIZE * r + c] + grid[SIZE * r + c + width - 1] +
-					grid[(r + width - 1) * SIZE + c] + grid[(r + width - 1) * SIZE + c + width - 1]) / 4.0;
+	let avg = (grid[WILDERNESS_SIZE * r + c] + grid[WILDERNESS_SIZE * r + c + width - 1] +
+					grid[(r + width - 1) * WILDERNESS_SIZE + c] + grid[(r + width - 1) * WILDERNESS_SIZE + c + width - 1]) / 4.0;
 	
-	grid[(r + width / 2) * SIZE + c + width / 2] = avg + fuzz();
+	grid[(r + width / 2) * WILDERNESS_SIZE + c + width / 2] = avg + fuzz();
 }
 
 fn calc_diamond_avg(grid: &mut [f64], r: usize, c: usize, width: usize) {
 	let mut count = 0;
 	let mut avg = 0.0;
 	if width <= c {
-		avg += grid[r * SIZE + c - width];
+		avg += grid[r * WILDERNESS_SIZE + c - width];
 		count += 1;
 	}
-	if c + width < SIZE {
-		avg += grid[r * SIZE + c + width];
+	if c + width < WILDERNESS_SIZE {
+		avg += grid[r * WILDERNESS_SIZE + c + width];
 		count += 1;
 	}
 	if width <= r {
-		avg += grid[(r - width) * SIZE + c];
+		avg += grid[(r - width) * WILDERNESS_SIZE + c];
 		count += 1;
 	}
-	if r + width < SIZE {
-		avg += grid[(r + width) * SIZE + c];
+	if r + width < WILDERNESS_SIZE {
+		avg += grid[(r + width) * WILDERNESS_SIZE + c];
 		count += 1;
 	}
 	
-	grid[r * SIZE + c] = avg / count as f64 + fuzz();
+	grid[r * WILDERNESS_SIZE + c] = avg / count as f64 + fuzz();
 }
 
 fn square_step(grid: &mut [f64], r: usize, c: usize, width: usize) {
@@ -85,48 +84,48 @@ fn midpoint_displacement(grid: &mut [f64], r: usize, c: usize, width: usize) {
 
 // Average each point with its neighbours to smooth things out
 fn smooth_map(grid: &mut [f64]) {
-	for r in 0..SIZE {
-		for c in 0..SIZE {
-			let mut avg = grid[r * SIZE + c];
+	for r in 0..WILDERNESS_SIZE {
+		for c in 0..WILDERNESS_SIZE {
+			let mut avg = grid[r * WILDERNESS_SIZE + c];
 			let mut count = 1;
 
 			if r >= 1 {
 				if c >= 1 {
-					avg += grid[(r - 1) * SIZE + c - 1];
+					avg += grid[(r - 1) * WILDERNESS_SIZE + c - 1];
 					count += 1;
 				}
-				avg += grid[(r - 1) * SIZE + c];
+				avg += grid[(r - 1) * WILDERNESS_SIZE + c];
 				count += 1;
-				if c + 1 < SIZE {
-					avg += grid[(r - 1) * SIZE + c + 1];
+				if c + 1 < WILDERNESS_SIZE {
+					avg += grid[(r - 1) * WILDERNESS_SIZE + c + 1];
 					count += 1;
 				}
 			}
 
 			if r > 1 && c >= 1 {
-				avg += grid[(r - 1) * SIZE + c - 1];
+				avg += grid[(r - 1) * WILDERNESS_SIZE + c - 1];
 				count += 1;
 			}
 
-			if r > 1 && c + 1 < SIZE {
-				avg += grid[(r - 1) * SIZE + c + 1];
+			if r > 1 && c + 1 < WILDERNESS_SIZE {
+				avg += grid[(r - 1) * WILDERNESS_SIZE + c + 1];
 				count += 1;
 			}
 
-			if r > 1 && r + 1 < SIZE {
+			if r > 1 && r + 1 < WILDERNESS_SIZE {
 				if c >= 1 {
-					avg += grid[(r - 1) * SIZE + c - 1];
+					avg += grid[(r - 1) * WILDERNESS_SIZE + c - 1];
 					count += 1;
 				}
-				avg += grid[(r - 1) * SIZE + c];
+				avg += grid[(r - 1) * WILDERNESS_SIZE + c];
 				count += 1;
-				if c + 1 < SIZE {
-					avg += grid[(r - 1) * SIZE + c + 1];
+				if c + 1 < WILDERNESS_SIZE {
+					avg += grid[(r - 1) * WILDERNESS_SIZE + c + 1];
 					count += 1;
 				}
 			}
 
-			grid[r * SIZE + c] = avg / count as f64;
+			grid[r * WILDERNESS_SIZE + c] = avg / count as f64;
 		}
 	}
 }
@@ -134,11 +133,11 @@ fn smooth_map(grid: &mut [f64]) {
 fn translate_to_tile(grid: &[f64]) -> Map {
 	let mut map = HashMap::new();
 
-	for r in 0..SIZE {
-		for c in 0..SIZE {
-			if grid[r * SIZE + c] < 1.5 {
+	for r in 0..WILDERNESS_SIZE {
+		for c in 0..WILDERNESS_SIZE {
+			if grid[r * WILDERNESS_SIZE + c] < 1.5 {
 				map.insert((r as i32, c as i32, 0), Tile::DeepWater);
-			} else if grid[r * SIZE + c] < 6.0 {
+			} else if grid[r * WILDERNESS_SIZE + c] < 6.0 {
 				map.insert((r as i32, c as i32, 0), Tile::Grass);
 			} else {
 				if thread_rng().gen_range(0.0, 1.0) < 0.9 {
@@ -277,10 +276,10 @@ fn draw_river(map: &mut Map, start: (i32, i32, i8), angle: f64) {
 
 fn river_start(map: &Map, col_lo: usize, col_hi: usize) -> Option<(i32, i32, i8)> {
 	let mut rng = rand::thread_rng();
-	let x = SIZE / 3;
+	let x = WILDERNESS_SIZE / 3;
 
 	loop {
-		let r = rng.gen_range(SIZE - x, SIZE - 2);
+		let r = rng.gen_range(WILDERNESS_SIZE - x, WILDERNESS_SIZE - 2);
 		let c = rng.gen_range(col_lo, col_hi);
 
 		let mountains = count_neighbouring_terrain(map, (r as i32, c as i32, 0), Tile::Mountain);
@@ -300,17 +299,17 @@ fn draw_rivers(map: &mut Map) {
 	for opt in opts.iter() {
 		if passes == 0 || rand::thread_rng().gen_range(0.0, 1.0) < 0.5 {
 			if *opt == 0 {
-				if let Some(loc) = river_start(map, 2, SIZE / 3) {
+				if let Some(loc) = river_start(map, 2, WILDERNESS_SIZE / 3) {
 					let angle = -0.28;
 					draw_river(map, loc, angle);
 				}
 			} else if *opt == 1 {
-				if let Some(loc) = river_start(map, SIZE / 3, (SIZE / 3) * 2) {
+				if let Some(loc) = river_start(map, WILDERNESS_SIZE / 3, (WILDERNESS_SIZE / 3) * 2) {
 					let angle = -1.5;
 					draw_river(map, loc, angle);
 				}
 			} else {
-				if let Some(loc) = river_start(map, SIZE - SIZE / 3 - 2, SIZE - 2) {
+				if let Some(loc) = river_start(map, WILDERNESS_SIZE - WILDERNESS_SIZE / 3 - 2, WILDERNESS_SIZE - 2) {
 					let angle = -2.5;
 					draw_river(map, loc, angle);
 				}
@@ -379,37 +378,37 @@ fn lay_down_trees(map: &mut Map) -> Map {
 
 fn draw_borders(map: &mut Map) {
 	let mut rng = rand::thread_rng();
-	for col in 0..SIZE {
+	for col in 0..WILDERNESS_SIZE {
 		for row in 0..rng.gen_range(5, 11) {
 			map.insert((row as i32, col as i32, 0), Tile::DeepWater);
 		}
-		map.insert((SIZE as i32 - 1, col as i32, 0), Tile::Mountain);
+		map.insert((WILDERNESS_SIZE as i32 - 1, col as i32, 0), Tile::Mountain);
 	}
 
-	let x = rng.gen_range(SIZE / 3, SIZE / 3 * 2);
+	let x = rng.gen_range(WILDERNESS_SIZE / 3, WILDERNESS_SIZE / 3 * 2);
 	for r in 0..x {
 		map.insert((r as i32, 0, 0), Tile::WorldEdge);
 	}
-	for r in x..SIZE {
+	for r in x..WILDERNESS_SIZE {
 		map.insert((r as i32, 0, 0), Tile::Mountain);
 	}
-	let x = rng.gen_range(SIZE / 3, SIZE / 3 * 2);
+	let x = rng.gen_range(WILDERNESS_SIZE / 3, WILDERNESS_SIZE / 3 * 2);
 	for r in 0..x {
-		map.insert((r as i32, SIZE as i32 - 1, 0), Tile::WorldEdge);
+		map.insert((r as i32, WILDERNESS_SIZE as i32 - 1, 0), Tile::WorldEdge);
 	}
-	for r in x..SIZE {
-		map.insert((r as i32, SIZE as i32 - 1, 0), Tile::Mountain);
+	for r in x..WILDERNESS_SIZE {
+		map.insert((r as i32, WILDERNESS_SIZE as i32 - 1, 0), Tile::Mountain);
 	}
 }
 
 pub fn gen_wilderness_map() -> Map {
-	let mut grid: [f64; SIZE * SIZE] = [0.0; SIZE * SIZE];
+	let mut grid: [f64; WILDERNESS_SIZE * WILDERNESS_SIZE] = [0.0; WILDERNESS_SIZE * WILDERNESS_SIZE];
 	grid[0] = thread_rng().gen_range(-1.0, 1.0);
-	grid[SIZE - 1] = thread_rng().gen_range(1.0, 2.5);
-	grid[(SIZE - 1) * SIZE] = thread_rng().gen_range(10.0, 12.0);
-	grid[ SIZE * SIZE - 1] = thread_rng().gen_range(9.0, 11.0);
+	grid[WILDERNESS_SIZE - 1] = thread_rng().gen_range(1.0, 2.5);
+	grid[(WILDERNESS_SIZE - 1) * WILDERNESS_SIZE] = thread_rng().gen_range(10.0, 12.0);
+	grid[ WILDERNESS_SIZE * WILDERNESS_SIZE - 1] = thread_rng().gen_range(9.0, 11.0);
 
-	midpoint_displacement(&mut grid, 0, 0, SIZE);
+	midpoint_displacement(&mut grid, 0, 0, WILDERNESS_SIZE);
 	smooth_map(&mut grid);
 
 	let mut map = translate_to_tile(&grid);

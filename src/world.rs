@@ -24,7 +24,10 @@ use crate::display::{BRIGHT_RED};
 use crate::dungeon;
 use crate::map::Tile;
 use crate::pathfinding::find_path;
+use crate::town;
 use crate::wilderness;
+
+pub const WILDERNESS_SIZE: usize = 257;
 
 pub struct Fact {
     pub detail: String,
@@ -209,6 +212,8 @@ fn find_good_dungeon_entrance(map: &Map, sqs: &HashSet<(i32, i32, i8)>) -> (i32,
 
 pub fn generate_world() -> (Map, WorldInfo, NPCTable) {
     let mut map = wilderness::gen_wilderness_map();
+    town::create_town(&mut map);
+
     let valleys = find_all_valleys(&map);
     // We want to place the dungeon entrance somewhere in the largest 'valley', which will be
     // the main section of the overworld
