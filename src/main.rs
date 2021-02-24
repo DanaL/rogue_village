@@ -270,7 +270,7 @@ fn do_move(state: &mut GameState, player: &mut Player, npcs: &NPCTable, dir: &st
     if npcs.contains_key(&next_loc) {
         // Not quite ready to implement combat yet...
         state.write_msg_buff("There's someone in your way!");
-    } else if tile.is_passable() {
+    } else if tile.passable() {
 		player.location = next_loc;
 
 		match tile {

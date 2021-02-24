@@ -69,7 +69,7 @@ pub enum Tile {
 }
 
 impl Tile {
-	pub fn is_clear(&self) -> bool {
+	pub fn clear(&self) -> bool {
 		match self {
 			Tile::Wall | Tile::Blank | Tile::Mountain | Tile::SnowPeak |
 			Tile::Door(DoorState::Closed) | Tile::Door(DoorState::Locked) | Tile::WoodWall => false,
@@ -77,11 +77,20 @@ impl Tile {
 		}
 	}
 
-	pub fn is_passable(&self) -> bool {
+	pub fn passable(&self) -> bool {
 		match self {
 			Tile::Wall | Tile::Blank | Tile::WorldEdge |
 			Tile::Mountain | Tile::SnowPeak | Tile::Gate | Tile::Door(DoorState::Closed) |
 			Tile::Door(DoorState::Locked) | Tile::WoodWall | Tile::Window(_) => false,		
+			_ => true,
+		}
+	}
+
+	pub fn passable_dry_land(&self) -> bool {
+		match self {
+			Tile::Wall | Tile::Blank | Tile::WorldEdge |
+			Tile::Mountain | Tile::SnowPeak | Tile::Gate | Tile::Door(DoorState::Closed) |
+			Tile::Door(DoorState::Locked) | Tile::WoodWall | Tile::Window(_) | Tile::DeepWater => false,		
 			_ => true,
 		}
 	}

@@ -137,7 +137,7 @@ fn mark_visible(r1: i32, c1: i32, r2: i32, c2: i32,
             let vmi = (vm_r * width as i32 + vm_c) as usize;
 			v_matrix[vmi] = true;
 
-			if !&tiles[&(r, c, depth)].is_clear() {
+			if !&tiles[&(r, c, depth)].clear() {
 				return;
 			}
 
@@ -176,7 +176,7 @@ fn mark_visible(r1: i32, c1: i32, r2: i32, c2: i32,
             let vmi = (vm_r * width as i32 + vm_c) as usize;
 			v_matrix[vmi] = true;
 
-			if !&tiles[&(r, c, depth)].is_clear() {
+			if !&tiles[&(r, c, depth)].clear() {
 				return;
 			}
 

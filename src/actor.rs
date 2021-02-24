@@ -262,7 +262,7 @@ impl Mayor {
         let entrance = self.entrance_location(map).unwrap();
         for adj in util::ADJ.iter() {
             let nl = (entrance.0 + adj.0, entrance.1 + adj.1, entrance.2);
-            if !self.home.contains(&nl) && map[&nl].is_passable() {
+            if !self.home.contains(&nl) && map[&nl].passable_dry_land() {
                 options.push(nl);
             }
         }
@@ -326,6 +326,19 @@ impl Mayor {
         }
     }
 
+    fn idle_behaviour(&mut self, state: &GameState) {
+        // If the NPC doesn't need to move anywhere, just pick an adjacent square to step to sometimes.
+        // (Maybe eventually if they are adjacent to another NPC, have them make small talk?)
+        if thread_rng().gen_range(0.0, 1.0) < 0.33 {
+            let j = thread_rng().gen_range(0, util::ADJ.len()) as usize;
+            let d = util::ADJ[j];
+            let adj = (self.stats.location.0 + d.0, self.stats.location.1 + d.1, self.stats.location.2);
+            if state.map[&adj].passable_dry_land() {
+                self.calc_plan_to_move(state, adj, false);
+            }
+        }
+    }
+
     fn check_agenda_item(&mut self, state: &GameState, item: &AgendaItem) {        
         match item.place {
             Venue::Tavern => {
@@ -333,17 +346,19 @@ impl Mayor {
                 if !in_location(state, self.get_loc(), &b, true) {
                     let j = thread_rng().gen_range(0, b.len());
                     let goal_loc = b.iter().nth(j).unwrap().clone(); // Clone prevents a compiler warning...
-                    self.calc_plan_to_move(state, goal_loc, false);
-                    println!("gonna go to the tavern");
-                } 
+                    self.calc_plan_to_move(state, goal_loc, false);                
+                } else {
+                    self.idle_behaviour(state);
+                }
             },
             Venue::TownSquare => {
                 let ts = &state.world_info.town_square;
                 if !in_location(state, self.get_loc(), ts, false) {
                     let j = thread_rng().gen_range(0, ts.len());
                     let goal_loc = ts.iter().nth(j).unwrap().clone(); // Clone prevents a compiler warning...
-                    self.calc_plan_to_move(state, goal_loc, false);
-                    println!("gonna go to the town square");
+                    self.calc_plan_to_move(state, goal_loc, false);                    
+                } else {
+                    self.idle_behaviour(state);
                 }
             },
             _ => {

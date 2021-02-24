@@ -384,7 +384,7 @@ pub fn create_town(map: &mut Map, npcs: &mut NPCTable) -> WorldInfo {
     // The town square is in lot (1, 2)
     for r in start_r + 12..start_r + 24 {
         for c in start_c + 24..start_c + 36 {
-            if map[&(r as i32, c as i32, 0)].is_passable() && map[&(r as i32, c as i32, 0)] != Tile::DeepWater {
+            if map[&(r as i32, c as i32, 0)].passable_dry_land() {
                 world_info.town_square.insert((r as i32, c as i32, 0));
             }
         }
