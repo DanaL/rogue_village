@@ -13,7 +13,7 @@
 // You should have received a copy of the GNU General Public License
 // along with RogueVillage.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::collections::{HashMap, HashSet};
+use std::{collections::{HashMap, HashSet}, ops::Index};
 use std::fs;
 
 use rand::Rng;
@@ -30,18 +30,20 @@ use crate::world::WorldInfo;
 enum BuildingType {
     Shrine,
     Home,
+    Tavern,
 }
 
 #[derive(Clone, Debug)]
 struct TownBuildings {
     shrine: HashSet<(i32, i32, i8)>,
+    tavern: HashSet<(i32, i32, i8)>,
     homes: Vec<HashSet<(i32, i32, i8)>>,
     taken_homes: Vec<usize>,
 }
 
 impl TownBuildings {
     pub fn new() -> TownBuildings {
-        TownBuildings { shrine: HashSet::new(), homes: Vec::new(), taken_homes: Vec::new() }
+        TownBuildings { shrine: HashSet::new(), tavern: HashSet::new(), homes: Vec::new(), taken_homes: Vec::new() }
     }
 }
 
@@ -80,58 +82,67 @@ fn rotate(building: &Vec<char>) -> Vec<char> {
     rotated
 }
 
-fn draw_building(map: &mut Map, r: i32, c: i32, loc: (i32, i32), template: &Vec<char>, buildings: &mut TownBuildings, cat: BuildingType) {
+fn draw_building(map: &mut Map, r: i32, c: i32, loc: (i32, i32), lot_width: usize, lot_length: usize,
+        template: &Vec<char>, buildings: &mut TownBuildings, cat: BuildingType) {
     let mut rng = rand::thread_rng();
     let start_r = r + 12 * loc.0;
     let start_c = c + 12 * loc.1;
+
+    let is_tavern = if let BuildingType::Tavern = cat {
+        true
+    } else {
+        false
+    };
 
     let mut building = template.clone();
     // We want to rotate the building so that an entrance more or less points toward town
     // centre (or at least doesn't face away). This code is assuming all building templates
     // have an entrance on their south wall.
-    if loc.0 == 0 && loc.1 < 2 {
-        if rng.gen_range(0.0, 1.0) < 0.5 {
+    if !is_tavern {
+        if loc.0 == 0 && loc.1 < 2 {
+            if rng.gen_range(0.0, 1.0) < 0.5 {
+                // make entrance face east
+                building = rotate(&building);
+            }
+        } else if loc.0 == 0 && loc.1 > 2 {
+            if rng.gen_range(0.0, 1.0) < 0.5 {
+                // make entrance face west
+                building = rotate(&building);
+                building = rotate(&building);
+                building = rotate(&building);
+            }
+        } else if loc.0 == 1 && loc.1 < 2 {
             // make entrance face east
             building = rotate(&building);
-        }
-    } else if loc.0 == 0 && loc.1 > 2 {
-        if rng.gen_range(0.0, 1.0) < 0.5 {
+        } else if loc.0 == 1 && loc.1 > 2 {
             // make entrance face west
             building = rotate(&building);
             building = rotate(&building);
             building = rotate(&building);
-        }
-    } else if loc.0 == 1 && loc.1 < 2 {
-        // make entrance face east
-        building = rotate(&building);
-    } else if loc.0 == 1 && loc.1 > 2 {
-        // make entrance face west
-        building = rotate(&building);
-        building = rotate(&building);
-        building = rotate(&building);
-    } else if loc.0 == 2 && loc.1 == 2 {
-        // make entrance face north
-        building = rotate(&building);
-        building = rotate(&building);
-    } else if loc.0 == 2 && loc.1 < 2 {
-        if rng.gen_range(0.0, 1.0) < 0.5 {
-            // make entrance face east
-            building = rotate(&building);
-        } else {
-            // make building face north
+        } else if loc.0 == 2 && loc.1 == 2 {
+            // make entrance face north
             building = rotate(&building);
             building = rotate(&building);
-        }
-    } else if loc.0 == 2 && loc.1 > 2 {
-        if rng.gen_range(0.0, 1.0) < 0.5 {
-            // make entrance face west
-            building = rotate(&building);
-            building = rotate(&building);
-            building = rotate(&building);
-        } else {
-            // make building face north
-            building = rotate(&building);
-            building = rotate(&building);
+        } else if loc.0 == 2 && loc.1 < 2 {
+            if rng.gen_range(0.0, 1.0) < 0.5 {
+                // make entrance face east
+                building = rotate(&building);
+            } else {
+                // make building face north
+                building = rotate(&building);
+                building = rotate(&building);
+            }
+        } else if loc.0 == 2 && loc.1 > 2 {
+            if rng.gen_range(0.0, 1.0) < 0.5 {
+                // make entrance face west
+                building = rotate(&building);
+                building = rotate(&building);
+                building = rotate(&building);
+            } else {
+                // make building face north
+                building = rotate(&building);
+                building = rotate(&building);
+            }
         }
     }
 
@@ -140,10 +151,10 @@ fn draw_building(map: &mut Map, r: i32, c: i32, loc: (i32, i32), template: &Vec<
     let stagger_c = rng.gen_range(0, 3) as i32;
 
     let mut building_sqs = HashSet::new();
-    for row in 0..9 {
-        for col in 0..9 {
+    for row in 0..lot_length {
+        for col in 0..lot_width {
             // I should add a mix of stone and wood buildings
-            let tile = match building[row * 9 + col] {
+            let tile = match building[row * lot_width + col] {
                 '#' => Tile::Wall,
                 '`' => Tile::Grass,
                 '+' => Tile::Door(DoorState::Closed),
@@ -168,12 +179,44 @@ fn draw_building(map: &mut Map, r: i32, c: i32, loc: (i32, i32), template: &Vec<
     match cat {
         BuildingType::Shrine => buildings.shrine = building_sqs,
         BuildingType::Home => buildings.homes.push(building_sqs),
+        BuildingType::Tavern => buildings.tavern = building_sqs,
+    }
+}
+
+fn place_tavern(map: &mut Map, r: i32, c: i32, templates: &HashMap<String, Vec<char>>, buildings: &mut TownBuildings) -> ((i32, i32), (i32, i32)) {
+    let mut rng = rand::thread_rng();
+    let x = rng.gen_range(0, 4);
+
+    if x == 0 {
+        // east facting tavern
+        let lot_r = rng.gen_range(0, 2);
+        let lot_c = rng.gen_range(0, 2);
+        draw_building(map, r, c, (lot_r, lot_c),9,18, &templates["tavern 1"], buildings, BuildingType::Tavern);
+        ((lot_r, lot_c), (lot_r + 1, lot_c))
+    } else if x == 1 {
+        // south facing tavern
+        let lot_r = 0;
+        let lot_c = rng.gen_range(0, 4);
+        draw_building(map, r, c, (lot_r, lot_c),18,9, &templates["tavern 2"], buildings, BuildingType::Tavern);
+        ((lot_r, lot_c), (lot_r, lot_c + 1))
+    } else if x == 2 {
+        // north facing tavern
+        let lot_r = 2;
+        let lot_c = rng.gen_range(0, 4);
+        draw_building(map, r, c, (lot_r, lot_c),18,9, &templates["tavern 3"], buildings, BuildingType::Tavern);
+        ((lot_r, lot_c), (lot_r, lot_c + 1))
+    } else {
+        // west facing tavern
+        let lot_r = rng.gen_range(0, 2);
+        let lot_c = rng.gen_range(3, 5);
+        draw_building(map, r, c, (lot_r, lot_c),18,9, &templates["tavern 4"], buildings, BuildingType::Tavern);
+        ((lot_r, lot_c), (lot_r + 1, lot_c))
     }
 }
 
 // Town is laid out with 5x3 lots, each lot being 12x12 squares
 fn place_town_buildings(map: &mut Map, start_r: usize, start_c: usize, 
-            templates: &HashMap<&str, Vec<char>>, buildings: &mut TownBuildings) {   
+            templates: &HashMap<String, Vec<char>>, buildings: &mut TownBuildings) {   
     let mut rng = rand::thread_rng();
 
     // Step one, get rid of most but not all of the trees in town and replace with grass.
@@ -201,18 +244,23 @@ fn place_town_buildings(map: &mut Map, start_r: usize, start_c: usize,
         }
     }
     
+    // Pick and and place one of the inns, which take up two lots
+    let lots_used = place_tavern(map, start_r as i32, start_c as i32, templates, buildings);
+    available_lots.remove(&lots_used.0);
+    available_lots.remove(&lots_used.1);
+
     // The town will have only 1 shrine. (Maybe in the future I can implement relisgious rivalries...)
     let loc = available_lots.iter().choose(&mut rng).unwrap().clone();
     available_lots.remove(&loc);
-    draw_building(map, start_r as i32, start_c as i32, loc, &templates["shrine"], buildings, BuildingType::Shrine);
+    draw_building(map, start_r as i32, start_c as i32, loc,9,9, &templates["shrine"], buildings, BuildingType::Shrine);
 
     for _ in 0..6 {
         let loc = available_lots.iter().choose(&mut rng).unwrap().clone();
         available_lots.remove(&loc);
         if rng.gen_range(0.0, 1.0) < 0.5 {
-            draw_building(map, start_r as i32, start_c as i32, loc, &templates["cottage 1"], buildings, BuildingType::Home);
+            draw_building(map, start_r as i32, start_c as i32, loc, 9, 9, &templates["cottage 1"], buildings, BuildingType::Home);
         } else {
-            draw_building(map, start_r as i32, start_c as i32, loc, &templates["cottage 2"], buildings, BuildingType::Home);
+            draw_building(map, start_r as i32, start_c as i32, loc, 9, 9, &templates["cottage 2"], buildings, BuildingType::Home);
         }
     }
 }
@@ -289,14 +337,15 @@ pub fn create_town(map: &mut Map, npcs: &mut NPCTable) -> WorldInfo {
     let contents = fs::read_to_string("buildings.txt")
         .expect("Unable to find building templates file!");
     let lines = contents.split('\n').collect::<Vec<&str>>();
-    for j in 0..lines.len() / 10 {
-        let name = lines[j * 10];
-        let mut building = Vec::new();
-        
-        for r in j * 10 + 1..j * 10 + 10 {
-            building.extend(lines[r].chars());            
+    let mut curr_building = String::from("");
+    for line in lines {
+        if line.starts_with('%') {
+            //curr_building = String::from(line[1..]);
+            curr_building = line[1..].to_string();
+            buildings.insert(curr_building.to_string(), Vec::new());
+        } else {
+            buildings.get_mut(&curr_building).unwrap().extend(line.chars());
         }
-        buildings.insert(name, building);
     }
 
     let mut rng = rand::thread_rng();
