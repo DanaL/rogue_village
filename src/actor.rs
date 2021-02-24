@@ -339,7 +339,7 @@ impl Mayor {
             },
             Venue::TownSquare => {
                 let ts = &state.world_info.town_square;
-                if !in_location(state, self.get_loc(), ts, true) {
+                if !in_location(state, self.get_loc(), ts, false) {
                     let j = thread_rng().gen_range(0, ts.len());
                     let goal_loc = ts.iter().nth(j).unwrap().clone(); // Clone prevents a compiler warning...
                     self.calc_plan_to_move(state, goal_loc, false);
