@@ -327,6 +327,20 @@ fn draw_paths_in_town(map: &mut Map, world_info: &WorldInfo) {
     }
 }
 
+// eventually to be fancier
+fn random_tavern_name() -> String {
+    let mut rng = rand::thread_rng();
+    let nouns = ["Arms", "Boar", "Cup", "Axe", "Bow", "Elf", "Stag"];
+    let adjective = ["Black", "Golden", "Broken", "Jeweled", "Lost"];
+
+    let noun = String::from(*nouns.iter().choose(&mut rng).unwrap());
+    let adj = String::from(*adjective.iter().choose(&mut rng).unwrap());
+
+    let tavern = format!("the {} {}", adj, noun);
+
+    tavern
+}
+
 fn random_town_name() -> String {
     let mut rng = rand::thread_rng();
 
@@ -361,9 +375,11 @@ pub fn create_town(map: &mut Map, npcs: &mut NPCTable) -> WorldInfo {
     let mut tb = TownBuildings::new();
     place_town_buildings(map, start_r, start_c, &buildings, &mut tb);
 
+    let tavern_name = random_tavern_name();
     let town_name = random_town_name();
     let mut world_info = WorldInfo::new(town_name.to_string(),
-        (start_r as i32, start_c as i32, start_r as i32 + 35, start_c as i32 + 60));    
+        (start_r as i32, start_c as i32, start_r as i32 + 35, start_c as i32 + 60),
+        tavern_name.to_string());    
     world_info.town_square = HashSet::new();
     // The town square is in lot (1, 2)
     for r in start_r + 12..start_r + 24 {

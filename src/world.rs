@@ -45,11 +45,13 @@ pub struct WorldInfo {
     pub town_boundary: (i32, i32, i32, i32),
     pub town_name: String,
     pub town_square: HashSet<(i32, i32, i8)>,
+    pub tavern_name: String,
 }
 
 impl WorldInfo {
-    pub fn new(town_name: String, town_boundary: (i32, i32, i32, i32)) -> WorldInfo {
-        WorldInfo { town_name, facts: Vec::new(), town_boundary, town_square: HashSet::new() }
+    pub fn new(town_name: String, town_boundary: (i32, i32, i32, i32), tavern_name: String) -> WorldInfo {
+        WorldInfo { town_name, facts: Vec::new(), town_boundary, town_square: HashSet::new(),
+            tavern_name }
     }
 }
 
