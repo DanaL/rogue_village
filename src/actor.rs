@@ -291,10 +291,10 @@ impl Mayor {
         } else {
             // for now, just wander about home
             let j = thread_rng().gen_range(0, self.home.len());
-            let goal_loc = self.home.iter().nth(j).unwrap().clone();
+            let goal_loc = self.home.iter().nth(j).unwrap().clone(); // Clone prevents a compiler warning...
             if let Tile::Door(_) = state.map[&goal_loc] { }
             else {
-                self.calc_plan_to_move(state, goal_loc, false); // Clone prevents a compiler warning...
+                self.calc_plan_to_move(state, goal_loc, false); 
             }
         }
     }

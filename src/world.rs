@@ -19,8 +19,6 @@ use rand::Rng;
 
 use super::{Map, NPCTable};
 
-use crate::actor::{Actor, Mayor, SimpleMonster};
-use crate::display::{BRIGHT_RED};
 use crate::dungeon;
 use crate::map::Tile;
 use crate::town;

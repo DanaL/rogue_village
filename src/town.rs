@@ -13,7 +13,7 @@
 // You should have received a copy of the GNU General Public License
 // along with RogueVillage.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::{collections::{HashMap, HashSet}, ops::Index};
+use std::collections::{HashMap, HashSet};
 use std::fs;
 
 use rand::Rng;
@@ -249,7 +249,7 @@ fn place_town_buildings(map: &mut Map, start_r: usize, start_c: usize,
         }
     }
     
-    // Pick and and place one of the inns, which take up two lots
+    // Pick and and place one of the inn templates, which take up two lots
     let lots_used = place_tavern(map, start_r as i32, start_c as i32, templates, buildings);
     available_lots.remove(&lots_used.0);
     available_lots.remove(&lots_used.1);
