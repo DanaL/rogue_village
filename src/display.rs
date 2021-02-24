@@ -552,7 +552,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 		let ti = match tile {
 			map::Tile::Blank => (' ', tuple_to_sdl2_color(&BLACK)),
 			map::Tile::Wall => ('#', tuple_to_sdl2_color(&GREY)),
-			map::Tile::WoodWall => ('#', tuple_to_sdl2_color(&BROWN)),
+			map::Tile::WoodWall => ('#', tuple_to_sdl2_color(&DARK_BROWN)),
 			map::Tile::Tree => ('\u{03D9}', tuple_to_sdl2_color(&GREEN)),
 			map::Tile::Dirt => ('.', tuple_to_sdl2_color(&BROWN)),
 			map::Tile::Bridge => ('=', tuple_to_sdl2_color(&GREY)),

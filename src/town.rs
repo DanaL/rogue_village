@@ -151,10 +151,15 @@ fn draw_building(map: &mut Map, r: i32, c: i32, loc: (i32, i32), lot_width: usiz
     let stagger_c = rng.gen_range(0, 3) as i32;
 
     let mut building_sqs = HashSet::new();
+    let is_wood = if rng.gen_range(0.0, 1.0) < 0.7 {
+        true
+    } else {
+        false
+    };
     for row in 0..lot_length {
         for col in 0..lot_width {
-            // I should add a mix of stone and wood buildings
             let tile = match building[row * lot_width + col] {
+                '#' if is_wood => Tile::WoodWall,
                 '#' => Tile::Wall,
                 '`' => Tile::Grass,
                 '+' => Tile::Door(DoorState::Closed),
