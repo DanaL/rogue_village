@@ -34,11 +34,11 @@ enum BuildingType {
 }
 
 #[derive(Clone, Debug)]
-struct TownBuildings {
-    shrine: HashSet<(i32, i32, i8)>,
-    tavern: HashSet<(i32, i32, i8)>,
-    homes: Vec<HashSet<(i32, i32, i8)>>,
-    taken_homes: Vec<usize>,
+pub struct TownBuildings {
+    pub shrine: HashSet<(i32, i32, i8)>,
+    pub tavern: HashSet<(i32, i32, i8)>,
+    pub homes: Vec<HashSet<(i32, i32, i8)>>,
+    pub taken_homes: Vec<usize>,
 }
 
 impl TownBuildings {
@@ -380,7 +380,7 @@ pub fn create_town(map: &mut Map, npcs: &mut NPCTable) -> WorldInfo {
     let mut world_info = WorldInfo::new(town_name.to_string(),
         (start_r as i32, start_c as i32, start_r as i32 + 35, start_c as i32 + 60),
         tavern_name.to_string());    
-    world_info.town_square = HashSet::new();
+    
     // The town square is in lot (1, 2)
     for r in start_r + 12..start_r + 24 {
         for c in start_c + 24..start_c + 36 {
@@ -400,6 +400,8 @@ pub fn create_town(map: &mut Map, npcs: &mut NPCTable) -> WorldInfo {
     mayor.home = tb.homes[h].clone();
     
     npcs.insert(*mayor_loc, Box::new(mayor));
+
+    world_info.town_buildings = Some(tb);
 
     world_info
 }

@@ -129,8 +129,17 @@ impl GameState {
 		SidebarInfo::new(player.name.to_string(), player.curr_hp, player.max_hp, self.turn)
 	}
 
-    pub fn curr_hour(&self) -> u32 {
-        return (self.turn / 100 + 12) % 24;
+    // I made life difficult for myself by deciding that Turn 0 of the game is 8:00am T_T
+    // 1 turn is 10 seconds (setting aside all concerns about realize and how the amount of stuff one
+    // can do in 10 seconds will in no way correspond to one action in the game...) so an hour is 
+    // 360 turns
+    pub fn curr_time(&self) -> (u16, u16) {
+        let normalized = (self.turn + 2880) % 8640; // 8640 turns per day
+        let hour = normalized / 360;
+        let leftover = normalized - (hour * 360);
+        let minute = leftover / 6;
+        
+        (hour as u16, minute as u16)
     }
 }
 
@@ -382,7 +391,10 @@ fn run(gui: &mut GameUI, state: &mut GameState, player: &mut Player, npcs: &mut 
         let cmd = gui.get_command(&state, &player);
         match cmd {
             Cmd::Chat(loc) => chat_with(state, gui, loc, player, npcs, dialogue),
-            Cmd::Pass => state.turn += 1,
+            Cmd::Pass => {
+                state.turn += 1;
+                println!("{:?}", state.curr_time());
+            },
             Cmd::Quit => break,
             Cmd::MsgHistory => show_message_history(state, gui),
 			Cmd::Move(dir) => do_move(state, player, npcs, &dir),

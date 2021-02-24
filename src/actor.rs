@@ -28,9 +28,30 @@ use crate::map::{Tile, DoorState};
 use crate::pathfinding::find_path;
 use crate::util;
 
+#[derive(Clone, Debug)]
+pub enum Venue {
+    TownSquare,
+    Tavern,
+    Shrine,
+    Favourite((i32, i32, i8)),
+    Visit(i32),
+}
+#[derive(Clone, Debug)]
+pub struct AgendaItem {
+    pub from: (u16, u16),
+    pub to: (u16, u16),
+    pub priority: u8,
+    pub place: Venue,
+}
+
+impl AgendaItem {
+    pub fn new(from: (u16, u16), to: (u16, u16), priority: u8, place: Venue) -> AgendaItem {
+        AgendaItem { from, to, priority, place, }
+    }
+}
+
 #[derive(Debug, Clone, Hash, Eq, PartialEq, Copy)]
-pub enum Attitude 
-{
+pub enum Attitude {
     Stranger,
     Indifferent,
     Friendly,
@@ -78,17 +99,17 @@ pub struct Player {
 impl Player {
     pub fn calc_vision_radius(&mut self, state: &mut GameState) {
         let prev_vr = self.vision_radius;
-        let curr_time = state.curr_hour();
+        let (hour, _) = state.curr_time();
 
-        self.vision_radius = if curr_time >= 6 && curr_time <= 19 {
+        self.vision_radius = if hour >= 6 && hour <= 19 {
             99
-        } else if curr_time >= 20 && curr_time <= 21 {
+        } else if hour >= 20 && hour <= 21 {
             8
-        } else if curr_time >= 21 && curr_time <= 23 {
+        } else if hour >= 21 && hour <= 23 {
             7
-        } else if curr_time < 4 {
+        } else if hour < 4 {
             5
-        } else if curr_time >= 4 && curr_time < 5 {
+        } else if hour >= 4 && hour < 5 {
             7
         } else {
             9
@@ -127,14 +148,20 @@ pub struct Mayor {
     pub home: HashSet<(i32, i32, i8)>,
     pub plan: VecDeque<Action>,
     pub voice: String,
+    pub schedule: Vec<AgendaItem>,
 }
 
 impl Mayor {
     pub fn new(name: String, location: (i32, i32, i8), voice: &str) -> Mayor {
-        Mayor { stats: BasicStats::new(name, 8,  8, location,  '@',  LIGHT_GREY, Attitude::Stranger), 
+        let mut m = Mayor { stats: BasicStats::new(name, 8,  8, location,  '@',  LIGHT_GREY, Attitude::Stranger), 
             facts_known: Vec::new(), greeted_player: false, home: HashSet::new(),
-            plan: VecDeque::new(), voice: String::from(voice),
-        }
+            plan: VecDeque::new(), voice: String::from(voice), schedule: Vec::new(),
+        };
+
+        m.schedule.push(AgendaItem::new((9, 0), (21, 0), 0, Venue::TownSquare));
+        m.schedule.push(AgendaItem::new((12, 0), (13, 0), 10    , Venue::Tavern));
+
+        m
     }
 
     // I should be able to move calc_plan_to_move, try_to_move_to_loc, etc to generic
@@ -298,6 +325,50 @@ impl Mayor {
             }
         }
     }
+
+    fn check_agenda_item(&mut self, state: &GameState, item: &AgendaItem) {        
+        match item.place {
+            Venue::Tavern => {
+                let b = &state.world_info.town_buildings.as_ref().unwrap().tavern;                
+                if !in_location(state, self.get_loc(), &b, true) {
+                    let j = thread_rng().gen_range(0, b.len());
+                    let goal_loc = b.iter().nth(j).unwrap().clone(); // Clone prevents a compiler warning...
+                    self.calc_plan_to_move(state, goal_loc, false);
+                    println!("gonna go to the tavern");
+                } 
+            },
+            Venue::TownSquare => {
+                let ts = &state.world_info.town_square;
+                if !in_location(state, self.get_loc(), ts, true) {
+                    let j = thread_rng().gen_range(0, ts.len());
+                    let goal_loc = ts.iter().nth(j).unwrap().clone(); // Clone prevents a compiler warning...
+                    self.calc_plan_to_move(state, goal_loc, false);
+                    println!("gonna go to the town square");
+                }
+            },
+            _ => {
+                // Eventually I'll implement the other venues...
+            },
+        }
+    }
+
+    fn check_schedule(&mut self, state: &GameState) {
+        let ct = state.curr_time();
+        let minutes = ct.0 * 60 + ct.1;
+        
+        // Select the current, highest priority agenda item from the schedule
+        let mut items: Vec<&AgendaItem> = self.schedule.iter()
+                     .filter(|i| i.from.0 * 60 + i.from.1 <= minutes && minutes <= i.to.0 * 60 + i.to.1)
+                     .collect();
+        items.sort_by(|a, b| b.priority.cmp(&a.priority));
+        
+        if items.len() == 0 {
+            println!("Nothing on the agenda");
+        } else {
+            let item = &items[0].clone();
+            self.check_agenda_item(state, item);
+        }
+    }
 }
 
 // Eventually I'll be able to reuse a bunch of this behaviour code for all Villagers
@@ -314,13 +385,10 @@ impl Actor for Mayor {
         }
 
         if self.plan.len() > 0 {
-            self.follow_plan(state, npcs);
-            return;
-        } else if state.curr_hour() > 8 && state.curr_hour() < 21 {
-            self.set_day_schedule(state);
+            self.follow_plan(state, npcs);            
         } else {
-            self.set_evening_schedule(state);
-        }        
+            self.check_schedule(state);
+        } 
     }
 
     fn get_tile(&self) -> Tile {
@@ -376,5 +444,16 @@ impl Actor for SimpleMonster {
 
     fn talk_to(&mut self, _state: &mut GameState, _player: &Player, _dialogue: &DialogueLibrary) -> String {
         format!("The {} growls at you!", self.stats.name)
+    }
+}
+
+fn in_location(state: &GameState, loc: (i32, i32, i8), sqs: &HashSet<(i32, i32, i8)>, indoors: bool) -> bool {
+    if indoors {
+        let indoor_sqs = HashSet::from(sqs.iter()
+                                          .filter(|sq| state.map[&sq].indoors())
+                                          .collect::<HashSet<&(i32, i32, i8)>>());
+        indoor_sqs.contains(&loc)
+    } else {
+        sqs.contains(&loc)
     }
 }

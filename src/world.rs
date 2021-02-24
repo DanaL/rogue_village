@@ -22,6 +22,7 @@ use super::{Map, NPCTable};
 use crate::dungeon;
 use crate::map::Tile;
 use crate::town;
+use crate::town::TownBuildings;
 use crate::wilderness;
 
 pub const WILDERNESS_SIZE: usize = 257;
@@ -44,12 +45,13 @@ pub struct WorldInfo {
     pub town_name: String,
     pub town_square: HashSet<(i32, i32, i8)>,
     pub tavern_name: String,
+    pub town_buildings: Option<TownBuildings>,
 }
 
 impl WorldInfo {
     pub fn new(town_name: String, town_boundary: (i32, i32, i32, i32), tavern_name: String) -> WorldInfo {
         WorldInfo { town_name, facts: Vec::new(), town_boundary, town_square: HashSet::new(),
-            tavern_name }
+            tavern_name, town_buildings: None }
     }
 }
 

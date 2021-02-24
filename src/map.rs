@@ -85,6 +85,13 @@ impl Tile {
 			_ => true,
 		}
 	}
+
+	pub fn indoors(&self) -> bool {
+		match self {
+			Tile::Floor | Tile::StoneFloor | Tile::StairsUp | Tile::StairsDown => true,
+			_ => false,
+		}
+	}
 }
 
 pub fn adjacent_door(map: &Map, loc: (i32, i32, i8), door_state: DoorState) -> Option<(i32, i32, i8)> {
