@@ -323,7 +323,7 @@ fn chat_with(state: &mut GameState, gui: &mut GameUI, loc: (i32, i32, i8), playe
 
 fn wiz_command(state: &mut GameState, gui: &mut GameUI, player: &mut Player) {
     let sbi = state.curr_sidebar_info(player);
-    match gui.query_user(":", 20, &sbi) {
+    match gui.query_user(":", 20, Some(&sbi)) {
         Some(result) => {
             let pieces: Vec<&str> = result.trim().split('=').collect();
             if pieces.len() != 2 {
@@ -384,7 +384,7 @@ fn run(gui: &mut GameUI, state: &mut GameState, player: &mut Player, npcs: &mut 
     let tiles = get_top_tiles(&state.map, player, npcs);
 	gui.v_matrix = fov::calc_v_matrix(&tiles, player, FOV_HEIGHT, FOV_WIDTH);
     let sbi = state.curr_sidebar_info(player);
-	gui.write_screen(&mut state.msg_buff, &sbi);
+	gui.write_screen(&mut state.msg_buff, Some(&sbi));
 
     loop {
         let start_turn = state.turn;
@@ -436,7 +436,7 @@ fn run(gui: &mut GameUI, state: &mut GameState, player: &mut Player, npcs: &mut 
 		
         //let write_screen_start = Instant::now();
         let sbi = state.curr_sidebar_info(player);
-        gui.write_screen(&mut state.msg_buff, &sbi);        
+        gui.write_screen(&mut state.msg_buff, Some(&sbi));
         //let write_screen_duration = write_screen_start.elapsed();
         //println!("Time for write_screen(): {:?}", write_screen_duration);
     }
@@ -467,7 +467,7 @@ fn main() {
     state.player_loc = player.location;
 
     let sbi = state.curr_sidebar_info(&player);
-    gui.write_screen(&mut state.msg_buff, &sbi);
+    gui.write_screen(&mut state.msg_buff, Some(&sbi));
     
     run(&mut gui, &mut state, &mut player, &mut npcs, &dialogue_library);
 }

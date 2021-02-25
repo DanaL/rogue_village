@@ -138,7 +138,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 		}
 	}
 
-	pub fn query_single_response(&mut self, question: &str, sbi: &SidebarInfo) -> Option<char> {
+	pub fn query_single_response(&mut self, question: &str, sbi: Option<&SidebarInfo>) -> Option<char> {
 		let mut m = VecDeque::new();
 		m.push_front(question.to_string());
 		self.write_screen(&mut m, sbi);
@@ -146,7 +146,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 		self.wait_for_key_input()
 	}
 
-	pub fn query_yes_no(&mut self, question: &str, sbi:&SidebarInfo) -> char {
+	pub fn query_yes_no(&mut self, question: &str, sbi: Option<&SidebarInfo>) -> char {
 		loop {
 			match self.query_single_response(question, sbi) {
 				Some('y') => { return 'y'; },
@@ -156,7 +156,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 		}
 	}
 
-	pub fn pick_direction(&mut self, msg: &str, sbi: &SidebarInfo) -> Option<(i32, i32)> {
+	pub fn pick_direction(&mut self, msg: &str, sbi: Option<&SidebarInfo>) -> Option<(i32, i32)> {
 		let mut m = VecDeque::new();
 		m.push_front(String::from(msg));
 		self.write_screen(&mut m, sbi);
@@ -177,7 +177,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 		}
 	}
 
-	pub fn query_natural_num(&mut self, query: &str, sbi: &SidebarInfo) -> Option<u8> {
+	pub fn query_natural_num(&mut self, query: &str, sbi: Option<&SidebarInfo>) -> Option<u8> {
 		let mut answer = String::from("");
 
 		loop {
@@ -208,7 +208,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 		}
 	}
 
-	pub fn query_user(&mut self, question: &str, max: u8, sbi: &SidebarInfo) -> Option<String> { 
+	pub fn query_user(&mut self, question: &str, max: u8, sbi: Option<&SidebarInfo>) -> Option<String> { 
 		let mut answer = String::from("");
 
 		loop {
@@ -244,7 +244,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 	}
 
 	fn select_dir(&mut self, prompt: &str, state: &GameState, player: &Player) -> Option<(i32, i32, i8)> {
-		match self.pick_direction(prompt, &state.curr_sidebar_info(player)) {
+		match self.pick_direction(prompt, Some(&state.curr_sidebar_info(player))) {
 			Some(dir) => {
 				let obj_row =  player.location.0 as i32 + dir.0;
 				let obj_col = player.location.1 as i32 + dir.1;
@@ -255,7 +255,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 				let mut msgs = VecDeque::new();
 				msgs.push_front("Nevermind.".to_string());
 				let sbi = state.curr_sidebar_info(player);
-				self.write_screen(&mut msgs, &sbi);
+				self.write_screen(&mut msgs, Some(&sbi));
 				None
 			},
 		}
@@ -621,7 +621,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 		self.write_sidebar_line(&s, fov_w, 21, white);		
 	}
 
-	fn draw_frame(&mut self, msg: &str, sbi: &SidebarInfo) {
+	fn draw_frame(&mut self, msg: &str, sbi: Option<&SidebarInfo>) {
 		self.canvas.set_draw_color(BLACK);
 		self.canvas.clear();
 
@@ -670,14 +670,14 @@ impl<'a, 'b> GameUI<'a, 'b> {
 					.expect("Error copying to canvas!");			
 		}
 
-		if sbi.name != "" {
-		 	self.write_sidebar(sbi);
+		if let Some(sidebar) = sbi {
+		 	self.write_sidebar(sidebar);
 		}
 
 		self.canvas.present();
 	}
 
-	pub fn write_screen(&mut self, msgs: &mut VecDeque<String>, sbi: &SidebarInfo) {
+	pub fn write_screen(&mut self, msgs: &mut VecDeque<String>, sbi: Option<&SidebarInfo>) {
 		if msgs.len() == 0 {
 			self.draw_frame("", sbi);
 		} else {
