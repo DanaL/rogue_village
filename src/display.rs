@@ -813,10 +813,10 @@ fn sq_info_for_tile(tile: &map::Tile, lit: bool) -> (char, sdl2::pixels::Color) 
 		},
 		map::Tile::Grass => {
 			if lit {
-				('`', tuple_to_sdl2_color(&GREEN))
+				(',', tuple_to_sdl2_color(&GREEN))
 			}
 			else {
-				('`', tuple_to_sdl2_color(&DARK_GREEN))
+				(',', tuple_to_sdl2_color(&DARK_GREEN))
 			}
 		},
 		map::Tile::Player(colour) => ('@', tuple_to_sdl2_color(colour)),

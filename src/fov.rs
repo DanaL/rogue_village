@@ -14,7 +14,7 @@
 // along with RogueVillage.  If not, see <https://www.gnu.org/licenses/>.
 
 use crate::map;
-use super::{GameState};
+use super::GameState;
 use crate::player::Player;
 use super::{FOV_WIDTH, FOV_HEIGHT};
 

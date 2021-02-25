@@ -23,6 +23,7 @@ mod dialogue;
 mod display;
 mod dungeon;
 mod fov;
+mod items;
 mod map;
 mod pathfinding;
 mod player;
@@ -398,6 +399,18 @@ fn show_character_sheet(gui: &mut GameUI, player: &Player) {
 	gui.write_long_msg(&lines, true);
 }
 
+fn show_inventory(gui: &mut GameUI, state: &mut GameState, player: &Player) {
+    let menu = player.inventory.get_menu();
+
+	if menu.len() == 0 {
+		state.write_msg_buff("You are empty-handed.");
+	} else {
+		let mut m: Vec<&str> = menu.iter().map(AsRef::as_ref).collect();
+        m.insert(0, "You are carrying:");
+		gui.write_long_msg(&m, true);
+	}
+}
+
 fn wiz_command(state: &mut GameState, gui: &mut GameUI, player: &mut Player) {
     let sbi = state.curr_sidebar_info(player);
     match gui.query_user(":", 20, Some(&sbi)) {
@@ -487,6 +500,7 @@ fn run(gui: &mut GameUI, state: &mut GameState, player: &mut Player, npcs: &mut 
                 println!("{:?}", state.curr_time());
             },
             Cmd::ShowCharacterSheet => show_character_sheet(gui, player),
+            Cmd::ShowInventory => show_inventory(gui, state, player),
             Cmd::Quit => break,        
             Cmd::Up => take_stairs(state, player, false),
             Cmd::WizardCommand => wiz_command(state, gui, player),            

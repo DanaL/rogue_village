@@ -16,6 +16,7 @@
 use rand::Rng;
 
 use super::GameState;
+use crate::items::{Inventory, Item};
 
 #[derive(Clone, Debug)]
 pub enum Role {
@@ -48,6 +49,7 @@ pub struct Player {
     xp: u32,
     pub level: u8,
     pub max_depth: u8,
+    pub inventory: Inventory,
 }
 
 impl Player {
@@ -89,10 +91,22 @@ impl Player {
             (stats[4], stats[3])
         };
 
-        Player {            
+        let mut p = Player {            
             name, max_hp: 15 + stat_to_mod(stats[1]), curr_hp: 15 + stat_to_mod(stats[1]), location: (0, 0, 0), vision_radius: default_vision_radius,
-                str: stats[0], con: stats[1], dex: stats[2], chr, apt, role: Role::Warrior, xp: 0, level: 1, max_depth: 0,
-        }
+                str: stats[0], con: stats[1], dex: stats[2], chr, apt, role: Role::Warrior, xp: 0, level: 1, max_depth: 0, inventory: Inventory::new(),
+        };
+
+        // Warrior starting equipment
+        let mut sword = Item::get_item("longsword").unwrap();
+        sword.equiped = true; 
+        let mut armour = Item::get_item("ringmail").unwrap();
+        armour.equiped = true;
+        
+        p.inventory.add(sword);
+        p.inventory.add(armour);
+        p.inventory.purse = 20;
+        
+        p
     }
 
     pub fn new_rogue(name: String) -> Player {
@@ -108,8 +122,10 @@ impl Player {
 
         Player {            
             name, max_hp: 12 + stat_to_mod(stats[2]), curr_hp: 12 + stat_to_mod(stats[2]), location: (0, 0, 0), vision_radius: default_vision_radius,
-                str, con: stats[2], dex: stats[0], chr, apt: stats[1], role: Role::Rogue, xp: 0, level: 1, max_depth: 0,
+                str, con: stats[2], dex: stats[0], chr, apt: stats[1], role: Role::Rogue, xp: 0, level: 1, max_depth: 0, inventory: Inventory::new(),
         }
+
+
     }
 }
 
