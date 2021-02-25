@@ -208,7 +208,12 @@ impl Villager {
     }
 
     fn open_door(&mut self, loc: (i32, i32, i8), state: &mut GameState) {
-        state.write_msg_buff("The villager opens the door.");
+        if self.stats.attitude == Attitude::Stranger {
+            state.write_msg_buff("The villager opens the door.");
+        } else {
+            let s = format!("{} opens the door.", self.get_name());
+            state.write_msg_buff(&s);
+        }
         state.map.insert(loc, Tile::Door(DoorState::Open));
     }
 
@@ -218,7 +223,12 @@ impl Villager {
             self.plan.push_front(Action::CloseDoor(loc));
         } else {
             if let Tile::Door(DoorState::Open) = state.map[&loc] {
-                state.write_msg_buff("The villager closes the door.");
+                if self.stats.attitude == Attitude::Stranger {
+                    state.write_msg_buff("The villager closes the door.");
+                } else {
+                    let s = format!("{} closes the door.", self.get_name());
+                    state.write_msg_buff(&s);
+                }
                 state.map.insert(loc, Tile::Door(DoorState::Closed));
             }
         }
