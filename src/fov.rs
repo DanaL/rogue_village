@@ -14,7 +14,7 @@
 // along with RogueVillage.  If not, see <https://www.gnu.org/licenses/>.
 
 use crate::map;
-use super::Map;
+use super::{GameState};
 use crate::player::Player;
 use super::{FOV_WIDTH, FOV_HEIGHT};
 
@@ -95,10 +95,8 @@ fn radius_full() -> Vec<(i32, i32)> {
 // blocking vision and I couldn't think of a simple way to do that with 
 // shadowcasting.
 fn mark_visible(r1: i32, c1: i32, r2: i32, c2: i32,
-		depth: i8,
-		tiles: &Map, 
-		v_matrix: &mut Vec<bool>, 
-        width: usize) {
+		depth: i8, v_matrix: &mut Vec<bool>, 
+        state: &mut GameState, width: usize) {
     let mut r = r1;
 	let mut c = c1;
 	let mut error = 0;
@@ -128,7 +126,7 @@ fn mark_visible(r1: i32, c1: i32, r2: i32, c2: i32,
 				break;
 			}
 
-			if !tiles.contains_key(&(r, c, depth)) {
+			if !state.map.contains_key(&(r, c, depth)) {
 				return;
 			}
 
@@ -137,13 +135,17 @@ fn mark_visible(r1: i32, c1: i32, r2: i32, c2: i32,
             let vmi = (vm_r * width as i32 + vm_c) as usize;
 			v_matrix[vmi] = true;
 
-			if !&tiles[&(r, c, depth)].clear() {
+			if !state.seen_sqs.contains(&(r, c, depth)) {
+				state.seen_sqs.insert((r, c, depth));
+			}
+
+			if !&state.map[&(r, c, depth)].clear() {
 				return;
 			}
 
 			// I want trees to not totally block light, but instead reduce visibility, but fog 
             // completely blocks light.           
-			if map::Tile::Tree == tiles[&(r, c, depth)] && !(r == r1 && c == c1) {
+			if map::Tile::Tree == state.map[&(r, c, depth)] && !(r == r1 && c == c1) {
 				if r_step > 0 {
 					r_end -= 2;
 				} else {
@@ -167,7 +169,7 @@ fn mark_visible(r1: i32, c1: i32, r2: i32, c2: i32,
 				break;
 			}
 
-			if !tiles.contains_key(&(r, c, depth)) {
+			if !state.map.contains_key(&(r, c, depth)) {
 				return;
 			}
 
@@ -176,13 +178,17 @@ fn mark_visible(r1: i32, c1: i32, r2: i32, c2: i32,
             let vmi = (vm_r * width as i32 + vm_c) as usize;
 			v_matrix[vmi] = true;
 
-			if !&tiles[&(r, c, depth)].clear() {
+			if !state.seen_sqs.contains(&(r, c, depth)) {
+				state.seen_sqs.insert((r, c, depth));
+			}
+
+			if !&state.map[&(r, c, depth)].clear() {
 				return;
 			}
 
 			// Same as above, trees partially block vision instead of cutting it off
             //if curr_weather.clouds.contains(&(r as usize, c as usize)) && !no_fog.contains(&(r as usize, c as usize)) {
-            if map::Tile::Tree == tiles[&(r, c, depth)] && !(r == r1 && c == c1) {
+            if map::Tile::Tree == state.map[&(r, c, depth)] && !(r == r1 && c == c1) {
 				if c_step > 0 {
 					c_end -= 2;
 				} else {
@@ -200,7 +206,7 @@ fn mark_visible(r1: i32, c1: i32, r2: i32, c2: i32,
 	}
 }
 
-pub fn calc_fov(tiles: &Map, player: &Player, height: usize, width: usize) -> Vec<(map::Tile, bool)> {
+pub fn calc_fov(state: &mut GameState, player: &Player, height: usize, width: usize) -> Vec<((i32, i32, i8), bool)> {
     let size = height * width;
     let mut visible = vec![false; size];
 	let fov_center_r = height / 2;
@@ -228,20 +234,19 @@ pub fn calc_fov(tiles: &Map, player: &Player, height: usize, width: usize) -> Ve
 		let actual_r = pr + loc.0;
 		let actual_c = pc + loc.1;
 
-		mark_visible(pr, pc, actual_r as i32, actual_c as i32, player.location.2, tiles, &mut visible, width);
+		mark_visible(pr, pc, actual_r as i32, actual_c as i32, player.location.2, &mut visible, state, width);
 	}
 
     // Now we know which locations are actually visible from the player's loc, 
     // copy the tiles into the v_matrix
-    let mut v_matrix = vec![(map::Tile::Blank, false); size];
+    let mut v_matrix = Vec::with_capacity(size);
     for r in 0..height {
         for c in 0..width {
             let j = r * width + c;
-            if visible[j] {
-                let row = pr - fov_center_r as i32 + r as i32;
-                let col = pc - fov_center_c as i32 + c as i32;
-				v_matrix[j] = (tiles[&(row, col, player.location.2)].clone(), true);
-            }
+			let row = pr - fov_center_r as i32 + r as i32;
+            let col = pc - fov_center_c as i32 + c as i32;
+			let loc = (row, col, player.location.2);
+			v_matrix.push((loc, visible[j]));
         }
     }
 

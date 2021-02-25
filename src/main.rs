@@ -31,7 +31,7 @@ mod util;
 mod wilderness;
 mod world;
 
-use std::collections::{VecDeque, HashMap};
+use std::collections::{HashMap, VecDeque, HashSet};
 use std::path::Path;
 //use std::time::{Duration, Instant};
 
@@ -86,6 +86,7 @@ pub struct GameState {
     vision_radius: u8,
     player_loc: (i32, i32, i8),
     world_info: WorldInfo,
+    seen_sqs: HashSet<(i32, i32, i8)>,
 }
 
 impl GameState {
@@ -98,6 +99,7 @@ impl GameState {
             vision_radius: 30,
             player_loc: (-1, -1, -1),
             world_info: world_info,
+            seen_sqs: HashSet::new(),
         };
 
         state
@@ -432,32 +434,40 @@ fn pick_player_start_loc(state: &GameState) -> (i32, i32, i8) {
     }
 }
 
-// Top tiles as in which tile is sitting on top of the square. NPC, items (eventually, once I 
-// implement them), weather (ditto), etc and at the bottom, the terrain tile
-fn get_top_tiles(map: &Map, player: &Player, npcs: &NPCTable) -> Map {
-    let mut tiles = HashMap::new();
-    let half_fov_h = FOV_HEIGHT as i32 / 2;
-    let half_fov_w = FOV_WIDTH as i32 / 2;
-    
-    for r in player.location.0 - half_fov_h..player.location.0 + half_fov_h{
-        for c in player.location.1 - half_fov_w..player.location.1 + half_fov_w {
-            let loc = (r, c, player.location.2);
-            if npcs.contains_key(&loc) {
-                tiles.insert(loc, npcs[&loc].get_tile());
-            } else if map.contains_key(&loc) {
-                tiles.insert(loc, map[&loc]);
+// The fov calculator returns a vector of co-ordinates and whether or not that square is currently visible.
+// From that, we assemble the vector of tiles to send to the GameUI to be drawn. If an NPC is in a visible square,
+// they are on top, otherwise show the tile. If the tile isn't visible but the player has seen it before, show the 
+// tile as unlit, otherwise leave it as a blank square.
+//
+// This will soon be complicated by having items on the ground and perhaps eventually by independent light sources.
+// Come to think of it, the memory of squares seen should be a memory of the last tile seen on it. Otherwise, if 
+// a monster picks up an item the player has left on the ground while the player isn't around, the item will disappear
+// from view even when the square hasn't subsequently been seen by the player. But the tile memory should only contain
+// items or the ground square. I'll worry about that when I implement items.
+fn fov_to_tiles(state: &GameState, npcs: &NPCTable, visible: &Vec<((i32, i32, i8), bool)>) -> Vec<(map::Tile, bool)> {
+    let mut v_matrix = vec![(map::Tile::Blank, false); visible.len()];
+
+    for j in 0..visible.len() {
+        let vis = visible[j];
+        if vis.0 == state.player_loc {
+            v_matrix[j] = (map::Tile::Player(WHITE), true);
+        } else if visible[j].1 {            
+            if npcs.contains_key(&vis.0) {
+                v_matrix[j] = (npcs[&vis.0].get_tile(), true);
+            } else {
+                v_matrix[j] = (state.map[&vis.0], true);
             }
+        } else if state.seen_sqs.contains(&vis.0) {
+            v_matrix[j] = (state.map[&vis.0], false);            
         }
     }
 
-    tiles.insert(player.location, map::Tile::Player(WHITE));
-
-    tiles
+    v_matrix
 }
 
 fn run(gui: &mut GameUI, state: &mut GameState, player: &mut Player, npcs: &mut NPCTable, dialogue: &DialogueLibrary) {
-    let tiles = get_top_tiles(&state.map, player, npcs);
-	gui.v_matrix = fov::calc_fov(&tiles, player, FOV_HEIGHT, FOV_WIDTH);
+    let visible = fov::calc_fov(state, player, FOV_HEIGHT, FOV_WIDTH);
+	gui.v_matrix = fov_to_tiles(state, npcs, &visible);
     let sbi = state.curr_sidebar_info(player);
     state.write_msg_buff("Welcome, adventurer!");   
 	gui.write_screen(&mut state.msg_buff, Some(&sbi));
@@ -506,8 +516,8 @@ fn run(gui: &mut GameUI, state: &mut GameState, player: &mut Player, npcs: &mut 
         player.calc_vision_radius(state);
         
         //let fov_start = Instant::now();
-        let tiles = get_top_tiles(&state.map, player, npcs);
-        gui.v_matrix = fov::calc_fov(&tiles, player, FOV_HEIGHT, FOV_WIDTH);
+        let visible = fov::calc_fov(state, player, FOV_HEIGHT, FOV_WIDTH);
+        gui.v_matrix = fov_to_tiles(state, npcs, &visible);
         //let fov_duration = fov_start.elapsed();
         //println!("Time for fov: {:?}", fov_duration);
 		
