@@ -344,11 +344,9 @@ impl Mayor {
     fn check_agenda_item(&mut self, state: &GameState, item: &AgendaItem) {        
         match item.place {
             Venue::Tavern => {
-                let b = &state.world_info.town_buildings.as_ref().unwrap().tavern;
-                if !in_location(state, self.get_loc(), &b, true) {
-                    let j = thread_rng().gen_range(0, b.len());
-                    let goal_loc = b.iter().nth(j).unwrap().clone(); // Clone prevents a compiler warning...
-                    self.calc_plan_to_move(state, goal_loc, false);                
+                let tavern = &state.world_info.town_buildings.as_ref().unwrap().tavern;
+                if !in_location(state, self.get_loc(), &tavern, true) {
+                    self.go_to_place(state, tavern);
                 } else {
                     self.idle_behaviour(state);
                 }
@@ -356,9 +354,7 @@ impl Mayor {
             Venue::TownSquare => {
                 let ts = &state.world_info.town_square;
                 if !in_location(state, self.get_loc(), ts, false) {
-                    let j = thread_rng().gen_range(0, ts.len());
-                    let goal_loc = ts.iter().nth(j).unwrap().clone(); // Clone prevents a compiler warning...
-                    self.calc_plan_to_move(state, goal_loc, false);
+                    self.go_to_place(state, ts);
                 } else {
                     self.idle_behaviour(state);
                 }
@@ -383,9 +379,7 @@ impl Mayor {
             // The default behaviour is to go home if nothing on the agenda.
             let b = &state.world_info.town_buildings.as_ref().unwrap();
             if !in_location(state, self.get_loc(), &b.homes[self.home_id], true) {
-                let j = thread_rng().gen_range(0, &b.homes[self.home_id].len());
-                let goal_loc = &b.homes[self.home_id].iter().nth(j).unwrap().clone(); // Clone prevents a compiler warning...
-                self.calc_plan_to_move(state, *goal_loc, false);                
+                self.go_to_place(state, &b.homes[self.home_id]);
             } else {
                 self.idle_behaviour(state);
             }            
@@ -393,6 +387,14 @@ impl Mayor {
             let item = &items[0].clone();
             self.check_agenda_item(state, item);
         }
+    }
+
+    // Generally, when I have an NPC go a building/place, I assume it doesn't matter too much if 
+    // they go to specific square inside it, so just pick any one of them.
+    fn go_to_place(&mut self, state: &GameState, sqs: &HashSet<(i32, i32, i8)>) {
+        let j = thread_rng().gen_range(0, &sqs.len());
+        let goal_loc = &sqs.iter().nth(j).unwrap().clone(); // Clone prevents a compiler warning...
+        self.calc_plan_to_move(state, *goal_loc, false);
     }
 }
 
