@@ -457,7 +457,7 @@ fn get_top_tiles(map: &Map, player: &Player, npcs: &NPCTable) -> Map {
 
 fn run(gui: &mut GameUI, state: &mut GameState, player: &mut Player, npcs: &mut NPCTable, dialogue: &DialogueLibrary) {
     let tiles = get_top_tiles(&state.map, player, npcs);
-	gui.v_matrix = fov::calc_v_matrix(&tiles, player, FOV_HEIGHT, FOV_WIDTH);
+	gui.v_matrix = fov::calc_fov(&tiles, player, FOV_HEIGHT, FOV_WIDTH);
     let sbi = state.curr_sidebar_info(player);
     state.write_msg_buff("Welcome, adventurer!");   
 	gui.write_screen(&mut state.msg_buff, Some(&sbi));
@@ -507,7 +507,7 @@ fn run(gui: &mut GameUI, state: &mut GameState, player: &mut Player, npcs: &mut 
         
         //let fov_start = Instant::now();
         let tiles = get_top_tiles(&state.map, player, npcs);
-        gui.v_matrix = fov::calc_v_matrix(&tiles, player, FOV_HEIGHT, FOV_WIDTH);
+        gui.v_matrix = fov::calc_fov(&tiles, player, FOV_HEIGHT, FOV_WIDTH);
         //let fov_duration = fov_start.elapsed();
         //println!("Time for fov: {:?}", fov_duration);
 		

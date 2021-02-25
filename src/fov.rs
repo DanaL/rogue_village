@@ -200,7 +200,7 @@ fn mark_visible(r1: i32, c1: i32, r2: i32, c2: i32,
 	}
 }
 
-pub fn calc_v_matrix(tiles: &Map, player: &Player, height: usize, width: usize) -> Vec<map::Tile> {
+pub fn calc_fov(tiles: &Map, player: &Player, height: usize, width: usize) -> Vec<(map::Tile, bool)> {
     let size = height * width;
     let mut visible = vec![false; size];
 	let fov_center_r = height / 2;
@@ -233,14 +233,14 @@ pub fn calc_v_matrix(tiles: &Map, player: &Player, height: usize, width: usize) 
 
     // Now we know which locations are actually visible from the player's loc, 
     // copy the tiles into the v_matrix
-    let mut v_matrix = vec![map::Tile::Blank; size];
+    let mut v_matrix = vec![(map::Tile::Blank, false); size];
     for r in 0..height {
         for c in 0..width {
             let j = r * width + c;
             if visible[j] {
                 let row = pr - fov_center_r as i32 + r as i32;
                 let col = pc - fov_center_c as i32 + c as i32;
-				v_matrix[j] = tiles[&(row, col, player.location.2)].clone();
+				v_matrix[j] = (tiles[&(row, col, player.location.2)].clone(), true);
             }
         }
     }

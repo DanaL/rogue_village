@@ -35,15 +35,20 @@ use sdl2::pixels::Color;
 
 pub static BLACK: (u8, u8, u8) = (0, 0, 0);
 pub static WHITE: (u8, u8, u8) = (255, 255, 255);
-pub static LIGHT_GREY: (u8, u8, u8) = (220, 220, 220);
 pub static GREY: (u8, u8, u8) = (136, 136, 136);
+pub static LIGHT_GREY: (u8, u8, u8) = (220, 220, 220);
+pub static DARK_GREY: (u8, u8, u8) = (36, 37, 38);
 pub static GREEN: (u8, u8, u8) = (144, 238, 144);
-pub static BROWN: (u8, u8, u8) = (150, 75, 0);
-pub static DARK_BROWN: (u8, u8, u8) = (101, 67, 33);
-pub static BLUE: (u8, u8, u8) = (0, 0, 200);
+pub static DARK_GREEN: (u8, u8, u8) = (0, 71, 49);
+pub static LIGHT_BROWN: (u8, u8, u8) = (150, 75, 0);
+pub static BROWN: (u8, u8, u8) = (101, 67, 33);
+pub static DARK_BROWN: (u8, u8, u8) = (35, 18, 11);
 pub static LIGHT_BLUE: (u8, u8, u8) = (55, 198, 255);
+pub static BLUE: (u8, u8, u8) = (0, 0, 200);
+pub static DARK_BLUE: (u8, u8, u8) = (12, 35, 64);
 pub static BEIGE: (u8, u8, u8) = (255, 178, 127);
 pub static BRIGHT_RED: (u8, u8, u8) = (208, 28, 31);
+pub static DULL_RED: (u8, u8, u8) = (129, 12, 12);
 pub static GOLD: (u8, u8, u8) = (255, 215, 0);
 pub static YELLOW: (u8, u8, u8) = (255, 225, 53);
 pub static YELLOW_ORANGE: (u8, u8, u8,) = (255, 159, 0);
@@ -85,7 +90,7 @@ pub struct GameUI<'a, 'b> {
 	sm_font: &'a Font<'a, 'b>,
 	canvas: WindowCanvas,
 	event_pump: EventPump,
-	pub v_matrix: Vec<map::Tile>,
+	pub v_matrix: Vec<(map::Tile, bool)>,
 	surface_cache: HashMap<(char, Color), Surface<'a>>,
 }
 
@@ -105,7 +110,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 			.build()
 			.map_err(|e| e.to_string())?;
 
-		let v_matrix = vec![map::Tile::Blank; FOV_WIDTH * FOV_HEIGHT];
+		let v_matrix = vec![(map::Tile::Blank, false); FOV_WIDTH * FOV_HEIGHT];
 		let canvas = window.into_canvas().build().map_err(|e| e.to_string())?;
 		let gui = GameUI { 
 			screen_width_px, screen_height_px, 
@@ -550,54 +555,6 @@ impl<'a, 'b> GameUI<'a, 'b> {
 		self.wait_for_key_input();		
 	}
 
-	pub fn sq_info_for_tile(tile: &map::Tile) -> (char, sdl2::pixels::Color) {
-		let ti = match tile {
-			map::Tile::Blank => (' ', tuple_to_sdl2_color(&BLACK)),
-			map::Tile::Wall => ('#', tuple_to_sdl2_color(&GREY)),
-			map::Tile::WoodWall => ('#', tuple_to_sdl2_color(&DARK_BROWN)),
-			map::Tile::Tree => ('\u{03D9}', tuple_to_sdl2_color(&GREEN)),
-			map::Tile::Dirt => ('.', tuple_to_sdl2_color(&BROWN)),
-			map::Tile::Bridge => ('=', tuple_to_sdl2_color(&GREY)),
-			map::Tile::Door(DoorState::Closed) => ('+', tuple_to_sdl2_color(&BROWN)),
-			map::Tile::Door(DoorState::Locked) => ('+', tuple_to_sdl2_color(&BROWN)),
-			map::Tile::Door(DoorState::Open) => ('/', tuple_to_sdl2_color(&BROWN)),
-			map::Tile::Door(DoorState::Broken) => ('/', tuple_to_sdl2_color(&BROWN)),
-			map::Tile::Grass => ('\u{0316}', tuple_to_sdl2_color(&GREEN)),
-			map::Tile::Player(colour) => ('@', tuple_to_sdl2_color(colour)),
-			map::Tile::Water => ('}', tuple_to_sdl2_color(&LIGHT_BLUE)),
-			map::Tile::DeepWater => ('}', tuple_to_sdl2_color(&BLUE)),
-			map::Tile::WorldEdge => ('}', tuple_to_sdl2_color(&BLUE)),
-			map::Tile::Sand => ('.', tuple_to_sdl2_color(&BEIGE)),
-			map::Tile::StoneFloor => ('.', tuple_to_sdl2_color(&GREY)),
-			map::Tile::Mountain => ('\u{039B}', tuple_to_sdl2_color(&GREY)),
-			map::Tile::SnowPeak => ('\u{039B}', tuple_to_sdl2_color(&WHITE)),
-			map::Tile::Lava => ('{', tuple_to_sdl2_color(&BRIGHT_RED)),
-			map::Tile::Gate => ('#', tuple_to_sdl2_color(&LIGHT_BLUE)),
-			map::Tile::Creature(colour, ch) => (*ch, tuple_to_sdl2_color(colour)),
-			map::Tile::Thing(colour, ch) => (*ch, tuple_to_sdl2_color(colour)),
-			map::Tile::Separator => ('|', tuple_to_sdl2_color(&WHITE)),
-			map::Tile::Bullet(ch) => (*ch, tuple_to_sdl2_color(&WHITE)),
-			map::Tile::OldFirePit => ('"', tuple_to_sdl2_color(&GREY)),
-			map::Tile::FirePit => ('"', tuple_to_sdl2_color(&BRIGHT_RED)),
-			map::Tile::Floor => ('.', tuple_to_sdl2_color(&BEIGE)),
-			map::Tile::Window(ch) => (*ch, tuple_to_sdl2_color(&BROWN)),
-			map::Tile::Spring => ('~', tuple_to_sdl2_color(&LIGHT_BLUE)),
-            map::Tile::Portal => ('Ո', tuple_to_sdl2_color(&GREY)),
-            map::Tile::Fog => ('#', tuple_to_sdl2_color(&LIGHT_GREY)),
-			map::Tile::BoulderTrap(colour, hidden, _, _, _) => {
-				if *hidden {
-					('.', tuple_to_sdl2_color(colour))
-				} else {
-					('^', tuple_to_sdl2_color(&WHITE))
-				}
-			},
-			map::Tile::StairsUp => ('<', tuple_to_sdl2_color(&GREY)),
-			map::Tile::StairsDown => ('>', tuple_to_sdl2_color(&GREY)),
-		};
-
-		ti
-	}
-	
 	fn write_sidebar_line(&mut self, line: &str, start_x: i32, row: usize, colour: sdl2::pixels::Color) {
 		let surface = self.font.render(line)
 			.blended(colour)
@@ -635,29 +592,29 @@ impl<'a, 'b> GameUI<'a, 'b> {
 		// be repeated but still...
 		let texture_creator = self.canvas.texture_creator();
 		let mut textures = HashMap::new();
-		let separator = GameUI::sq_info_for_tile(&Tile::Separator);
+		let separator = sq_info_for_tile(&Tile::Separator, true);
 		let separator_surface = self.font.render_char(separator.0)
-											.blended(separator.1)
-											.expect("Error creating character!");  
+										 .blended(separator.1)
+										 .expect("Error creating character!");  
 		let separator_texture = texture_creator.create_texture_from_surface(&separator_surface)
-													   .expect("Error creating texture!");
+											   .expect("Error creating texture!");
 
 		for row in 0..FOV_HEIGHT {
 			for col in 0..FOV_WIDTH {
-				let ti = GameUI::sq_info_for_tile(&self.v_matrix[row * FOV_WIDTH + col]);
+				let ti = sq_info_for_tile(&self.v_matrix[row * FOV_WIDTH + col].0, self.v_matrix[row * FOV_WIDTH + col].1);
 				let (ch, char_colour) = ti;
 
 				if !self.surface_cache.contains_key(&ti) {
 					let s = self.font.render_char(ch)
-						.blended(char_colour)
-						.expect("Error creating character!");  
+									 .blended(char_colour)
+									 .expect("Error creating character!");  
 					self.surface_cache.insert(ti, s);
 				}
 				let surface = self.surface_cache.get(&ti).unwrap();
 				
 				if !textures.contains_key(&ti) {
 					let texture = texture_creator.create_texture_from_surface(&surface)
-														 .expect("Error creating texture!");
+												 .expect("Error creating texture!");
 					textures.insert(ti, texture);
 				}
 
@@ -784,5 +741,209 @@ impl<'a, 'b> GameUI<'a, 'b> {
 		}
 
 		Some(answers)
+	}
+}
+
+fn sq_info_for_tile(tile: &map::Tile, lit: bool) -> (char, sdl2::pixels::Color) {
+	match tile {
+		map::Tile::Blank => (' ', tuple_to_sdl2_color(&BLACK)),
+		map::Tile::Wall => {
+			if lit {
+				('#', tuple_to_sdl2_color(&GREY))
+			} else {
+				('#', tuple_to_sdl2_color(&DARK_GREY))
+			}
+		},
+		map::Tile::WoodWall => {
+			if lit {
+				('#', tuple_to_sdl2_color(&BROWN))
+			} else {
+				('#', tuple_to_sdl2_color(&DARK_BROWN))
+			}
+		},
+		map::Tile::Tree => {
+			if lit {
+				('\u{03D9}', tuple_to_sdl2_color(&GREEN))
+			}
+			else {
+				('\u{03D9}', tuple_to_sdl2_color(&DARK_GREEN))
+			}
+		},
+		map::Tile::Dirt => {
+			if lit {
+				('.', tuple_to_sdl2_color(&LIGHT_BROWN))
+			} else {
+				('.', tuple_to_sdl2_color(&BROWN))
+			}
+		},
+		map::Tile::Bridge => {
+			if lit {
+				('=', tuple_to_sdl2_color(&DARK_GREY))
+			} else {
+				('=', tuple_to_sdl2_color(&DARK_GREY))
+			}
+		},
+		map::Tile::Door(DoorState::Closed) => {
+			if lit {
+				('+', tuple_to_sdl2_color(&LIGHT_BROWN))
+			} else {
+				('+', tuple_to_sdl2_color(&BROWN))
+			}
+		},
+		map::Tile::Door(DoorState::Locked) => {
+			if lit {
+				('+', tuple_to_sdl2_color(&LIGHT_BROWN))
+			} else {
+				('+', tuple_to_sdl2_color(&BROWN))
+			}
+		},
+		map::Tile::Door(DoorState::Open) => {
+			if lit {
+				('/', tuple_to_sdl2_color(&LIGHT_BROWN))
+			} else {
+				('/', tuple_to_sdl2_color(&BROWN))
+			}
+		},
+		map::Tile::Door(DoorState::Broken) => {
+			if lit {
+				('/', tuple_to_sdl2_color(&LIGHT_BROWN))
+			} else {
+				('/', tuple_to_sdl2_color(&BROWN))
+			}
+		},
+		map::Tile::Grass => {
+			if lit {
+				('`', tuple_to_sdl2_color(&GREEN))
+			}
+			else {
+				('`', tuple_to_sdl2_color(&DARK_GREEN))
+			}
+		},
+		map::Tile::Player(colour) => ('@', tuple_to_sdl2_color(colour)),
+		map::Tile::Water => {
+			if lit {
+				('}', tuple_to_sdl2_color(&LIGHT_BLUE))
+			} else {
+				('}', tuple_to_sdl2_color(&BLUE))
+			}
+		},
+		map::Tile::DeepWater => {
+			if lit {
+				('}', tuple_to_sdl2_color(&BLUE))
+			} else {
+				('}', tuple_to_sdl2_color(&DARK_BLUE))
+			}
+		},
+		map::Tile::WorldEdge => {
+			if lit {
+				('}', tuple_to_sdl2_color(&BLUE))
+			} else {
+				('}', tuple_to_sdl2_color(&DARK_BLUE))
+			}
+		},
+		map::Tile::Sand => ('.', tuple_to_sdl2_color(&BEIGE)),
+		map::Tile::StoneFloor => {
+			if lit {
+				('.', tuple_to_sdl2_color(&GREY))
+			} else {
+				('.', tuple_to_sdl2_color(&DARK_GREY))
+			}
+		},
+		map::Tile::Mountain => {
+			if lit {
+				('\u{039B}', tuple_to_sdl2_color(&GREY))
+			} else {
+				('\u{039B}', tuple_to_sdl2_color(&DARK_GREY))
+			}
+		},
+		map::Tile::SnowPeak => {
+			if lit {
+				('\u{039B}', tuple_to_sdl2_color(&WHITE))
+			} else {
+				('\u{039B}', tuple_to_sdl2_color(&GREY))
+			}		
+		},
+		map::Tile::Lava => {
+			if lit {
+				('{', tuple_to_sdl2_color(&BRIGHT_RED))
+			} else {
+				('{', tuple_to_sdl2_color(&DULL_RED))
+			}
+		},
+		map::Tile::Gate => { 
+			if lit { 
+				('#', tuple_to_sdl2_color(&LIGHT_BLUE)) 
+			} else {
+				('#', tuple_to_sdl2_color(&GREY))
+			}
+		},
+		map::Tile::Creature(colour, ch) => (*ch, tuple_to_sdl2_color(colour)),
+		map::Tile::Thing(colour, ch) => (*ch, tuple_to_sdl2_color(colour)),
+		map::Tile::Separator => ('|', tuple_to_sdl2_color(&WHITE)),
+		map::Tile::Bullet(ch) => (*ch, tuple_to_sdl2_color(&WHITE)),
+		map::Tile::OldFirePit => {
+			if lit {
+				('#', tuple_to_sdl2_color(&GREY))
+			} else {
+				('#', tuple_to_sdl2_color(&DARK_GREY))
+			}
+		},
+		map::Tile::FirePit => {
+			if lit {
+				('#', tuple_to_sdl2_color(&BRIGHT_RED))
+			} else {
+				('#', tuple_to_sdl2_color(&DULL_RED))
+			}
+		},
+		map::Tile::Floor => {
+			if lit {
+				('.', tuple_to_sdl2_color(&BEIGE))
+			} else {
+				('.', tuple_to_sdl2_color(&BROWN))
+			}
+		},
+		map::Tile::Window(ch) => {
+			if lit {
+				(*ch, tuple_to_sdl2_color(&LIGHT_BROWN))
+			} else {
+				(*ch, tuple_to_sdl2_color(&BROWN))
+			}
+		},
+		map::Tile::Spring => {
+			if lit {
+				('~', tuple_to_sdl2_color(&LIGHT_BLUE))
+			} else {
+				('~', tuple_to_sdl2_color(&BLUE))
+			}
+		},
+		map::Tile::Portal => {
+			if lit {
+				('Ո', tuple_to_sdl2_color(&GREY))
+			} else {
+				('Ո', tuple_to_sdl2_color(&DARK_GREY))
+			}
+		},
+		map::Tile::Fog => ('#', tuple_to_sdl2_color(&LIGHT_GREY)),
+		map::Tile::BoulderTrap(colour, hidden, _, _, _) => {
+			if *hidden {
+				('.', tuple_to_sdl2_color(colour))
+			} else {
+				('^', tuple_to_sdl2_color(&WHITE))
+			}
+		},
+		map::Tile::StairsUp => {
+			if lit {
+				('<', tuple_to_sdl2_color(&GREY))
+			} else {
+				('<', tuple_to_sdl2_color(&DARK_GREY))
+			}
+		},
+		map::Tile::StairsDown => {
+			if lit {
+				('>', tuple_to_sdl2_color(&GREY))
+			} else {
+				('>', tuple_to_sdl2_color(&DARK_GREY))
+			}
+		},
 	}
 }

@@ -121,7 +121,7 @@ fn stat_to_mod(stat: u8) -> i8 {
     }
 }
 
-// Classic D&D rol 4d6 and drop lowest. (Or classic in the sense that's how 
+// Classic D&D roll 4d6 and drop lowest. (Or classic in the sense that's how 
 // we did it in 2e)
 fn four_d6_drop_one() -> u8 {
     let mut rng = rand::thread_rng();
