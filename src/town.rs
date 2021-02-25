@@ -21,7 +21,8 @@ use rand::seq::IteratorRandom;
 
 use super::{Map, NPCTable};
 
-use crate::actor::{Mayor};
+use crate::actor;
+use crate::actor::{Actor, AgendaItem, Venue, Villager};
 use crate::map::{DoorState, Tile};
 use crate::pathfinding;
 use crate::world::WILDERNESS_SIZE;
@@ -44,6 +45,21 @@ pub struct TownBuildings {
 impl TownBuildings {
     pub fn new() -> TownBuildings {
         TownBuildings { shrine: HashSet::new(), tavern: HashSet::new(), homes: Vec::new(), taken_homes: Vec::new() }
+    }
+
+    pub fn vacant_home(&self) -> Option<usize> {
+        if self.taken_homes.len() == self.homes.len() {
+            None
+        } else {
+            let mut available: Vec<usize> = (0..self.homes.len()).collect();
+            for x in &self.taken_homes {
+                available.remove(*x);
+            }
+            
+            let mut rng = rand::thread_rng();
+            let n = available.iter().choose(&mut rng).unwrap();
+            Some(*n)
+        }
     }
 }
 
@@ -351,6 +367,25 @@ fn random_town_name() -> String {
     String::from(*names.iter().choose(&mut rng).unwrap())
 }
 
+fn create_villager(voice: &str, tb: &mut TownBuildings, used_names: &HashSet<String>) -> Villager {
+    let home_id = tb.vacant_home().unwrap();
+    let home = &tb.homes[home_id];
+    let j = rand::thread_rng().gen_range(0, home.len());    
+    let loc = home.iter().nth(j).unwrap().clone(); 
+    let mut villager = Villager::new(actor::pick_villager_name(used_names), loc, home_id, voice);
+    tb.taken_homes.push(home_id);
+    
+    if voice.starts_with("mayor") {
+        villager.schedule.push(AgendaItem::new((9, 0), (21, 0), 0, Venue::TownSquare));
+        villager.schedule.push(AgendaItem::new((12, 0), (13, 0), 10, Venue::Tavern));
+    } else {
+        villager.schedule.push(AgendaItem::new((11, 0), (14, 0), 10, Venue::Tavern));
+        villager.schedule.push(AgendaItem::new((18, 0), (22, 0), 10, Venue::Tavern));
+    }
+
+    villager
+}
+
 pub fn create_town(map: &mut Map, npcs: &mut NPCTable) -> WorldInfo {
     // load the building templates
     let mut buildings = HashMap::new();
@@ -392,11 +427,14 @@ pub fn create_town(map: &mut Map, npcs: &mut NPCTable) -> WorldInfo {
 
     draw_paths_in_town(map, &world_info);
 
-    let home_id = rng.gen_range(0, tb.homes.len());
-    let mayor_loc = world_info.town_square.iter().choose(&mut rng).unwrap();
-    let mayor = Mayor::new("Quimby".to_string(), *mayor_loc, home_id,"mayor1");
+    let mut used_names = HashSet::new();
+    let v = create_villager("mayor1", &mut tb, &used_names);
+    used_names.insert(v.get_name());
+    npcs.insert(v.stats.location, Box::new(v));
     
-    npcs.insert(*mayor_loc, Box::new(mayor));
+    let v = create_villager("villager1", &mut tb, &used_names);
+    used_names.insert(v.get_name());
+    npcs.insert(v.stats.location, Box::new(v));
 
     world_info.town_buildings = Some(tb);
 

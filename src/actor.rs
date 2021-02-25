@@ -141,7 +141,7 @@ pub enum Action {
 }
 
 #[derive(Clone, Debug)]
-pub struct Mayor {
+pub struct Villager {
     pub stats: BasicStats,	
     pub facts_known: Vec<usize>,
     pub greeted_player: bool,
@@ -151,17 +151,12 @@ pub struct Mayor {
     pub schedule: Vec<AgendaItem>,
 }
 
-impl Mayor {
-    pub fn new(name: String, location: (i32, i32, i8), home_id: usize, voice: &str) -> Mayor {
-        let mut m = Mayor { stats: BasicStats::new(name, 8,  8, location,  '@',  LIGHT_GREY, Attitude::Stranger), 
+impl Villager {
+    pub fn new(name: String, location: (i32, i32, i8), home_id: usize, voice: &str) -> Villager {
+        Villager { stats: BasicStats::new(name, 8,  8, location,  '@',  LIGHT_GREY, Attitude::Stranger), 
             facts_known: Vec::new(), greeted_player: false, home_id,
             plan: VecDeque::new(), voice: String::from(voice), schedule: Vec::new(),
-        };
-
-        m.schedule.push(AgendaItem::new((9, 0), (21, 0), 0, Venue::TownSquare));
-        m.schedule.push(AgendaItem::new((12, 0), (13, 0), 10    , Venue::Tavern));
-
-        m
+        }
     }
 
     // I should be able to move calc_plan_to_move, try_to_move_to_loc, etc to generic
@@ -213,7 +208,7 @@ impl Mayor {
     }
 
     fn open_door(&mut self, loc: (i32, i32, i8), state: &mut GameState) {
-        state.write_msg_buff("The mayor opens the door.");
+        state.write_msg_buff("The villager opens the door.");
         state.map.insert(loc, Tile::Door(DoorState::Open));
     }
 
@@ -223,7 +218,7 @@ impl Mayor {
             self.plan.push_front(Action::CloseDoor(loc));
         } else {
             if let Tile::Door(DoorState::Open) = state.map[&loc] {
-                state.write_msg_buff("The mayor closes the door.");
+                state.write_msg_buff("The villager closes the door.");
                 state.map.insert(loc, Tile::Door(DoorState::Closed));
             }
         }
@@ -322,9 +317,10 @@ impl Mayor {
 
 // Eventually I'll be able to reuse a bunch of this behaviour code for all Villagers
 // (I hope) without cutting and pasting everywhere.
-impl Actor for Mayor {
+impl Actor for Villager {
     fn act(&mut self, state: &mut GameState, npcs: &mut NPCTable) {
         // It's a mayoral duty to greet newcomers to town
+        /*
         let pl = state.player_loc;
         
         if !self.greeted_player && pl.2 == self.stats.location.2 && util::distance(pl.0, pl.1, self.stats.location.0,self.stats.location.1) <= 4.0 {                 
@@ -332,6 +328,7 @@ impl Actor for Mayor {
             state.write_msg_buff(&s);
             self.greeted_player = true;
         }
+        */
 
         if self.plan.len() > 0 {
             self.follow_plan(state, npcs);            
@@ -404,5 +401,17 @@ fn in_location(state: &GameState, loc: (i32, i32, i8), sqs: &HashSet<(i32, i32, 
         indoor_sqs.contains(&loc)
     } else {
         sqs.contains(&loc)
+    }
+}
+
+pub fn pick_villager_name(used_names: &HashSet<String>) -> String {
+    let names: [&str; 12] = ["Galleren", "Jaquette", "Aalis", "Martin", "Brida", "Cecillia",
+        "Gotleib", "Ulrich", "Magda", "Sofiya", "Milivoj", "Velimer"];
+
+    loop {
+        let n = thread_rng().gen_range(0, names.len());
+        if !used_names.contains(names[n]) {
+            return String::from(names[n]);
+        }
     }
 }

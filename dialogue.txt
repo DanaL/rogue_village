@@ -18,3 +18,14 @@ Friendly
 - If you truly think you can help, I've heard the dungeon is off {dungeon-dir} of town.
 Hostile
 - Get out of {village} before we through you out.
+voice:villager1
+Stranger
+- Another one, is it? You look brave enough now, but then you haven't been into the dungeon yet.
+Indifferent
+- Not dead yet, I see.
+- Are you one of those types who spends their time in the tavern and just talks about adventure?
+Friendly
+- Well met, {playername}, how goes your quest?
+- Let's hear some of your tales!
+Hostile
+- You're no longer welcome in {village}
