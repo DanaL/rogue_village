@@ -145,16 +145,16 @@ pub struct Mayor {
     pub stats: BasicStats,	
     pub facts_known: Vec<usize>,
     pub greeted_player: bool,
-    pub home: HashSet<(i32, i32, i8)>,
+    pub home_id: usize,
     pub plan: VecDeque<Action>,
     pub voice: String,
     pub schedule: Vec<AgendaItem>,
 }
 
 impl Mayor {
-    pub fn new(name: String, location: (i32, i32, i8), voice: &str) -> Mayor {
+    pub fn new(name: String, location: (i32, i32, i8), home_id: usize, voice: &str) -> Mayor {
         let mut m = Mayor { stats: BasicStats::new(name, 8,  8, location,  '@',  LIGHT_GREY, Attitude::Stranger), 
-            facts_known: Vec::new(), greeted_player: false, home: HashSet::new(),
+            facts_known: Vec::new(), greeted_player: false, home_id,
             plan: VecDeque::new(), voice: String::from(voice), schedule: Vec::new(),
         };
 
@@ -229,52 +229,53 @@ impl Mayor {
         }
     }
 
-    fn entrance_location(&self, map: &Map) -> Option<(i32, i32, i8)> {
-        for sq in &self.home {
-            if let Tile::Door(_) = map[&sq] {
-                return Some(*sq);
-            }
-        }
+    // fn entrance_location(&self, map: &Map) -> Option<(i32, i32, i8)> {
+    //     for sq in &self.home {
+    //         if let Tile::Door(_) = map[&sq] {
+    //             return Some(*sq);
+    //         }
+    //     }
 
-        None
-    }
+    //     None
+    // }
 
-    fn is_home_open(&self, map: &Map) -> bool {
-        match self.entrance_location(map) {
-            Some(loc) => 
-                if map[&loc] == Tile::Door(DoorState::Open) {
-                    true
-                } else {
-                    false
-                },
-            _ => false
-        }        
-    }
+    // fn is_home_open(&self, map: &Map) -> bool {
+    //     match self.entrance_location(map) {
+    //         Some(loc) => 
+    //             if map[&loc] == Tile::Door(DoorState::Open) {
+    //                 true
+    //             } else {
+    //                 false
+    //             },
+    //         _ => false
+    //     }        
+    // }
 
-    fn is_at_home(&self, map: &Map) -> bool {
-        self.home.contains(&self.stats.location) 
-                && map[&self.stats.location] != Tile::Door(DoorState::Open)
-                && map[&self.stats.location] != Tile::Door(DoorState::Broken)
-    }
+    // fn is_at_home(&self, map: &Map) -> bool {
+    //     self.home.contains(&self.stats.location) 
+    //             && map[&self.stats.location] != Tile::Door(DoorState::Open)
+    //             && map[&self.stats.location] != Tile::Door(DoorState::Broken)
+    // }
 
-    fn pick_spot_outside_home(&self, map: &Map) -> Option<(i32, i32, i8)> {
-        let mut options = Vec::new();
-        let entrance = self.entrance_location(map).unwrap();
-        for adj in util::ADJ.iter() {
-            let nl = (entrance.0 + adj.0, entrance.1 + adj.1, entrance.2);
-            if !self.home.contains(&nl) && map[&nl].passable_dry_land() {
-                options.push(nl);
-            }
-        }
+    // fn pick_spot_outside_home(&self, map: &Map) -> Option<(i32, i32, i8)> {
+    //     let mut options = Vec::new();
+    //     let entrance = self.entrance_location(map).unwrap();
+    //     for adj in util::ADJ.iter() {
+    //         let nl = (entrance.0 + adj.0, entrance.1 + adj.1, entrance.2);
+    //         if !self.home.contains(&nl) && map[&nl].passable_dry_land() {
+    //             options.push(nl);
+    //         }
+    //     }
 
-        if options.len() > 0 {
-            let j = thread_rng().gen_range(0, options.len());            
-            Some(options[j])
-        } else {
-            None
-        }        
-    }
+    //     if options.len() > 0 {
+    //         let j = thread_rng().gen_range(0, options.len());            
+    //         Some(options[j])
+    //     } else {
+    //         None
+    //     }        
+    // }
 
+    /*
     fn set_day_schedule(&mut self, state: &GameState) {
         // During the day, mayor hangs around roughly in the town square.
         // When they leave their house in the morning, they'll want to close
@@ -325,6 +326,7 @@ impl Mayor {
             }
         }
     }
+    */
 
     fn idle_behaviour(&mut self, state: &GameState) {
         // If the NPC doesn't need to move anywhere, just pick an adjacent square to step to sometimes.
@@ -342,7 +344,7 @@ impl Mayor {
     fn check_agenda_item(&mut self, state: &GameState, item: &AgendaItem) {        
         match item.place {
             Venue::Tavern => {
-                let b = &state.world_info.town_buildings.as_ref().unwrap().tavern;                
+                let b = &state.world_info.town_buildings.as_ref().unwrap().tavern;
                 if !in_location(state, self.get_loc(), &b, true) {
                     let j = thread_rng().gen_range(0, b.len());
                     let goal_loc = b.iter().nth(j).unwrap().clone(); // Clone prevents a compiler warning...
@@ -356,7 +358,7 @@ impl Mayor {
                 if !in_location(state, self.get_loc(), ts, false) {
                     let j = thread_rng().gen_range(0, ts.len());
                     let goal_loc = ts.iter().nth(j).unwrap().clone(); // Clone prevents a compiler warning...
-                    self.calc_plan_to_move(state, goal_loc, false);                    
+                    self.calc_plan_to_move(state, goal_loc, false);
                 } else {
                     self.idle_behaviour(state);
                 }
@@ -378,7 +380,15 @@ impl Mayor {
         items.sort_by(|a, b| b.priority.cmp(&a.priority));
         
         if items.len() == 0 {
-            println!("Nothing on the agenda");
+            // The default behaviour is to go home if nothing on the agenda.
+            let b = &state.world_info.town_buildings.as_ref().unwrap();
+            if !in_location(state, self.get_loc(), &b.homes[self.home_id], true) {
+                let j = thread_rng().gen_range(0, &b.homes[self.home_id].len());
+                let goal_loc = &b.homes[self.home_id].iter().nth(j).unwrap().clone(); // Clone prevents a compiler warning...
+                self.calc_plan_to_move(state, *goal_loc, false);                
+            } else {
+                self.idle_behaviour(state);
+            }            
         } else {
             let item = &items[0].clone();
             self.check_agenda_item(state, item);

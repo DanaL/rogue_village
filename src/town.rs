@@ -392,12 +392,9 @@ pub fn create_town(map: &mut Map, npcs: &mut NPCTable) -> WorldInfo {
 
     draw_paths_in_town(map, &world_info);
 
+    let home_id = rng.gen_range(0, tb.homes.len());
     let mayor_loc = world_info.town_square.iter().choose(&mut rng).unwrap();
-    let mut mayor = Mayor::new("Quimby".to_string(), *mayor_loc, "mayor1");
-    // pick the mayor's home
-    let h = rng.gen_range(0, tb.homes.len());
-    tb.taken_homes.push(h);
-    mayor.home = tb.homes[h].clone();
+    let mut mayor = Mayor::new("Quimby".to_string(), *mayor_loc, home_id,"mayor1");
     
     npcs.insert(*mayor_loc, Box::new(mayor));
 
