@@ -359,7 +359,6 @@ pub fn create_town(map: &mut Map, npcs: &mut NPCTable) -> WorldInfo {
     let mut curr_building = String::from("");
     for line in lines {
         if line.starts_with('%') {
-            //curr_building = String::from(line[1..]);
             curr_building = line[1..].to_string();
             buildings.insert(curr_building.to_string(), Vec::new());
         } else {
@@ -394,7 +393,7 @@ pub fn create_town(map: &mut Map, npcs: &mut NPCTable) -> WorldInfo {
 
     let home_id = rng.gen_range(0, tb.homes.len());
     let mayor_loc = world_info.town_square.iter().choose(&mut rng).unwrap();
-    let mut mayor = Mayor::new("Quimby".to_string(), *mayor_loc, home_id,"mayor1");
+    let mayor = Mayor::new("Quimby".to_string(), *mayor_loc, home_id,"mayor1");
     
     npcs.insert(*mayor_loc, Box::new(mayor));
 

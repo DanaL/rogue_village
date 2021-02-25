@@ -349,7 +349,7 @@ fn pick_player_start_loc(state: &GameState) -> (i32, i32, i8) {
     if x == 0 {
         (b.0 - 5, thread_rng().gen_range(b.1, b.3), 0)
     } else if x == 1 {
-        (b.2 + 5, thread_rng().gen_range(b.1, b.3), 0)
+        (b.2 + 1, thread_rng().gen_range(b.1, b.3), 0)
     } else if x == 2 {
         (thread_rng().gen_range(b.0, b.2), b.1 - 5, 0)
     } else {
