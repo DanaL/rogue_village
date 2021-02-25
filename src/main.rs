@@ -180,6 +180,26 @@ fn title_screen(gui: &mut GameUI) {
 	gui.write_long_msg(&lines, true);
 }
 
+fn who_are_you(gui: &mut GameUI) -> String {
+    loop {
+        match gui.query_user("Who are you?", 15, None) {
+            Some(name) => {
+                return name;
+            },
+            None => { },
+        }
+    }
+}
+
+// Of course eventually this is where I'll check for a saved game and load
+// it if one exists.
+fn fetch_player(state: &GameState, player_name: String) -> Player {
+    let mut player = Player::new(player_name);
+    player.location = pick_player_start_loc(&state);
+
+    player
+}
+
 fn get_move_tuple(mv: &str) -> (i32, i32) {
   	if mv == "N" {
 		return (-1, 0);
@@ -461,9 +481,9 @@ fn main() {
     let mut state = GameState::init(w.0, w.1);    
 	
     title_screen(&mut gui);
+    let player_name = who_are_you(&mut gui);
 
-    let mut player = Player::new(String::from("Dana"));
-    player.location = pick_player_start_loc(&state);
+    let mut player = fetch_player(&state, player_name);
     state.player_loc = player.location;
 
     let sbi = state.curr_sidebar_info(&player);
