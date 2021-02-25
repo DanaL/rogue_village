@@ -298,6 +298,7 @@ fn draw_paths_in_town(map: &mut Map, world_info: &WorldInfo) {
     passable.insert(Tile::Grass, 1.0);
     passable.insert(Tile::Dirt, 1.0);
     passable.insert(Tile::Bridge, 1.0);
+    passable.insert(Tile::Tree, 2.0);
     passable.insert(Tile::Water, 3.0);
     passable.insert(Tile::DeepWater, 3.0);
     let j = rng.gen_range(0, world_info.town_square.len());
