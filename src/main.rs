@@ -156,26 +156,32 @@ fn show_message_history(state: &GameState, gui: &mut GameUI) {
 		lines.push(s);
 	}
 
-	gui.write_long_msg(&lines, true);
+    // Somedays I think rust is growing on me and some days I have to do stuff
+    // like this so that I can pass an Vec of &strs to a function. I just didn't
+    // want to have to constantly be typing .to_string() or String::From() when
+    // calling write_long_msg() T_T
+    let line_refs: Vec<&str> = lines.iter().map(AsRef::as_ref).collect();
+
+	gui.write_long_msg(&line_refs, true);
 }
 
 fn title_screen(gui: &mut GameUI) {
-	let mut lines = vec!["Welcome to Rogue Village 0.0.1!".to_string(), "".to_string()];
-	lines.push("".to_string());
-	lines.push("".to_string());
-    lines.push("".to_string());
-    lines.push("".to_string());
-    lines.push("".to_string());
-    lines.push("".to_string());
-    lines.push("".to_string());
-    lines.push("".to_string());
-    lines.push("".to_string());
-    lines.push("".to_string());
-	lines.push("".to_string());
-	lines.push("".to_string());
-	lines.push("".to_string());
-	lines.push("".to_string());
-	lines.push("Rogue Village is copyright 2021 by Dana Larose, see COPYING for licence info.".to_string());
+	let mut lines = vec!["Welcome to Rogue Village 0.0.1!", ""];
+	lines.push("");
+	lines.push("");
+    lines.push("");
+    lines.push("");
+    lines.push("");
+    lines.push("");
+    lines.push("");
+    lines.push("");
+    lines.push("");
+    lines.push("");
+	lines.push("");
+	lines.push("");
+	lines.push("");
+	lines.push("");
+	lines.push("Rogue Village is copyright 2021 by Dana Larose, see COPYING for licence info.");
 	
 	gui.write_long_msg(&lines, true);
 }

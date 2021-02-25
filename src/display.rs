@@ -412,7 +412,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 	// screen without being cut off. For the moment, I just gotta make sure any
 	// lines don't have too many characterse. Something for a post 7DRL world
 	// I guess.
-	pub fn write_long_msg(&mut self, lines: &Vec<String>, small_text: bool) {
+	pub fn write_long_msg(&mut self, lines: &Vec<&str>, small_text: bool) {
 		self.canvas.clear();
 		
 		// lines may contain strings at that are too wide for our screen, so we'll run through and check that 
@@ -422,7 +422,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 		let mut line_buff = Vec::new();
 		for line in lines.iter() {
 			if line.len() < width {
-				line_buff.push(String::from(line));
+				line_buff.push(line.to_string());
 			} else {
 				let mut s = String::from("");
 				for word in line.split(' ').into_iter() {
