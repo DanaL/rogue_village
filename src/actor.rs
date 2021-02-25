@@ -191,7 +191,7 @@ impl Mayor {
         }
     }
 
-    fn try_to_move_to_loc(&mut self, loc: (i32, i32, i8), state: &mut GameState, npcs: &mut NPCTable) {
+    fn try_to_move_to_loc(&mut self, loc: (i32, i32, i8), state: &mut GameState, npcs: &mut NPCTable) {        
         if npcs.contains_key(&loc) || state.player_loc == loc {
             state.write_msg_buff("\"Excuse me.\"");
             self.plan.push_front(Action::Move(loc));
@@ -199,6 +199,15 @@ impl Mayor {
             self.plan.push_front(Action::Move(loc));
             self.open_door(loc, state);
         } else {
+            // Villagers are fairly polite. If they go through a door, they will close it after them, 
+            // just like their parents said they should.
+            // There's a flaw here in that at the moment, villagers never abandon their plans. So, if, say
+            // a villager is going through a door and someone is following right behind, they will wait for
+            // the other to move so they can close the door, but the other will want to move into the 
+            // building and they'll be deadlocked forever.
+            if let Tile::Door(DoorState::Open) = state.map[&self.get_loc()] {
+                self.plan.push_front(Action::CloseDoor(self.get_loc()));                
+            }
             self.stats.location = loc;
         }
     }
@@ -214,8 +223,8 @@ impl Mayor {
             self.plan.push_front(Action::CloseDoor(loc));
         } else {
             if let Tile::Door(DoorState::Open) = state.map[&loc] {
-            state.write_msg_buff("The mayor closes the door.");
-            state.map.insert(loc, Tile::Door(DoorState::Closed));
+                state.write_msg_buff("The mayor closes the door.");
+                state.map.insert(loc, Tile::Door(DoorState::Closed));
             }
         }
     }
@@ -229,16 +238,6 @@ impl Mayor {
         }
     }
 
-    // fn entrance_location(&self, map: &Map) -> Option<(i32, i32, i8)> {
-    //     for sq in &self.home {
-    //         if let Tile::Door(_) = map[&sq] {
-    //             return Some(*sq);
-    //         }
-    //     }
-
-    //     None
-    // }
-
     // fn is_home_open(&self, map: &Map) -> bool {
     //     match self.entrance_location(map) {
     //         Some(loc) => 
@@ -250,83 +249,6 @@ impl Mayor {
     //         _ => false
     //     }        
     // }
-
-    // fn is_at_home(&self, map: &Map) -> bool {
-    //     self.home.contains(&self.stats.location) 
-    //             && map[&self.stats.location] != Tile::Door(DoorState::Open)
-    //             && map[&self.stats.location] != Tile::Door(DoorState::Broken)
-    // }
-
-    // fn pick_spot_outside_home(&self, map: &Map) -> Option<(i32, i32, i8)> {
-    //     let mut options = Vec::new();
-    //     let entrance = self.entrance_location(map).unwrap();
-    //     for adj in util::ADJ.iter() {
-    //         let nl = (entrance.0 + adj.0, entrance.1 + adj.1, entrance.2);
-    //         if !self.home.contains(&nl) && map[&nl].passable_dry_land() {
-    //             options.push(nl);
-    //         }
-    //     }
-
-    //     if options.len() > 0 {
-    //         let j = thread_rng().gen_range(0, options.len());            
-    //         Some(options[j])
-    //     } else {
-    //         None
-    //     }        
-    // }
-
-    /*
-    fn set_day_schedule(&mut self, state: &GameState) {
-        // During the day, mayor hangs around roughly in the town square.
-        // When they leave their house in the morning, they'll want to close
-        // their door.
-        if self.is_at_home(&state.map) {
-            match self.pick_spot_outside_home(&state.map) {
-                Some(loc) => {
-                    self.calc_plan_to_move(state, loc, false);
-                    let entrance = self.entrance_location(&state.map).unwrap();
-                    self.plan.push_back(Action::CloseDoor(entrance));
-                },
-                None => { /* This shouldn't happen... */ },
-            }
-        } else if !state.world_info.town_square.contains(&self.stats.location) {
-            // Pick a random spot in the town square to move to
-            let j = thread_rng().gen_range(0, state.world_info.town_square.len());
-            let goal = state.world_info.town_square.iter().nth(j).unwrap();
-            self.calc_plan_to_move(state, *goal, false);            
-        } else {
-            // otherwise just wander about the town square
-            let j = thread_rng().gen_range(0, util::ADJ.len()) as usize;
-            let d = util::ADJ[j];
-            let adj = (self.stats.location.0 + d.0, self.stats.location.1 + d.1, self.stats.location.2);
-            if state.world_info.town_square.contains(&adj) {
-                self.calc_plan_to_move(state, adj, false);
-            }
-        }
-    }
-
-    fn set_evening_schedule(&mut self, state: &GameState) {
-        // The evening plan is: the mayor wants to go home. Once home, they just
-        // wander around in their house, although if their door is open, they close it.
-        if !self.is_at_home(&state.map) {
-            let j = thread_rng().gen_range(0, self.home.len());
-            let goal_loc = self.home.iter().nth(j).unwrap().clone(); // Clone prevents a compiler warning...
-            self.calc_plan_to_move(state, goal_loc, false);
-        } else if self.is_home_open(&state.map) {
-            let entrance = self.entrance_location(&state.map).unwrap();
-            self.calc_plan_to_move(state, entrance, true);
-            self.plan.push_back(Action::CloseDoor(entrance));
-        } else {
-            // for now, just wander about home
-            let j = thread_rng().gen_range(0, self.home.len());
-            let goal_loc = self.home.iter().nth(j).unwrap().clone(); // Clone prevents a compiler warning...
-            if let Tile::Door(_) = state.map[&goal_loc] { }
-            else {
-                self.calc_plan_to_move(state, goal_loc, false); 
-            }
-        }
-    }
-    */
 
     fn idle_behaviour(&mut self, state: &GameState) {
         // If the NPC doesn't need to move anywhere, just pick an adjacent square to step to sometimes.
