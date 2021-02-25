@@ -275,6 +275,7 @@ fn place_town_buildings(map: &mut Map, start_r: usize, start_c: usize,
     available_lots.remove(&loc);
     draw_building(map, start_r as i32, start_c as i32, loc,9,9, &templates["shrine"], buildings, BuildingType::Shrine);
 
+    // Every once in a blue moon, this crashes the game because there seem to be no available lots, so something to fix eventually
     for _ in 0..6 {
         let loc = available_lots.iter().choose(&mut rng).unwrap().clone();
         available_lots.remove(&loc);

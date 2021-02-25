@@ -25,12 +25,11 @@ mod dungeon;
 mod fov;
 mod map;
 mod pathfinding;
+mod player;
 mod town;
 mod util;
 mod wilderness;
 mod world;
-
-
 
 use std::collections::{VecDeque, HashMap};
 use std::path::Path;
@@ -39,10 +38,10 @@ use std::path::Path;
 use rand::{Rng, thread_rng};
 
 use actor::Actor;
-use actor::Player;
 use dialogue::DialogueLibrary;
 use display::{GameUI, SidebarInfo, WHITE};
 use map::{Tile, DoorState};
+use player::Player;
 use world::WorldInfo;
 
 const MSG_HISTORY_LENGTH: usize = 50;
@@ -197,13 +196,34 @@ fn who_are_you(gui: &mut GameUI) -> String {
     }
 }
 
-// Of course eventually this is where I'll check for a saved game and load
-// it if one exists.
-fn fetch_player(state: &GameState, player_name: String) -> Player {
-    let mut player = Player::new(player_name);
-    player.location = pick_player_start_loc(&state);
+fn start_new_game(state: &GameState, gui: &mut GameUI, player_name: String) -> Option<Player> {
+    let mut menu = vec!["Welcome adventurer, please choose your role in RogueVillage:"];
+	menu.push("");
+	menu.push("  (a) Human Warrior - a doughty fighter who lives by the sword and...well");
+    menu.push("                      hopefully just that first part.");
+	menu.push("");
+	menu.push("  (b) Human Rogue - a quick, sly adventurer who gets by on their light step");
+    menu.push("                    and fast blade.");
+	
+    if let Some(answer) = gui.menu_picker(&menu, 2, true, true) {
+        if answer.contains(&0) {
+            let mut player = Player::new_warrior(player_name);
+            player.location = pick_player_start_loc(&state);
+            return Some(player);
+        } else {
+            let mut player = Player::new_rogue(player_name);
+            player.location = pick_player_start_loc(&state);
+            return Some(player);
+        }
+    }
 
-    player
+    None
+}
+
+fn fetch_player(state: &GameState, gui: &mut GameUI, player_name: String) -> Option<Player> {
+    // Of course eventually this is where I'll check for a saved game and load
+    // it if one exists.
+    start_new_game(state, gui, player_name)
 }
 
 fn get_move_tuple(mv: &str) -> (i32, i32) {
@@ -489,7 +509,7 @@ fn main() {
     title_screen(&mut gui);
     let player_name = who_are_you(&mut gui);
 
-    let mut player = fetch_player(&state, player_name);
+    let mut player = fetch_player(&state, &mut gui, player_name).unwrap();
     state.player_loc = player.location;
 
     let sbi = state.curr_sidebar_info(&player);

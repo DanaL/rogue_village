@@ -17,9 +17,9 @@ extern crate sdl2;
 
 use std::collections::{HashMap, HashSet, VecDeque};
 
-use crate::actor::Player;
 use crate::map;
 use crate::map::{Tile, DoorState};
+use crate::player::Player;
 
 use super::{Cmd, GameState, FOV_WIDTH, FOV_HEIGHT};
 
@@ -59,13 +59,13 @@ const LG_FONT_PT: u16 = 24;
 pub struct SidebarInfo {
 	name: String,
 	//ac: u8,
-	curr_hp: u8,
-	max_hp: u8,
+	curr_hp: i8,
+	max_hp: i8,
 	turn: u32,
 }
 
 impl SidebarInfo {
-	pub fn new(name: String, curr_hp: u8, max_hp: u8, turn: u32) -> SidebarInfo {
+	pub fn new(name: String, curr_hp: i8, max_hp: i8, turn: u32) -> SidebarInfo {
 		SidebarInfo { name, curr_hp, max_hp, turn, }
 	}
 }
@@ -716,26 +716,26 @@ impl<'a, 'b> GameUI<'a, 'b> {
 
 	// Making the assumption I'll never display a menu with more options than there are 
 	// lines on the screen...
-	pub fn menu_picker(&mut self, _menu: &Vec<String>, answer_count: u8,
-				single_choice: bool, _small_font: bool) -> Option<HashSet<u8>> {
+	pub fn menu_picker(&mut self, menu: &Vec<&str>, answer_count: u8,
+				single_choice: bool, small_font: bool) -> Option<HashSet<u8>> {
 		let mut answers: HashSet<u8> = HashSet::new();
 
 		loop {
-			// self.canvas.clear();
-			// for line in 0..menu.len() {
-			// 	if line > 0 && answers.contains(&(line as u8 - 1)) {
-			// 		let mut s = String::from("\u{2713} ");
-			// 		s.push_str(&menu[line]);
-			// 		self.write_line(line as i32, &s, small_font);
-			// 	} else {
-			// 		self.write_line(line as i32, &menu[line], small_font);
-			// 	}
-			// }
+			self.canvas.clear();
+			for line in 0..menu.len() {
+				if line > 0 && answers.contains(&(line as u8 - 1)) {
+					let mut s = String::from("\u{2713} ");
+					s.push_str(&menu[line]);
+					self.write_line(line as i32, &s, small_font);
+				} else {
+					self.write_line(line as i32, &menu[line], small_font);
+				}
+			}
 	
-			// self.write_line(menu.len() as i32 + 1, "", small_font);	
-			// if !single_choice {
-			// 	self.write_line(menu.len() as i32 + 2, "Select one or more options, then hit Return.", small_font);	
-			// }
+			self.write_line(menu.len() as i32 + 1, "", small_font);	
+			if !single_choice {
+				self.write_line(menu.len() as i32 + 2, "Select one or more options, then hit Return.", small_font);	
+			}
 
 			self.canvas.present();
 

@@ -13,9 +13,9 @@
 // You should have received a copy of the GNU General Public License
 // along with RogueVillage.  If not, see <https://www.gnu.org/licenses/>.
 
-use crate::actor::Player;
 use crate::map;
 use super::Map;
+use crate::player::Player;
 use super::{FOV_WIDTH, FOV_HEIGHT};
 
 // Kind of ugly by why recalculate these everytime?

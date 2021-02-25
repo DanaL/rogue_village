@@ -19,13 +19,14 @@ use rand::thread_rng;
 use rand::Rng;
 //use std::time::{Duration, Instant};
 
-use super::{GameState, Map, NPCTable};
+use super::{GameState, NPCTable};
 
 use crate::dialogue;
 use crate::dialogue::DialogueLibrary;
 use crate::display::{LIGHT_GREY};
 use crate::map::{Tile, DoorState};
 use crate::pathfinding::find_path;
+use crate::player::Player;
 use crate::util;
 
 #[derive(Clone, Debug)]
@@ -85,51 +86,6 @@ impl BasicStats {
         };  
 
         bs
-    }
-}
-
-pub struct Player {
-	pub name: String,
-	pub max_hp: u8,
-	pub curr_hp: u8,
-	pub location: (i32, i32, i8),
-    pub vision_radius: u8,
-}
-
-impl Player {
-    pub fn calc_vision_radius(&mut self, state: &mut GameState) {
-        let prev_vr = self.vision_radius;
-        let (hour, _) = state.curr_time();
-
-        self.vision_radius = if hour >= 6 && hour <= 19 {
-            99
-        } else if hour >= 20 && hour <= 21 {
-            8
-        } else if hour >= 21 && hour <= 23 {
-            7
-        } else if hour < 4 {
-            5
-        } else if hour >= 4 && hour < 5 {
-            7
-        } else {
-            9
-        };
-
-        // Announce sunrise and sunset if the player is on the surface
-        if prev_vr == 99 && self.vision_radius == 9 && self.location.2 == 0 {
-            state.write_msg_buff("The sun is beginning to set.");
-        }
-        if prev_vr == 5 && self.vision_radius == 7 && self.location.2 == 0 {
-            state.write_msg_buff("Sunrise soon.");
-        }
-    }
-
-    pub fn new(name: String) -> Player {
-        let default_vision_radius = 99;
-
-        Player {            
-            name, max_hp: 10, curr_hp: 10, location: (0, 0, 0), vision_radius: default_vision_radius, 
-        }
     }
 }
 
