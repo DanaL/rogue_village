@@ -18,6 +18,16 @@
 
 pub const ADJ: [(i32, i32); 8] = [(0, -1), (0, 1), (-1, 0), (1, 0), (-1, -1), (-1, 1), (1, -1), (1, 1)];
 
+pub fn num_to_nth(n: u8) -> String {
+	let x = n % 10;
+
+	match x {
+		1 => format!("{}st", n),
+		2 => format!("{}nd", n),
+		3 => format!("{}rd", n),
+		_ => format!("{}th", n),
+	}
+}
 // Union-find functions to implement disjoint sets
 // (handy for finding isolated pockets in maps)
 pub fn ds_union(ds: &mut Vec<i32>, r1: i32, r2: i32) {

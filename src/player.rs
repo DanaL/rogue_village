@@ -22,6 +22,16 @@ pub enum Role {
     Warrior,
     Rogue,
 }
+
+impl Role {
+    pub fn desc(&self) -> &str {
+        match self {
+            Role::Warrior => "human warrior",
+            Role::Rogue => "human rogue",
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct Player {
 	pub name: String,
@@ -36,6 +46,8 @@ pub struct Player {
     pub apt: u8,
     pub role: Role,
     xp: u32,
+    pub level: u8,
+    pub max_depth: u8,
 }
 
 impl Player {
@@ -79,7 +91,7 @@ impl Player {
 
         Player {            
             name, max_hp: 15 + stat_to_mod(stats[1]), curr_hp: 15 + stat_to_mod(stats[1]), location: (0, 0, 0), vision_radius: default_vision_radius,
-                str: stats[0], con: stats[1], dex: stats[2], chr, apt, role: Role::Warrior, xp: 0,
+                str: stats[0], con: stats[1], dex: stats[2], chr, apt, role: Role::Warrior, xp: 0, level: 1, max_depth: 0,
         }
     }
 
@@ -96,7 +108,7 @@ impl Player {
 
         Player {            
             name, max_hp: 12 + stat_to_mod(stats[2]), curr_hp: 12 + stat_to_mod(stats[2]), location: (0, 0, 0), vision_radius: default_vision_radius,
-                str, con: stats[2], dex: stats[0], chr, apt: stats[1], role: Role::Rogue, xp: 0,
+                str, con: stats[2], dex: stats[0], chr, apt: stats[1], role: Role::Rogue, xp: 0, level: 1, max_depth: 0,
         }
     }
 }

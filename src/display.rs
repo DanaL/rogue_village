@@ -348,6 +348,8 @@ impl<'a, 'b> GameUI<'a, 'b> {
 							return Cmd::Up;
 						} else if val == ":" {
 							return Cmd::WizardCommand;
+						} else if val == "@" {
+							return Cmd::ShowCharacterSheet;
 						}
 					},
 					_ => { continue },

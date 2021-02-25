@@ -367,6 +367,35 @@ fn chat_with(state: &mut GameState, gui: &mut GameUI, loc: (i32, i32, i8), playe
     }    
 }
 
+fn show_character_sheet(gui: &mut GameUI, player: &Player) {
+	let s = format!("{}, a {} level {}", player.name, util::num_to_nth(player.level), player.role.desc());
+	let mut lines: Vec<&str> = vec![&s];
+	lines.push("");
+	let s = format!("Strength: {}", player.str);
+	lines.push(&s);
+	let s = format!("Dexterity: {}", player.dex);
+	lines.push(&s);
+	let s = format!("Constitution: {}", player.con);
+	lines.push(&s);
+	let s = format!("Charisma: {}", player.chr);
+	lines.push(&s);
+    let s = format!("Aptitude: {}", player.apt);
+	lines.push(&s);
+	lines.push("");
+	let s = format!("AC: {}    Hit Points: {}({})", 10, player.curr_hp, player.max_hp);
+	lines.push(&s);
+    lines.push("");
+
+    let dungeon_depth = if player.max_depth == 0 {
+        String::from("You have not yet ventured into the dungeon.")
+    } else {
+        format!("You have been as far as the {} level of the dungeon.", util::num_to_nth(player.max_depth))
+    };
+    lines.push(&dungeon_depth);
+
+	gui.write_long_msg(&lines, true);
+}
+
 fn wiz_command(state: &mut GameState, gui: &mut GameUI, player: &mut Player) {
     let sbi = state.curr_sidebar_info(player);
     match gui.query_user(":", 20, Some(&sbi)) {
@@ -430,6 +459,7 @@ fn run(gui: &mut GameUI, state: &mut GameState, player: &mut Player, npcs: &mut 
     let tiles = get_top_tiles(&state.map, player, npcs);
 	gui.v_matrix = fov::calc_v_matrix(&tiles, player, FOV_HEIGHT, FOV_WIDTH);
     let sbi = state.curr_sidebar_info(player);
+    state.write_msg_buff("Welcome, adventurer!");   
 	gui.write_screen(&mut state.msg_buff, Some(&sbi));
 
     loop {
@@ -437,18 +467,19 @@ fn run(gui: &mut GameUI, state: &mut GameState, player: &mut Player, npcs: &mut 
         let cmd = gui.get_command(&state, &player);
         match cmd {
             Cmd::Chat(loc) => chat_with(state, gui, loc, player, npcs, dialogue),
+            Cmd::Close(loc) => do_close(state, loc),
+            Cmd::Down => take_stairs(state, player, true),
+            Cmd::Move(dir) => do_move(state, player, npcs, &dir),
+            Cmd::MsgHistory => show_message_history(state, gui),
+            Cmd::Open(loc) => do_open(state, loc),
             Cmd::Pass => {
                 state.turn += 1;
                 println!("{:?}", state.curr_time());
             },
-            Cmd::Quit => break,
-            Cmd::MsgHistory => show_message_history(state, gui),
-			Cmd::Move(dir) => do_move(state, player, npcs, &dir),
-            Cmd::Open(loc) => do_open(state, loc),
-            Cmd::Close(loc) => do_close(state, loc),            
-            Cmd::Down => take_stairs(state, player, true),
+            Cmd::ShowCharacterSheet => show_character_sheet(gui, player),
+            Cmd::Quit => break,        
             Cmd::Up => take_stairs(state, player, false),
-            Cmd::WizardCommand => wiz_command(state, gui, player),
+            Cmd::WizardCommand => wiz_command(state, gui, player),            
             _ => continue,
         }
         
