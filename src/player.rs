@@ -107,6 +107,7 @@ impl Player {
         
         p.inventory.add(sword);
         p.inventory.add(armour);
+        p.inventory.add(Item::get_item("dagger").unwrap());
         p.inventory.purse = 20;
 
         p.calc_ac();

@@ -112,6 +112,21 @@ impl Inventory {
         menu
 	}
 
+    // Am I going to allow players to wield non-weapons, a la nethack?
+    // This would mean separating the wield command from wear/use, which
+    // is a bit more complicated UI for the player.
+    pub fn get_readied_weapon(&self) -> Option<Item> {
+        let slots = self.used_slots();
+        for s in slots {
+			let v = self.inv.get(&s).unwrap();
+			if v.0.item_type == ItemType::Weapon && v.0.equiped {
+				return Some(v.0.clone());
+			}
+		}
+
+        None
+    }
+
     pub fn peek_at(&self, slot: char) -> Option<Item> {
 		if !self.inv.contains_key(&slot) {
 			None
@@ -164,34 +179,44 @@ impl Inventory {
 			return (String::from("You do not have that item!"), false);
 		}
 
-		let val = self.inv.get(&slot).unwrap();
-		let item = &val.0;
+		let val = self.inv.get_mut(&slot).unwrap();
+		let item = val.0.clone();
 
 		if !item.equipable() {
 			return (String::from("You cannot equip or use that!"), false);
 		}
 
-		if !item.equiped && self.type_already_equiped(item.item_type) {
-			return (match item.item_type {
-				ItemType::Weapon => String::from("You are already holding a weapon."),
-				ItemType::Armour => String::from("You are already wearing some armour."),
-				_ => panic!("We shouldn't hit this option"),
-			}, false);
-		}
+        if item.item_type == ItemType::Armour && self.type_already_equiped(item.item_type) {
+            return (String::from("You are already wearing some armour."), false);
+        }
+
+        let swapping = if !item.equiped && item.item_type == ItemType::Weapon && self.get_readied_weapon() != None {
+            self.unequip_type(item.item_type);
+            true
+        } else {
+            false
+        };
 
 		let val = self.inv.get_mut(&slot).unwrap();
 		let mut item = &mut val.0;        
         item.equiped = !item.equiped;
 
-        let mut s = String::from("You ");
-        if item.equiped {
-            s.push_str("equip the ");
+        let s = if swapping {
+            format!("You are now using the {}.", &item.name)
         } else {
-            s.push_str("unequip the ");
-        }
-        
-        s.push_str(&item.name);
-        s.push('.');
+            let mut s = String::from("You ");
+            if item.equiped {
+                s.push_str("equip the ");
+            } else {
+                s.push_str("unequip the ");
+            }
+            
+            s.push_str(&item.name);
+            s.push('.');
+
+            s
+        };
+
 		(s, true)
 	}
     
@@ -231,6 +256,16 @@ impl Inventory {
 
 		false
 	}
+
+    fn unequip_type(&mut self, i_type: ItemType) {
+        let slots = self.used_slots();
+        for s in slots {
+			let v = self.inv.get_mut(&s).unwrap();
+			if v.0.item_type == i_type && v.0.equiped {
+				v.0.equiped = false;
+			}
+		}
+    }
 }
 
 // In some ways, a simplified version of the inventory struct
