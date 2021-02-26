@@ -633,6 +633,10 @@ fn pick_player_start_loc(state: &GameState) -> (i32, i32, i8) {
     let x = thread_rng().gen_range(0, 4);
     let b = state.world_info.town_boundary;
 
+    println!("{:?}", state.world_info.facts);
+    let f = state.world_info.facts[0].location;
+    return (f.0, f.1 + 1, f.2);
+    
     if x == 0 {
         (b.0 - 5, thread_rng().gen_range(b.1, b.3), 0)
     } else if x == 1 {

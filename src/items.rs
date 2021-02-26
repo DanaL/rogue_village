@@ -212,13 +212,17 @@ impl Inventory {
         let item = val.0;
         let stack_count = val.1;
 
-        let s = format!("The {} blazes brightly!", item.name);
+        let s = if item.active { 
+            format!("You extinguish {}.", item.name.with_def_article())
+        } else {
+            format!("{} blazes brightly!", item.name.with_def_article().capitalize())
+        };
 
         // Stackable, equipable items make things slightly complicated. I am assuming any stackble, equipable 
         // thing is basically something like a torch that has charges counting down so remove it from the stack
         if stack_count > 1 && item.stackable {
             let mut light = item.clone();
-            light.active = true;
+            light.active = !item.active;
             self.inv.insert(slot, (item, stack_count -1));
 
             // TODO: handle the case where there is no free inventory slot for the torch that is now
@@ -227,7 +231,7 @@ impl Inventory {
         } else {
             let val = self.inv.get_mut(&slot).unwrap();
             let mut item = &mut val.0;
-            item.active = true;
+            item.active = !item.active;
         }
 
         s

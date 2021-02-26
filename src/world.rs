@@ -27,6 +27,7 @@ use crate::wilderness;
 
 pub const WILDERNESS_SIZE: usize = 257;
 
+#[derive(Debug)]
 pub struct Fact {
     pub detail: String,
     pub timestamp: i32,
