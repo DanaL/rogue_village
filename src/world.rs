@@ -23,6 +23,7 @@ use crate::dungeon;
 use crate::map::Tile;
 use crate::town;
 use crate::town::TownBuildings;
+use crate::pathfinding;
 use crate::wilderness;
 
 pub const WILDERNESS_SIZE: usize = 257;
@@ -156,6 +157,43 @@ fn find_good_dungeon_entrance(map: &Map, sqs: &HashSet<(i32, i32, i8)>) -> (i32,
     *options[j]
 }
 
+// Add an old road leading away from the dungeon that eventually trails off
+// I think this sometimes hits an infinite loop looking for a good path for the 
+// trail, which suggests there's probably some degenerate cases for placing the
+// dungeon are actually impassable. But I have to debug that a bunch as it 
+// sometimes places the entrance in bad places like a mountain river with no
+// ground access
+fn add_old_road(map: &mut Map, start: (i32, i32, i8)) {
+    let mut rng = rand::thread_rng();
+    let mut passable = HashMap::new();
+    passable.insert(Tile::Grass, 1.0);
+    passable.insert(Tile::Dirt, 1.0);
+    passable.insert(Tile::Tree, 1.0);
+    passable.insert(Tile::StoneFloor, 1.0);
+    passable.insert(Tile::DeepWater, 1.0);
+
+    loop {
+        let row = start.0 - rng.gen_range(10, 20);
+        let col = rng.gen_range(start.1 - 15, start.1 + 15);
+        
+        if !map.contains_key(&(row, col, 0)) || !map[&(row, col, 0)].passable() { continue; }
+        
+        let path = pathfinding::find_path(map, false, start.0, start.1, 0, row, col, 40, &passable);
+        let mut draw_sq = 1.0;
+        if path.len() > 0 {
+            for sq in path {
+                if map[&(sq.0, sq.1, 0)] != Tile::DeepWater {
+                    if rng.gen_range(0.0, 1.0) < draw_sq {
+                        map.insert((sq.0, sq.1, 0), Tile::StoneFloor);
+                        draw_sq -= 0.05;
+                    }
+                }
+            }
+            break;
+        }        
+    }
+}
+
 pub fn generate_world() -> (Map, WorldInfo, NPCTable, Items) {
     let items = HashMap::new();
     let mut map = wilderness::gen_wilderness_map();
@@ -207,6 +245,8 @@ pub fn generate_world() -> (Map, WorldInfo, NPCTable, Items) {
     //npcs.insert(g1.get_loc(), Box::new(g1));
 
     world_info.facts.push(Fact::new("dungeon location".to_string(), 0, dungeon_entrance));
+
+    add_old_road(&mut map, dungeon_entrance);
     map.insert((dungeon_entrance.0 as i32, dungeon_entrance.1 as i32, 0), Tile::Portal);
     
     (map, world_info, npcs, items)
