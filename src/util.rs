@@ -92,35 +92,18 @@ pub fn get_articled_name(definite: bool, item: &Item) -> String {
 	}
 }
 
-// Attempt to reasonably pluralize names
-// I'm going to assume a fairly standard form of names of things that
-// can be pluralized. Like, "foo of bar" so I can asssume the result will
-// be foos of bar.
+// English is a mess and I bet I'll be tweaking this function for all
+// time but for now let's make it pretty simple and hope I never do
+// something stupid and at multiple Governors General to the game...
 pub fn pluralize(name: &str) -> String{
 	let mut result = String::from("");
-	let words = name.split(' ').collect::<Vec<&str>>();
-	
-	if words.len() == 1 {
-		result.push_str(name);
-		if name.ends_with("s") || name.ends_with("x") || words[0].ends_with("ch") {
-			result.push_str("es");
-		} else {
-			result.push_str("s");
-		}
+	result.push_str(name);	
+	if name.ends_with("s") || name.ends_with("x") || name.ends_with("ch") {
+		result.push_str("es");
 	} else {
-		result.push_str(words[0]);
-		if words[0].ends_with("s") || words[0].ends_with("x") {
-			result.push_str("es");
-		} else {
-			result.push_str("s");
-		}
-		
-		for w in 1..words.len() {
-			result.push(' ');
-			result.push_str(words[w]);
-		}
+		result.push_str("s");
 	}
-
+	
 	result	
 }
 
