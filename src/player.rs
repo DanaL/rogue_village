@@ -50,6 +50,7 @@ pub struct Player {
     pub level: u8,
     pub max_depth: u8,
     pub inventory: Inventory,
+    pub ac: u8,
 }
 
 impl Player {
@@ -94,6 +95,7 @@ impl Player {
         let mut p = Player {            
             name, max_hp: 15 + stat_to_mod(stats[1]), curr_hp: 15 + stat_to_mod(stats[1]), location: (0, 0, 0), vision_radius: default_vision_radius,
                 str: stats[0], con: stats[1], dex: stats[2], chr, apt, role: Role::Warrior, xp: 0, level: 1, max_depth: 0, inventory: Inventory::new(),
+                ac: 10,
         };
 
         // Warrior starting equipment
@@ -105,7 +107,7 @@ impl Player {
         p.inventory.add(sword);
         p.inventory.add(armour);
         p.inventory.purse = 20;
-        
+
         p
     }
 
@@ -123,6 +125,7 @@ impl Player {
         Player {            
             name, max_hp: 12 + stat_to_mod(stats[2]), curr_hp: 12 + stat_to_mod(stats[2]), location: (0, 0, 0), vision_radius: default_vision_radius,
                 str, con: stats[2], dex: stats[0], chr, apt: stats[1], role: Role::Rogue, xp: 0, level: 1, max_depth: 0, inventory: Inventory::new(),
+                ac: 10,
         }
 
 

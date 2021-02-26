@@ -15,7 +15,7 @@
 
 extern crate sdl2;
 
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::{collections::{HashMap, HashSet, VecDeque}, convert::identity};
 
 use crate::map;
 use crate::map::{Tile, DoorState};
@@ -63,15 +63,16 @@ const LG_FONT_PT: u16 = 24;
 #[derive(Debug)]
 pub struct SidebarInfo {
 	name: String,
-	//ac: u8,
+	ac: u8,
 	curr_hp: i8,
 	max_hp: i8,
 	turn: u32,
+	zorkmids: u32,
 }
 
 impl SidebarInfo {
-	pub fn new(name: String, curr_hp: i8, max_hp: i8, turn: u32) -> SidebarInfo {
-		SidebarInfo { name, curr_hp, max_hp, turn, }
+	pub fn new(name: String, curr_hp: i8, max_hp: i8, turn: u32, ac: u8, zorkmids: u32) -> SidebarInfo {
+		SidebarInfo { name, curr_hp, max_hp, turn, ac, zorkmids }
 	}
 }
 
@@ -555,14 +556,14 @@ impl<'a, 'b> GameUI<'a, 'b> {
 		self.wait_for_key_input();		
 	}
 
-	fn write_sidebar_line(&mut self, line: &str, start_x: i32, row: usize, colour: sdl2::pixels::Color) {
+	fn write_sidebar_line(&mut self, line: &str, start_x: i32, row: usize, colour: sdl2::pixels::Color, indent: u8) {
 		let surface = self.font.render(line)
 			.blended(colour)
 			.expect("Error rendering sidebar!");
 		let texture_creator = self.canvas.texture_creator();
 		let texture = texture_creator.create_texture_from_surface(&surface)
 			.expect("Error creating texture for sdebar!");
-		let rect = Rect::new(start_x, (self.font_height * row as u32) as i32, 
+		let rect = Rect::new(start_x + indent as i32 * self.font_width as i32, (self.font_height * row as u32) as i32, 
 			line.len() as u32 * self.font_width, self.font_height);
 		self.canvas.copy(&texture, None, Some(rect))
 			.expect("Error copying sbi to canvas!");		
@@ -570,14 +571,21 @@ impl<'a, 'b> GameUI<'a, 'b> {
 
 	fn write_sidebar(&mut self, sbi: &SidebarInfo) {
 		let white = tuple_to_sdl2_color(&WHITE);
+		let gold = tuple_to_sdl2_color(&GOLD);
 
 		let fov_w = (FOV_WIDTH + 1) as i32 * self.font_width as i32; 
-		self.write_sidebar_line(&sbi.name, fov_w, 1, white);
+		self.write_sidebar_line(&sbi.name, fov_w, 1, white, 0);
+		let s = format!("AC: {}", sbi.ac);
+		self.write_sidebar_line(&s, fov_w, 2, white, 0);
 		let s = format!("HP: {} ({})", sbi.curr_hp, sbi.max_hp);
-		self.write_sidebar_line(&s, fov_w, 2, white);
+		self.write_sidebar_line(&s, fov_w, 3, white, 0);
+
+		self.write_sidebar_line("$", fov_w, 4, gold, 0);
+		let s = format!(": {}", sbi.zorkmids);
+		self.write_sidebar_line(&s, fov_w, 4, white, 1);
 
 		let s = format!("Turn: {}", sbi.turn);
-		self.write_sidebar_line(&s, fov_w, 21, white);		
+		self.write_sidebar_line(&s, fov_w, 21, white, 0);		
 	}
 
 	fn draw_frame(&mut self, msg: &str, sbi: Option<&SidebarInfo>) {
