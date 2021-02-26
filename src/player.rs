@@ -36,6 +36,7 @@ impl Role {
 
 #[derive(Clone, Debug)]
 pub struct Player {
+    pub object_id: usize,
 	pub name: String,
 	pub max_hp: i8,
 	pub curr_hp: i8,
@@ -59,21 +60,41 @@ impl Player {
         let prev_vr = self.vision_radius;
         let (hour, _) = state.curr_time();
 
-        self.vision_radius = if hour >= 6 && hour <= 19 {
-            99
-        } else if hour >= 20 && hour <= 21 {
-            8
-        } else if hour >= 21 && hour <= 23 {
-            7
-        } else if hour < 4 {
-            5
-        } else if hour >= 4 && hour < 5 {
-            7
+        if self.location.2 == 0 {
+            // outdoors
+            self.vision_radius = if hour >= 6 && hour <= 19 {
+                99
+            } else if hour >= 20 && hour <= 21 {
+                8
+            } else if hour >= 21 && hour <= 23 {
+                7
+            } else if hour < 4 {
+                5
+            } else if hour >= 4 && hour < 5 {
+                7
+            } else {
+                9
+            };
         } else {
-            9
-        };
+            // indoors
+            // Eventually roles who are dwarves, elves, etc will see in the dark better than
+            // humans
+            self.vision_radius = match self.role {
+                Role::Rogue => 1,
+                Role::Warrior => 1,
+            }
+        }
+
+        // After we calculate the player's minimum vision radius, here we can check for
+        // light sources that increase it.
+        let from_items = self.inventory.light_from_items(); 
+        if from_items > self.vision_radius {
+            self.vision_radius = from_items;
+        }
 
         // Announce sunrise and sunset if the player is on the surface
+        // This should be here and is a dumb calculation because vision radius will be
+        // affected by say torches. It should be moved to end-of-turn stuff in the gameloop
         if prev_vr == 99 && self.vision_radius == 9 && self.location.2 == 0 {
             state.write_msg_buff("The sun is beginning to set.");
         }
@@ -82,7 +103,7 @@ impl Player {
         }
     }
 
-    pub fn new_warrior(name: String) -> Player {
+    pub fn new_warrior(state: &mut GameState, name: String) -> Player {
         let default_vision_radius = 99;
         let stats = roll_stats();
         
@@ -94,28 +115,33 @@ impl Player {
         };
 
         let mut p = Player {            
-            name, max_hp: 15 + stat_to_mod(stats[1]), curr_hp: 15 + stat_to_mod(stats[1]), location: (0, 0, 0), vision_radius: default_vision_radius,
+            object_id: 0, name, max_hp: 15 + stat_to_mod(stats[1]), curr_hp: 15 + stat_to_mod(stats[1]), location: (0, 0, 0), vision_radius: default_vision_radius,
                 str: stats[0], con: stats[1], dex: stats[2], chr, apt, role: Role::Warrior, xp: 0, level: 1, max_depth: 0, inventory: Inventory::new(),
                 ac: 10,
         };
+        state.next_obj_id = 1;
 
         // Warrior starting equipment
-        let mut sword = Item::get_item("longsword").unwrap();
+        let mut sword = Item::get_item(state, "longsword").unwrap();
         sword.equiped = true; 
-        let mut armour = Item::get_item("ringmail").unwrap();
+        let mut armour = Item::get_item(state, "ringmail").unwrap();
         armour.equiped = true;
         
         p.inventory.add(sword);
         p.inventory.add(armour);
-        p.inventory.add(Item::get_item("dagger").unwrap());
+        p.inventory.add(Item::get_item(state, "dagger").unwrap());
         p.inventory.purse = 20;
 
+        for _ in 0..5 {
+            p.inventory.add(Item::get_item(state, "torch").unwrap());
+        }
+        
         p.calc_ac();
 
         p
     }
 
-    pub fn new_rogue(name: String) -> Player {
+    pub fn new_rogue(state: &mut GameState, name: String) -> Player {
         let default_vision_radius = 99;
         let stats = roll_stats();
 
@@ -127,10 +153,12 @@ impl Player {
         };
 
         let mut p = Player {            
-            name, max_hp: 12 + stat_to_mod(stats[2]), curr_hp: 12 + stat_to_mod(stats[2]), location: (0, 0, 0), vision_radius: default_vision_radius,
+            object_id: 0, name, max_hp: 12 + stat_to_mod(stats[2]), curr_hp: 12 + stat_to_mod(stats[2]), location: (0, 0, 0), vision_radius: default_vision_radius,
                 str, con: stats[2], dex: stats[0], chr, apt: stats[1], role: Role::Rogue, xp: 0, level: 1, max_depth: 0, inventory: Inventory::new(),
                 ac: 10,
         };
+
+        state.next_obj_id = 1;
 
         p.calc_ac();
 

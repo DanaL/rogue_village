@@ -15,6 +15,8 @@
 
 use std::collections::{HashMap, HashSet, VecDeque};
 
+use super::GameState;
+
 use crate::display;
 use crate::map::Tile;
 use crate::util::StringUtils;
@@ -38,23 +40,19 @@ impl Inventory {
 	}
 
     // This doesn't currently handle when all the inventory slots are used up...
-    pub fn add(&mut self, item: Item) {
-		if item.item_type == ItemType::Zorkmid {
+    pub fn add(&mut self, item: Item) -> char {
+        if item.item_type == ItemType::Zorkmid {
 			self.purse += 1;
-			return;
+			return '$';
 		}
 
 		if item.stackable {
-			// since the item is stackable, let's see if there's a stack we can add it to
-			// Super cool normal programming language way to loop over the keys of a hashtable :/
-			let slots = self.inv.keys()
-								.map(|v| v.clone())
-								.collect::<Vec<char>>();
-			for slot in slots {
+			let slots = self.used_slots();
+        	for slot in slots {
 				let mut val = self.inv.get_mut(&slot).unwrap();
 				if val.0 == item && val.0.stackable {
 					val.1 += 1;
-					return;
+					return slot;
 				}
 			}
 		} 
@@ -62,10 +60,14 @@ impl Inventory {
 		// If the last slot the item occupied is still available, use that
 		// instead of the next available slot.
 		if item.prev_slot != '\0' && !self.inv.contains_key(&item.prev_slot) {
+            let s = item.prev_slot;
 			self.inv.insert(item.prev_slot, (item, 1));
+            s
 		} else {
+            let s = self.next_slot;
 			self.inv.insert(self.next_slot, (item, 1));
 			self.set_next_slot();
+            s
 		}
 	}
 
@@ -127,6 +129,35 @@ impl Inventory {
         None
     }
 
+    pub fn get_readied_armour(&self) -> Option<Item> {
+        let slots = self.used_slots();
+        for s in slots {
+			let v = self.inv.get(&s).unwrap();
+			if v.0.item_type == ItemType::Armour && v.0.equiped {
+				return Some(v.0.clone());
+			}
+		}
+
+        None
+    }
+
+    // Return the highest light radius from among active items in
+    // inventory
+    pub fn light_from_items(&self) -> u8 {
+        let max_aura = self.inv
+                    .iter()
+                    .filter(|i| i.1.0.active)
+                    .map(|i| i.1.0.aura)
+                    .max();
+        
+        if let Some(v) = max_aura {
+            v
+        } else {
+            0
+        }
+
+    }
+
     pub fn peek_at(&self, slot: char) -> Option<Item> {
 		if !self.inv.contains_key(&slot) {
 			None
@@ -174,61 +205,103 @@ impl Inventory {
 		items
 	}
 
+    // This is pretty simple for now because the only item with an activateable effect are torches
+    pub fn use_item_in_slot(&mut self, slot: char) -> String {
+        // Check to see if the item is actually useable is assumed done by the caller method
+        let val = self.inv.get(&slot).unwrap().clone();
+        let item = val.0;
+        let stack_count = val.1;
+
+        let s = format!("The {} blazes brightly!", item.name);
+
+        // Stackable, equipable items make things slightly complicated. I am assuming any stackble, equipable 
+        // thing is basically something like a torch that has charges counting down so remove it from the stack
+        if stack_count > 1 && item.stackable {
+            let mut light = item.clone();
+            light.active = true;
+            self.inv.insert(slot, (item, stack_count -1));
+
+            // TODO: handle the case where there is no free inventory slot for the torch that is now
+            // separate from the stack            
+            self.add(light);
+        } else {
+            let val = self.inv.get_mut(&slot).unwrap();
+            let mut item = &mut val.0;
+            item.active = true;
+        }
+
+        s
+    }
+
     pub fn toggle_slot(&mut self, slot: char) -> (String, bool) {
 		if !self.inv.contains_key(&slot) {
 			return (String::from("You do not have that item!"), false);
 		}
-
-		let val = self.inv.get_mut(&slot).unwrap();
-		let item = val.0.clone();
-
+        
+		let val = self.inv.get(&slot).unwrap().clone();
+        let item = val.0;
+        let stack_count = val.1;
+		let item_name = item.name.clone();
+        
 		if !item.equipable() {
-			return (String::from("You cannot equip or use that!"), false);
+			return (String::from("You cannot wear/wield that!"), false);
 		}
 
-        if item.item_type == ItemType::Armour && self.type_already_equiped(item.item_type) {
-            return (String::from("You are already wearing some armour."), false);
+        // Stackable, equipable items make things slightly complicated. I am assuming any stackble, equipable 
+        // thing is basically something like a torch that has charges counting down so remove it from the stack
+        if stack_count > 1 && item.stackable {
+            let mut light = item.clone();
+            light.equiped = true;
+
+            self.inv.insert(slot, (item, stack_count -1));
+                        
+            // TODO: handle the case where there is no free inventory slot for the torch that is now
+            // separate from the stack            
+            self.add(light);
+
+            let s = format!("The {} blazes brightly!", item_name);
+
+            return (s, true);
         }
 
-        let swapping = if !item.equiped && item.item_type == ItemType::Weapon && self.get_readied_weapon() != None {
-            self.unequip_type(item.item_type);
-            true
-        } else {
-            false
-        };
-
-        let item_name = String::from(item.name);
-
-        // Is there a better way to do this?? I'm sticking this in its own little scope
-        // because otherwise I get a mutable/immutable borrow conflict when I call to 
-        // check if there is a readed weapon after the player toglges their gear
-		{
-            let val = self.inv.get_mut(&slot).unwrap();
-		    let mut item = &mut val.0;        
-            item.equiped = !item.equiped;
-        }
-
-        let s = if swapping {
-            format!("You are now using the {}.", &item_name)
-        } else {
-            if self.get_readied_weapon() == None {
-                String::from("You are now empty handed.")
-            } else {
-                let mut s = String::from("You ");
-                if item.equiped {
-                    s.push_str("equip the ");
-                } else {
-                    s.push_str("unequip the ");
+        let mut swapping = false;
+        if item.item_type == ItemType::Weapon {
+            if let Some(w) = self.get_readied_weapon() {
+                if w.object_id != item.object_id {
+                    swapping = true;
+                    self.unequip_type(item.item_type);
                 }
-                
-                s.push_str(&item_name);
-                s.push('.');
-
-                s
             }
-        };
+        } else if item.item_type == ItemType::Armour {
+            if let Some(a) = self.get_readied_armour() {
+                if a.object_id != item.object_id {
+                    return (String::from("You are already wearing armour."), false);
+                }
+            }
+        }
+        
+        // Alright, so at this point we can toggle the item in the slot.
+        let mut item_slot = self.inv.get_mut(&slot).unwrap();
+        item_slot.0.equiped = !item_slot.0.equiped;
 
-		(s, true)
+        let mut s = String::from("You ");
+        
+        if swapping {
+            s.push_str("are now wielding ")
+        } else if item_slot.0.equiped {
+            s.push_str("equip ");
+        } else {
+            s.push_str("unequip ");
+        }
+        
+        s.push_str(&item_name.with_def_article());
+        s.push('.');
+        
+        if self.get_readied_weapon() == None {
+             s = String::from("You are now empty handed.");
+        } 
+
+		(s, true)        
 	}
     
     pub fn used_slots(&self) -> Vec<char> {
@@ -370,17 +443,19 @@ pub enum ItemType {
 	Zorkmid,
 	Food,
 	Armour,
+    Light,
 }
 
 #[derive(Debug, Clone)]
 pub struct Item {
+    pub object_id: usize,
     pub name: String,
 	pub item_type: ItemType,
 	pub weight: u8,
 	pub symbol: char,
 	pub lit_colour: (u8, u8, u8),
     pub unlit_colour: (u8, u8, u8),
-	pub stackable: bool,
+	stackable: bool,
 	pub prev_slot: char,
 	pub dmg_die: u8,
 	pub dmg_dice: u8,
@@ -389,44 +464,59 @@ pub struct Item {
 	pub range: u8,
 	pub equiped: bool,
     pub attributes: u32,
+    pub active: bool,
+    pub charges: u16,
+    pub aura: u8,
 }
 
 impl Item {    
-    fn new(name: &str, item_type: ItemType, weight: u8, stackable: bool, symbol: char, lit_colour: (u8, u8, u8), unlit_colour: (u8, u8, u8)) -> Item {
-		Item { name: String::from(name), item_type, weight, stackable, symbol, lit_colour, unlit_colour, prev_slot: '\0',
-				dmg_die: 1, dmg_dice: 1, attack_bonus: 0, ac_bonus: 0, range: 0, equiped: false, attributes: 0 }								
+    fn new(object_id: usize, name: &str, item_type: ItemType, weight: u8, stackable: bool, symbol: char, lit_colour: (u8, u8, u8), unlit_colour: (u8, u8, u8)) -> Item {
+		Item { object_id, name: String::from(name), item_type, weight, stackable, symbol, lit_colour, unlit_colour, prev_slot: '\0',
+				dmg_die: 1, dmg_dice: 1, attack_bonus: 0, ac_bonus: 0, range: 0, equiped: false, attributes: 0, active: false, charges: 0, aura: 0 }								
 	}
     
-    pub fn get_item(name: &str) -> Option<Item> {
+    pub fn get_item(state: &mut GameState, name: &str) -> Option<Item> {
         match name {
             "longsword" => {
-                let mut i = Item::new(name, ItemType::Weapon, 3, false, ')', display::WHITE, display::GREY);
+                let mut i = Item::new(state.next_obj_id, name, ItemType::Weapon, 3, false, ')', display::WHITE, display::GREY);
+                state.next_obj_id += 1;
                 i.dmg_die = 8;
                 Some(i)
             },
             "dagger" => {
-                let mut i = Item::new(name, ItemType::Weapon, 1, false, ')', display::WHITE, display::GREY);
+                let mut i = Item::new(state.next_obj_id, name, ItemType::Weapon, 1, false, ')', display::WHITE, display::GREY);
+                state.next_obj_id += 1;
                 i.dmg_die = 4;
                 Some(i)
             },
             "spear" => {
-                let mut i = Item::new(name, ItemType::Weapon, 1, false, ')', display::WHITE, display::GREY);
+                let mut i = Item::new(state.next_obj_id, name, ItemType::Weapon, 1, false, ')', display::WHITE, display::GREY);
+                state.next_obj_id += 1;
                 i.dmg_die = 6;
                 Some(i)
             },
             "staff" => {
-                let mut i = Item::new(name, ItemType::Weapon, 1, false, ')', display::LIGHT_BROWN, display::BROWN);
+                let mut i = Item::new(state.next_obj_id, name, ItemType::Weapon, 1, false, ')', display::LIGHT_BROWN, display::BROWN);
+                state.next_obj_id += 1;
                 i.dmg_die = 6;
                 Some(i)
             },
             "ringmail" => {
-                let mut i = Item::new(name, ItemType::Armour, 8, false, '[', display::GREY, display::DARK_GREY);
+                let mut i = Item::new(state.next_obj_id, name, ItemType::Armour, 8, false, '[', display::GREY, display::DARK_GREY);
+                state.next_obj_id += 1;
                 i.ac_bonus = 3;
                 i.attributes |= IA_MED_ARMOUR;                
                 Some(i)
             },
             "gold piece" => {
-                let i = Item::new(name, ItemType::Zorkmid, 0, true, '$', display::GOLD, display::YELLOW_ORANGE);
+                let i = Item::new(std::usize::MAX, name, ItemType::Zorkmid, 0, true, '$', display::GOLD, display::YELLOW_ORANGE);
+                Some(i)
+            },
+            "torch" => {
+                let mut i = Item::new(state.next_obj_id, name, ItemType::Light, 1, true, '(', display::LIGHT_BROWN, display::BROWN);
+                state.next_obj_id += 1;
+                i.charges = 500;
+                i.aura = 5;
                 Some(i)
             },
             _ => None,
@@ -441,23 +531,40 @@ impl Item {
         }
     }
 
+    pub fn useable(&self) -> bool {
+        if let ItemType::Light = self.item_type {
+            true
+        } else {
+            false
+        }
+    }
+
     pub fn get_full_name(&self) -> String {
 		let mut s = String::from(&self.name);
+		
+        match self.item_type {
+            ItemType::Weapon => if self.equiped { s.push_str(" (in hand)"); },
+            ItemType::Armour => if self.equiped { s.push_str(" (being worn)"); },
+            ItemType::Light =>  if self.active { s.push_str( " (lit)"); },
+            _ => { },
+        }
 
-		if self.equiped {
-			match self.item_type {
-				ItemType::Weapon => s.push_str(" (in hand)"),
-				ItemType::Armour => s.push_str(" (being worn)"),
-				_ => panic!("Should never hit this option..."),
-			}
-		}
-        
 		s
 	}
+
+    pub fn stackable(&self) -> bool {
+        if self.item_type == ItemType::Light && self.equiped {
+            false
+        } else {
+            self.stackable
+        }
+    }
 }
 
 impl PartialEq for Item {
 	fn eq(&self, other: &Self) -> bool {
-		self.name == other.name
+        // Comparing by charges will keep, say, torches with differing amounts
+        // of turns left from stacking
+		self.name == other.name && self.charges == other.charges && self.active == other.active
 	}
 }

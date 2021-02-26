@@ -87,10 +87,10 @@ pub struct GameState {
 	msg_history: VecDeque<(String, u32)>,
 	map: Map,
     turn: u32,
-    vision_radius: u8,
     player_loc: (i32, i32, i8),
     world_info: WorldInfo,
     tile_memory: HashMap<(i32, i32, i8), Tile>,
+    next_obj_id: usize,
 }
 
 impl GameState {
@@ -100,10 +100,10 @@ impl GameState {
             msg_history: VecDeque::new(),
 			map: map,
             turn: 0,
-            vision_radius: 30,
             player_loc: (-1, -1, -1),
             world_info: world_info,
             tile_memory: HashMap::new(),
+            next_obj_id: 0,
         };
 
         state
@@ -209,7 +209,7 @@ fn who_are_you(gui: &mut GameUI) -> String {
     }
 }
 
-fn start_new_game(state: &GameState, gui: &mut GameUI, player_name: String) -> Option<Player> {
+fn start_new_game(state: &mut GameState, gui: &mut GameUI, player_name: String) -> Option<Player> {
     let mut menu = vec!["Welcome adventurer, please choose your role in RogueVillage:"];
 	menu.push("");
 	menu.push("  (a) Human Warrior - a doughty fighter who lives by the sword and...well");
@@ -220,11 +220,11 @@ fn start_new_game(state: &GameState, gui: &mut GameUI, player_name: String) -> O
 	
     if let Some(answer) = gui.menu_picker(&menu, 2, true, true) {
         if answer.contains(&0) {
-            let mut player = Player::new_warrior(player_name);
+            let mut player = Player::new_warrior(state, player_name);
             player.location = pick_player_start_loc(&state);
             return Some(player);
         } else {
-            let mut player = Player::new_rogue(player_name);
+            let mut player = Player::new_rogue(state, player_name);
             player.location = pick_player_start_loc(&state);
             return Some(player);
         }
@@ -233,7 +233,7 @@ fn start_new_game(state: &GameState, gui: &mut GameUI, player_name: String) -> O
     None
 }
 
-fn fetch_player(state: &GameState, gui: &mut GameUI, player_name: String) -> Option<Player> {
+fn fetch_player(state: &mut GameState, gui: &mut GameUI, player_name: String) -> Option<Player> {
     // Of course eventually this is where I'll check for a saved game and load
     // it if one exists.
     start_new_game(state, gui, player_name)
@@ -249,9 +249,9 @@ fn item_hits_ground(loc: (i32, i32, i8), item: Item, items: &mut Items) {
     items.get_mut(&loc).unwrap().add(item_copy);
 }
 
-fn drop_zorkmids(loc: (i32, i32, i8), amt: u32, items: &mut Items) {
+fn drop_zorkmids(state: &mut GameState, loc: (i32, i32, i8), amt: u32, items: &mut Items) {
     for _ in 0..amt {
-        item_hits_ground(loc, Item::get_item("gold piece").unwrap(), items)
+        item_hits_ground(loc, Item::get_item(state, "gold piece").unwrap(), items)
     }
 }
 
@@ -270,16 +270,16 @@ fn drop_item(state: &mut GameState, player: &mut Player, items: &mut Items, gui:
             } else {
                 if amt >= player.inventory.purse {
                     state.write_msg_buff("You drop all your money.");
-                    drop_zorkmids(player.location, player.inventory.purse, items);
+                    drop_zorkmids(state, player.location, player.inventory.purse, items);
                     player.inventory.purse = 0;
                 } else if amt > 1 {
                     let s = format!("You drop {} gold pieces.", amt);
                     state.write_msg_buff(&s);
-                    drop_zorkmids(player.location, amt, items);
+                    drop_zorkmids(state, player.location, amt, items);
                     player.inventory.purse -= amt;
                 } else {
                     state.write_msg_buff("You drop a gold piece.");
-                    drop_zorkmids(player.location, 1, items);
+                    drop_zorkmids(state, player.location, 1, items);
                     player.inventory.purse -= 1;
                 }
                 state.turn += 1;
@@ -375,7 +375,7 @@ fn pick_up(state: &mut GameState, player: &mut Player, items: &mut Items, gui: &
 	}
 }
 
-fn toggole_equipment(state: &mut GameState, player: &mut Player, gui: &mut GameUI) {
+fn toggle_equipment(state: &mut GameState, player: &mut Player, gui: &mut GameUI) {
     if player.inventory.used_slots().len() == 0 {
 		state.write_msg_buff("You are empty handed.");
 		return
@@ -391,6 +391,31 @@ fn toggole_equipment(state: &mut GameState, player: &mut Player, gui: &mut GameU
     }
 
 	player.calc_ac();
+}
+
+fn use_item(state: &mut GameState, player: &mut Player, gui: &mut GameUI) {
+    if player.inventory.used_slots().len() == 0 {
+		state.write_msg_buff("You are empty handed.");
+		return
+	}
+
+    let sbi = state.curr_sidebar_info(player);
+    if let Some(ch) = gui.query_single_response("Use what?", Some(&sbi)) {
+        if let Some(item) = player.inventory.peek_at(ch) {
+            if !item.useable() {
+                state.write_msg_buff("You don't know how to use that.");
+            } else {
+                // I suspect this will get much more complicated when there are more types of items but 
+                // for now it's really just torches.
+                let msg = player.inventory.use_item_in_slot(ch);
+                state.write_msg_buff(&msg);
+            }
+        } else {
+            state.write_msg_buff("You do not have that item.");
+        }        
+	} else {
+        state.write_msg_buff("Nevermind.");
+    }
 }
 
 fn get_move_tuple(mv: &str) -> (i32, i32) {
@@ -676,7 +701,8 @@ fn run(gui: &mut GameUI, state: &mut GameState, player: &mut Player, npcs: &mut 
             Cmd::PickUp => pick_up(state, player, items, gui),
             Cmd::ShowCharacterSheet => show_character_sheet(gui, player),
             Cmd::ShowInventory => show_inventory(gui, state, player),
-            Cmd::ToggleEquipment => toggole_equipment(state, player, gui),
+            Cmd::ToggleEquipment => toggle_equipment(state, player, gui),
+            Cmd::Use => use_item(state, player, gui),
             Cmd::Quit => break,        
             Cmd::Up => take_stairs(state, player, false),
             Cmd::WizardCommand => wiz_command(state, gui, player),
@@ -741,7 +767,7 @@ fn main() {
     title_screen(&mut gui);
     let player_name = who_are_you(&mut gui);
 
-    let mut player = fetch_player(&state, &mut gui, player_name).unwrap();
+    let mut player = fetch_player(&mut state, &mut gui, player_name).unwrap();
     state.player_loc = player.location;
 
     let sbi = state.curr_sidebar_info(&player);
