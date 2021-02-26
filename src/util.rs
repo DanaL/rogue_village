@@ -13,8 +13,6 @@
 // You should have received a copy of the GNU General Public License
 // along with RogueVillage.  If not, see <https://www.gnu.org/licenses/>.
 
-use crate::items::Item;
-
 // Some miscellaneous structs and functions used in a few plces
 
 pub const ADJ: [(i32, i32); 8] = [(0, -1), (0, 1), (-1, 0), (1, 0), (-1, -1), (-1, 1), (1, -1), (1, 1)];
@@ -56,57 +54,6 @@ pub fn ds_find(ds: &mut Vec<i32>, x: i32) -> i32 {
 	}
 }
 
-pub fn capitalize_word(word: &str) -> String {
-	// Rust is so intuitive...
-	let mut c = word.chars();
-    match c.next() {
-        None => String::new(),
-        Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
-    }
-}
-
-pub fn get_indefinite_article(word: &str) -> String {	
-	let first = word.chars().next().unwrap();
-	if first == 'a' || first == 'e' || first == 'i' ||
-		first == 'o' || first == 'u' || first == 'y' {
-		String::from("an")
-	} else {
-		String::from("a")
-	}		
-}
-
-pub fn get_articled_name(definite: bool, item: &Item) -> String {
-	let article;
-
-	if definite {
-		article = "the".to_string();
-	} else {
-		article = get_indefinite_article(&item.name);
-	}
-
-	if article.len() == 0 {
-		String::from(item.name.clone())
-	} else {
-		let s = format!("{} {}", article, item.name.clone());
-		s
-	}
-}
-
-// English is a mess and I bet I'll be tweaking this function for all
-// time but for now let's make it pretty simple and hope I never do
-// something stupid and at multiple Governors General to the game...
-pub fn pluralize(name: &str) -> String {
-	let mut result = String::from("");
-	result.push_str(name);	
-	if name.ends_with("s") || name.ends_with("x") || name.ends_with("ch") {
-		result.push_str("es");
-	} else {
-		result.push_str("s");
-	}
-	
-	result	
-}
-
 // Straight out of my old scientific computing textbook
 pub fn bresenham_circle(rc: i32, cc: i32, radius: i32) -> Vec<(i32, i32)> {
 	let mut pts = Vec::new();
@@ -138,4 +85,51 @@ pub fn bresenham_circle(rc: i32, cc: i32, radius: i32) -> Vec<(i32, i32)> {
 	}
 
 	pts
+}
+
+pub trait StringUtils {
+	fn capitalize(&self) -> String;
+	fn pluralize(&self) -> String;
+	fn with_def_article(&self) -> String;
+	fn with_indef_article(&self) -> String;
+}
+
+// I started off with this string util stuff as just free-floating functions,
+// but I think extending String with a Trait is a bit more rustic?
+impl StringUtils for String {
+	fn capitalize(&self) -> String {
+		// Rust is so intuitive...
+		let mut c = self.chars();
+		match c.next() {
+			None => String::new(),
+			Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
+		}
+	}
+
+	// English is a mess and I am pretty sure this isn't this function's
+	// final form...
+	fn pluralize(&self) -> String {
+		let mut result = String::from("");
+		result.push_str(self);	
+		if self.ends_with("s") || self.ends_with("x") || self.ends_with("ch") {
+			result.push_str("es");
+		} else {
+			result.push_str("s");
+		}
+		
+		result
+	}
+
+	fn with_def_article(&self) -> String {
+		format!("the {}", self)
+	}
+
+	fn with_indef_article(&self) -> String {	
+		let first = self.chars().next().unwrap();
+		if first == 'a' || first == 'e' || first == 'i' || first == 'o' || first == 'u' || first == 'y' {
+			format!("an {}", self)			
+		} else {
+			format!("a {}", self)			
+		}		
+	}
 }

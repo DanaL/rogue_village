@@ -44,6 +44,7 @@ use display::{GameUI, SidebarInfo, WHITE};
 use items::{Item, ItemPile};
 use map::{Tile, DoorState};
 use player::Player;
+use util::StringUtils;
 use world::WorldInfo;
 
 const MSG_HISTORY_LENGTH: usize = 50;
@@ -131,7 +132,7 @@ impl GameState {
 
     pub fn curr_sidebar_info(&self, player: &Player) -> SidebarInfo {
         let weapon = if let Some(w) = player.inventory.get_readied_weapon() {
-            util::capitalize_word(&w.name)
+            w.name.capitalize()    
         } else {
             String::from("Empty handed")
         };
@@ -295,9 +296,8 @@ fn drop_item(state: &mut GameState, player: &mut Player, items: &mut Items, gui:
                             if v == 1 {
                                 let s = format!("You drop the {}.", pile[0].name);
                                 state.write_msg_buff(&s);
-                            } else {
-                                let pluralized = util::pluralize(&pile[0].name);
-                                let s = format!("You drop {} {}.", v, pluralized);
+                            } else {                                
+                                let s = format!("You drop {} {}.", v, &pile[0].name.pluralize());
                                 state.write_msg_buff(&s);
                             }
                             state.turn += 1;
@@ -313,7 +313,7 @@ fn drop_item(state: &mut GameState, player: &mut Player, items: &mut Items, gui:
             } else {
                 let mut item = player.inventory.remove(ch);
                 item.equiped = false;
-                let s = format!("You drop {}.", util::get_articled_name(true, &item));                
+                let s = format!("You drop {}.", &item.name.with_def_article());                
                 item_hits_ground(player.location, item, items);
                 state.write_msg_buff(&s);
                 state.turn += 1;
@@ -328,11 +328,11 @@ fn drop_item(state: &mut GameState, player: &mut Player, items: &mut Items, gui:
 
 fn pick_up_item_or_stack(state: &mut GameState, player: &mut Player, item: (Item, u16)) {
     if item.1 == 1 {
-		let s = format!("You pick up {}.", util::get_articled_name(true, &item.0));
+		let s = format!("You pick up {}.", &item.0.name.with_def_article());
 		state.write_msg_buff(&s);
 		player.inventory.add(item.0);
     } else {
-        let s = format!("You pick up {} {}.", item.1, util::pluralize(&item.0.name));
+        let s = format!("You pick up {} {}.", item.1, &item.0.name.pluralize());
 		state.write_msg_buff(&s);
 
         for _ in 0..item.1 {

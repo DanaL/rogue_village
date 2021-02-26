@@ -17,7 +17,7 @@ use std::collections::{HashMap, HashSet, VecDeque};
 
 use crate::display;
 use crate::map::Tile;
-use crate::util;
+use crate::util::StringUtils;
 
 // Some bitmasks so that I can store various extra item attributes beyond
 // just the item type enum. (Ie., heavy armour, two-handed, etc)
@@ -314,11 +314,10 @@ impl ItemPile {
     pub fn get_item_name(&self, nth: usize) -> String {
         if self.pile[nth].1 == 1 {
             let name = self.pile[nth].0.get_full_name();
-            let s = format!("{} {}", util::get_indefinite_article(&name), name);
-            s
+            name.with_indef_article()
         } else {
             let name = self.pile[nth].0.get_full_name();
-            let s = format!("{} {}", self.pile[nth].1, util::pluralize(&name));
+            let s = format!("{} {}", self.pile[nth].1, name.pluralize());
             s
         }
     }
@@ -352,7 +351,7 @@ impl ItemPile {
 			} else {
 				s.push_str(&self.pile[j].1.to_string());
 				s.push_str(" ");
-				s.push_str(&util::pluralize(&self.pile[j].0.name));
+				s.push_str(&self.pile[j].0.name.pluralize());
 			}
 			menu.push(s);
 		}
