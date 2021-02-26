@@ -18,6 +18,13 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use crate::display;
 use crate::map::Tile;
 use crate::util;
+
+// Some bitmasks so that I can store various extra item attributes beyond
+// just the item type enum. (Ie., heavy armour, two-handed, etc)
+pub const IA_LIGHT_ARMOUR: u32 = 0b00000001;
+pub const IA_MED_ARMOUR:   u32 = 0b00000010;
+pub const IA_HEAVY_ARMOUR: u32 = 0b00000100;
+
 #[derive(Debug, Clone)]
 pub struct Inventory {
 	next_slot: char,
@@ -104,6 +111,19 @@ impl Inventory {
 
         menu
 	}
+
+    pub fn peek_at(&self, slot: char) -> Option<Item> {
+		if !self.inv.contains_key(&slot) {
+			None
+		} else {
+			let v = self.inv.get(&slot).unwrap();
+			Some(v.0.clone())
+		}
+	}
+
+    pub fn used_slots(&self) -> Vec<char> {
+        self.inv.keys().map(|c| *c).collect()
+    }
 
     // I'm leaving it up to the caller to ensure the slot exists.
 	// Bad for a library but maybe okay for my internal game code
@@ -272,17 +292,17 @@ pub struct Item {
 	pub prev_slot: char,
 	pub dmg_die: u8,
 	pub dmg_dice: u8,
-	pub bonus: u8,
+	pub attack_bonus: i8,
+    pub ac_bonus: i8,
 	pub range: u8,
-	pub armour_value: i8,
 	pub equiped: bool,
+    pub attributes: u32,
 }
 
 impl Item {    
     fn new(name: &str, item_type: ItemType, weight: u8, stackable: bool, symbol: char, lit_colour: (u8, u8, u8), unlit_colour: (u8, u8, u8)) -> Item {
 		Item { name: String::from(name), item_type, weight, stackable, symbol, lit_colour, unlit_colour, prev_slot: '\0',
-				dmg_die: 1, dmg_dice: 1, bonus: 0, range: 0, armour_value: 0, 
-				equiped: false, }								
+				dmg_die: 1, dmg_dice: 1, attack_bonus: 0, ac_bonus: 0, range: 0, equiped: false, attributes: 0 }								
 	}
     
     pub fn get_item(name: &str) -> Option<Item> {
@@ -299,17 +319,18 @@ impl Item {
             },
             "spear" => {
                 let mut i = Item::new(name, ItemType::Weapon, 1, false, ')', display::WHITE, display::GREY);
-                i.dmg_die = 1;
+                i.dmg_die = 6;
                 Some(i)
             },
             "staff" => {
                 let mut i = Item::new(name, ItemType::Weapon, 1, false, ')', display::LIGHT_BROWN, display::BROWN);
-                i.dmg_die = 1;
+                i.dmg_die = 6;
                 Some(i)
             },
             "ringmail" => {
                 let mut i = Item::new(name, ItemType::Armour, 8, false, '[', display::GREY, display::DARK_GREY);
-                i.armour_value = 3;
+                i.ac_bonus = 3;
+                i.attributes |= IA_MED_ARMOUR;                
                 Some(i)
             },
             "gold piece" => {

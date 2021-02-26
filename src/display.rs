@@ -15,7 +15,7 @@
 
 extern crate sdl2;
 
-use std::{collections::{HashMap, HashSet, VecDeque}, convert::identity};
+use std::collections::{HashMap, HashSet, VecDeque};
 
 use crate::map;
 use crate::map::{Tile, DoorState};

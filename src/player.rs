@@ -16,6 +16,7 @@
 use rand::Rng;
 
 use super::GameState;
+use crate::items;
 use crate::items::{Inventory, Item};
 
 #[derive(Clone, Debug)]
@@ -108,6 +109,8 @@ impl Player {
         p.inventory.add(armour);
         p.inventory.purse = 20;
 
+        p.calc_ac();
+
         p
     }
 
@@ -122,13 +125,46 @@ impl Player {
             (stats[4], stats[3])
         };
 
-        Player {            
+        let mut p = Player {            
             name, max_hp: 12 + stat_to_mod(stats[2]), curr_hp: 12 + stat_to_mod(stats[2]), location: (0, 0, 0), vision_radius: default_vision_radius,
                 str, con: stats[2], dex: stats[0], chr, apt: stats[1], role: Role::Rogue, xp: 0, level: 1, max_depth: 0, inventory: Inventory::new(),
                 ac: 10,
+        };
+
+        p.calc_ac();
+
+        p
+    }
+
+    pub fn calc_ac(&mut self) {
+        let mut ac: i8 = 10;
+        let mut attributes = 0;
+        let slots = self.inventory.used_slots();        
+        for s in slots {
+            let i = self.inventory.peek_at(s).unwrap();
+            // at some point there might be items that give you a bonus or penalty
+            // even if they aren't equiped? I guess I'd handle that with an attribute maybe?
+            if i.equiped {
+                ac += i.ac_bonus;
+                attributes |= i.attributes;
+            }
         }
 
+        // Heavier armour types reduce the benefit you get from a higher dex
+        let mut dex_mod = stat_to_mod(self.dex);
+        if attributes & items::IA_MED_ARMOUR > 0 && dex_mod > 2 {
+            dex_mod = 2;
+        } else if attributes & items::IA_HEAVY_ARMOUR > 0 {
+            dex_mod = 0;
+        }
 
+        ac += dex_mod;
+
+        self.ac = if ac < 0 {
+            0
+        } else {
+            ac as u8
+        };
     }
 }
 

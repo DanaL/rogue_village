@@ -306,7 +306,7 @@ fn drop_item(state: &mut GameState, player: &mut Player, items: &mut Items, gui:
             } else {
                 let mut item = player.inventory.remove(ch);
                 item.equiped = false;
-                let s = format!("You drop the {}.", util::get_articled_name(true, &item));                
+                let s = format!("You drop {}.", util::get_articled_name(true, &item));                
                 item_hits_ground(player.location, item, items);
                 state.write_msg_buff(&s);
                 state.turn += 1;
@@ -316,7 +316,7 @@ fn drop_item(state: &mut GameState, player: &mut Player, items: &mut Items, gui:
         state.write_msg_buff("Nevermind.")
     }
 
-    //state.player.calc_ac();
+    player.calc_ac();
 }
 
 fn pick_up_item_or_stack(state: &mut GameState, player: &mut Player, item: (Item, u16)) {
