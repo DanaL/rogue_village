@@ -13,7 +13,7 @@
 // You should have received a copy of the GNU General Public License
 // along with RogueVillage.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::collections::{HashMap, VecDeque};
+use std::collections::{HashMap, HashSet, VecDeque};
 
 use crate::display;
 use crate::map::Tile;
@@ -32,6 +32,11 @@ impl Inventory {
 
     // This doesn't currently handle when all the inventory slots are used up...
     pub fn add(&mut self, item: Item) {
+		if item.item_type == ItemType::Zorkmid {
+			self.purse += 1;
+			return;
+		}
+
 		if item.stackable {
 			// since the item is stackable, let's see if there's a stack we can add it to
 			// Super cool normal programming language way to loop over the keys of a hashtable :/
@@ -188,6 +193,10 @@ impl ItemPile {
         }
     }
 
+	pub fn get(&mut self) -> (Item, u16) {
+		self.pile.pop_front().unwrap()
+	}
+
     // Up to the caller to make sure the slot in pile actually exists...
     pub fn get_item_name(&self, nth: usize) -> String {
         if self.pile[nth].1 == 1 {
@@ -200,6 +209,43 @@ impl ItemPile {
             s
         }
     }
+
+	pub fn get_many(&mut self, slots: &HashSet<u8>) -> Vec<(Item, u16)> {
+		let mut indices = slots.iter()
+								.map(|v| *v as usize)
+								.collect::<Vec<usize>>();
+		indices.sort();
+		indices.reverse();
+
+		let mut items = Vec::new();
+		for i in indices {
+			if let Some(item) = self.pile.remove(i) {
+                items.push(item);
+            }
+		}
+
+		items
+	}
+
+	pub fn get_menu(&self) -> Vec<String> {
+		let mut menu = Vec::new();
+		
+		for j in 0..self.pile.len() {
+			let mut s = String::from("");
+			s.push(('a' as u8 + j as u8) as char);
+			s.push_str(") ");
+			if self.pile[j].1 == 1 {
+				s.push_str(&self.pile[j].0.name);
+			} else {
+				s.push_str(&self.pile[j].1.to_string());
+				s.push_str(" ");
+				s.push_str(&util::pluralize(&self.pile[j].0.name));
+			}
+			menu.push(s);
+		}
+
+		menu
+	}
 
     pub fn get_tile(&self) -> Tile {
         Tile::Thing(self.pile[0].0.lit_colour, self.pile[0].0.unlit_colour, self.pile[0].0.symbol)

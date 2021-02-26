@@ -319,6 +319,55 @@ fn drop_item(state: &mut GameState, player: &mut Player, items: &mut Items, gui:
     //state.player.calc_ac();
 }
 
+fn pick_up_item_or_stack(state: &mut GameState, player: &mut Player, item: (Item, u16)) {
+    if item.1 == 1 {
+		let s = format!("You pick up {}.", util::get_articled_name(true, &item.0));
+		state.write_msg_buff(&s);
+		player.inventory.add(item.0);
+    } else {
+        let s = format!("You pick up {} {}.", item.1, util::pluralize(&item.0.name));
+		state.write_msg_buff(&s);
+
+        for _ in 0..item.1 {
+            player.inventory.add(item.0.clone());
+        }
+    }
+}
+
+fn pick_up(state: &mut GameState, player: &mut Player, items: &mut Items, gui: &mut GameUI) {
+	if !items.contains_key(&player.location) {
+		state.write_msg_buff("There is nothing here to pick up.");
+        return;
+	} 
+    
+    let item_count = items[&player.location].pile.len();	
+    if item_count == 1 {
+		let item = items.get_mut(&player.location).unwrap().get();
+        pick_up_item_or_stack(state, player, item);
+        items.remove(&player.location);
+		state.turn += 1;
+	} else {
+		let mut m = items[&player.location].get_menu();
+		m.insert(0, "Pick up what: (* to get everything)".to_string());
+        let menu = m.iter().map(AsRef::as_ref).collect();
+		let answers = gui.menu_picker(&menu, menu.len() as u8, false, false);
+		match answers {
+			None => state.write_msg_buff("Nevermind."), // Esc was pressed
+			Some(v) => {
+				state.turn += 1;
+				let picked_up = items.get_mut(&player.location).unwrap().get_many(&v);
+				for item in picked_up {
+                    pick_up_item_or_stack(state, player, item);                    
+				}
+                
+                if items[&player.location].pile.len() == 0 {
+                    items.remove(&player.location);
+                }
+			},
+		}
+	}
+}
+
 fn get_move_tuple(mv: &str) -> (i32, i32) {
   	if mv == "N" {
 		return (-1, 0);
@@ -599,6 +648,7 @@ fn run(gui: &mut GameUI, state: &mut GameState, player: &mut Player, npcs: &mut 
                 state.turn += 1;
                 println!("{:?}", state.curr_time());
             },
+            Cmd::PickUp => pick_up(state, player, items, gui),
             Cmd::ShowCharacterSheet => show_character_sheet(gui, player),
             Cmd::ShowInventory => show_inventory(gui, state, player),
             Cmd::Quit => break,        

@@ -95,7 +95,7 @@ pub fn get_articled_name(definite: bool, item: &Item) -> String {
 // English is a mess and I bet I'll be tweaking this function for all
 // time but for now let's make it pretty simple and hope I never do
 // something stupid and at multiple Governors General to the game...
-pub fn pluralize(name: &str) -> String{
+pub fn pluralize(name: &str) -> String {
 	let mut result = String::from("");
 	result.push_str(name);	
 	if name.ends_with("s") || name.ends_with("x") || name.ends_with("ch") {
