@@ -197,24 +197,35 @@ impl Inventory {
             false
         };
 
-		let val = self.inv.get_mut(&slot).unwrap();
-		let mut item = &mut val.0;        
-        item.equiped = !item.equiped;
+        let item_name = String::from(item.name);
+
+        // Is there a better way to do this?? I'm sticking this in its own little scope
+        // because otherwise I get a mutable/immutable borrow conflict when I call to 
+        // check if there is a readed weapon after the player toglges their gear
+		{
+            let val = self.inv.get_mut(&slot).unwrap();
+		    let mut item = &mut val.0;        
+            item.equiped = !item.equiped;
+        }
 
         let s = if swapping {
-            format!("You are now using the {}.", &item.name)
+            format!("You are now using the {}.", &item_name)
         } else {
-            let mut s = String::from("You ");
-            if item.equiped {
-                s.push_str("equip the ");
+            if self.get_readied_weapon() == None {
+                String::from("You are now empty handed.")
             } else {
-                s.push_str("unequip the ");
-            }
-            
-            s.push_str(&item.name);
-            s.push('.');
+                let mut s = String::from("You ");
+                if item.equiped {
+                    s.push_str("equip the ");
+                } else {
+                    s.push_str("unequip the ");
+                }
+                
+                s.push_str(&item_name);
+                s.push('.');
 
-            s
+                s
+            }
         };
 
 		(s, true)
