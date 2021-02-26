@@ -121,10 +121,6 @@ impl Inventory {
 		}
 	}
 
-    pub fn used_slots(&self) -> Vec<char> {
-        self.inv.keys().map(|c| *c).collect()
-    }
-
     // I'm leaving it up to the caller to ensure the slot exists.
 	// Bad for a library but maybe okay for my internal game code
 	pub fn remove(&mut self, slot: char) -> Item {
@@ -163,6 +159,46 @@ impl Inventory {
 		items
 	}
 
+    pub fn toggle_slot(&mut self, slot: char) -> (String, bool) {
+		if !self.inv.contains_key(&slot) {
+			return (String::from("You do not have that item!"), false);
+		}
+
+		let val = self.inv.get(&slot).unwrap();
+		let item = &val.0;
+
+		if !item.equipable() {
+			return (String::from("You cannot equip or use that!"), false);
+		}
+
+		if !item.equiped && self.type_already_equiped(item.item_type) {
+			return (match item.item_type {
+				ItemType::Weapon => String::from("You are already holding a weapon."),
+				ItemType::Armour => String::from("You are already wearing some armour."),
+				_ => panic!("We shouldn't hit this option"),
+			}, false);
+		}
+
+		let val = self.inv.get_mut(&slot).unwrap();
+		let mut item = &mut val.0;        
+        item.equiped = !item.equiped;
+
+        let mut s = String::from("You ");
+        if item.equiped {
+            s.push_str("equip the ");
+        } else {
+            s.push_str("unequip the ");
+        }
+        
+        s.push_str(&item.name);
+        s.push('.');
+		(s, true)
+	}
+    
+    pub fn used_slots(&self) -> Vec<char> {
+        self.inv.keys().map(|c| *c).collect()
+    }
+
     fn set_next_slot(&mut self) {
 		let mut slot = self.next_slot;
 		
@@ -183,6 +219,17 @@ impl Inventory {
 				break;
 			}
 		}
+	}
+
+    fn type_already_equiped(&self, i_type: ItemType) -> bool {
+		for slot in self.inv.keys() {
+			let v = self.inv.get(&slot).unwrap();
+			if v.0.item_type == i_type && v.0.equiped {
+				return true;
+			}
+		}
+
+		false
 	}
 }
 
@@ -338,6 +385,14 @@ impl Item {
                 Some(i)
             },
             _ => None,
+        }
+    }
+
+    pub fn equipable(&self) -> bool {
+        match self.item_type {
+            ItemType::Weapon => true,
+            ItemType::Armour => true,
+            _ => false,
         }
     }
 

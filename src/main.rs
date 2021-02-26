@@ -368,6 +368,24 @@ fn pick_up(state: &mut GameState, player: &mut Player, items: &mut Items, gui: &
 	}
 }
 
+fn toggole_equipment(state: &mut GameState, player: &mut Player, gui: &mut GameUI) {
+    if player.inventory.used_slots().len() == 0 {
+		state.write_msg_buff("You are empty handed.");
+		return
+	}
+
+	let sbi = state.curr_sidebar_info(player);
+	if let Some(ch) = gui.query_single_response("Ready/unready what?", Some(&sbi)) {
+        let result = player.inventory.toggle_slot(ch);
+        state.write_msg_buff(&result.0);
+		state.turn += 1;		
+	} else {
+        state.write_msg_buff("Nevermind.");
+    }
+
+	player.calc_ac();
+}
+
 fn get_move_tuple(mv: &str) -> (i32, i32) {
   	if mv == "N" {
 		return (-1, 0);
@@ -651,9 +669,10 @@ fn run(gui: &mut GameUI, state: &mut GameState, player: &mut Player, npcs: &mut 
             Cmd::PickUp => pick_up(state, player, items, gui),
             Cmd::ShowCharacterSheet => show_character_sheet(gui, player),
             Cmd::ShowInventory => show_inventory(gui, state, player),
+            Cmd::ToggleEquipment => toggole_equipment(state, player, gui),
             Cmd::Quit => break,        
             Cmd::Up => take_stairs(state, player, false),
-            Cmd::WizardCommand => wiz_command(state, gui, player),            
+            Cmd::WizardCommand => wiz_command(state, gui, player),
             _ => continue,
         }
         
