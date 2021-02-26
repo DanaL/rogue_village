@@ -40,7 +40,7 @@ use rand::{Rng, thread_rng};
 
 use actor::Actor;
 use dialogue::DialogueLibrary;
-use display::{GameUI, SidebarInfo, WHITE};
+use display::{GameUI, SidebarInfo, WHITE, YELLOW};
 use items::{Item, ItemPile};
 use map::{Tile, DoorState};
 use player::Player;
@@ -648,8 +648,10 @@ fn pick_player_start_loc(state: &GameState) -> (i32, i32, i8) {
 // From that, we assemble the vector of tiles to send to the GameUI to be drawn. If an NPC is in a visible square,
 // they are on top, otherwise show the tile. If the tile isn't visible but the player has seen it before, show the 
 // tile as unlit, otherwise leave it as a blank square.
-fn fov_to_tiles(state: &mut GameState, npcs: &NPCTable, items: &Items, visible: &Vec<((i32, i32, i8), bool)>) -> Vec<(map::Tile, bool)> {
+fn fov_to_tiles(state: &mut GameState, player: &Player, npcs: &NPCTable, items: &Items, visible: &Vec<((i32, i32, i8), bool)>) -> Vec<(map::Tile, bool)> {
     let mut v_matrix = vec![(map::Tile::Blank, false); visible.len()];
+    let underground = state.player_loc.2 > 0;
+    let has_light = player.inventory.light_from_items() > 0;
 
     for j in 0..visible.len() {
         let vis = visible[j];
@@ -664,7 +666,15 @@ fn fov_to_tiles(state: &mut GameState, npcs: &NPCTable, items: &Items, visible: 
                 items[&vis.0].get_tile()
             } else {
                 state.tile_memory.insert(vis.0, state.map[&vis.0]);
-                state.map[&vis.0]
+
+                // I wanted to make tochlight squares be coloured different so this is a slight
+                // kludge. Although perhaps later I might use it to differentiate between a player
+                // walking through the dungeon with a light vs relying on darkvision, etc
+                if underground && has_light && state.map[&vis.0] == Tile::StoneFloor {
+                    Tile::ColourFloor(YELLOW)
+                } else {
+                    state.map[&vis.0]
+                }
             };
             
             v_matrix[j] = (tile, true);
@@ -678,7 +688,7 @@ fn fov_to_tiles(state: &mut GameState, npcs: &NPCTable, items: &Items, visible: 
 
 fn run(gui: &mut GameUI, state: &mut GameState, player: &mut Player, npcs: &mut NPCTable, items: &mut Items, dialogue: &DialogueLibrary) {
     let visible = fov::calc_fov(&state.map, player, FOV_HEIGHT, FOV_WIDTH);
-	gui.v_matrix = fov_to_tiles(state, npcs, items, &visible);
+	gui.v_matrix = fov_to_tiles(state, player, npcs, items, &visible);
     let sbi = state.curr_sidebar_info(player);
     state.write_msg_buff("Welcome, adventurer!");   
 	gui.write_screen(&mut state.msg_buff, Some(&sbi));
@@ -733,7 +743,7 @@ fn run(gui: &mut GameUI, state: &mut GameState, player: &mut Player, npcs: &mut 
         
         //let fov_start = Instant::now();
         let visible = fov::calc_fov(&state.map, player, FOV_HEIGHT, FOV_WIDTH);
-        gui.v_matrix = fov_to_tiles(state, npcs, items, &visible);
+        gui.v_matrix = fov_to_tiles(state, player, npcs, items, &visible);
         //let fov_duration = fov_start.elapsed();
         //println!("Time for fov: {:?}", fov_duration);
 		

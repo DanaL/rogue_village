@@ -51,6 +51,7 @@ pub enum Tile {
 	SnowPeak,
 	Gate,
 	StoneFloor,
+	ColourFloor((u8, u8, u8)),
 	Creature((u8, u8, u8), char), // ie., NPCs
 	Thing((u8, u8, u8), (u8, u8, u8), char), // ie., items
 	Separator,
