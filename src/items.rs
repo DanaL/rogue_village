@@ -13,14 +13,15 @@
 // You should have received a copy of the GNU General Public License
 // along with RogueVillage.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 
 use crate::display;
+use crate::map::Tile;
 
 #[derive(Debug, Clone)]
 pub struct Inventory {
 	next_slot: char,
-	inv: HashMap<char, (Item, u8)>,
+	inv: HashMap<char, (Item, u32)>,
     pub purse: u32, // I hope I don't actually need that large an integer for money in this game...
 }
 
@@ -33,7 +34,7 @@ impl Inventory {
     pub fn add(&mut self, item: Item) {
 		if item.stackable {
 			// since the item is stackable, let's see if there's a stack we can add it to
-			// Super cool normal programming language way to loop over the keys of a hashtable :?
+			// Super cool normal programming language way to loop over the keys of a hashtable :/
 			let slots = self.inv.keys()
 								.map(|v| v.clone())
 								.collect::<Vec<char>>();
@@ -53,6 +54,15 @@ impl Inventory {
 		} else {
 			self.inv.insert(self.next_slot, (item, 1));
 			self.set_next_slot();
+		}
+	}
+
+    pub fn count_in_slot(&self, slot: char) -> u32 {
+		if !self.inv.contains_key(&slot) {
+			0
+		} else {
+			let v = self.inv.get(&slot).unwrap();
+			v.1
 		}
 	}
 
@@ -90,6 +100,44 @@ impl Inventory {
         menu
 	}
 
+    // I'm leaving it up to the caller to ensure the slot exists.
+	// Bad for a library but maybe okay for my internal game code
+	pub fn remove(&mut self, slot: char) -> Item {
+		let mut v = self.inv.remove(&slot).unwrap();
+		if self.next_slot == '\0' {
+			self.next_slot = slot;
+		}
+		v.0.prev_slot = slot;
+
+		v.0
+	}
+
+    pub fn remove_count(&mut self, slot: char, count: u32) -> Vec<Item> {
+		let mut items = Vec::new();
+		let entry = self.inv.remove_entry(&slot).unwrap();
+		let mut v = entry.1;
+
+		let max = if count < v.1 {
+			v.1 -= count;
+			let replacement = (Item { name: v.0.name.clone(), ..v.0 }, v.1);
+			self.inv.insert(slot, replacement);
+			count	
+		} else {
+			if self.next_slot == '\0' {
+				self.next_slot = slot;
+			}
+			v.1
+		};
+
+		for _ in 0..max {
+			let mut i = Item { name:v.0.name.clone(), ..v.0 }; 
+			i.prev_slot = slot;
+			items.push(i);
+		}
+
+		items
+	}
+
     fn set_next_slot(&mut self) {
 		let mut slot = self.next_slot;
 		
@@ -113,6 +161,38 @@ impl Inventory {
 	}
 }
 
+// In some ways, a simplified version of the inventory struct
+// to store items on the ground
+#[derive(Debug, Clone)]
+pub struct ItemPile {
+    pub pile: VecDeque<(Item, u16)>,
+}
+
+impl ItemPile {
+    pub fn new() -> ItemPile {
+        ItemPile { pile: VecDeque::new() }
+    }
+
+    pub fn add(&mut self, item: Item) {
+        if !item.stackable {
+            self.pile.push_back((item, 1));
+        } else {
+            for i in 0..self.pile.len() {
+                if self.pile[i].0 == item {
+                    self.pile[i].1 += 1;
+                    return;
+                }
+            }
+
+            self.pile.push_back((item, 1));
+        }
+    }
+
+    pub fn get_tile(&self) -> Tile {
+        Tile::Thing(self.pile[0].0.lit_colour, self.pile[0].0.unlit_colour, self.pile[0].0.symbol)
+    }
+}
+
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum ItemType {
 	Weapon,
@@ -127,8 +207,8 @@ pub struct Item {
 	pub item_type: ItemType,
 	pub weight: u8,
 	pub symbol: char,
-	pub colour: (u8, u8, u8),
-    pub lit_colour: (u8, u8, u8),
+	pub lit_colour: (u8, u8, u8),
+    pub unlit_colour: (u8, u8, u8),
 	pub stackable: bool,
 	pub prev_slot: char,
 	pub dmg_die: u8,
@@ -140,8 +220,8 @@ pub struct Item {
 }
 
 impl Item {    
-    fn new(name: &str, item_type: ItemType, weight: u8, stackable: bool, symbol: char, colour: (u8, u8, u8), lit_colour: (u8, u8, u8)) -> Item {
-		Item { name: String::from(name), item_type, weight, stackable, symbol, colour, lit_colour, prev_slot: '\0',
+    fn new(name: &str, item_type: ItemType, weight: u8, stackable: bool, symbol: char, lit_colour: (u8, u8, u8), unlit_colour: (u8, u8, u8)) -> Item {
+		Item { name: String::from(name), item_type, weight, stackable, symbol, lit_colour, unlit_colour, prev_slot: '\0',
 				dmg_die: 1, dmg_dice: 1, bonus: 0, range: 0, armour_value: 0, 
 				equiped: false, }								
 	}
@@ -174,7 +254,7 @@ impl Item {
                 Some(i)
             },
             "gold piece" => {
-                let i = Item::new(name, ItemType::Zorkmid, 0, true, '$', display::YELLOW_ORANGE, display::GOLD);
+                let i = Item::new(name, ItemType::Zorkmid, 0, true, '$', display::GOLD, display::YELLOW_ORANGE);
                 Some(i)
             },
             _ => None,

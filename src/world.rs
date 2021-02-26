@@ -17,7 +17,7 @@ use std::collections::{HashMap, HashSet};
 use rand::thread_rng;
 use rand::Rng;
 
-use super::{Map, NPCTable};
+use super::{Items, Map, NPCTable};
 
 use crate::dungeon;
 use crate::map::Tile;
@@ -155,7 +155,8 @@ fn find_good_dungeon_entrance(map: &Map, sqs: &HashSet<(i32, i32, i8)>) -> (i32,
     *options[j]
 }
 
-pub fn generate_world() -> (Map, WorldInfo, NPCTable) {
+pub fn generate_world() -> (Map, WorldInfo, NPCTable, Items) {
+    let items = HashMap::new();
     let mut map = wilderness::gen_wilderness_map();
     let mut npcs: NPCTable = HashMap::new();
     let mut world_info = town::create_town(&mut map, &mut npcs);
@@ -207,5 +208,5 @@ pub fn generate_world() -> (Map, WorldInfo, NPCTable) {
     world_info.facts.push(Fact::new("dungeon location".to_string(), 0, dungeon_entrance));
     map.insert((dungeon_entrance.0 as i32, dungeon_entrance.1 as i32, 0), Tile::Portal);
     
-    (map, world_info, npcs)
+    (map, world_info, npcs, items)
 }

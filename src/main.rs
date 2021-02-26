@@ -41,6 +41,7 @@ use rand::{Rng, thread_rng};
 use actor::Actor;
 use dialogue::DialogueLibrary;
 use display::{GameUI, SidebarInfo, WHITE};
+use items::{Item, ItemPile};
 use map::{Tile, DoorState};
 use player::Player;
 use world::WorldInfo;
@@ -49,6 +50,7 @@ const MSG_HISTORY_LENGTH: usize = 50;
 const FOV_WIDTH: usize = 41;
 const FOV_HEIGHT: usize = 21;
 
+pub type Items = HashMap<(i32, i32, i8), ItemPile>;
 pub type Map = HashMap<(i32, i32, i8), map::Tile>;
 pub type NPCTable = HashMap<(i32, i32, i8), Box<dyn Actor>>;
 
@@ -227,6 +229,95 @@ fn fetch_player(state: &GameState, gui: &mut GameUI, player_name: String) -> Opt
     // Of course eventually this is where I'll check for a saved game and load
     // it if one exists.
     start_new_game(state, gui, player_name)
+}
+
+fn item_hits_ground(loc: (i32, i32, i8), item: Item, items: &mut Items) {
+    if !items.contains_key(&loc) {
+        items.insert(loc, ItemPile::new());
+    }
+
+    let mut item_copy = item.clone();
+    item_copy.equiped = false;
+    items.get_mut(&loc).unwrap().add(item_copy);
+}
+
+fn drop_zorkmids(loc: (i32, i32, i8), amt: u32, items: &mut Items) {
+    for _ in 0..amt {
+        item_hits_ground(loc, Item::get_item("gold piece").unwrap(), items)
+    }
+}
+
+fn drop_item(state: &mut GameState, player: &mut Player, items: &mut Items, gui: &mut GameUI) {
+	if player.inventory.get_menu().len() == 0 {
+		state.write_msg_buff("You are empty handed.");
+		return
+	}
+
+	let sbi = state.curr_sidebar_info(player);
+	match gui.query_single_response("Drop what?", Some(&sbi)) {
+		Some(ch) =>  {
+            if ch == '$' {
+                let amt = gui.query_natural_num("How much?", Some(&sbi)).unwrap();
+                if amt == 0 {
+                    state.write_msg_buff("Never mind.");                
+                } else {
+                    if amt >= player.inventory.purse {
+                        state.write_msg_buff("You drop all your money.");
+                        drop_zorkmids(player.location, player.inventory.purse, items);
+                        player.inventory.purse = 0;
+                    } else if amt > 1 {
+                        let s = format!("You drop {} gold pieces.", amt);
+                        state.write_msg_buff(&s);
+                        drop_zorkmids(player.location, amt, items);
+                        player.inventory.purse -= amt;
+                    } else {
+                        state.write_msg_buff("You drop a gold piece.");
+                        drop_zorkmids(player.location, 1, items);
+                        player.inventory.purse -= 1;
+                    }
+                    state.turn += 1;
+                }
+            } else {
+                let count = player.inventory.count_in_slot(ch);
+                if count == 0 {
+                    state.write_msg_buff("You do not have that item.");
+                } else if count > 1 {
+                    match gui.query_natural_num("Drop how many?", Some(&sbi)) {
+                        Some(v) => {
+                            let pile = player.inventory.remove_count(ch, v);
+                            if pile.len() > 0 {
+                                if v == 1 {
+                                    let s = format!("You drop the {}.", pile[0].name);
+                                    state.write_msg_buff(&s);
+                                } else {
+                                    let pluralized = util::pluralize(&pile[0].name);
+                                    let s = format!("You drop {} {}.", v, pluralized);
+                                    state.write_msg_buff(&s);
+                                }
+                                state.turn += 1;
+                                for item in pile {
+                                    item_hits_ground(player.location, item, items);
+                                }
+                            } else {
+                                state.write_msg_buff("Nevermind.");
+                            }
+                        },
+                        None => state.write_msg_buff("Nevermind."),
+                    }
+                } else {
+                    let mut item = player.inventory.remove(ch);
+                    item.equiped = false;
+                    let s = format!("You drop the {}.", util::get_articled_name(true, &item));                
+                    item_hits_ground(player.location, item, items);
+                    state.write_msg_buff(&s);
+                    state.turn += 1;
+                }	
+            }
+		},
+		None => state.write_msg_buff("Nevermind."),
+	}
+
+    //state.player.calc_ac();
 }
 
 fn get_move_tuple(mv: &str) -> (i32, i32) {
@@ -457,7 +548,7 @@ fn pick_player_start_loc(state: &GameState) -> (i32, i32, i8) {
 // a monster picks up an item the player has left on the ground while the player isn't around, the item will disappear
 // from view even when the square hasn't subsequently been seen by the player. But the tile memory should only contain
 // items or the ground square. I'll worry about that when I implement items.
-fn fov_to_tiles(state: &GameState, npcs: &NPCTable, visible: &Vec<((i32, i32, i8), bool)>) -> Vec<(map::Tile, bool)> {
+fn fov_to_tiles(state: &GameState, npcs: &NPCTable, items: &Items, visible: &Vec<((i32, i32, i8), bool)>) -> Vec<(map::Tile, bool)> {
     let mut v_matrix = vec![(map::Tile::Blank, false); visible.len()];
 
     for j in 0..visible.len() {
@@ -467,6 +558,8 @@ fn fov_to_tiles(state: &GameState, npcs: &NPCTable, visible: &Vec<((i32, i32, i8
         } else if visible[j].1 {            
             if npcs.contains_key(&vis.0) {
                 v_matrix[j] = (npcs[&vis.0].get_tile(), true);
+            } else if items.contains_key(&vis.0) {
+                v_matrix[j] = (items[&vis.0].get_tile(), true);
             } else {
                 v_matrix[j] = (state.map[&vis.0], true);
             }
@@ -478,9 +571,9 @@ fn fov_to_tiles(state: &GameState, npcs: &NPCTable, visible: &Vec<((i32, i32, i8
     v_matrix
 }
 
-fn run(gui: &mut GameUI, state: &mut GameState, player: &mut Player, npcs: &mut NPCTable, dialogue: &DialogueLibrary) {
+fn run(gui: &mut GameUI, state: &mut GameState, player: &mut Player, npcs: &mut NPCTable, items: &mut Items, dialogue: &DialogueLibrary) {
     let visible = fov::calc_fov(state, player, FOV_HEIGHT, FOV_WIDTH);
-	gui.v_matrix = fov_to_tiles(state, npcs, &visible);
+	gui.v_matrix = fov_to_tiles(state, npcs, items, &visible);
     let sbi = state.curr_sidebar_info(player);
     state.write_msg_buff("Welcome, adventurer!");   
 	gui.write_screen(&mut state.msg_buff, Some(&sbi));
@@ -492,6 +585,7 @@ fn run(gui: &mut GameUI, state: &mut GameState, player: &mut Player, npcs: &mut 
             Cmd::Chat(loc) => chat_with(state, gui, loc, player, npcs, dialogue),
             Cmd::Close(loc) => do_close(state, loc),
             Cmd::Down => take_stairs(state, player, true),
+            Cmd::DropItem => drop_item(state, player, items, gui),  
             Cmd::Move(dir) => do_move(state, player, npcs, &dir),
             Cmd::MsgHistory => show_message_history(state, gui),
             Cmd::Open(loc) => do_open(state, loc),
@@ -531,7 +625,7 @@ fn run(gui: &mut GameUI, state: &mut GameState, player: &mut Player, npcs: &mut 
         
         //let fov_start = Instant::now();
         let visible = fov::calc_fov(state, player, FOV_HEIGHT, FOV_WIDTH);
-        gui.v_matrix = fov_to_tiles(state, npcs, &visible);
+        gui.v_matrix = fov_to_tiles(state, npcs, items, &visible);
         //let fov_duration = fov_start.elapsed();
         //println!("Time for fov: {:?}", fov_duration);
 		
@@ -558,6 +652,7 @@ fn main() {
     
     let w = world::generate_world();
     let mut npcs = w.2;
+    let mut items = w.3;
 
     let mut state = GameState::init(w.0, w.1);    
 	
@@ -570,5 +665,5 @@ fn main() {
     let sbi = state.curr_sidebar_info(&player);
     gui.write_screen(&mut state.msg_buff, Some(&sbi));
     
-    run(&mut gui, &mut state, &mut player, &mut npcs, &dialogue_library);
+    run(&mut gui, &mut state, &mut player, &mut npcs, &mut items, &dialogue_library);
 }

@@ -182,7 +182,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 		}
 	}
 
-	pub fn query_natural_num(&mut self, query: &str, sbi: Option<&SidebarInfo>) -> Option<u8> {
+	pub fn query_natural_num(&mut self, query: &str, sbi: Option<&SidebarInfo>) -> Option<u32> {
 		let mut answer = String::from("");
 
 		loop {
@@ -209,7 +209,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 		if answer.len() == 0 {
 			Some(0)
 		} else {
-			Some(answer.parse::<u8>().unwrap())
+			Some(answer.parse::<u32>().unwrap())
 		}
 	}
 
@@ -878,7 +878,13 @@ fn sq_info_for_tile(tile: &map::Tile, lit: bool) -> (char, sdl2::pixels::Color) 
 			}
 		},
 		map::Tile::Creature(colour, ch) => (*ch, tuple_to_sdl2_color(colour)),
-		map::Tile::Thing(colour, ch) => (*ch, tuple_to_sdl2_color(colour)),
+		map::Tile::Thing(lit_colour, unlit_colour, ch) => {
+			if lit {
+			 	(*ch, tuple_to_sdl2_color(lit_colour))
+			} else {
+				(*ch, tuple_to_sdl2_color(unlit_colour))
+			}
+		},
 		map::Tile::Separator => ('|', tuple_to_sdl2_color(&WHITE)),
 		map::Tile::Bullet(ch) => (*ch, tuple_to_sdl2_color(&WHITE)),
 		map::Tile::OldFirePit => {

@@ -13,6 +13,7 @@
 // You should have received a copy of the GNU General Public License
 // along with RogueVillage.  If not, see <https://www.gnu.org/licenses/>.
 
+use crate::items::Item;
 
 // Some miscellaneous structs and functions used in a few plces
 
@@ -62,6 +63,65 @@ pub fn capitalize_word(word: &str) -> String {
         None => String::new(),
         Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
     }
+}
+
+pub fn get_indefinite_article(word: &str) -> String {	
+	let first = word.chars().next().unwrap();
+	if first == 'a' || first == 'e' || first == 'i' ||
+		first == 'o' || first == 'u' || first == 'y' {
+		String::from("an")
+	} else {
+		String::from("a")
+	}		
+}
+
+pub fn get_articled_name(definite: bool, item: &Item) -> String {
+	let article;
+
+	if definite {
+		article = "the".to_string();
+	} else {
+		article = get_indefinite_article(&item.name);
+	}
+
+	if article.len() == 0 {
+		String::from(item.name.clone())
+	} else {
+		let s = format!("{} {}", article, item.name.clone());
+		s
+	}
+}
+
+// Attempt to reasonably pluralize names
+// I'm going to assume a fairly standard form of names of things that
+// can be pluralized. Like, "foo of bar" so I can asssume the result will
+// be foos of bar.
+pub fn pluralize(name: &str) -> String{
+	let mut result = String::from("");
+	let words = name.split(' ').collect::<Vec<&str>>();
+	
+	if words.len() == 1 {
+		result.push_str(name);
+		if name.ends_with("s") || name.ends_with("x") || words[0].ends_with("ch") {
+			result.push_str("es");
+		} else {
+			result.push_str("s");
+		}
+	} else {
+		result.push_str(words[0]);
+		if words[0].ends_with("s") || words[0].ends_with("x") {
+			result.push_str("es");
+		} else {
+			result.push_str("s");
+		}
+		
+		for w in 1..words.len() {
+			result.push(' ');
+			result.push_str(words[w]);
+		}
+	}
+
+	result	
 }
 
 // Straight out of my old scientific computing textbook
