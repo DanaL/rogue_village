@@ -17,7 +17,7 @@ use std::collections::{HashMap, VecDeque};
 
 use crate::display;
 use crate::map::Tile;
-
+use crate::util;
 #[derive(Debug, Clone)]
 pub struct Inventory {
 	next_slot: char,
@@ -175,7 +175,7 @@ impl ItemPile {
 
     pub fn add(&mut self, item: Item) {
         if !item.stackable {
-            self.pile.push_back((item, 1));
+            self.pile.push_front((item, 1));
         } else {
             for i in 0..self.pile.len() {
                 if self.pile[i].0 == item {
@@ -184,7 +184,20 @@ impl ItemPile {
                 }
             }
 
-            self.pile.push_back((item, 1));
+            self.pile.push_front((item, 1));
+        }
+    }
+
+    // Up to the caller to make sure the slot in pile actually exists...
+    pub fn get_item_name(&self, nth: usize) -> String {
+        if self.pile[nth].1 == 1 {
+            let name = self.pile[nth].0.get_full_name();
+            let s = format!("{} {}", util::get_indefinite_article(&name), name);
+            s
+        } else {
+            let name = self.pile[nth].0.get_full_name();
+            let s = format!("{} {}", self.pile[nth].1, util::pluralize(&name));
+            s
         }
     }
 

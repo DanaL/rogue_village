@@ -254,68 +254,67 @@ fn drop_item(state: &mut GameState, player: &mut Player, items: &mut Items, gui:
 	}
 
 	let sbi = state.curr_sidebar_info(player);
-	match gui.query_single_response("Drop what?", Some(&sbi)) {
-		Some(ch) =>  {
-            if ch == '$' {
-                let amt = gui.query_natural_num("How much?", Some(&sbi)).unwrap();
-                if amt == 0 {
-                    state.write_msg_buff("Never mind.");                
+	if let Some(ch) = gui.query_single_response("Drop what?", Some(&sbi)) {
+        if ch == '$' {
+            let amt = gui.query_natural_num("How much?", Some(&sbi)).unwrap();
+            if amt == 0 {
+                state.write_msg_buff("Never mind.");                
+            } else {
+                if amt >= player.inventory.purse {
+                    state.write_msg_buff("You drop all your money.");
+                    drop_zorkmids(player.location, player.inventory.purse, items);
+                    player.inventory.purse = 0;
+                } else if amt > 1 {
+                    let s = format!("You drop {} gold pieces.", amt);
+                    state.write_msg_buff(&s);
+                    drop_zorkmids(player.location, amt, items);
+                    player.inventory.purse -= amt;
                 } else {
-                    if amt >= player.inventory.purse {
-                        state.write_msg_buff("You drop all your money.");
-                        drop_zorkmids(player.location, player.inventory.purse, items);
-                        player.inventory.purse = 0;
-                    } else if amt > 1 {
-                        let s = format!("You drop {} gold pieces.", amt);
-                        state.write_msg_buff(&s);
-                        drop_zorkmids(player.location, amt, items);
-                        player.inventory.purse -= amt;
-                    } else {
-                        state.write_msg_buff("You drop a gold piece.");
-                        drop_zorkmids(player.location, 1, items);
-                        player.inventory.purse -= 1;
-                    }
-                    state.turn += 1;
+                    state.write_msg_buff("You drop a gold piece.");
+                    drop_zorkmids(player.location, 1, items);
+                    player.inventory.purse -= 1;
+                }
+                state.turn += 1;
+            }
+        } else {
+            let count = player.inventory.count_in_slot(ch);
+            if count == 0 {
+                state.write_msg_buff("You do not have that item.");
+            } else if count > 1 {
+                match gui.query_natural_num("Drop how many?", Some(&sbi)) {
+                    Some(v) => {
+                        let pile = player.inventory.remove_count(ch, v);
+                        if pile.len() > 0 {
+                            if v == 1 {
+                                let s = format!("You drop the {}.", pile[0].name);
+                                state.write_msg_buff(&s);
+                            } else {
+                                let pluralized = util::pluralize(&pile[0].name);
+                                let s = format!("You drop {} {}.", v, pluralized);
+                                state.write_msg_buff(&s);
+                            }
+                            state.turn += 1;
+                            for item in pile {
+                                item_hits_ground(player.location, item, items);
+                            }
+                        } else {
+                            state.write_msg_buff("Nevermind.");
+                        }
+                    },
+                    None => state.write_msg_buff("Nevermind."),
                 }
             } else {
-                let count = player.inventory.count_in_slot(ch);
-                if count == 0 {
-                    state.write_msg_buff("You do not have that item.");
-                } else if count > 1 {
-                    match gui.query_natural_num("Drop how many?", Some(&sbi)) {
-                        Some(v) => {
-                            let pile = player.inventory.remove_count(ch, v);
-                            if pile.len() > 0 {
-                                if v == 1 {
-                                    let s = format!("You drop the {}.", pile[0].name);
-                                    state.write_msg_buff(&s);
-                                } else {
-                                    let pluralized = util::pluralize(&pile[0].name);
-                                    let s = format!("You drop {} {}.", v, pluralized);
-                                    state.write_msg_buff(&s);
-                                }
-                                state.turn += 1;
-                                for item in pile {
-                                    item_hits_ground(player.location, item, items);
-                                }
-                            } else {
-                                state.write_msg_buff("Nevermind.");
-                            }
-                        },
-                        None => state.write_msg_buff("Nevermind."),
-                    }
-                } else {
-                    let mut item = player.inventory.remove(ch);
-                    item.equiped = false;
-                    let s = format!("You drop the {}.", util::get_articled_name(true, &item));                
-                    item_hits_ground(player.location, item, items);
-                    state.write_msg_buff(&s);
-                    state.turn += 1;
-                }	
-            }
-		},
-		None => state.write_msg_buff("Nevermind."),
-	}
+                let mut item = player.inventory.remove(ch);
+                item.equiped = false;
+                let s = format!("You drop the {}.", util::get_articled_name(true, &item));                
+                item_hits_ground(player.location, item, items);
+                state.write_msg_buff(&s);
+                state.turn += 1;
+            }	
+        }		
+	} else {
+        state.write_msg_buff("Nevermind.")
+    }
 
     //state.player.calc_ac();
 }
@@ -398,7 +397,7 @@ fn take_stairs(state: &mut GameState, player: &mut Player, down: bool) {
     }
 }
 
-fn do_move(state: &mut GameState, player: &mut Player, npcs: &NPCTable, dir: &str) {
+fn do_move(state: &mut GameState, player: &mut Player, npcs: &NPCTable, items: &Items, dir: &str) {
 	let mv = get_move_tuple(dir);
 
 	let start_tile = &state.map[&player.location];
@@ -419,10 +418,6 @@ fn do_move(state: &mut GameState, player: &mut Player, npcs: &NPCTable, dir: &st
 				if *start_tile != map::Tile::DeepWater {
 					state.write_msg_buff("You begin to swim.");				
 				}
-
-				//if state.player.curr_stamina < 10 {
-				//	state.write_msg_buff("You're getting tired...");
-				//}
 			},
 			map::Tile::Lava => state.write_msg_buff("MOLTEN LAVA!"),
 			map::Tile::FirePit => {
@@ -431,11 +426,23 @@ fn do_move(state: &mut GameState, player: &mut Player, npcs: &NPCTable, dir: &st
 			map::Tile::OldFirePit => state.write_msg_buff("An old campsite! Rum runners? A castaway?"),
             map::Tile::Portal => state.write_msg_buff("Where could this lead..."),
 			_ => {
-				if *start_tile == map::Tile::DeepWater { // && state.player.curr_stamina < 10 {
+				if *start_tile == map::Tile::DeepWater { 
 					state.write_msg_buff("Whew, you stumble ashore.");
 				}
 			},
 		}
+
+        if items.contains_key(&next_loc) {
+            if items[&next_loc].pile.len() == 1 {
+                let s = format!("You see {} here.", items[&next_loc].get_item_name(0));
+                state.write_msg_buff(&s);
+            } else if items[&next_loc].pile.len() == 2 {
+                let s = format!("You see {} and {} here.", items[&next_loc].get_item_name(0), items[&next_loc].get_item_name(1));
+                state.write_msg_buff(&s);
+            } else {
+                state.write_msg_buff("There are several items here.");
+            }
+        }
 
 		state.turn += 1;
 	} else  {
@@ -586,7 +593,7 @@ fn run(gui: &mut GameUI, state: &mut GameState, player: &mut Player, npcs: &mut 
             Cmd::Close(loc) => do_close(state, loc),
             Cmd::Down => take_stairs(state, player, true),
             Cmd::DropItem => drop_item(state, player, items, gui),  
-            Cmd::Move(dir) => do_move(state, player, npcs, &dir),
+            Cmd::Move(dir) => do_move(state, player, npcs, items, &dir),
             Cmd::MsgHistory => show_message_history(state, gui),
             Cmd::Open(loc) => do_open(state, loc),
             Cmd::Pass => {
