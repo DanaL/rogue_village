@@ -14,7 +14,7 @@
 // along with RogueVillage.  If not, see <https://www.gnu.org/licenses/>.
 
 use crate::map;
-use super::GameState;
+use super::Map;
 use crate::player::Player;
 use super::{FOV_WIDTH, FOV_HEIGHT};
 
@@ -96,7 +96,7 @@ fn radius_full() -> Vec<(i32, i32)> {
 // shadowcasting.
 fn mark_visible(r1: i32, c1: i32, r2: i32, c2: i32,
 		depth: i8, v_matrix: &mut Vec<bool>, 
-        state: &mut GameState, width: usize) {
+        map: &Map, width: usize) {
     let mut r = r1;
 	let mut c = c1;
 	let mut error = 0;
@@ -126,7 +126,7 @@ fn mark_visible(r1: i32, c1: i32, r2: i32, c2: i32,
 				break;
 			}
 
-			if !state.map.contains_key(&(r, c, depth)) {
+			if !map.contains_key(&(r, c, depth)) {
 				return;
 			}
 
@@ -135,17 +135,13 @@ fn mark_visible(r1: i32, c1: i32, r2: i32, c2: i32,
             let vmi = (vm_r * width as i32 + vm_c) as usize;
 			v_matrix[vmi] = true;
 
-			if !state.seen_sqs.contains(&(r, c, depth)) {
-				state.seen_sqs.insert((r, c, depth));
-			}
-
-			if !&state.map[&(r, c, depth)].clear() {
+			if !&map[&(r, c, depth)].clear() {
 				return;
 			}
 
 			// I want trees to not totally block light, but instead reduce visibility, but fog 
             // completely blocks light.           
-			if map::Tile::Tree == state.map[&(r, c, depth)] && !(r == r1 && c == c1) {
+			if map::Tile::Tree == map[&(r, c, depth)] && !(r == r1 && c == c1) {
 				if r_step > 0 {
 					r_end -= 2;
 				} else {
@@ -169,7 +165,7 @@ fn mark_visible(r1: i32, c1: i32, r2: i32, c2: i32,
 				break;
 			}
 
-			if !state.map.contains_key(&(r, c, depth)) {
+			if !map.contains_key(&(r, c, depth)) {
 				return;
 			}
 
@@ -178,17 +174,13 @@ fn mark_visible(r1: i32, c1: i32, r2: i32, c2: i32,
             let vmi = (vm_r * width as i32 + vm_c) as usize;
 			v_matrix[vmi] = true;
 
-			if !state.seen_sqs.contains(&(r, c, depth)) {
-				state.seen_sqs.insert((r, c, depth));
-			}
-
-			if !&state.map[&(r, c, depth)].clear() {
+			if !&map[&(r, c, depth)].clear() {
 				return;
 			}
 
 			// Same as above, trees partially block vision instead of cutting it off
             //if curr_weather.clouds.contains(&(r as usize, c as usize)) && !no_fog.contains(&(r as usize, c as usize)) {
-            if map::Tile::Tree == state.map[&(r, c, depth)] && !(r == r1 && c == c1) {
+            if map::Tile::Tree == map[&(r, c, depth)] && !(r == r1 && c == c1) {
 				if c_step > 0 {
 					c_end -= 2;
 				} else {
@@ -206,7 +198,7 @@ fn mark_visible(r1: i32, c1: i32, r2: i32, c2: i32,
 	}
 }
 
-pub fn calc_fov(state: &mut GameState, player: &Player, height: usize, width: usize) -> Vec<((i32, i32, i8), bool)> {
+pub fn calc_fov(map: &Map, player: &Player, height: usize, width: usize) -> Vec<((i32, i32, i8), bool)> {
     let size = height * width;
     let mut visible = vec![false; size];
 	let fov_center_r = height / 2;
@@ -234,7 +226,7 @@ pub fn calc_fov(state: &mut GameState, player: &Player, height: usize, width: us
 		let actual_r = pr + loc.0;
 		let actual_c = pc + loc.1;
 
-		mark_visible(pr, pc, actual_r as i32, actual_c as i32, player.location.2, &mut visible, state, width);
+		mark_visible(pr, pc, actual_r as i32, actual_c as i32, player.location.2, &mut visible, map, width);
 	}
 
     // Now we know which locations are actually visible from the player's loc, 
