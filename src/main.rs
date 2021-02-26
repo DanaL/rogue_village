@@ -130,7 +130,14 @@ impl GameState {
 	}
 
     pub fn curr_sidebar_info(&self, player: &Player) -> SidebarInfo {
-		SidebarInfo::new(player.name.to_string(), player.curr_hp, player.max_hp, self.turn, player.ac, player.inventory.purse)
+        let weapon = if let Some(w) = player.inventory.get_readied_weapon() {
+            util::capitalize_word(&w.name)
+        } else {
+            String::from("Empty handed")
+        };
+
+		SidebarInfo::new(player.name.to_string(), player.curr_hp, player.max_hp, self.turn, player.ac,
+         player.inventory.purse, weapon)
 	}
 
     // I made life difficult for myself by deciding that Turn 0 of the game is 8:00am T_T

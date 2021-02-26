@@ -68,11 +68,12 @@ pub struct SidebarInfo {
 	max_hp: i8,
 	turn: u32,
 	zorkmids: u32,
+	weapon: String,
 }
 
 impl SidebarInfo {
-	pub fn new(name: String, curr_hp: i8, max_hp: i8, turn: u32, ac: u8, zorkmids: u32) -> SidebarInfo {
-		SidebarInfo { name, curr_hp, max_hp, turn, ac, zorkmids }
+	pub fn new(name: String, curr_hp: i8, max_hp: i8, turn: u32, ac: u8, zorkmids: u32, weapon: String) -> SidebarInfo {
+		SidebarInfo { name, curr_hp, max_hp, turn, ac, zorkmids, weapon }
 	}
 }
 
@@ -583,6 +584,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 		self.write_sidebar_line("$", fov_w, 4, gold, 0);
 		let s = format!(": {}", sbi.zorkmids);
 		self.write_sidebar_line(&s, fov_w, 4, white, 1);
+		self.write_sidebar_line(&sbi.weapon, fov_w, 5, white, 0);
 
 		let s = format!("Turn: {}", sbi.turn);
 		self.write_sidebar_line(&s, fov_w, 21, white, 0);		
