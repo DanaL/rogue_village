@@ -268,13 +268,12 @@ fn drop_zorkmids(state: &mut GameState, loc: (i32, i32, i8), amt: u32, game_objs
     }
 }
 
-fn drop_item(state: &mut GameState, player: &mut Player, game_objs: &mut GameObjects, gui: &mut GameUI) {
-    /* 
+fn drop_item(state: &mut GameState, player: &mut Player, game_objs: &mut GameObjects, gui: &mut GameUI) {    
 	if player.inventory.get_menu().len() == 0 {
 		state.write_msg_buff("You are empty handed.");
 		return
 	}
-
+    /* 
 	let sbi = state.curr_sidebar_info(player);
 	if let Some(ch) = gui.query_single_response("Drop what?", Some(&sbi)) {
         if ch == '$' {

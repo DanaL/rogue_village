@@ -221,7 +221,8 @@ impl GameObjects {
                                               .map(|s| s.0)
                                               .collect();
         used_slots.sort();
-
+        used_slots.dedup();
+        
         let mut menu_items = HashMap::new();
         for s in slots {
             let counter = menu_items.entry(s.0).or_insert((s.1.get_fullname(), 0));

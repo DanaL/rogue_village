@@ -135,6 +135,12 @@ impl Player {
         dagger.set_location(PLAYER_INV);
         game_objs.add_to_inventory(dagger);
         
+        for _ in 0..5 {
+            let mut t = Item::get_item(game_objs, "torch").unwrap();
+            t.set_location(PLAYER_INV);
+            game_objs.add_to_inventory(t);
+        }
+        
         p.calc_ac();
 
         p
