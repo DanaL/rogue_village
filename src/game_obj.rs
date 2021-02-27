@@ -274,6 +274,8 @@ impl GameObjects {
         } 
 
         let mut i = item.clone();
+        i.set_location(PLAYER_INV);
+        
         if item.slot == '\0' || used_slots.contains(&i.slot) {
             i.slot = self.next_slot;
             
@@ -368,6 +370,29 @@ impl GameObjects {
         }
 
         None
+    }
+
+    pub fn things_at_loc(&self, loc: (i32, i32, i8)) -> Vec<&Box<dyn GameObject>> {
+        let mut items = Vec::new();
+
+        if self.obj_locs.contains_key(&loc) {
+            let ids: Vec<usize> = self.obj_locs[&loc]
+                          .iter()
+                          .map(|id| *id)
+                          .collect();
+            for id in ids {
+                match self.objects[&id].get_type() {
+                    GameObjType::Item | GameObjType::Zorkmids => items.push(&self.objects[&id]),
+                    _ => { },
+                }
+                // if self.objects[&id].get_type() == GameObjType::
+                // if let Some(item) = self.objects[&id].as_item() {                    
+                //     items.push(item);
+                // }
+            }
+        }
+
+        items
     }
 
     // Okay to make life difficult I want to return stackable items described as

@@ -41,7 +41,7 @@ use rand::{Rng, thread_rng};
 
 use dialogue::DialogueLibrary;
 use display::{GameUI, SidebarInfo, WHITE, YELLOW};
-use game_obj::{GameObject, GameObjects};
+use game_obj::{GameObject, GameObjects, GameObjType};
 use items::{GoldPile, Item};
 use map::{Tile, DoorState};
 use player::Player;
@@ -379,11 +379,37 @@ fn pick_up_item_or_stack(state: &mut GameState, player: &mut Player, item: (Item
 }
 
 fn pick_up(state: &mut GameState, player: &mut Player, game_objs: &mut GameObjects, gui: &mut GameUI) {
-    /*
-	if !items.contains_key(&player.location) {
-		state.write_msg_buff("There is nothing here to pick up.");
+    let things = game_objs.things_at_loc(player.location);
+
+    if things.len() == 0 {
+        state.write_msg_buff("There is nothing here.");
         return;
-	} 
+    } else if things.len() == 1 {
+        if things[0].get_type() == GameObjType::Zorkmids {
+            let obj_id = things[0].get_object_id();
+            let zorkmids = game_objs.get(obj_id).as_zorkmids().unwrap();
+            if zorkmids.amount == 1 {
+                state.write_msg_buff(&"You pick up a single gold piece.");
+            } else {
+                let s = format!("You pick up {} gold pieces.", zorkmids.amount);
+                state.write_msg_buff(&s);
+            }
+            player.purse += zorkmids.amount;
+        } else if things[0].get_type() == GameObjType::Item {
+            let obj_id = things[0].get_object_id();
+            let item = game_objs.get(obj_id).as_item().unwrap();
+            let s = format!("You pick up {}.", item.get_fullname().with_def_article());
+            state.write_msg_buff(&s);
+            game_objs.add_to_inventory(item);            
+        }
+        // let mut item = game_objs.get(items[0].object_id); // this removes the item from game_objs
+        // item.set_location(PLAYER_INV);
+        // game_objs.add_to_inventory(item.as_item().unwrap());
+    }
+
+    
+    /*
+	
     
     let item_count = items[&player.location].pile.len();	
     if item_count == 1 {

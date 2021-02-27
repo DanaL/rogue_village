@@ -125,27 +125,23 @@ impl Player {
         // Warrior starting equipment
         let mut sword = Item::get_item(game_objs, "longsword").unwrap();
         sword.equiped = true;
-        sword.set_location(PLAYER_INV);
         game_objs.add_to_inventory(sword);
         
         let mut armour = Item::get_item(game_objs, "ringmail").unwrap();
         armour.equiped = true;
-        armour.set_location(PLAYER_INV);
         game_objs.add_to_inventory(armour);
 
-        let mut dagger = Item::get_item(game_objs, "dagger").unwrap();
-        dagger.set_location(PLAYER_INV);
+        let dagger = Item::get_item(game_objs, "dagger").unwrap();
         game_objs.add_to_inventory(dagger);
         
         for _ in 0..5 {
-            let mut t = Item::get_item(game_objs, "torch").unwrap();
-            t.set_location(PLAYER_INV);
+            let t = Item::get_item(game_objs, "torch").unwrap();
             game_objs.add_to_inventory(t);
         }
         
         p.calc_ac(game_objs);
         p.set_readied_weapon(game_objs);
-        
+
         p
     }
 
