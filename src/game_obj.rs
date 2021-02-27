@@ -71,7 +71,7 @@ impl GameObjects {
         // are any there before we insert. For items where there won't be too many of
         // (like torches) that can stack, I don't bother. But storing gold as individual
         // items might have meant 10s of thousands of objects
-        if !self.check_for_stack(&obj, loc) {
+        if obj.get_type() != GameObjType::Zorkmids || !self.check_for_stack(&obj, loc) {
             self.set_to_loc(obj_id, loc);
             self.objects.insert(obj_id, obj);
         }            
@@ -224,12 +224,17 @@ impl GameObjects {
     }
 
     // Caller should check if the slot exists before calling this...
-    pub fn inv_remove_from_slot(&mut self, slot: char) -> Result<Vec<Item>, String>  {
+    pub fn inv_remove_from_slot(&mut self, slot: char, amt: u32) -> Result<Vec<Item>, String>  {
         let mut removed = Vec::new();
 
         let items: Vec<usize> = self.obj_locs[&PLAYER_INV].iter().map(|i| *i).collect();        
         
+        let mut count = 0;
         for id in items {
+            if count >= amt {
+                break;
+            }
+
             if let Some(item) = self.objects[&id].as_item() {
                 if item.slot == slot {
                     if item.equiped && item.item_type == ItemType::Armour {
@@ -237,6 +242,7 @@ impl GameObjects {
                     } else {
                         removed.push(item);
                         self.remove_from_loc(id, PLAYER_INV);
+                        count += 1;
                     }
                 }
             }
@@ -326,16 +332,31 @@ impl GameObjects {
         menu
     }
 
+    // Okay to make life difficult I want to return stackable items described as
+    // "X things" instead of having 4 of them in the list
     pub fn descs_at_loc(&self, loc: (i32, i32, i8)) -> Vec<String> {
         let mut v = Vec::new();
         
+        let mut items = HashMap::new();
         if self.obj_locs.contains_key(&loc) {
             for j in 0..self.obj_locs[&loc].len() {
                 let obj_id = self.obj_locs[&loc][j];
-                v.push(self.objects[&obj_id].get_fullname().with_indef_article());
+                let name = self.objects[&obj_id].get_fullname();
+                let i = items.entry(name).or_insert(0);
+                *i += 1;                
             }
         }
 
+        for (key, value) in items {
+            if value == 1 {
+                let s = format!("{}", key.with_indef_article());
+                v.push(s);
+            } else {
+                let s = format!("{} {}", value, key.pluralize());
+                v.push(s);
+            }            
+        }
+        
         v
     }
 }

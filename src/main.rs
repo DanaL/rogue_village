@@ -45,6 +45,7 @@ use game_obj::{GameObject, GameObjects};
 use items::{GoldPile, Item, ItemPile};
 use map::{Tile, DoorState};
 use player::Player;
+use sdl2::libc::stack_t;
 use util::StringUtils;
 use world::WorldInfo;
 
@@ -250,12 +251,6 @@ fn fetch_player(state: &GameState, game_objs: &mut GameObjects,  gui: &mut GameU
     start_new_game(state, game_objs, gui, player_name)
 }
 
-// I'm not sure if I actually need this function anymore, but maybe in the future there will be some
-// effects when certain items hit the ground?
-fn item_hits_ground(item: Item, game_objs: &mut GameObjects) {    
-    game_objs.add(Box::new(item));
-}
-
 fn drop_zorkmids(state: &mut GameState, player: &mut Player, game_objs: &mut GameObjects, gui: &mut GameUI) {
     // I need to add a check in GameObjects to see if there is an existing pile of gold I can merge with    
     if player.purse == 0 {
@@ -270,7 +265,7 @@ fn drop_zorkmids(state: &mut GameState, player: &mut Player, game_objs: &mut Gam
     } else {
         if amt >= player.purse {
             state.write_msg_buff("You drop all your money.");
-            let zorkmids = GoldPile::new(game_objs.next_id(), amt, player.location);
+            let zorkmids = GoldPile::new(game_objs.next_id(), player.purse, player.location);
             game_objs.add(Box::new(zorkmids));
             player.purse = 0;
         } else if amt > 1 {
@@ -289,6 +284,45 @@ fn drop_zorkmids(state: &mut GameState, player: &mut Player, game_objs: &mut Gam
     }
 }
 
+// Pretty similar to item_hits_grounds() but this keeps calculating the message to display simpler
+fn stack_hits_ground(state: &mut GameState, stack: &Vec<Item>, loc: (i32, i32, i8), game_objs: &mut GameObjects) {
+    let s = format!("You drop {}", stack[0].get_fullname().with_def_article().pluralize());
+    for item in stack {
+        let mut obj = item.clone();
+        obj.equiped = false;
+        obj.location = loc;
+        game_objs.add(Box::new(obj));
+    }
+    state.write_msg_buff(&s);
+}
+
+fn item_hits_ground(state: &mut GameState, item: &Item, loc: (i32, i32, i8), game_objs: &mut GameObjects) {
+    let mut obj = item.clone();
+    obj.equiped = false;
+    obj.location = loc;
+    let s = format!("You drop {}.", &obj.get_fullname().with_def_article());                
+    state.write_msg_buff(&s);
+    game_objs.add(Box::new(obj));
+}
+
+fn drop_stack(state: &mut GameState, game_objs: &mut GameObjects, loc: (i32, i32, i8), slot: char, count: u32) {
+    match game_objs.inv_remove_from_slot(slot, count) {
+        Ok(mut pile) => {
+            if pile.len() == 1 {
+                let item = pile.remove(0);
+                item_hits_ground(state, &item, loc, game_objs);
+                state.turn += 1;
+            } else if pile.len() > 1 {
+                stack_hits_ground(state, &pile, loc, game_objs);
+                state.turn += 1;
+            } else {
+                state.write_msg_buff("Nevermind.");
+            }
+        },
+        Err(msg) => state.write_msg_buff(&msg),
+    }        
+}
+
 fn drop_item(state: &mut GameState, player: &mut Player, game_objs: &mut GameObjects, gui: &mut GameUI) {    
 	// if player.inventory.get_menu().len() == 0 {
 	// 	state.write_msg_buff("You are empty handed.");
@@ -304,37 +338,15 @@ fn drop_item(state: &mut GameState, player: &mut Player, game_objs: &mut GameObj
             if count == 0 {
                 state.write_msg_buff("You do not have that item.");
             } else if count > 1 {
-                // match gui.query_natural_num("Drop how many?", Some(&sbi)) {
-                //     Some(v) => {
-                //         let pile = player.inventory.remove_count(ch, v);
-                //         if pile.len() > 0 {
-                //             if v == 1 {
-                //                 let s = format!("You drop the {}.", pile[0].name);
-                //                 state.write_msg_buff(&s);
-                //             } else {                                
-                //                 let s = format!("You drop {} {}.", v, &pile[0].name.pluralize());
-                //                 state.write_msg_buff(&s);
-                //             }
-                //             state.turn += 1;
-                //             for item in pile {
-                //                 item_hits_ground(player.location, item, items);
-                //             }
-                //         } else {
-                //             state.write_msg_buff("Nevermind.");
-                //         }
-                //     },
-                //     None => state.write_msg_buff("Nevermind."),
-                // }
+                match gui.query_natural_num("Drop how many?", Some(&sbi)) {
+                    Some(v) => drop_stack(state, game_objs, player.location, ch, v),
+                    None => state.write_msg_buff("Nevermind"),
+                }
             } else {
-                let result = game_objs.inv_remove_from_slot(ch);
+                let result = game_objs.inv_remove_from_slot(ch, 1);
                 match result {
-                    Ok(mut items) => {
-                        let mut item = items.remove(0);
-                        item.equiped = false;
-                        item.location = player.location;
-                        let s = format!("You drop {}.", &item.get_fullname().with_def_article());                
-                        item_hits_ground(item, game_objs);
-                        state.write_msg_buff(&s);
+                    Ok(items) => {
+                        item_hits_ground(state, &items[0], player.location, game_objs);
                         state.turn += 1;
                     },
                     Err(msg) => state.write_msg_buff(&msg),
