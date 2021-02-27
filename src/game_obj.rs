@@ -332,6 +332,44 @@ impl GameObjects {
         menu
     }
 
+    pub fn gear_with_ac_mods(&self) -> Vec<Item> {
+        let mut items = Vec::new();
+
+        if self.obj_locs.contains_key(&PLAYER_INV) {
+            let ids: Vec<usize> = self.obj_locs[&PLAYER_INV]
+                          .iter()
+                          .map(|id| *id)
+                          .collect();
+            for id in ids {
+                if let Some(item) = self.objects[&id].as_item() {
+                    if item.equiped && item.ac_bonus > 0 {
+                        items.push(item);
+                    }
+                }
+            }
+        }
+
+        items
+    }
+    
+    pub fn readied_weapon(&self) -> Option<Item> {
+        if self.obj_locs.contains_key(&PLAYER_INV) {
+            let ids: Vec<usize> = self.obj_locs[&PLAYER_INV]
+                          .iter()
+                          .map(|id| *id)
+                          .collect();
+            for id in ids {
+                if let Some(item) = self.objects[&id].as_item() {
+                    if item.equiped && item.item_type == ItemType::Weapon {
+                        return Some(item)
+                    }
+                }
+            }
+        }
+
+        None
+    }
+
     // Okay to make life difficult I want to return stackable items described as
     // "X things" instead of having 4 of them in the list
     pub fn descs_at_loc(&self, loc: (i32, i32, i8)) -> Vec<String> {

@@ -13,10 +13,13 @@
 // You should have received a copy of the GNU General Public License
 // along with RogueVillage.  If not, see <https://www.gnu.org/licenses/>.
 
+use std::fs::read;
+
 use rand::Rng;
 
 use super::{GameObjects, GameState, items, PLAYER_INV};
-use crate::{GameObject, items::{Inventory, Item}};
+use crate::game_obj::GameObject;
+use crate::items::Item;
 
 #[derive(Clone, Debug)]
 pub enum Role {
@@ -50,9 +53,9 @@ pub struct Player {
     xp: u32,
     pub level: u8,
     pub max_depth: u8,
-    pub inventory: Inventory,
     pub ac: u8,
     pub purse: u32,
+    pub readied_weapon: Option<Item>,
 }
 
 impl Player {
@@ -87,7 +90,7 @@ impl Player {
 
         // After we calculate the player's minimum vision radius, here we can check for
         // light sources that increase it.
-        let from_items = self.inventory.light_from_items(); 
+        let from_items = 0; // self.inventory.light_from_items(); 
         if from_items > self.vision_radius {
             self.vision_radius = from_items;
         }
@@ -116,8 +119,7 @@ impl Player {
 
         let mut p = Player {            
             object_id: 0, name, max_hp: 15 + stat_to_mod(stats[1]), curr_hp: 15 + stat_to_mod(stats[1]), location: (0, 0, 0), vision_radius: default_vision_radius,
-                str: stats[0], con: stats[1], dex: stats[2], chr, apt, role: Role::Warrior, xp: 0, level: 1, max_depth: 0, inventory: Inventory::new(),
-                ac: 10, purse: 20,
+                str: stats[0], con: stats[1], dex: stats[2], chr, apt, role: Role::Warrior, xp: 0, level: 1, max_depth: 0, ac: 10, purse: 20, readied_weapon: None,
         };
         
         // Warrior starting equipment
@@ -141,8 +143,9 @@ impl Player {
             game_objs.add_to_inventory(t);
         }
         
-        p.calc_ac();
-
+        p.calc_ac(game_objs);
+        p.set_readied_weapon(game_objs);
+        
         p
     }
 
@@ -159,27 +162,23 @@ impl Player {
 
         let mut p = Player {            
             object_id: 0, name, max_hp: 12 + stat_to_mod(stats[2]), curr_hp: 12 + stat_to_mod(stats[2]), location: (0, 0, 0), vision_radius: default_vision_radius,
-                str, con: stats[2], dex: stats[0], chr, apt: stats[1], role: Role::Rogue, xp: 0, level: 1, max_depth: 0, inventory: Inventory::new(),
-                ac: 10, purse: 20,
+                str, con: stats[2], dex: stats[0], chr, apt: stats[1], role: Role::Rogue, xp: 0, level: 1, max_depth: 0, ac: 10, purse: 20, readied_weapon: None,
         };
 
-        p.calc_ac();
+        p.calc_ac(game_objs);
+        p.set_readied_weapon(game_objs);
 
         p
     }
 
-    pub fn calc_ac(&mut self) {
+    pub fn calc_ac(&mut self, game_objs: &GameObjects) {
         let mut ac: i8 = 10;
         let mut attributes = 0;
-        let slots = self.inventory.used_slots();        
-        for s in slots {
-            let i = self.inventory.peek_at(s).unwrap();
-            // at some point there might be items that give you a bonus or penalty
-            // even if they aren't equiped? I guess I'd handle that with an attribute maybe?
-            if i.equiped {
-                ac += i.ac_bonus;
-                attributes |= i.attributes;
-            }
+        let items = game_objs.gear_with_ac_mods();
+
+        for i in items {
+            ac += i.ac_bonus;
+            attributes |= i.attributes;            
         }
 
         // Heavier armour types reduce the benefit you get from a higher dex
@@ -197,6 +196,10 @@ impl Player {
         } else {
             ac as u8
         };
+    }
+
+    pub fn set_readied_weapon(&mut self, game_objs: &GameObjects) {
+        self.readied_weapon = game_objs.readied_weapon();
     }
 }
 

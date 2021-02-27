@@ -143,14 +143,14 @@ impl GameState {
 	}
 
     pub fn curr_sidebar_info(&self, player: &Player) -> SidebarInfo {
-        let weapon = if let Some(w) = player.inventory.get_readied_weapon() {
+        let weapon = if let Some(w) = &player.readied_weapon {
             w.name.capitalize()    
         } else {
             String::from("Empty handed")
         };
 
 		SidebarInfo::new(player.name.to_string(), player.curr_hp, player.max_hp, self.turn, player.ac,
-         player.inventory.purse, weapon)
+         player.purse, weapon)
 	}
 
     // I made life difficult for myself by deciding that Turn 0 of the game is 8:00am T_T
@@ -324,11 +324,11 @@ fn drop_stack(state: &mut GameState, game_objs: &mut GameObjects, loc: (i32, i32
 }
 
 fn drop_item(state: &mut GameState, player: &mut Player, game_objs: &mut GameObjects, gui: &mut GameUI) {    
-	// if player.inventory.get_menu().len() == 0 {
-	// 	state.write_msg_buff("You are empty handed.");
-	// 	return
-	// }
-
+    if player.purse == 0 && game_objs.descs_at_loc(PLAYER_INV).len() == 0 {
+    	state.write_msg_buff("You are empty handed.");
+		return;
+    }
+	
     let sbi = state.curr_sidebar_info(player);
     if let Some(ch) = gui.query_single_response("Drop what?", Some(&sbi)) {
         if ch == '$' {
@@ -358,7 +358,8 @@ fn drop_item(state: &mut GameState, player: &mut Player, game_objs: &mut GameObj
         state.write_msg_buff("Nevermind.");            
     }
     
-    //player.calc_ac();    
+    player.calc_ac(game_objs);
+    player.set_readied_weapon(game_objs);
 }
 
 fn pick_up_item_or_stack(state: &mut GameState, player: &mut Player, item: (Item, u16)) {
@@ -650,7 +651,9 @@ fn show_inventory(gui: &mut GameUI, state: &mut GameState, player: &Player, game
 	} else {
 		let mut m: Vec<&str> = menu.iter().map(AsRef::as_ref).collect();        
         m.insert(0, "You are carrying:");
-        m.insert(1, &money);
+        if player.purse > 0 {
+            m.insert(1, &money);
+        }
 		gui.write_long_msg(&m, true);
 	}
 }
@@ -698,7 +701,7 @@ fn pick_player_start_loc(state: &GameState) -> (i32, i32, i8) {
 fn fov_to_tiles(state: &mut GameState, player: &Player, game_objs: &GameObjects, visible: &Vec<((i32, i32, i8), bool)>) -> Vec<(map::Tile, bool)> {
     let mut v_matrix = vec![(map::Tile::Blank, false); visible.len()];
     let underground = state.player_loc.2 > 0;
-    let has_light = player.inventory.light_from_items() > 0;
+    let has_light = false; // player.inventory.light_from_items() > 0;
 
     for j in 0..visible.len() {
         let vis = visible[j];
