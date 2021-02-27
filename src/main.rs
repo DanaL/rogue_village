@@ -42,7 +42,7 @@ use rand::{Rng, thread_rng};
 use dialogue::DialogueLibrary;
 use display::{GameUI, SidebarInfo, WHITE, YELLOW};
 use game_obj::{GameObject, GameObjects};
-use items::{Item, ItemPile};
+use items::{GoldPile, Item, ItemPile};
 use map::{Tile, DoorState};
 use player::Player;
 use util::StringUtils;
@@ -263,16 +263,46 @@ fn item_hits_ground(loc: (i32, i32, i8), item: Item, game_objs: &mut GameObjects
 }
 
 fn drop_zorkmids(state: &mut GameState, loc: (i32, i32, i8), amt: u32, game_objs: &mut GameObjects) {
-    for _ in 0..amt {
-        //item_hits_ground(loc, Item::get_item(state, "gold piece").unwrap(), game_objs)
-    }
+    let zorkmids = GoldPile::new(game_objs.next_id(), amt, loc);
+    game_objs.add(Box::new(zorkmids));
 }
 
 fn drop_item(state: &mut GameState, player: &mut Player, game_objs: &mut GameObjects, gui: &mut GameUI) {    
-	if player.inventory.get_menu().len() == 0 {
-		state.write_msg_buff("You are empty handed.");
-		return
-	}
+	// if player.inventory.get_menu().len() == 0 {
+	// 	state.write_msg_buff("You are empty handed.");
+	// 	return
+	// }
+
+    let sbi = state.curr_sidebar_info(player);
+    if let Some(ch) = gui.query_single_response("Drop what?", Some(&sbi)) {
+        if ch == '$' {
+            if player.purse == 0 {
+                state.write_msg_buff("You have no money!");
+                return;
+            }
+
+            let amt = gui.query_natural_num("How much?", Some(&sbi)).unwrap();
+            if amt == 0 {
+                state.write_msg_buff("Never mind.");                
+            } else {
+                if amt >= player.purse {
+                    state.write_msg_buff("You drop all your money.");
+                    drop_zorkmids(state, player.location, player.purse, game_objs);
+                    player.purse = 0;
+                } else if amt > 1 {
+                    let s = format!("You drop {} gold pieces.", amt);
+                    state.write_msg_buff(&s);
+                    drop_zorkmids(state, player.location, amt, game_objs);
+                    player.purse -= amt;
+                } else {
+                    state.write_msg_buff("You drop a gold piece.");
+                    drop_zorkmids(state, player.location, 1, game_objs);
+                    player.purse -= 1;
+                }
+                state.turn += 1;
+            }
+        }
+    }
     /* 
 	let sbi = state.curr_sidebar_info(player);
 	if let Some(ch) = gui.query_single_response("Drop what?", Some(&sbi)) {

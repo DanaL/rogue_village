@@ -15,6 +15,8 @@
 
 use std::collections::{HashMap, HashSet, VecDeque};
 
+use display::YELLOW_ORANGE;
+
 use super::{EventListener, EventType, GameState, GameObject, GameObjects};
 
 use crate::dialogue::DialogueLibrary;
@@ -648,5 +650,70 @@ impl GameObject for Item {
 
     fn talk_to(&mut self, state: &mut GameState, player: &Player, dialogue: &DialogueLibrary) -> String {
         format!("You are trying to talk to {}...", self.get_fullname().with_indef_article())
+    }
+}
+#[derive(Debug, Clone)]
+pub struct GoldPile {
+    pub object_id: usize,
+    pub amount: u32,
+    pub location: (i32, i32, i8),
+}
+
+impl GoldPile {
+    pub fn new( object_id: usize, amount: u32, location: (i32, i32, i8)) -> GoldPile {
+        GoldPile { object_id, amount, location }
+    }
+}
+
+impl GameObject for GoldPile {
+    fn blocks(&self) -> bool {
+        false
+    }
+
+    fn is_npc(&self) -> bool {
+        false
+    }
+
+    fn get_location(&self) -> (i32, i32, i8) {
+        self.location
+    }
+
+    fn set_location(&mut self, loc: (i32, i32, i8)) {
+        self.location = loc;
+    }
+
+    fn receive_event(&mut self, event: EventType, state: &mut GameState) -> Option<EventType> {
+        None
+    }
+
+    fn get_fullname(&self) -> String {
+        let name  = if self.amount == 1 {
+            String::from("1 gold piece")
+        } else {
+            let s = format!("{} gold pieces", self.amount);
+            s
+        };
+
+        name
+    }
+
+    fn get_object_id(&self) -> usize {
+        self.object_id
+    }
+
+    fn get_tile(&self) -> Tile {
+        Tile::Thing(display::GOLD,  display::YELLOW_ORANGE, '$')
+    }
+
+    fn as_item(&self) -> Option<Item> {
+        None
+    }
+
+    fn take_turn(&mut self, state: &mut GameState, game_objs: &mut GameObjects) {
+         
+    }
+
+    fn talk_to(&mut self, state: &mut GameState, player: &Player, dialogue: &DialogueLibrary) -> String {
+        String::from("You are trying to talk to a pile of money...")
     }
 }
