@@ -250,16 +250,10 @@ fn fetch_player(state: &GameState, game_objs: &mut GameObjects,  gui: &mut GameU
     start_new_game(state, game_objs, gui, player_name)
 }
 
-fn item_hits_ground(loc: (i32, i32, i8), item: Item, game_objs: &mut GameObjects) {
-    // if !items.contains_key(&loc) {
-    //     items.insert(loc, ItemPile::new());
-    // }
-
-    // println!("foo {}", item.object_id);
-
-    // let mut item_copy = item.clone();
-    // item_copy.equiped = false;
-    // items.get_mut(&loc).unwrap().add(item_copy);
+// I'm not sure if I actually need this function anymore, but maybe in the future there will be some
+// effects when certain items hit the ground?
+fn item_hits_ground(item: Item, game_objs: &mut GameObjects) {    
+    game_objs.add(Box::new(item));
 }
 
 fn drop_zorkmids(state: &mut GameState, player: &mut Player, game_objs: &mut GameObjects, gui: &mut GameUI) {
@@ -305,54 +299,54 @@ fn drop_item(state: &mut GameState, player: &mut Player, game_objs: &mut GameObj
     if let Some(ch) = gui.query_single_response("Drop what?", Some(&sbi)) {
         if ch == '$' {
             drop_zorkmids(state, player, game_objs, gui);
-        }
-    }
-    /* 
-	let sbi = state.curr_sidebar_info(player);
-	if let Some(ch) = gui.query_single_response("Drop what?", Some(&sbi)) {
-        if ch == '$' {
-            
         } else {
-            let count = player.inventory.count_in_slot(ch);
+            let count = game_objs.inv_count_at_slot(ch);
             if count == 0 {
                 state.write_msg_buff("You do not have that item.");
             } else if count > 1 {
-                match gui.query_natural_num("Drop how many?", Some(&sbi)) {
-                    Some(v) => {
-                        let pile = player.inventory.remove_count(ch, v);
-                        if pile.len() > 0 {
-                            if v == 1 {
-                                let s = format!("You drop the {}.", pile[0].name);
-                                state.write_msg_buff(&s);
-                            } else {                                
-                                let s = format!("You drop {} {}.", v, &pile[0].name.pluralize());
-                                state.write_msg_buff(&s);
-                            }
-                            state.turn += 1;
-                            for item in pile {
-                                item_hits_ground(player.location, item, items);
-                            }
-                        } else {
-                            state.write_msg_buff("Nevermind.");
-                        }
-                    },
-                    None => state.write_msg_buff("Nevermind."),
-                }
+                // match gui.query_natural_num("Drop how many?", Some(&sbi)) {
+                //     Some(v) => {
+                //         let pile = player.inventory.remove_count(ch, v);
+                //         if pile.len() > 0 {
+                //             if v == 1 {
+                //                 let s = format!("You drop the {}.", pile[0].name);
+                //                 state.write_msg_buff(&s);
+                //             } else {                                
+                //                 let s = format!("You drop {} {}.", v, &pile[0].name.pluralize());
+                //                 state.write_msg_buff(&s);
+                //             }
+                //             state.turn += 1;
+                //             for item in pile {
+                //                 item_hits_ground(player.location, item, items);
+                //             }
+                //         } else {
+                //             state.write_msg_buff("Nevermind.");
+                //         }
+                //     },
+                //     None => state.write_msg_buff("Nevermind."),
+                // }
             } else {
-                let mut item = player.inventory.remove(ch);
-                item.equiped = false;
-                let s = format!("You drop {}.", &item.name.with_def_article());                
-                item_hits_ground(player.location, item, items);
-                state.write_msg_buff(&s);
-                state.turn += 1;
-            }	
-        }		
-	} else {
-        state.write_msg_buff("Nevermind.")
+                let result = game_objs.inv_remove_from_slot(ch);
+                match result {
+                    Ok(mut items) => {
+                        let mut item = items.remove(0);
+                        item.equiped = false;
+                        item.location = player.location;
+                        let s = format!("You drop {}.", &item.get_fullname().with_def_article());                
+                        item_hits_ground(item, game_objs);
+                        state.write_msg_buff(&s);
+                        state.turn += 1;
+                    },
+                    Err(msg) => state.write_msg_buff(&msg),
+                }
+                
+            }
+        }
+    } else {
+        state.write_msg_buff("Nevermind.");            
     }
-
-    player.calc_ac();
-    */
+    
+    //player.calc_ac();    
 }
 
 fn pick_up_item_or_stack(state: &mut GameState, player: &mut Player, item: (Item, u16)) {

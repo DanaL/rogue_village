@@ -16,7 +16,7 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 use super::{EventType, GameState, PLAYER_INV};
 use crate::dialogue::DialogueLibrary;
-use crate::items::{Item, GoldPile};
+use crate::items::{Item, ItemType, GoldPile};
 use crate::map::Tile;
 use crate::player::Player;
 use crate::util::StringUtils;
@@ -124,7 +124,7 @@ impl GameObjects {
             self.obj_locs.insert(loc, VecDeque::new());
         }
 
-        self.obj_locs.get_mut(&loc).unwrap().push_back(obj_id);
+        self.obj_locs.get_mut(&loc).unwrap().push_front(obj_id);
     }
 
     pub fn blocking_obj_at(&self, loc: &(i32, i32, i8)) -> bool {
@@ -203,6 +203,46 @@ impl GameObjects {
         }
 
         slots
+    }
+
+    pub fn inv_count_at_slot(&self, slot: char) -> u8 {
+        if !self.obj_locs.contains_key(&PLAYER_INV) || self.obj_locs[&PLAYER_INV].len() == 0 {
+            return 0;
+        }
+
+        let items: Vec<usize> = self.obj_locs[&PLAYER_INV].iter().map(|i| *i).collect();        
+        let mut sum = 0;
+        for id in items {
+            if let Some(item) = self.objects[&id].as_item() {
+                if item.slot == slot {
+                    sum += 1;
+                }
+            }
+        }     
+
+        sum
+    }
+
+    // Caller should check if the slot exists before calling this...
+    pub fn inv_remove_from_slot(&mut self, slot: char) -> Result<Vec<Item>, String>  {
+        let mut removed = Vec::new();
+
+        let items: Vec<usize> = self.obj_locs[&PLAYER_INV].iter().map(|i| *i).collect();        
+        
+        for id in items {
+            if let Some(item) = self.objects[&id].as_item() {
+                if item.slot == slot {
+                    if item.equiped && item.item_type == ItemType::Armour {
+                        return Err("You're wearing that!".to_string());
+                    } else {
+                        removed.push(item);
+                        self.remove_from_loc(id, PLAYER_INV);
+                    }
+                }
+            }
+        }     
+
+        Ok(removed)
     }
 
     pub fn add_to_inventory(&mut self, item: Item) {
