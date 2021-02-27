@@ -15,7 +15,7 @@
 
 use std::collections::{HashMap, HashSet, VecDeque};
 
-use super::GameState;
+use super::{EventListener, EventType, GameState};
 
 use crate::display;
 use crate::map::Tile;
@@ -30,7 +30,7 @@ pub const IA_HEAVY_ARMOUR: u32 = 0b00000100;
 #[derive(Debug, Clone)]
 pub struct Inventory {
 	next_slot: char,
-	inv: HashMap<char, (Item, u32)>,
+	pub inv: HashMap<char, (Item, u32)>,
     pub purse: u32, // I hope I don't actually need that large an integer for money in this game...
 }
 
@@ -206,7 +206,7 @@ impl Inventory {
 	}
 
     // This is pretty simple for now because the only item with an activateable effect are torches
-    pub fn use_item_in_slot(&mut self, slot: char) -> String {
+    pub fn use_item_in_slot(&mut self, slot: char, state: &mut GameState) -> String {
         // Check to see if the item is actually useable is assumed done by the caller method
         let val = self.inv.get(&slot).unwrap().clone();
         let item = val.0;
@@ -221,10 +221,17 @@ impl Inventory {
         // Stackable, equipable items make things slightly complicated. I am assuming any stackble, equipable 
         // thing is basically something like a torch that has charges counting down so remove it from the stack
         if stack_count > 1 && item.stackable {
-            let mut light = item.clone();
+            let mut light = Item::get_item(state, &item.name).unwrap();
             light.active = !item.active;
-            self.inv.insert(slot, (item, stack_count -1));
 
+            if light.active {
+                state.listeners.insert((light.object_id, EventType::EndOfTurn));
+            } else {
+                state.listeners.insert((light.object_id, EventType::EndOfTurn));
+            }
+
+            self.inv.insert(slot, (item, stack_count -1));
+            
             // TODO: handle the case where there is no free inventory slot for the torch that is now
             // separate from the stack            
             self.add(light);
@@ -232,6 +239,12 @@ impl Inventory {
             let val = self.inv.get_mut(&slot).unwrap();
             let mut item = &mut val.0;
             item.active = !item.active;
+
+            if item.active {
+                state.listeners.insert((item.object_id, EventType::EndOfTurn));
+            } else {
+                state.listeners.insert((item.object_id, EventType::EndOfTurn));
+            }
         }
 
         s
@@ -561,6 +574,31 @@ impl Item {
             false
         } else {
             self.stackable
+        }
+    }
+}
+
+impl EventListener for Item {
+    fn receive(&mut self, event: EventType, state: &mut GameState) -> Option<EventType> {
+        match event {
+            EventType::EndOfTurn => {
+                if self.active {
+                    self.charges -= 1;
+                }
+
+                if self.charges == 0 {
+                    let s = format!("{} has gone out!", self.name.with_def_article().capitalize());
+                    state.write_msg_buff(&s);
+                    Some(EventType::LightExpired)
+                } else if self.charges < 100 {
+                    let s = format!("{} sputters.", self.name.with_def_article().capitalize());
+                    state.write_msg_buff(&s);
+                    None
+                } else {                    
+                    None
+                }
+            },
+            _ => None
         }
     }
 }

@@ -19,11 +19,12 @@ use rand::thread_rng;
 use rand::Rng;
 //use std::time::{Duration, Instant};
 
-use super::{GameState, NPCTable};
+use super::{EventType, GameObject, GameObjects, GameState};
 
 use crate::dialogue;
 use crate::dialogue::DialogueLibrary;
-use crate::display::{LIGHT_GREY};
+use crate::display::LIGHT_GREY;
+use crate::items::Item;
 use crate::map::{Tile, DoorState};
 use crate::pathfinding::find_path;
 use crate::player::Player;
@@ -60,10 +61,7 @@ pub enum Attitude {
 }
 
 pub trait Actor {
-    fn act(&mut self, state: &mut GameState, npcs: &mut NPCTable);
-    fn get_tile(&self) -> Tile;
-    fn get_loc(&self) -> (i32, i32, i8);
-    fn get_name(&self) -> String;
+    fn act(&mut self, state: &mut GameState, game_objects: &mut GameObjects);
     fn talk_to(&mut self, state: &mut GameState, player: &Player, dialogue: &DialogueLibrary) -> String;
 }
 
@@ -105,13 +103,14 @@ pub struct Villager {
     pub plan: VecDeque<Action>,
     pub voice: String,
     pub schedule: Vec<AgendaItem>,
+    pub object_id: usize,
 }
 
 impl Villager {
-    pub fn new(name: String, location: (i32, i32, i8), home_id: usize, voice: &str) -> Villager {
+    pub fn new(name: String, location: (i32, i32, i8), home_id: usize, voice: &str, object_id: usize) -> Villager {
         Villager { stats: BasicStats::new(name, 8,  8, location,  '@',  LIGHT_GREY, Attitude::Stranger), 
             facts_known: Vec::new(), greeted_player: false, home_id,
-            plan: VecDeque::new(), voice: String::from(voice), schedule: Vec::new(),
+            plan: VecDeque::new(), voice: String::from(voice), schedule: Vec::new(), object_id
         }
     }
 
@@ -142,60 +141,60 @@ impl Villager {
         }
     }
 
-    fn try_to_move_to_loc(&mut self, loc: (i32, i32, i8), state: &mut GameState, npcs: &mut NPCTable) {        
-        if npcs.contains_key(&loc) || state.player_loc == loc {
-            state.write_msg_buff("\"Excuse me.\"");
-            self.plan.push_front(Action::Move(loc));
-        } else if state.map[&loc] == Tile::Door(DoorState::Closed) {
-            self.plan.push_front(Action::Move(loc));
-            self.open_door(loc, state);
-        } else {
-            // Villagers are fairly polite. If they go through a door, they will close it after them, 
-            // just like their parents said they should.
-            // There's a flaw here in that at the moment, villagers never abandon their plans. So, if, say
-            // a villager is going through a door and someone is following right behind, they will wait for
-            // the other to move so they can close the door, but the other will want to move into the 
-            // building and they'll be deadlocked forever.
-            if let Tile::Door(DoorState::Open) = state.map[&self.get_loc()] {
-                self.plan.push_front(Action::CloseDoor(self.get_loc()));                
-            }
-            self.stats.location = loc;
-        }
+    fn try_to_move_to_loc(&mut self, loc: (i32, i32, i8), state: &mut GameState, game_objs: &mut GameObjects) {        
+        // if npcs.contains_key(&loc) || state.player_loc == loc {
+        //     state.write_msg_buff("\"Excuse me.\"");
+        //     self.plan.push_front(Action::Move(loc));
+        // } else if state.map[&loc] == Tile::Door(DoorState::Closed) {
+        //     self.plan.push_front(Action::Move(loc));
+        //     self.open_door(loc, state);
+        // } else {
+        //     // Villagers are fairly polite. If they go through a door, they will close it after them, 
+        //     // just like their parents said they should.
+        //     // There's a flaw here in that at the moment, villagers never abandon their plans. So, if, say
+        //     // a villager is going through a door and someone is following right behind, they will wait for
+        //     // the other to move so they can close the door, but the other will want to move into the 
+        //     // building and they'll be deadlocked forever.
+        //     if let Tile::Door(DoorState::Open) = state.map[&self.get_location()] {
+        //         self.plan.push_front(Action::CloseDoor(self.get_location()));                
+        //     }
+        //     self.stats.location = loc;
+        // }
     }
 
     fn open_door(&mut self, loc: (i32, i32, i8), state: &mut GameState) {
         if self.stats.attitude == Attitude::Stranger {
             state.write_msg_buff("The villager opens the door.");
         } else {
-            let s = format!("{} opens the door.", self.get_name());
+            let s = format!("{} opens the door.", self.get_fullname());
             state.write_msg_buff(&s);
         }
         state.map.insert(loc, Tile::Door(DoorState::Open));
     }
 
-    fn close_door(&mut self, loc: (i32, i32, i8), state: &mut GameState, npcs: &mut NPCTable) {
-        if npcs.contains_key(&loc) || loc == state.player_loc {
-            state.write_msg_buff("Please don't stand in the doorway.");
-            self.plan.push_front(Action::CloseDoor(loc));
-        } else {
-            if let Tile::Door(DoorState::Open) = state.map[&loc] {
-                if self.stats.attitude == Attitude::Stranger {
-                    state.write_msg_buff("The villager closes the door.");
-                } else {
-                    let s = format!("{} closes the door.", self.get_name());
-                    state.write_msg_buff(&s);
-                }
-                state.map.insert(loc, Tile::Door(DoorState::Closed));
-            }
-        }
+    fn close_door(&mut self, loc: (i32, i32, i8), state: &mut GameState, game_objs: &mut GameObjects) {
+        // if npcs.contains_key(&loc) || loc == state.player_loc {
+        //     state.write_msg_buff("Please don't stand in the doorway.");
+        //     self.plan.push_front(Action::CloseDoor(loc));
+        // } else {
+        //     if let Tile::Door(DoorState::Open) = state.map[&loc] {
+        //         if self.stats.attitude == Attitude::Stranger {
+        //             state.write_msg_buff("The villager closes the door.");
+        //         } else {
+        //             let s = format!("{} closes the door.", self.get_name());
+        //             state.write_msg_buff(&s);
+        //         }
+        //         state.map.insert(loc, Tile::Door(DoorState::Closed));
+        //     }
+        // }
     }
 
-    fn follow_plan(&mut self, state: &mut GameState, npcs: &mut NPCTable) {
+    fn follow_plan(&mut self, state: &mut GameState, game_objs: &mut GameObjects) {
         let action = self.plan.pop_front().unwrap();
         match action {
-            Action::Move(loc) => self.try_to_move_to_loc(loc, state, npcs),
+            Action::Move(loc) => self.try_to_move_to_loc(loc, state, game_objs),
             Action::OpenDoor(loc) => self.open_door(loc, state),
-            Action::CloseDoor(loc) => self.close_door(loc, state, npcs),
+            Action::CloseDoor(loc) => self.close_door(loc, state, game_objs),
         }
     }
 
@@ -228,7 +227,7 @@ impl Villager {
         match item.place {
             Venue::Tavern => {
                 let tavern = &state.world_info.town_buildings.as_ref().unwrap().tavern;
-                if !in_location(state, self.get_loc(), &tavern, true) {
+                if !in_location(state, self.get_location(), &tavern, true) {
                     self.go_to_place(state, tavern);
                 } else {
                     self.idle_behaviour(state);
@@ -236,7 +235,7 @@ impl Villager {
             },
             Venue::TownSquare => {
                 let ts = &state.world_info.town_square;
-                if !in_location(state, self.get_loc(), ts, false) {
+                if !in_location(state, self.get_location(), ts, false) {
                     self.go_to_place(state, ts);
                 } else {
                     self.idle_behaviour(state);
@@ -261,7 +260,7 @@ impl Villager {
         if items.len() == 0 {
             // The default behaviour is to go home if nothing on the agenda.
             let b = &state.world_info.town_buildings.as_ref().unwrap();
-            if !in_location(state, self.get_loc(), &b.homes[self.home_id], true) {
+            if !in_location(state, self.get_location(), &b.homes[self.home_id], true) {
                 self.go_to_place(state, &b.homes[self.home_id]);
             } else {
                 self.idle_behaviour(state);
@@ -284,7 +283,7 @@ impl Villager {
 // Eventually I'll be able to reuse a bunch of this behaviour code for all Villagers
 // (I hope) without cutting and pasting everywhere.
 impl Actor for Villager {
-    fn act(&mut self, state: &mut GameState, npcs: &mut NPCTable) {
+    fn act(&mut self, state: &mut GameState, game_objs: &mut GameObjects) {
         // It's a mayoral duty to greet newcomers to town
         /*
         let pl = state.player_loc;
@@ -297,22 +296,10 @@ impl Actor for Villager {
         */
 
         if self.plan.len() > 0 {
-            self.follow_plan(state, npcs);            
+            self.follow_plan(state, game_objs);            
         } else {
             self.check_schedule(state);
         } 
-    }
-
-    fn get_tile(&self) -> Tile {
-        Tile::Creature(self.stats.color, self.stats.ch)
-    }
-
-    fn get_loc(&self) -> (i32, i32, i8) {
-        self.stats.location
-    }
-
-    fn get_name(&self) -> String {
-        String::from(&self.stats.name)
     }
 
     fn talk_to(&mut self, state: &mut GameState, player: &Player, dialogue: &DialogueLibrary) -> String {
@@ -338,20 +325,8 @@ impl SimpleMonster {
 }
 
 impl Actor for SimpleMonster {
-    fn act(&mut self, _state: &mut GameState, _npcs: &mut NPCTable) {
+    fn act(&mut self, _state: &mut GameState, game_objs: &mut GameObjects) {
         
-    }
-
-    fn get_tile(&self) -> Tile {
-        Tile::Creature(self.stats.color, self.stats.ch)
-    }
-
-    fn get_loc(&self) -> (i32, i32, i8) {
-        self.stats.location
-    }
-    
-    fn get_name(&self) -> String {
-        String::from(&self.stats.name)
     }
 
     fn talk_to(&mut self, _state: &mut GameState, _player: &Player, _dialogue: &DialogueLibrary) -> String {
@@ -379,5 +354,44 @@ pub fn pick_villager_name(used_names: &HashSet<String>) -> String {
         if !used_names.contains(names[n]) {
             return String::from(names[n]);
         }
+    }
+}
+
+impl GameObject for Villager {
+    fn blocks(&self) -> bool {
+        true
+    }
+
+    fn get_location(&self) -> (i32, i32, i8) {
+        self.stats.location
+    }
+
+    fn set_location(&mut self, loc: (i32, i32, i8)) {
+        self.stats.location = loc;
+    }
+
+    fn receive_event(&mut self, event: EventType, state: &mut GameState) -> Option<EventType> {
+        None
+    }
+
+    fn get_fullname(&self) -> String {
+        self.stats.name.clone()
+    }
+
+    fn get_object_id(&self) -> usize {
+        self.object_id
+    }
+
+    fn get_tile(&self) -> Tile {
+        Tile::Creature(self.stats.color, self.stats.ch)
+    }
+
+    fn as_item(&self) -> Option<Item> {
+        None
+    }
+
+    fn as_npc(&self) -> Option<Box<dyn Actor>> {
+        let npc = self.clone();
+        Some(Box::new(npc))
     }
 }

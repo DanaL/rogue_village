@@ -32,9 +32,9 @@ mod util;
 mod wilderness;
 mod world;
 
-use std::collections::{HashMap, VecDeque};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::path::Path;
-//use std::time::{Duration, Instant};
+use std::time::{Duration, Instant};
 
 use rand::{Rng, thread_rng};
 
@@ -50,10 +50,93 @@ use world::WorldInfo;
 const MSG_HISTORY_LENGTH: usize = 50;
 const FOV_WIDTH: usize = 41;
 const FOV_HEIGHT: usize = 21;
+const PLAYER_INV: (i32, i32, i8) = (-999, -999, -128);
 
-pub type Items = HashMap<(i32, i32, i8), ItemPile>;
 pub type Map = HashMap<(i32, i32, i8), map::Tile>;
-pub type NPCTable = HashMap<(i32, i32, i8), Box<dyn Actor>>;
+
+#[derive(Debug, Hash, Eq, PartialEq)]
+pub enum EventType {
+    EndOfTurn,
+    LightExpired,
+}
+
+pub trait EventListener {
+    fn receive(&mut self, event: EventType, state: &mut GameState) -> Option<EventType>;
+}
+
+pub trait GameObject {
+    fn blocks(&self) -> bool;
+    fn get_location(&self) -> (i32, i32, i8);
+    fn set_location(&mut self, loc: (i32, i32, i8));
+    fn receive_event(&mut self, event: EventType, state: &mut GameState) -> Option<EventType>;
+    fn get_fullname(&self) -> String;
+    fn get_object_id(&self) -> usize;
+    fn get_tile(&self) -> Tile;
+    // I'm not sure if this is some terrible design sin but I think it'll sure be convenient for me...
+    fn as_item(&self) -> Option<Item>;
+    fn as_npc(&self) -> Option<Box<dyn Actor>>;
+}
+
+pub struct GameObjects {
+    next_obj_id: usize,
+    pub obj_locs: HashMap<(i32, i32, i8), VecDeque<usize>>,
+    pub objects: HashMap<usize, Box<dyn GameObject>>,
+}
+
+impl GameObjects {
+    pub fn new() -> GameObjects {
+        // start at 1 because we assume the player is object 0
+        GameObjects { next_obj_id: 1, obj_locs: HashMap::new(), objects: HashMap::new() }
+    }
+
+    pub fn next_id(&mut self) -> usize {
+        let c = self.next_obj_id;
+        self.next_obj_id += 1;
+
+        c
+    }
+
+    pub fn set_to_loc(&mut self, obj_id: usize, loc: (i32, i32, i8)) {
+        if !self.obj_locs.contains_key(&loc) {
+            self.obj_locs.insert(loc, VecDeque::new());
+        }
+
+        self.obj_locs.get_mut(&loc).unwrap().push_back(obj_id);
+    }
+
+    fn tile_for_id(&self, id: usize) -> &Box<dyn GameObject> {
+        &self.objects[&id]
+    }
+
+    pub fn blocking_obj_at(&self, loc: &(i32, i32, i8)) -> bool {
+        if self.obj_locs.contains_key(&loc) && self.obj_locs[&loc].len() > 0 {
+            for obj_id in self.obj_locs[&loc].iter() {
+                let o = self.tile_for_id(*obj_id);
+                if o.blocks() {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    pub fn tile_at(&self, loc: &(i32, i32, i8)) -> Option<Tile> {
+        if self.obj_locs.contains_key(&loc) && self.obj_locs[&loc].len() > 0 {
+            for obj_id in self.obj_locs[&loc].iter() {
+                let o = self.tile_for_id(*obj_id);
+                if o.blocks() {
+                    return Some(o.get_tile());
+                }
+            }
+
+            let obj_id = self.obj_locs[&loc].front().unwrap();
+            return Some(self.objects[obj_id].get_tile());
+        }
+
+        None
+    }
+}
 
 pub enum Cmd {
 	Quit,
@@ -91,6 +174,7 @@ pub struct GameState {
     world_info: WorldInfo,
     tile_memory: HashMap<(i32, i32, i8), Tile>,
     next_obj_id: usize,
+    listeners: HashSet<(usize, EventType)>,
 }
 
 impl GameState {
@@ -104,6 +188,7 @@ impl GameState {
             world_info: world_info,
             tile_memory: HashMap::new(),
             next_obj_id: 0,
+            listeners: HashSet::new(),
         };
 
         state
@@ -239,23 +324,26 @@ fn fetch_player(state: &mut GameState, gui: &mut GameUI, player_name: String) ->
     start_new_game(state, gui, player_name)
 }
 
-fn item_hits_ground(loc: (i32, i32, i8), item: Item, items: &mut Items) {
-    if !items.contains_key(&loc) {
-        items.insert(loc, ItemPile::new());
-    }
+fn item_hits_ground(loc: (i32, i32, i8), item: Item, game_objs: &mut GameObjects) {
+    // if !items.contains_key(&loc) {
+    //     items.insert(loc, ItemPile::new());
+    // }
 
-    let mut item_copy = item.clone();
-    item_copy.equiped = false;
-    items.get_mut(&loc).unwrap().add(item_copy);
+    // println!("foo {}", item.object_id);
+
+    // let mut item_copy = item.clone();
+    // item_copy.equiped = false;
+    // items.get_mut(&loc).unwrap().add(item_copy);
 }
 
-fn drop_zorkmids(state: &mut GameState, loc: (i32, i32, i8), amt: u32, items: &mut Items) {
+fn drop_zorkmids(state: &mut GameState, loc: (i32, i32, i8), amt: u32, game_objs: &mut GameObjects) {
     for _ in 0..amt {
-        item_hits_ground(loc, Item::get_item(state, "gold piece").unwrap(), items)
+        item_hits_ground(loc, Item::get_item(state, "gold piece").unwrap(), game_objs)
     }
 }
 
-fn drop_item(state: &mut GameState, player: &mut Player, items: &mut Items, gui: &mut GameUI) {
+fn drop_item(state: &mut GameState, player: &mut Player, game_objs: &mut GameObjects, gui: &mut GameUI) {
+    /* 
 	if player.inventory.get_menu().len() == 0 {
 		state.write_msg_buff("You are empty handed.");
 		return
@@ -324,9 +412,11 @@ fn drop_item(state: &mut GameState, player: &mut Player, items: &mut Items, gui:
     }
 
     player.calc_ac();
+    */
 }
 
 fn pick_up_item_or_stack(state: &mut GameState, player: &mut Player, item: (Item, u16)) {
+    /*
     if item.1 == 1 {
 		let s = format!("You pick up {}.", &item.0.name.with_def_article());
 		state.write_msg_buff(&s);
@@ -339,9 +429,11 @@ fn pick_up_item_or_stack(state: &mut GameState, player: &mut Player, item: (Item
             player.inventory.add(item.0.clone());
         }
     }
+    */
 }
 
-fn pick_up(state: &mut GameState, player: &mut Player, items: &mut Items, gui: &mut GameUI) {
+fn pick_up(state: &mut GameState, player: &mut Player, game_objs: &mut GameObjects, gui: &mut GameUI) {
+    /*
 	if !items.contains_key(&player.location) {
 		state.write_msg_buff("There is nothing here to pick up.");
         return;
@@ -373,9 +465,11 @@ fn pick_up(state: &mut GameState, player: &mut Player, items: &mut Items, gui: &
 			},
 		}
 	}
+    */
 }
 
 fn toggle_equipment(state: &mut GameState, player: &mut Player, gui: &mut GameUI) {
+    /*
     if player.inventory.used_slots().len() == 0 {
 		state.write_msg_buff("You are empty handed.");
 		return
@@ -391,9 +485,11 @@ fn toggle_equipment(state: &mut GameState, player: &mut Player, gui: &mut GameUI
     }
 
 	player.calc_ac();
+    */
 }
 
 fn use_item(state: &mut GameState, player: &mut Player, gui: &mut GameUI) {
+    /*
     if player.inventory.used_slots().len() == 0 {
 		state.write_msg_buff("You are empty handed.");
 		return
@@ -407,7 +503,7 @@ fn use_item(state: &mut GameState, player: &mut Player, gui: &mut GameUI) {
             } else {
                 // I suspect this will get much more complicated when there are more types of items but 
                 // for now it's really just torches.
-                let msg = player.inventory.use_item_in_slot(ch);
+                let msg = player.inventory.use_item_in_slot(ch, state);
                 state.write_msg_buff(&msg);
             }
         } else {
@@ -416,6 +512,7 @@ fn use_item(state: &mut GameState, player: &mut Player, gui: &mut GameUI) {
 	} else {
         state.write_msg_buff("Nevermind.");
     }
+    */
 }
 
 fn get_move_tuple(mv: &str) -> (i32, i32) {
@@ -496,7 +593,7 @@ fn take_stairs(state: &mut GameState, player: &mut Player, down: bool) {
     }
 }
 
-fn do_move(state: &mut GameState, player: &mut Player, npcs: &NPCTable, items: &Items, dir: &str) {
+fn do_move(state: &mut GameState, player: &mut Player, game_objs: &GameObjects, dir: &str) {
 	let mv = get_move_tuple(dir);
 
 	let start_tile = &state.map[&player.location];
@@ -505,7 +602,7 @@ fn do_move(state: &mut GameState, player: &mut Player, npcs: &NPCTable, items: &
 	let next_loc = (next_row, next_col, player.location.2);
 	let tile = &state.map[&next_loc].clone();
 	
-    if npcs.contains_key(&next_loc) {
+    if game_objs.blocking_obj_at(&next_loc) {
         // Not quite ready to implement combat yet...
         state.write_msg_buff("There's someone in your way!");
     } else if tile.passable() {
@@ -531,17 +628,17 @@ fn do_move(state: &mut GameState, player: &mut Player, npcs: &NPCTable, items: &
 			},
 		}
 
-        if items.contains_key(&next_loc) {
-            if items[&next_loc].pile.len() == 1 {
-                let s = format!("You see {} here.", items[&next_loc].get_item_name(0));
-                state.write_msg_buff(&s);
-            } else if items[&next_loc].pile.len() == 2 {
-                let s = format!("You see {} and {} here.", items[&next_loc].get_item_name(0), items[&next_loc].get_item_name(1));
-                state.write_msg_buff(&s);
-            } else {
-                state.write_msg_buff("There are several items here.");
-            }
-        }
+        // if items.contains_key(&next_loc) {
+        //     if items[&next_loc].pile.len() == 1 {
+        //         let s = format!("You see {} here.", items[&next_loc].get_item_name(0));
+        //         state.write_msg_buff(&s);
+        //     } else if items[&next_loc].pile.len() == 2 {
+        //         let s = format!("You see {} and {} here.", items[&next_loc].get_item_name(0), items[&next_loc].get_item_name(1));
+        //         state.write_msg_buff(&s);
+        //     } else {
+        //         state.write_msg_buff("There are several items here.");
+        //     }
+        // }
 
 		state.turn += 1;
 	} else  {
@@ -549,22 +646,22 @@ fn do_move(state: &mut GameState, player: &mut Player, npcs: &NPCTable, items: &
 	}
 }
 
-fn chat_with(state: &mut GameState, gui: &mut GameUI, loc: (i32, i32, i8), player: &mut Player, npcs: &mut NPCTable, dialogue: &DialogueLibrary) {
-    if !npcs.contains_key(&loc) {
-        if let Tile::Door(_) = state.map[&loc] {
-            state.write_msg_buff("The door is ignoring you.");
-        } else {
-            state.write_msg_buff("Oh no, talking to yourself?");
-        } 
-    } else {
-        let mut npc = npcs.remove(&loc).unwrap();
-        let line = npc.talk_to(state, player, dialogue);
-        state.add_to_msg_history(&line);
-        gui.popup_msg(&npc.get_name(), &line);
-        npcs.insert(loc, npc);
+fn chat_with(state: &mut GameState, gui: &mut GameUI, loc: (i32, i32, i8), player: &mut Player, game_objs: &mut GameObjects, dialogue: &DialogueLibrary) {
+    // if !npcs.contains_key(&loc) {
+    //     if let Tile::Door(_) = state.map[&loc] {
+    //         state.write_msg_buff("The door is ignoring you.");
+    //     } else {
+    //         state.write_msg_buff("Oh no, talking to yourself?");
+    //     } 
+    // } else {
+    //     let mut npc = npcs.remove(&loc).unwrap();
+    //     let line = npc.talk_to(state, player, dialogue);
+    //     state.add_to_msg_history(&line);
+    //     gui.popup_msg(&npc.get_name(), &line);
+    //     npcs.insert(loc, npc);
         
-        state.turn += 1;
-    }    
+    //     state.turn += 1;
+    // }    
 }
 
 fn show_character_sheet(gui: &mut GameUI, player: &Player) {
@@ -648,7 +745,7 @@ fn pick_player_start_loc(state: &GameState) -> (i32, i32, i8) {
 // From that, we assemble the vector of tiles to send to the GameUI to be drawn. If an NPC is in a visible square,
 // they are on top, otherwise show the tile. If the tile isn't visible but the player has seen it before, show the 
 // tile as unlit, otherwise leave it as a blank square.
-fn fov_to_tiles(state: &mut GameState, player: &Player, npcs: &NPCTable, items: &Items, visible: &Vec<((i32, i32, i8), bool)>) -> Vec<(map::Tile, bool)> {
+fn fov_to_tiles(state: &mut GameState, player: &Player, game_objs: &GameObjects, visible: &Vec<((i32, i32, i8), bool)>) -> Vec<(map::Tile, bool)> {
     let mut v_matrix = vec![(map::Tile::Blank, false); visible.len()];
     let underground = state.player_loc.2 > 0;
     let has_light = player.inventory.light_from_items() > 0;
@@ -657,26 +754,24 @@ fn fov_to_tiles(state: &mut GameState, player: &Player, npcs: &NPCTable, items: 
         let vis = visible[j];
         if vis.0 == state.player_loc {
             v_matrix[j] = (map::Tile::Player(WHITE), true);
-        } else if visible[j].1 {            
-            let tile = if npcs.contains_key(&vis.0) {
-                state.tile_memory.insert(vis.0, state.map[&vis.0]);
-                npcs[&vis.0].get_tile()
-            } else if items.contains_key(&vis.0) {
-                state.tile_memory.insert(vis.0, items[&vis.0].get_tile());
-                items[&vis.0].get_tile()
+        } else if visible[j].1 {      
+            let tile = if let Some(t) = game_objs.tile_at(&vis.0) {
+                state.tile_memory.insert(vis.0, t);
+                t
             } else {
                 state.tile_memory.insert(vis.0, state.map[&vis.0]);
-
-                // I wanted to make tochlight squares be coloured different so this is a slight
-                // kludge. Although perhaps later I might use it to differentiate between a player
-                // walking through the dungeon with a light vs relying on darkvision, etc
-                if underground && has_light && state.map[&vis.0] == Tile::StoneFloor {
-                    Tile::ColourFloor(YELLOW)
-                } else {
-                    state.map[&vis.0]
-                }
+                state.map[&vis.0]
             };
             
+            // I wanted to make tochlight squares be coloured different so this is a slight
+            // kludge. Although perhaps later I might use it to differentiate between a player
+            // walking through the dungeon with a light vs relying on darkvision, etc
+            // if underground && has_light && state.map[&vis.0] == Tile::StoneFloor {
+            //     Tile::ColourFloor(YELLOW)
+            // } else {
+            //     state.map[&vis.0]
+            // }
+                        
             v_matrix[j] = (tile, true);
         } else if state.tile_memory.contains_key(&vis.0) {
             v_matrix[j] = (state.tile_memory[&vis.0], false);            
@@ -686,9 +781,9 @@ fn fov_to_tiles(state: &mut GameState, player: &Player, npcs: &NPCTable, items: 
     v_matrix
 }
 
-fn run(gui: &mut GameUI, state: &mut GameState, player: &mut Player, npcs: &mut NPCTable, items: &mut Items, dialogue: &DialogueLibrary) {
+fn run(gui: &mut GameUI, state: &mut GameState, player: &mut Player, game_objs: &mut GameObjects, dialogue: &DialogueLibrary) {
     let visible = fov::calc_fov(&state.map, player, FOV_HEIGHT, FOV_WIDTH);
-	gui.v_matrix = fov_to_tiles(state, player, npcs, items, &visible);
+	gui.v_matrix = fov_to_tiles(state, player, game_objs, &visible);
     let sbi = state.curr_sidebar_info(player);
     state.write_msg_buff("Welcome, adventurer!");   
 	gui.write_screen(&mut state.msg_buff, Some(&sbi));
@@ -697,23 +792,23 @@ fn run(gui: &mut GameUI, state: &mut GameState, player: &mut Player, npcs: &mut 
         let start_turn = state.turn;
         let cmd = gui.get_command(&state, &player);
         match cmd {
-            Cmd::Chat(loc) => chat_with(state, gui, loc, player, npcs, dialogue),
+            Cmd::Chat(loc) => chat_with(state, gui, loc, player, game_objs, dialogue),
             Cmd::Close(loc) => do_close(state, loc),
             Cmd::Down => take_stairs(state, player, true),
-            Cmd::DropItem => drop_item(state, player, items, gui),  
-            Cmd::Move(dir) => do_move(state, player, npcs, items, &dir),
+            Cmd::DropItem => drop_item(state, player, game_objs, gui),  
+            Cmd::Move(dir) => do_move(state, player, game_objs, &dir),
             Cmd::MsgHistory => show_message_history(state, gui),
             Cmd::Open(loc) => do_open(state, loc),
             Cmd::Pass => {
                 state.turn += 1;
                 println!("{:?}", state.curr_time());
             },
-            Cmd::PickUp => pick_up(state, player, items, gui),
+            Cmd::PickUp => pick_up(state, player, game_objs, gui),
             Cmd::ShowCharacterSheet => show_character_sheet(gui, player),
             Cmd::ShowInventory => show_inventory(gui, state, player),
             Cmd::ToggleEquipment => toggle_equipment(state, player, gui),
             Cmd::Use => use_item(state, player, gui),
-            Cmd::Quit => break,        
+            Cmd::Quit => break,
             Cmd::Up => take_stairs(state, player, false),
             Cmd::WizardCommand => wiz_command(state, gui, player),
             _ => continue,
@@ -721,37 +816,42 @@ fn run(gui: &mut GameUI, state: &mut GameState, player: &mut Player, npcs: &mut 
         
         state.player_loc = player.location;
 
-        if state.turn > start_turn {
-            let npc_locs = npcs.keys()
-						.map(|k| k.clone())
-						.collect::<Vec<(i32, i32, i8)>>();
+        // if state.turn > start_turn {
+        //     let npc_locs = npcs.keys()
+		// 				.map(|k| k.clone())
+		// 				.collect::<Vec<(i32, i32, i8)>>();
             
-            for loc in npc_locs {
-                // remove the npc from the table so that we can pass a reference
-                // to the NPCTable to its act() function
-                let mut npc = npcs.remove(&loc).unwrap();
+        //     for loc in npc_locs {
+        //         // remove the npc from the table so that we can pass a reference
+        //         // to the NPCTable to its act() function
+        //         let mut npc = npcs.remove(&loc).unwrap();
 
-                npc.act(state, npcs);
-                let curr_loc = npc.get_loc();
+        //         npc.act(state, npcs);
+        //         let curr_loc = npc.get_loc();
 
-                // after it's done its turn, re-insert it back into the table
-                npcs.insert(curr_loc, npc);
-            }            
-        }
+        //         // after it's done its turn, re-insert it back into the table
+        //         npcs.insert(curr_loc, npc);
+        //     }            
+        // }
 
         player.calc_vision_radius(state);
         
-        //let fov_start = Instant::now();
+        let fov_start = Instant::now();
         let visible = fov::calc_fov(&state.map, player, FOV_HEIGHT, FOV_WIDTH);
-        gui.v_matrix = fov_to_tiles(state, player, npcs, items, &visible);
-        //let fov_duration = fov_start.elapsed();
-        //println!("Time for fov: {:?}", fov_duration);
+        gui.v_matrix = fov_to_tiles(state, player, game_objs, &visible);        
+        let fov_duration = fov_start.elapsed();
+        println!("Time for fov: {:?}", fov_duration);
 		
-        //let write_screen_start = Instant::now();
+        // If anything wants an alert when it comes to end of turn...
+        for l in state.listeners.iter().filter(|i| i.1 == EventType::EndOfTurn) {
+            println!("{:?}", l);
+        }
+
+        let write_screen_start = Instant::now();
         let sbi = state.curr_sidebar_info(player);
         gui.write_screen(&mut state.msg_buff, Some(&sbi));
-        //let write_screen_duration = write_screen_start.elapsed();
-        //println!("Time for write_screen(): {:?}", write_screen_duration);
+        let write_screen_duration = write_screen_start.elapsed();
+        println!("Time for write_screen(): {:?}", write_screen_duration);        
     }
 }
 
@@ -766,12 +866,12 @@ fn main() {
 	let mut gui = GameUI::init(&font, &sm_font)
 		.expect("Error initializing GameUI object.");
 
+    let mut game_objs = GameObjects::new();
+
     let dialogue_library = dialogue::read_dialogue_lib();
     
-    let w = world::generate_world();
-    let mut npcs = w.2;
-    let mut items = w.3;
-
+    let w = world::generate_world(&mut game_objs);
+    
     let mut state = GameState::init(w.0, w.1);    
 	
     title_screen(&mut gui);
@@ -783,5 +883,5 @@ fn main() {
     let sbi = state.curr_sidebar_info(&player);
     gui.write_screen(&mut state.msg_buff, Some(&sbi));
     
-    run(&mut gui, &mut state, &mut player, &mut npcs, &mut items, &dialogue_library);
+    run(&mut gui, &mut state, &mut player, &mut game_objs, &dialogue_library);
 }

@@ -19,9 +19,9 @@ use std::fs;
 use rand::Rng;
 use rand::seq::IteratorRandom;
 
-use super::{Map, NPCTable};
+use super::{GameObjects, Map};
 
-use crate::actor;
+use crate::{GameObject, actor};
 use crate::actor::{Actor, AgendaItem, Venue, Villager};
 use crate::map::{DoorState, Tile};
 use crate::pathfinding;
@@ -368,12 +368,12 @@ fn random_town_name() -> String {
     String::from(*names.iter().choose(&mut rng).unwrap())
 }
 
-fn create_villager(voice: &str, tb: &mut TownBuildings, used_names: &HashSet<String>) -> Villager {
+fn create_villager(voice: &str, tb: &mut TownBuildings, used_names: &HashSet<String>, obj_id: usize) -> Villager {
     let home_id = tb.vacant_home().unwrap();
     let home = &tb.homes[home_id];
     let j = rand::thread_rng().gen_range(0, home.len());    
     let loc = home.iter().nth(j).unwrap().clone(); 
-    let mut villager = Villager::new(actor::pick_villager_name(used_names), loc, home_id, voice);
+    let mut villager = Villager::new(actor::pick_villager_name(used_names), loc, home_id, voice, obj_id);
     tb.taken_homes.push(home_id);
     
     if voice.starts_with("mayor") {
@@ -387,7 +387,7 @@ fn create_villager(voice: &str, tb: &mut TownBuildings, used_names: &HashSet<Str
     villager
 }
 
-pub fn create_town(map: &mut Map, npcs: &mut NPCTable) -> WorldInfo {
+pub fn create_town(map: &mut Map, game_objs: &mut GameObjects) -> WorldInfo {
     // load the building templates
     let mut buildings = HashMap::new();
     let contents = fs::read_to_string("buildings.txt")
@@ -429,13 +429,19 @@ pub fn create_town(map: &mut Map, npcs: &mut NPCTable) -> WorldInfo {
     draw_paths_in_town(map, &world_info);
 
     let mut used_names = HashSet::new();
-    let v = create_villager("mayor1", &mut tb, &used_names);
-    used_names.insert(v.get_name());
-    npcs.insert(v.stats.location, Box::new(v));
-    
-    let v = create_villager("villager1", &mut tb, &used_names);
-    used_names.insert(v.get_name());
-    npcs.insert(v.stats.location, Box::new(v));
+    let v = create_villager("mayor1", &mut tb, &used_names, game_objs.next_id());
+    used_names.insert(v.get_fullname());
+    let loc = v.get_location();
+    let obj_id = v.get_object_id();    
+    game_objs.objects.insert(obj_id, Box::new(v));
+    game_objs.set_to_loc(obj_id, loc);
+
+    let v = create_villager("villager1", &mut tb, &used_names, game_objs.next_id());
+    used_names.insert(v.get_fullname());
+    let loc = v.get_location();
+    let obj_id = v.get_object_id();    
+    game_objs.objects.insert(obj_id, Box::new(v));
+    game_objs.set_to_loc(obj_id, loc);
 
     world_info.town_buildings = Some(tb);
 

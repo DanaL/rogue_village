@@ -17,7 +17,7 @@ use std::collections::{HashMap, HashSet};
 use rand::thread_rng;
 use rand::Rng;
 
-use super::{Items, Map, NPCTable};
+use super::{GameObjects, Map};
 
 use crate::dungeon;
 use crate::map::Tile;
@@ -194,11 +194,9 @@ fn add_old_road(map: &mut Map, start: (i32, i32, i8)) {
     }
 }
 
-pub fn generate_world() -> (Map, WorldInfo, NPCTable, Items) {
-    let items = HashMap::new();
+pub fn generate_world(game_objs: &mut GameObjects) -> (Map, WorldInfo) {
     let mut map = wilderness::gen_wilderness_map();
-    let mut npcs: NPCTable = HashMap::new();
-    let mut world_info = town::create_town(&mut map, &mut npcs);
+    let mut world_info = town::create_town(&mut map, game_objs);
 
     let valleys = find_all_valleys(&map);
     // We want to place the dungeon entrance somewhere in the largest 'valley', which will be
@@ -241,13 +239,11 @@ pub fn generate_world() -> (Map, WorldInfo, NPCTable, Items) {
         }
     }
     
-    //let g1 = SimpleMonster::new("goblin".to_string(), (140, 140, 0), 'o', BRIGHT_RED);
-    //npcs.insert(g1.get_loc(), Box::new(g1));
 
     world_info.facts.push(Fact::new("dungeon location".to_string(), 0, dungeon_entrance));
 
     add_old_road(&mut map, dungeon_entrance);
     map.insert((dungeon_entrance.0 as i32, dungeon_entrance.1 as i32, 0), Tile::Portal);
     
-    (map, world_info, npcs, items)
+    (map, world_info)
 }
