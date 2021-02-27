@@ -19,12 +19,13 @@ use rand::thread_rng;
 use rand::Rng;
 //use std::time::{Duration, Instant};
 
-use super::{EventType, GameObject, GameObjects, GameState};
+use super::{EventType, GameObjects, GameState};
 
 use crate::dialogue;
 use crate::dialogue::DialogueLibrary;
 use crate::display::LIGHT_GREY;
-use crate::items::Item;
+use crate::game_obj::{GameObject, GameObjType};
+use crate::items::{GoldPile, Item};
 use crate::map::{Tile, DoorState};
 use crate::pathfinding::find_path;
 use crate::player::Player;
@@ -341,10 +342,18 @@ impl GameObject for Villager {
         Tile::Creature(self.stats.color, self.stats.ch)
     }
 
+    fn get_type(&self) -> GameObjType {
+        GameObjType::NPC
+    }
+    
     fn as_item(&self) -> Option<Item> {
         None
     }
 
+    fn as_zorkmids(&self) -> Option<GoldPile> {
+        None
+    }
+    
     fn take_turn(&mut self, state: &mut GameState, game_objs: &mut GameObjects) {
         if self.plan.len() > 0 {
             self.follow_plan(state, game_objs);            

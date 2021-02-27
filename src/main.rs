@@ -262,9 +262,37 @@ fn item_hits_ground(loc: (i32, i32, i8), item: Item, game_objs: &mut GameObjects
     // items.get_mut(&loc).unwrap().add(item_copy);
 }
 
-fn drop_zorkmids(state: &mut GameState, loc: (i32, i32, i8), amt: u32, game_objs: &mut GameObjects) {
-    let zorkmids = GoldPile::new(game_objs.next_id(), amt, loc);
-    game_objs.add(Box::new(zorkmids));
+fn drop_zorkmids(state: &mut GameState, player: &mut Player, game_objs: &mut GameObjects, gui: &mut GameUI) {
+    // I need to add a check in GameObjects to see if there is an existing pile of gold I can merge with    
+    if player.purse == 0 {
+        state.write_msg_buff("You have no money!");
+        return;
+    }
+
+    let sbi = state.curr_sidebar_info(player);
+    let amt = gui.query_natural_num("How much?", Some(&sbi)).unwrap();
+    if amt == 0 {
+        state.write_msg_buff("Never mind.");                
+    } else {
+        if amt >= player.purse {
+            state.write_msg_buff("You drop all your money.");
+            let zorkmids = GoldPile::new(game_objs.next_id(), amt, player.location);
+            game_objs.add(Box::new(zorkmids));
+            player.purse = 0;
+        } else if amt > 1 {
+            let s = format!("You drop {} gold pieces.", amt);
+            state.write_msg_buff(&s);
+            let zorkmids = GoldPile::new(game_objs.next_id(), amt, player.location);
+            game_objs.add(Box::new(zorkmids));
+            player.purse -= amt;
+        } else {
+            state.write_msg_buff("You drop a gold piece.");
+            let zorkmids = GoldPile::new(game_objs.next_id(), amt, player.location);
+            game_objs.add(Box::new(zorkmids));
+            player.purse -= 1;
+        }
+        state.turn += 1;
+    }
 }
 
 fn drop_item(state: &mut GameState, player: &mut Player, game_objs: &mut GameObjects, gui: &mut GameUI) {    
@@ -276,57 +304,14 @@ fn drop_item(state: &mut GameState, player: &mut Player, game_objs: &mut GameObj
     let sbi = state.curr_sidebar_info(player);
     if let Some(ch) = gui.query_single_response("Drop what?", Some(&sbi)) {
         if ch == '$' {
-            if player.purse == 0 {
-                state.write_msg_buff("You have no money!");
-                return;
-            }
-
-            let amt = gui.query_natural_num("How much?", Some(&sbi)).unwrap();
-            if amt == 0 {
-                state.write_msg_buff("Never mind.");                
-            } else {
-                if amt >= player.purse {
-                    state.write_msg_buff("You drop all your money.");
-                    drop_zorkmids(state, player.location, player.purse, game_objs);
-                    player.purse = 0;
-                } else if amt > 1 {
-                    let s = format!("You drop {} gold pieces.", amt);
-                    state.write_msg_buff(&s);
-                    drop_zorkmids(state, player.location, amt, game_objs);
-                    player.purse -= amt;
-                } else {
-                    state.write_msg_buff("You drop a gold piece.");
-                    drop_zorkmids(state, player.location, 1, game_objs);
-                    player.purse -= 1;
-                }
-                state.turn += 1;
-            }
+            drop_zorkmids(state, player, game_objs, gui);
         }
     }
     /* 
 	let sbi = state.curr_sidebar_info(player);
 	if let Some(ch) = gui.query_single_response("Drop what?", Some(&sbi)) {
         if ch == '$' {
-            let amt = gui.query_natural_num("How much?", Some(&sbi)).unwrap();
-            if amt == 0 {
-                state.write_msg_buff("Never mind.");                
-            } else {
-                if amt >= player.inventory.purse {
-                    state.write_msg_buff("You drop all your money.");
-                    drop_zorkmids(state, player.location, player.inventory.purse, items);
-                    player.inventory.purse = 0;
-                } else if amt > 1 {
-                    let s = format!("You drop {} gold pieces.", amt);
-                    state.write_msg_buff(&s);
-                    drop_zorkmids(state, player.location, amt, items);
-                    player.inventory.purse -= amt;
-                } else {
-                    state.write_msg_buff("You drop a gold piece.");
-                    drop_zorkmids(state, player.location, 1, items);
-                    player.inventory.purse -= 1;
-                }
-                state.turn += 1;
-            }
+            
         } else {
             let count = player.inventory.count_in_slot(ch);
             if count == 0 {
@@ -583,18 +568,17 @@ fn do_move(state: &mut GameState, player: &mut Player, game_objs: &GameObjects, 
 			},
 		}
 
-        // if items.contains_key(&next_loc) {
-        //     if items[&next_loc].pile.len() == 1 {
-        //         let s = format!("You see {} here.", items[&next_loc].get_item_name(0));
-        //         state.write_msg_buff(&s);
-        //     } else if items[&next_loc].pile.len() == 2 {
-        //         let s = format!("You see {} and {} here.", items[&next_loc].get_item_name(0), items[&next_loc].get_item_name(1));
-        //         state.write_msg_buff(&s);
-        //     } else {
-        //         state.write_msg_buff("There are several items here.");
-        //     }
-        // }
-
+        let items = game_objs.descs_at_loc(next_loc);
+        if items.len() == 1 {
+            let s = format!("You see {} here.", items[0]);
+            state.write_msg_buff(&s);
+        } else if items.len() == 2 {
+            let s = format!("You see {} and {} here.", items[0], items[1]);
+            state.write_msg_buff(&s);
+        } else if items.len() > 2 {
+            state.write_msg_buff("There are several items here.");
+        }
+        
 		state.turn += 1;
 	} else  {
 		state.write_msg_buff("You cannot go that way.");

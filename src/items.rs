@@ -17,10 +17,11 @@ use std::collections::{HashMap, HashSet, VecDeque};
 
 use display::YELLOW_ORANGE;
 
-use super::{EventListener, EventType, GameState, GameObject, GameObjects};
+use super::{EventListener, EventType, GameState, GameObjects};
 
 use crate::dialogue::DialogueLibrary;
 use crate::display;
+use crate::game_obj::{GameObject, GameObjType};
 use crate::map::Tile;
 use crate::player::Player;
 use crate::util::StringUtils;
@@ -640,6 +641,14 @@ impl GameObject for Item {
         Tile::Thing(self.lit_colour, self.unlit_colour, self.symbol)        
     }
 
+    fn get_type(&self) -> GameObjType {
+        GameObjType::Item
+    }
+
+    fn as_zorkmids(&self) -> Option<GoldPile> {
+        None
+    }
+
     fn as_item(&self) -> Option<Item> {
         Some(self.clone())
     }
@@ -702,11 +711,19 @@ impl GameObject for GoldPile {
     }
 
     fn get_tile(&self) -> Tile {
-        Tile::Thing(display::GOLD,  display::YELLOW_ORANGE, '$')
+        Tile::Thing(display::GOLD,  YELLOW_ORANGE, '$')
+    }
+
+    fn get_type(&self) -> GameObjType {
+        GameObjType::Zorkmids
     }
 
     fn as_item(&self) -> Option<Item> {
         None
+    }
+
+    fn as_zorkmids(&self) -> Option<GoldPile> {
+        Some(self.clone())
     }
 
     fn take_turn(&mut self, state: &mut GameState, game_objs: &mut GameObjects) {

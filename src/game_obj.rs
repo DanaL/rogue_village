@@ -16,10 +16,17 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 use super::{EventType, GameState, PLAYER_INV};
 use crate::dialogue::DialogueLibrary;
-use crate::items::Item;
+use crate::items::{Item, GoldPile};
 use crate::map::Tile;
 use crate::player::Player;
 use crate::util::StringUtils;
+
+#[derive(Debug, Hash, Eq, PartialEq)]
+pub enum GameObjType {
+    NPC,
+    Item,
+    Zorkmids,
+}
 
 pub trait GameObject {
     fn blocks(&self) -> bool;
@@ -28,12 +35,17 @@ pub trait GameObject {
     fn receive_event(&mut self, event: EventType, state: &mut GameState) -> Option<EventType>;
     fn get_fullname(&self) -> String;
     fn get_object_id(&self) -> usize;
+    fn get_type(&self) -> GameObjType;
     fn get_tile(&self) -> Tile;
     fn take_turn(&mut self, state: &mut GameState, game_objs: &mut GameObjects);
     fn is_npc(&self) -> bool;
     fn talk_to(&mut self, state: &mut GameState, player: &Player, dialogue: &DialogueLibrary) -> String;
-    // I'm not sure if this is some terrible design sin but I think it'll sure be convenient for me...
-    fn as_item(&self) -> Option<Item>;    
+    // I'm not sure if this is some terrible design sin but sometimes I need to get at the underlying
+    // object and didn't want to write a zillion accessor methods. I wonder if I should have gone whole
+    // hog down this around and given GameObjets a HashMap of attributes so that I didn't actually need
+    // Villager or Item or Zorkminds structs at alll..
+    fn as_item(&self) -> Option<Item>;
+    fn as_zorkmids(&self) -> Option<GoldPile>;
 }
 
 pub struct GameObjects {
@@ -54,8 +66,37 @@ impl GameObjects {
     pub fn add(&mut self, obj: Box<dyn GameObject>) {
         let loc = obj.get_location();
         let obj_id = obj.get_object_id();
-        self.set_to_loc(obj_id, loc);
-        self.objects.insert(obj_id, obj);
+
+        // I want to merge stacks of gold so check the location to see if there 
+        // are any there before we insert. For items where there won't be too many of
+        // (like torches) that can stack, I don't bother. But storing gold as individual
+        // items might have meant 10s of thousands of objects
+        if !self.check_for_stack(&obj, loc) {
+            self.set_to_loc(obj_id, loc);
+            self.objects.insert(obj_id, obj);
+        }            
+    }
+
+    fn check_for_stack(&mut self, obj: &Box<dyn GameObject>, loc: (i32, i32, i8)) -> bool {
+        if self.obj_locs.contains_key(&loc) && self.obj_locs[&loc].len() > 0 {
+            let mut pile_id = 0;
+            for obj_id in self.obj_locs[&loc].iter() {
+                if self.objects[&obj_id].get_type() == GameObjType::Zorkmids {
+                    pile_id = *obj_id;
+                    break;
+                }
+            }
+
+            if pile_id > 0 {
+                let mut pile = self.get(pile_id).as_zorkmids().unwrap();
+                let other = obj.as_zorkmids().unwrap();
+                pile.amount += other.amount;
+                self.add(Box::new(pile));
+                return true;
+            }
+        }
+
+        false
     }
 
     pub fn get(&mut self, obj_id: usize) -> Box<dyn GameObject> {
@@ -222,7 +263,7 @@ impl GameObjects {
                                               .collect();
         used_slots.sort();
         used_slots.dedup();
-        
+
         let mut menu_items = HashMap::new();
         for s in slots {
             let counter = menu_items.entry(s.0).or_insert((s.1.get_fullname(), 0));
@@ -243,6 +284,19 @@ impl GameObjects {
         }
         
         menu
+    }
+
+    pub fn descs_at_loc(&self, loc: (i32, i32, i8)) -> Vec<String> {
+        let mut v = Vec::new();
+        
+        if self.obj_locs.contains_key(&loc) {
+            for j in 0..self.obj_locs[&loc].len() {
+                let obj_id = self.obj_locs[&loc][j];
+                v.push(self.objects[&obj_id].get_fullname().with_indef_article());
+            }
+        }
+
+        v
     }
 }
 
