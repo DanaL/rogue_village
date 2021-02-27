@@ -224,11 +224,11 @@ impl Inventory {
             let mut light = Item::get_item(state, &item.name).unwrap();
             light.active = !item.active;
 
-            if light.active {
-                state.listeners.insert((light.object_id, EventType::EndOfTurn));
-            } else {
-                state.listeners.insert((light.object_id, EventType::EndOfTurn));
-            }
+            // if light.active {
+            //     state.listeners.insert((light.object_id, EventType::EndOfTurn));
+            // } else {
+            //     state.listeners.insert((light.object_id, EventType::EndOfTurn));
+            // }
 
             self.inv.insert(slot, (item, stack_count -1));
             
@@ -240,11 +240,11 @@ impl Inventory {
             let mut item = &mut val.0;
             item.active = !item.active;
 
-            if item.active {
-                state.listeners.insert((item.object_id, EventType::EndOfTurn));
-            } else {
-                state.listeners.insert((item.object_id, EventType::EndOfTurn));
-            }
+            // if item.active {
+            //     state.listeners.insert((item.object_id, EventType::EndOfTurn));
+            // } else {
+            //     state.listeners.insert((item.object_id, EventType::EndOfTurn));
+            // }
         }
 
         s

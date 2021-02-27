@@ -60,12 +60,6 @@ pub enum Attitude {
     Hostile,
 }
 
-pub trait Actor {
-    fn act(&mut self, state: &mut GameState, game_objects: &mut GameObjects);
-    fn talk_to(&mut self, state: &mut GameState, player: &Player, dialogue: &DialogueLibrary) -> String;
-}
-
-
 #[derive(Clone, Debug)]
 pub struct BasicStats {
     pub name: String,
@@ -142,24 +136,24 @@ impl Villager {
     }
 
     fn try_to_move_to_loc(&mut self, loc: (i32, i32, i8), state: &mut GameState, game_objs: &mut GameObjects) {        
-        // if npcs.contains_key(&loc) || state.player_loc == loc {
-        //     state.write_msg_buff("\"Excuse me.\"");
-        //     self.plan.push_front(Action::Move(loc));
-        // } else if state.map[&loc] == Tile::Door(DoorState::Closed) {
-        //     self.plan.push_front(Action::Move(loc));
-        //     self.open_door(loc, state);
-        // } else {
-        //     // Villagers are fairly polite. If they go through a door, they will close it after them, 
-        //     // just like their parents said they should.
-        //     // There's a flaw here in that at the moment, villagers never abandon their plans. So, if, say
-        //     // a villager is going through a door and someone is following right behind, they will wait for
-        //     // the other to move so they can close the door, but the other will want to move into the 
-        //     // building and they'll be deadlocked forever.
-        //     if let Tile::Door(DoorState::Open) = state.map[&self.get_location()] {
-        //         self.plan.push_front(Action::CloseDoor(self.get_location()));                
-        //     }
-        //     self.stats.location = loc;
-        // }
+        if game_objs.blocking_obj_at(&loc) || state.player_loc == loc {
+            state.write_msg_buff("\"Excuse me.\"");
+            self.plan.push_front(Action::Move(loc));
+        } else if state.map[&loc] == Tile::Door(DoorState::Closed) {
+            self.plan.push_front(Action::Move(loc));
+            self.open_door(loc, state);
+        } else {
+            // Villagers are fairly polite. If they go through a door, they will close it after them, 
+            // just like their parents said they should.
+            // There's a flaw here in that at the moment, villagers never abandon their plans. So, if, say
+            // a villager is going through a door and someone is following right behind, they will wait for
+            // the other to move so they can close the door, but the other will want to move into the 
+            // building and they'll be deadlocked forever.
+            if let Tile::Door(DoorState::Open) = state.map[&self.get_location()] {
+                self.plan.push_front(Action::CloseDoor(self.get_location()));                
+            }
+            self.stats.location = loc;
+        }
     }
 
     fn open_door(&mut self, loc: (i32, i32, i8), state: &mut GameState) {
@@ -173,20 +167,20 @@ impl Villager {
     }
 
     fn close_door(&mut self, loc: (i32, i32, i8), state: &mut GameState, game_objs: &mut GameObjects) {
-        // if npcs.contains_key(&loc) || loc == state.player_loc {
-        //     state.write_msg_buff("Please don't stand in the doorway.");
-        //     self.plan.push_front(Action::CloseDoor(loc));
-        // } else {
-        //     if let Tile::Door(DoorState::Open) = state.map[&loc] {
-        //         if self.stats.attitude == Attitude::Stranger {
-        //             state.write_msg_buff("The villager closes the door.");
-        //         } else {
-        //             let s = format!("{} closes the door.", self.get_name());
-        //             state.write_msg_buff(&s);
-        //         }
-        //         state.map.insert(loc, Tile::Door(DoorState::Closed));
-        //     }
-        // }
+        if game_objs.blocking_obj_at(&loc) || loc == state.player_loc {
+            state.write_msg_buff("Please don't stand in the doorway.");
+            self.plan.push_front(Action::CloseDoor(loc));
+        } else {
+            if let Tile::Door(DoorState::Open) = state.map[&loc] {
+                if self.stats.attitude == Attitude::Stranger {
+                    state.write_msg_buff("The villager closes the door.");
+                } else {
+                    let s = format!("{} closes the door.", self.get_fullname());
+                    state.write_msg_buff(&s);
+                }
+                state.map.insert(loc, Tile::Door(DoorState::Closed));
+            }
+        }
     }
 
     fn follow_plan(&mut self, state: &mut GameState, game_objs: &mut GameObjects) {
@@ -280,39 +274,6 @@ impl Villager {
     }
 }
 
-// Eventually I'll be able to reuse a bunch of this behaviour code for all Villagers
-// (I hope) without cutting and pasting everywhere.
-impl Actor for Villager {
-    fn act(&mut self, state: &mut GameState, game_objs: &mut GameObjects) {
-        // It's a mayoral duty to greet newcomers to town
-        /*
-        let pl = state.player_loc;
-        
-        if !self.greeted_player && pl.2 == self.stats.location.2 && util::distance(pl.0, pl.1, self.stats.location.0,self.stats.location.1) <= 4.0 {                 
-            let s = format!("Hello stranger, welcome to {}!", state.world_info.town_name);
-            state.write_msg_buff(&s);
-            self.greeted_player = true;
-        }
-        */
-
-        if self.plan.len() > 0 {
-            self.follow_plan(state, game_objs);            
-        } else {
-            self.check_schedule(state);
-        } 
-    }
-
-    fn talk_to(&mut self, state: &mut GameState, player: &Player, dialogue: &DialogueLibrary) -> String {
-        let line = dialogue::parse_voice_line(&dialogue::pick_voice_line(dialogue, &self.voice, self.stats.attitude), &state.world_info, player, &self.stats);        
-        if self.stats.attitude == Attitude::Stranger {
-            // Perhaps a charisma check to possibly jump straight to friendly?
-            self.stats.attitude = Attitude::Indifferent;
-        }
-
-        line
-    }
-}
-
 #[derive(Clone, Debug)]
 pub struct SimpleMonster {
     pub stats: BasicStats,    
@@ -321,16 +282,6 @@ pub struct SimpleMonster {
 impl SimpleMonster {
     pub fn new(name: String, location:( i32, i32, i8), ch: char, color: (u8, u8, u8)) -> SimpleMonster {
         SimpleMonster { stats: BasicStats::new(name,  8,  8, location, ch, color, Attitude::Hostile) }
-    }
-}
-
-impl Actor for SimpleMonster {
-    fn act(&mut self, _state: &mut GameState, game_objs: &mut GameObjects) {
-        
-    }
-
-    fn talk_to(&mut self, _state: &mut GameState, _player: &Player, _dialogue: &DialogueLibrary) -> String {
-        format!("The {} growls at you!", self.stats.name)
     }
 }
 
@@ -362,6 +313,10 @@ impl GameObject for Villager {
         true
     }
 
+    fn is_npc(&self) -> bool {
+        true
+    }
+
     fn get_location(&self) -> (i32, i32, i8) {
         self.stats.location
     }
@@ -390,8 +345,21 @@ impl GameObject for Villager {
         None
     }
 
-    fn as_npc(&self) -> Option<Box<dyn Actor>> {
-        let npc = self.clone();
-        Some(Box::new(npc))
+    fn take_turn(&mut self, state: &mut GameState, game_objs: &mut GameObjects) {
+        if self.plan.len() > 0 {
+            self.follow_plan(state, game_objs);            
+        } else {
+            self.check_schedule(state);
+        }        
+    }
+
+    fn talk_to(&mut self, state: &mut GameState, player: &Player, dialogue: &DialogueLibrary) -> String {
+        let line = dialogue::parse_voice_line(&dialogue::pick_voice_line(dialogue, &self.voice, self.stats.attitude), &state.world_info, player, &self.stats);        
+        if self.stats.attitude == Attitude::Stranger {
+            // Perhaps a charisma check to possibly jump straight to friendly?
+            self.stats.attitude = Attitude::Indifferent;
+        }
+
+        line
     }
 }

@@ -38,7 +38,6 @@ use std::time::{Duration, Instant};
 
 use rand::{Rng, thread_rng};
 
-use actor::Actor;
 use dialogue::DialogueLibrary;
 use display::{GameUI, SidebarInfo, WHITE, YELLOW};
 use items::{Item, ItemPile};
@@ -58,6 +57,7 @@ pub type Map = HashMap<(i32, i32, i8), map::Tile>;
 pub enum EventType {
     EndOfTurn,
     LightExpired,
+    TakeTurn,
 }
 
 pub trait EventListener {
@@ -72,21 +72,40 @@ pub trait GameObject {
     fn get_fullname(&self) -> String;
     fn get_object_id(&self) -> usize;
     fn get_tile(&self) -> Tile;
+    fn take_turn(&mut self, state: &mut GameState, game_objs: &mut GameObjects);
+    fn is_npc(&self) -> bool;
+    fn talk_to(&mut self, state: &mut GameState, player: &Player, dialogue: &DialogueLibrary) -> String;
     // I'm not sure if this is some terrible design sin but I think it'll sure be convenient for me...
-    fn as_item(&self) -> Option<Item>;
-    fn as_npc(&self) -> Option<Box<dyn Actor>>;
+    fn as_item(&self) -> Option<Item>;    
 }
 
 pub struct GameObjects {
     next_obj_id: usize,
     pub obj_locs: HashMap<(i32, i32, i8), VecDeque<usize>>,
     pub objects: HashMap<usize, Box<dyn GameObject>>,
+    pub listeners: HashSet<(usize, EventType)>,
 }
 
 impl GameObjects {
     pub fn new() -> GameObjects {
         // start at 1 because we assume the player is object 0
-        GameObjects { next_obj_id: 1, obj_locs: HashMap::new(), objects: HashMap::new() }
+        GameObjects { next_obj_id: 1, obj_locs: HashMap::new(), objects: HashMap::new(),
+            listeners: HashSet::new() }
+    }
+
+    pub fn add(&mut self, obj: Box<dyn GameObject>) {
+        let loc = obj.get_location();
+        let obj_id = obj.get_object_id();
+        self.set_to_loc(obj_id, loc);
+        self.objects.insert(obj_id, obj);
+    }
+
+    pub fn get(&mut self, obj_id: usize) -> Box<dyn GameObject> {
+        let obj = self.objects.remove(&obj_id).unwrap();
+        let loc = obj.get_location();
+        self.remove_from_loc(obj_id, loc);
+
+        obj
     }
 
     pub fn next_id(&mut self) -> usize {
@@ -94,6 +113,11 @@ impl GameObjects {
         self.next_obj_id += 1;
 
         c
+    }
+
+    pub fn remove_from_loc(&mut self, obj_id: usize, loc: (i32, i32, i8)) {
+        let q = self.obj_locs.get_mut(&loc).unwrap();
+        q.retain(|v| *v != obj_id);
     }
 
     pub fn set_to_loc(&mut self, obj_id: usize, loc: (i32, i32, i8)) {
@@ -104,15 +128,10 @@ impl GameObjects {
         self.obj_locs.get_mut(&loc).unwrap().push_back(obj_id);
     }
 
-    fn tile_for_id(&self, id: usize) -> &Box<dyn GameObject> {
-        &self.objects[&id]
-    }
-
     pub fn blocking_obj_at(&self, loc: &(i32, i32, i8)) -> bool {
         if self.obj_locs.contains_key(&loc) && self.obj_locs[&loc].len() > 0 {
             for obj_id in self.obj_locs[&loc].iter() {
-                let o = self.tile_for_id(*obj_id);
-                if o.blocks() {
+                if self.objects[&obj_id].blocks() {
                     return true;
                 }
             }
@@ -121,20 +140,54 @@ impl GameObjects {
         return false;
     }
 
-    pub fn tile_at(&self, loc: &(i32, i32, i8)) -> Option<Tile> {
+    pub fn tile_at(&self, loc: &(i32, i32, i8)) -> Option<(Tile, bool)> {
         if self.obj_locs.contains_key(&loc) && self.obj_locs[&loc].len() > 0 {
             for obj_id in self.obj_locs[&loc].iter() {
-                let o = self.tile_for_id(*obj_id);
-                if o.blocks() {
-                    return Some(o.get_tile());
+                if self.objects[&obj_id].blocks() {
+                    return Some((self.objects[&obj_id].get_tile(), self.objects[&obj_id].is_npc()));
                 }
             }
 
             let obj_id = self.obj_locs[&loc].front().unwrap();
-            return Some(self.objects[obj_id].get_tile());
+            return Some((self.objects[obj_id].get_tile(), false));
         }
 
         None
+    }
+
+    pub fn npc_at(&mut self, loc: &(i32, i32, i8)) -> Option<Box<dyn GameObject>> {
+        let mut npc_id = 0;
+
+        if let Some(objs) = self.obj_locs.get(loc) {
+            for id in objs {
+                if self.objects[&id].is_npc() {
+                    npc_id = *id;
+                    break;                    
+                }
+            }
+        }
+
+        if npc_id > 0 {
+            Some(self.get(npc_id))
+        } else {
+            None
+        }        
+    }
+
+    pub fn do_npc_turns(&mut self, state: &mut GameState) {
+        let actors = self.listeners.iter()
+                                   .filter(|i| i.1 == EventType::TakeTurn)
+                                   .map(|i| i.0).collect::<Vec<usize>>();
+
+        for actor_id in actors {
+            let mut obj = self.get(actor_id);
+                        
+            obj.take_turn(state, self);
+
+            // There will stuff here that may happen, like if a monster dies while taking
+            // its turn, etc
+            self.add(obj);
+        }
     }
 }
 
@@ -173,8 +226,7 @@ pub struct GameState {
     player_loc: (i32, i32, i8),
     world_info: WorldInfo,
     tile_memory: HashMap<(i32, i32, i8), Tile>,
-    next_obj_id: usize,
-    listeners: HashSet<(usize, EventType)>,
+    next_obj_id: usize,    
 }
 
 impl GameState {
@@ -187,8 +239,7 @@ impl GameState {
             player_loc: (-1, -1, -1),
             world_info: world_info,
             tile_memory: HashMap::new(),
-            next_obj_id: 0,
-            listeners: HashSet::new(),
+            next_obj_id: 0,            
         };
 
         state
@@ -647,21 +698,18 @@ fn do_move(state: &mut GameState, player: &mut Player, game_objs: &GameObjects, 
 }
 
 fn chat_with(state: &mut GameState, gui: &mut GameUI, loc: (i32, i32, i8), player: &mut Player, game_objs: &mut GameObjects, dialogue: &DialogueLibrary) {
-    // if !npcs.contains_key(&loc) {
-    //     if let Tile::Door(_) = state.map[&loc] {
-    //         state.write_msg_buff("The door is ignoring you.");
-    //     } else {
-    //         state.write_msg_buff("Oh no, talking to yourself?");
-    //     } 
-    // } else {
-    //     let mut npc = npcs.remove(&loc).unwrap();
-    //     let line = npc.talk_to(state, player, dialogue);
-    //     state.add_to_msg_history(&line);
-    //     gui.popup_msg(&npc.get_name(), &line);
-    //     npcs.insert(loc, npc);
-        
-    //     state.turn += 1;
-    // }    
+    if let Some(mut npc) = game_objs.npc_at(&loc) {
+        let line = npc.talk_to(state, player, dialogue);
+        state.add_to_msg_history(&line);
+        gui.popup_msg(&npc.get_fullname(), &line);
+        game_objs.add(npc);
+    } else {
+        if let Tile::Door(_) = state.map[&loc] {
+            state.write_msg_buff("The door is ignoring you.");
+        } else {
+            state.write_msg_buff("Oh no, talking to yourself?");
+        } 
+    }
 }
 
 fn show_character_sheet(gui: &mut GameUI, player: &Player) {
@@ -756,8 +804,10 @@ fn fov_to_tiles(state: &mut GameState, player: &Player, game_objs: &GameObjects,
             v_matrix[j] = (map::Tile::Player(WHITE), true);
         } else if visible[j].1 {      
             let tile = if let Some(t) = game_objs.tile_at(&vis.0) {
-                state.tile_memory.insert(vis.0, t);
-                t
+                if !t.1 {
+                    state.tile_memory.insert(vis.0, t.0);
+                }
+                t.0
             } else {
                 state.tile_memory.insert(vis.0, state.map[&vis.0]);
                 state.map[&vis.0]
@@ -816,24 +866,10 @@ fn run(gui: &mut GameUI, state: &mut GameState, player: &mut Player, game_objs: 
         
         state.player_loc = player.location;
 
-        // if state.turn > start_turn {
-        //     let npc_locs = npcs.keys()
-		// 				.map(|k| k.clone())
-		// 				.collect::<Vec<(i32, i32, i8)>>();
-            
-        //     for loc in npc_locs {
-        //         // remove the npc from the table so that we can pass a reference
-        //         // to the NPCTable to its act() function
-        //         let mut npc = npcs.remove(&loc).unwrap();
-
-        //         npc.act(state, npcs);
-        //         let curr_loc = npc.get_loc();
-
-        //         // after it's done its turn, re-insert it back into the table
-        //         npcs.insert(curr_loc, npc);
-        //     }            
-        // }
-
+        if state.turn > start_turn {
+            game_objs.do_npc_turns(state);
+        }
+        
         player.calc_vision_radius(state);
         
         let fov_start = Instant::now();
@@ -843,9 +879,9 @@ fn run(gui: &mut GameUI, state: &mut GameState, player: &mut Player, game_objs: 
         println!("Time for fov: {:?}", fov_duration);
 		
         // If anything wants an alert when it comes to end of turn...
-        for l in state.listeners.iter().filter(|i| i.1 == EventType::EndOfTurn) {
-            println!("{:?}", l);
-        }
+        // for l in state.listeners.iter().filter(|i| i.1 == EventType::EndOfTurn) {
+        //     println!("{:?}", l);
+        // }
 
         let write_screen_start = Instant::now();
         let sbi = state.curr_sidebar_info(player);
