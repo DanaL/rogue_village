@@ -683,6 +683,72 @@ impl<'a, 'b> GameUI<'a, 'b> {
 		}
 	}
 
+	// Currently not handling a menu with more options than there are are lines on the screen...
+	pub fn menu_picker2(&mut self, preamble: String, menu: &Vec<(String, char)>, single_choice: bool, small_font: bool) -> Option<HashSet<char>> {
+		let mut answers: HashSet<char> = HashSet::new();
+		let possible_answers: HashSet<char> = menu.iter().map(|m| m.1).collect();
+
+		loop {
+			self.canvas.clear();
+			self.write_line(0, &preamble, small_font);
+
+			for line in 0..menu.len() {
+				let mut s = String::from("");				
+				if answers.contains(&menu[line].1) {
+					s.push_str(&String::from("\u{2713} "));					
+				}
+				s.push(menu[line].1);
+				s.push_str(") ");
+				s.push_str(&menu[line].0);
+				self.write_line(line as i32 + 1, &s, small_font);
+			}
+	
+			self.write_line(menu.len() as i32 + 1, "", small_font);	
+			if !single_choice {
+				self.write_line(menu.len() as i32 + 2, "Select one or more options, then hit Return.", small_font);	
+			}
+
+			self.canvas.present();
+
+			let answer = self.wait_for_key_input();			
+			if single_choice {
+				match answer {
+					None => return None, 	// Esc was pressed, propagate it. 
+											// Not sure if thers's a more Rustic way to do this
+					Some(ch) => {
+						if possible_answers.contains(&ch) {
+							answers.insert(ch);
+							return Some(answers);
+						}	
+					}
+				}
+			} else {
+				match answer {
+					None => return None, 	// Esc was pressed, propagate it. 
+											// Not sure if thers's a more Rustic way to do this
+					Some(ch) => {
+						// * means select everything
+						if ch == '*' {
+							return Some(possible_answers);
+						}
+
+						if possible_answers.contains(&ch) {							
+							if answers.contains(&ch) {
+								answers.remove(&ch);
+							} else {
+								answers.insert(ch);
+							}
+						} else if ch == '\n' || ch == ' ' {
+							break;
+						}	
+					}
+				}
+			}
+		}
+		
+		Some(answers)
+	}
+
 	// Making the assumption I'll never display a menu with more options than there are 
 	// lines on the screen...
 	pub fn menu_picker(&mut self, menu: &Vec<&str>, answer_count: u8,
