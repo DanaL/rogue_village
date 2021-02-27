@@ -42,10 +42,9 @@ use rand::{Rng, thread_rng};
 use dialogue::DialogueLibrary;
 use display::{GameUI, SidebarInfo, WHITE, YELLOW};
 use game_obj::{GameObject, GameObjects};
-use items::{GoldPile, Item, ItemPile};
+use items::{GoldPile, Item};
 use map::{Tile, DoorState};
 use player::Player;
-use sdl2::libc::stack_t;
 use util::StringUtils;
 use world::WorldInfo;
 
