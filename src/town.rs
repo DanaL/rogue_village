@@ -19,10 +19,11 @@ use std::fs;
 use rand::Rng;
 use rand::seq::IteratorRandom;
 
-use super::{EventType, GameObjects, Map};
+use super::{EventType, Map};
 
-use crate::{GameObject, actor};
+use crate::actor;
 use crate::actor::{AgendaItem, Venue, Villager};
+use crate::game_obj::{GameObject, GameObjects};
 use crate::map::{DoorState, Tile};
 use crate::pathfinding;
 use crate::world::WILDERNESS_SIZE;
@@ -433,16 +434,14 @@ pub fn create_town(map: &mut Map, game_objs: &mut GameObjects) -> WorldInfo {
     used_names.insert(v.get_fullname());
     let loc = v.get_location();
     let obj_id = v.get_object_id();    
-    game_objs.objects.insert(obj_id, Box::new(v));
-    game_objs.set_to_loc(obj_id, loc);
+    game_objs.add(Box::new(v));
     game_objs.listeners.insert((obj_id, EventType::TakeTurn));
 
     let v = create_villager("villager1", &mut tb, &used_names, game_objs.next_id());
     used_names.insert(v.get_fullname());
     let loc = v.get_location();
-    let obj_id = v.get_object_id();    
-    game_objs.objects.insert(obj_id, Box::new(v));
-    game_objs.set_to_loc(obj_id, loc);
+    let obj_id = v.get_object_id();
+    game_objs.add(Box::new(v));
     game_objs.listeners.insert((obj_id, EventType::TakeTurn));
 
     world_info.town_buildings = Some(tb);

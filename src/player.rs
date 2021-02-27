@@ -15,9 +15,8 @@
 
 use rand::Rng;
 
-use super::GameState;
-use crate::items;
-use crate::items::{Inventory, Item};
+use super::{GameObjects, GameState, items, PLAYER_INV};
+use crate::{GameObject, items::{Inventory, Item}};
 
 #[derive(Clone, Debug)]
 pub enum Role {
@@ -53,6 +52,7 @@ pub struct Player {
     pub max_depth: u8,
     pub inventory: Inventory,
     pub ac: u8,
+    pub purse: u32,
 }
 
 impl Player {
@@ -103,7 +103,7 @@ impl Player {
         }
     }
 
-    pub fn new_warrior(state: &mut GameState, name: String) -> Player {
+    pub fn new_warrior(game_objs: &mut GameObjects, name: String) -> Player {
         let default_vision_radius = 99;
         let stats = roll_stats();
         
@@ -117,31 +117,30 @@ impl Player {
         let mut p = Player {            
             object_id: 0, name, max_hp: 15 + stat_to_mod(stats[1]), curr_hp: 15 + stat_to_mod(stats[1]), location: (0, 0, 0), vision_radius: default_vision_radius,
                 str: stats[0], con: stats[1], dex: stats[2], chr, apt, role: Role::Warrior, xp: 0, level: 1, max_depth: 0, inventory: Inventory::new(),
-                ac: 10,
+                ac: 10, purse: 20,
         };
-        state.next_obj_id = 1;
-
-        // Warrior starting equipment
-        let mut sword = Item::get_item(state, "longsword").unwrap();
-        sword.equiped = true; 
-        let mut armour = Item::get_item(state, "ringmail").unwrap();
-        armour.equiped = true;
         
-        p.inventory.add(sword);
-        p.inventory.add(armour);
-        p.inventory.add(Item::get_item(state, "dagger").unwrap());
-        p.inventory.purse = 20;
+        // Warrior starting equipment
+        let mut sword = Item::get_item(game_objs, "longsword").unwrap();
+        sword.equiped = true;
+        sword.set_location(PLAYER_INV);
+        game_objs.add_to_inventory(sword);
+        
+        let mut armour = Item::get_item(game_objs, "ringmail").unwrap();
+        armour.equiped = true;
+        armour.set_location(PLAYER_INV);
+        game_objs.add_to_inventory(armour);
 
-        for _ in 0..5 {
-            p.inventory.add(Item::get_item(state, "torch").unwrap());
-        }
+        let mut dagger = Item::get_item(game_objs, "dagger").unwrap();
+        dagger.set_location(PLAYER_INV);
+        game_objs.add_to_inventory(dagger);
         
         p.calc_ac();
 
         p
     }
 
-    pub fn new_rogue(state: &mut GameState, name: String) -> Player {
+    pub fn new_rogue(game_objs: &mut GameObjects, name: String) -> Player {
         let default_vision_radius = 99;
         let stats = roll_stats();
 
@@ -155,10 +154,8 @@ impl Player {
         let mut p = Player {            
             object_id: 0, name, max_hp: 12 + stat_to_mod(stats[2]), curr_hp: 12 + stat_to_mod(stats[2]), location: (0, 0, 0), vision_radius: default_vision_radius,
                 str, con: stats[2], dex: stats[0], chr, apt: stats[1], role: Role::Rogue, xp: 0, level: 1, max_depth: 0, inventory: Inventory::new(),
-                ac: 10,
+                ac: 10, purse: 20,
         };
-
-        state.next_obj_id = 1;
 
         p.calc_ac();
 

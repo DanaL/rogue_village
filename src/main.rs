@@ -22,6 +22,7 @@ mod actor;
 mod dialogue;
 mod display;
 mod dungeon;
+mod game_obj;
 mod fov;
 mod items;
 mod map;
@@ -40,6 +41,7 @@ use rand::{Rng, thread_rng};
 
 use dialogue::DialogueLibrary;
 use display::{GameUI, SidebarInfo, WHITE, YELLOW};
+use game_obj::{GameObject, GameObjects};
 use items::{Item, ItemPile};
 use map::{Tile, DoorState};
 use player::Player;
@@ -62,133 +64,6 @@ pub enum EventType {
 
 pub trait EventListener {
     fn receive(&mut self, event: EventType, state: &mut GameState) -> Option<EventType>;
-}
-
-pub trait GameObject {
-    fn blocks(&self) -> bool;
-    fn get_location(&self) -> (i32, i32, i8);
-    fn set_location(&mut self, loc: (i32, i32, i8));
-    fn receive_event(&mut self, event: EventType, state: &mut GameState) -> Option<EventType>;
-    fn get_fullname(&self) -> String;
-    fn get_object_id(&self) -> usize;
-    fn get_tile(&self) -> Tile;
-    fn take_turn(&mut self, state: &mut GameState, game_objs: &mut GameObjects);
-    fn is_npc(&self) -> bool;
-    fn talk_to(&mut self, state: &mut GameState, player: &Player, dialogue: &DialogueLibrary) -> String;
-    // I'm not sure if this is some terrible design sin but I think it'll sure be convenient for me...
-    fn as_item(&self) -> Option<Item>;    
-}
-
-pub struct GameObjects {
-    next_obj_id: usize,
-    pub obj_locs: HashMap<(i32, i32, i8), VecDeque<usize>>,
-    pub objects: HashMap<usize, Box<dyn GameObject>>,
-    pub listeners: HashSet<(usize, EventType)>,
-}
-
-impl GameObjects {
-    pub fn new() -> GameObjects {
-        // start at 1 because we assume the player is object 0
-        GameObjects { next_obj_id: 1, obj_locs: HashMap::new(), objects: HashMap::new(),
-            listeners: HashSet::new() }
-    }
-
-    pub fn add(&mut self, obj: Box<dyn GameObject>) {
-        let loc = obj.get_location();
-        let obj_id = obj.get_object_id();
-        self.set_to_loc(obj_id, loc);
-        self.objects.insert(obj_id, obj);
-    }
-
-    pub fn get(&mut self, obj_id: usize) -> Box<dyn GameObject> {
-        let obj = self.objects.remove(&obj_id).unwrap();
-        let loc = obj.get_location();
-        self.remove_from_loc(obj_id, loc);
-
-        obj
-    }
-
-    pub fn next_id(&mut self) -> usize {
-        let c = self.next_obj_id;
-        self.next_obj_id += 1;
-
-        c
-    }
-
-    pub fn remove_from_loc(&mut self, obj_id: usize, loc: (i32, i32, i8)) {
-        let q = self.obj_locs.get_mut(&loc).unwrap();
-        q.retain(|v| *v != obj_id);
-    }
-
-    pub fn set_to_loc(&mut self, obj_id: usize, loc: (i32, i32, i8)) {
-        if !self.obj_locs.contains_key(&loc) {
-            self.obj_locs.insert(loc, VecDeque::new());
-        }
-
-        self.obj_locs.get_mut(&loc).unwrap().push_back(obj_id);
-    }
-
-    pub fn blocking_obj_at(&self, loc: &(i32, i32, i8)) -> bool {
-        if self.obj_locs.contains_key(&loc) && self.obj_locs[&loc].len() > 0 {
-            for obj_id in self.obj_locs[&loc].iter() {
-                if self.objects[&obj_id].blocks() {
-                    return true;
-                }
-            }
-        }
-
-        return false;
-    }
-
-    pub fn tile_at(&self, loc: &(i32, i32, i8)) -> Option<(Tile, bool)> {
-        if self.obj_locs.contains_key(&loc) && self.obj_locs[&loc].len() > 0 {
-            for obj_id in self.obj_locs[&loc].iter() {
-                if self.objects[&obj_id].blocks() {
-                    return Some((self.objects[&obj_id].get_tile(), self.objects[&obj_id].is_npc()));
-                }
-            }
-
-            let obj_id = self.obj_locs[&loc].front().unwrap();
-            return Some((self.objects[obj_id].get_tile(), false));
-        }
-
-        None
-    }
-
-    pub fn npc_at(&mut self, loc: &(i32, i32, i8)) -> Option<Box<dyn GameObject>> {
-        let mut npc_id = 0;
-
-        if let Some(objs) = self.obj_locs.get(loc) {
-            for id in objs {
-                if self.objects[&id].is_npc() {
-                    npc_id = *id;
-                    break;                    
-                }
-            }
-        }
-
-        if npc_id > 0 {
-            Some(self.get(npc_id))
-        } else {
-            None
-        }        
-    }
-
-    pub fn do_npc_turns(&mut self, state: &mut GameState) {
-        let actors = self.listeners.iter()
-                                   .filter(|i| i.1 == EventType::TakeTurn)
-                                   .map(|i| i.0).collect::<Vec<usize>>();
-
-        for actor_id in actors {
-            let mut obj = self.get(actor_id);
-                        
-            obj.take_turn(state, self);
-
-            // There will stuff here that may happen, like if a monster dies while taking
-            // its turn, etc
-            self.add(obj);
-        }
-    }
 }
 
 pub enum Cmd {
@@ -345,7 +220,7 @@ fn who_are_you(gui: &mut GameUI) -> String {
     }
 }
 
-fn start_new_game(state: &mut GameState, gui: &mut GameUI, player_name: String) -> Option<Player> {
+fn start_new_game(state: &GameState, game_objs: &mut GameObjects, gui: &mut GameUI, player_name: String) -> Option<Player> {
     let mut menu = vec!["Welcome adventurer, please choose your role in RogueVillage:"];
 	menu.push("");
 	menu.push("  (a) Human Warrior - a doughty fighter who lives by the sword and...well");
@@ -356,11 +231,11 @@ fn start_new_game(state: &mut GameState, gui: &mut GameUI, player_name: String) 
 	
     if let Some(answer) = gui.menu_picker(&menu, 2, true, true) {
         if answer.contains(&0) {
-            let mut player = Player::new_warrior(state, player_name);
+            let mut player = Player::new_warrior(game_objs, player_name);
             player.location = pick_player_start_loc(&state);
             return Some(player);
         } else {
-            let mut player = Player::new_rogue(state, player_name);
+            let mut player = Player::new_rogue(game_objs, player_name);
             player.location = pick_player_start_loc(&state);
             return Some(player);
         }
@@ -369,10 +244,10 @@ fn start_new_game(state: &mut GameState, gui: &mut GameUI, player_name: String) 
     None
 }
 
-fn fetch_player(state: &mut GameState, gui: &mut GameUI, player_name: String) -> Option<Player> {
+fn fetch_player(state: &GameState, game_objs: &mut GameObjects,  gui: &mut GameUI, player_name: String) -> Option<Player> {
     // Of course eventually this is where I'll check for a saved game and load
     // it if one exists.
-    start_new_game(state, gui, player_name)
+    start_new_game(state, game_objs, gui, player_name)
 }
 
 fn item_hits_ground(loc: (i32, i32, i8), item: Item, game_objs: &mut GameObjects) {
@@ -389,7 +264,7 @@ fn item_hits_ground(loc: (i32, i32, i8), item: Item, game_objs: &mut GameObjects
 
 fn drop_zorkmids(state: &mut GameState, loc: (i32, i32, i8), amt: u32, game_objs: &mut GameObjects) {
     for _ in 0..amt {
-        item_hits_ground(loc, Item::get_item(state, "gold piece").unwrap(), game_objs)
+        //item_hits_ground(loc, Item::get_item(state, "gold piece").unwrap(), game_objs)
     }
 }
 
@@ -741,14 +616,22 @@ fn show_character_sheet(gui: &mut GameUI, player: &Player) {
 	gui.write_long_msg(&lines, true);
 }
 
-fn show_inventory(gui: &mut GameUI, state: &mut GameState, player: &Player) {
-    let menu = player.inventory.get_menu();
+fn show_inventory(gui: &mut GameUI, state: &mut GameState, player: &Player, game_objs: &GameObjects) {
+    let menu = game_objs.get_inventory_menu();
 
-	if menu.len() == 0 {
+    let money = if player.purse == 1 {
+        String::from("$) a single zorkmid to your name")
+    } else {
+        let s = format!("$) {} gold pieces", player.purse);
+        s
+    };
+
+	if menu.len() == 0 && player.purse == 0 {
 		state.write_msg_buff("You are empty-handed.");
 	} else {
-		let mut m: Vec<&str> = menu.iter().map(AsRef::as_ref).collect();
+		let mut m: Vec<&str> = menu.iter().map(AsRef::as_ref).collect();        
         m.insert(0, "You are carrying:");
+        m.insert(1, &money);
 		gui.write_long_msg(&m, true);
 	}
 }
@@ -855,7 +738,7 @@ fn run(gui: &mut GameUI, state: &mut GameState, player: &mut Player, game_objs: 
             },
             Cmd::PickUp => pick_up(state, player, game_objs, gui),
             Cmd::ShowCharacterSheet => show_character_sheet(gui, player),
-            Cmd::ShowInventory => show_inventory(gui, state, player),
+            Cmd::ShowInventory => show_inventory(gui, state, player, game_objs),
             Cmd::ToggleEquipment => toggle_equipment(state, player, gui),
             Cmd::Use => use_item(state, player, gui),
             Cmd::Quit => break,
@@ -913,7 +796,7 @@ fn main() {
     title_screen(&mut gui);
     let player_name = who_are_you(&mut gui);
 
-    let mut player = fetch_player(&mut state, &mut gui, player_name).unwrap();
+    let mut player = fetch_player(&state, &mut game_objs, &mut gui, player_name).unwrap();
     state.player_loc = player.location;
 
     let sbi = state.curr_sidebar_info(&player);
