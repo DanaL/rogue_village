@@ -488,7 +488,7 @@ fn toggle_item(state: &mut GameState, game_objs: &mut GameObjects, item: Item, p
 
 fn toggle_equipment(state: &mut GameState, player: &mut Player, game_objs: &mut GameObjects, gui: &mut GameUI) {
     let inv_items = game_objs.inv_slots_used();
-    let mut slots: HashSet<char> = inv_items.iter().map(|i| i.0).collect();
+    let slots: HashSet<char> = inv_items.iter().map(|i| i.0).collect();
     
     if slots.len() == 0 {
         state.write_msg_buff("You are empty handed.");
@@ -514,31 +514,56 @@ fn toggle_equipment(state: &mut GameState, player: &mut Player, game_objs: &mut 
     }
 }
 
-fn use_item(state: &mut GameState, player: &mut Player, gui: &mut GameUI) {
-    /*
-    if player.inventory.used_slots().len() == 0 {
-		state.write_msg_buff("You are empty handed.");
-		return
-	}
-
+fn use_item(state: &mut GameState, player: &mut Player, game_objs: &mut GameObjects, gui: &mut GameUI) {
+    let inv_items = game_objs.inv_slots_used();
+    let slots: HashSet<char> = inv_items.iter().map(|i| i.0).collect();
+    
+    if slots.len() == 0 {
+        state.write_msg_buff("You are empty handed.");
+        return;
+    }
+    
     let sbi = state.curr_sidebar_info(player);
     if let Some(ch) = gui.query_single_response("Use what?", Some(&sbi)) {
-        if let Some(item) = player.inventory.peek_at(ch) {
-            if !item.useable() {
-                state.write_msg_buff("You don't know how to use that.");
-            } else {
-                // I suspect this will get much more complicated when there are more types of items but 
-                // for now it's really just torches.
-                let msg = player.inventory.use_item_in_slot(ch, state);
-                state.write_msg_buff(&msg);
+        if !slots.contains(&ch) {
+            state.write_msg_buff("You do not have that item!");
+            return;
+        } 
+        for i in inv_items {
+            if let Some(mut item) = i.1.as_item() {
+                if item.slot == ch {
+                    if !item.useable() {
+                        state.write_msg_buff("You don't know how to use that.");
+                        return;
+                    } 
+
+                    let s = if item.active { 
+                        format!("You extinguish {}.", item.name.with_def_article())
+                    } else {
+                        format!("{} blazes brightly!", item.name.with_def_article().capitalize())
+                    };
+                    state.write_msg_buff(&s);
+
+                    // if light.active {
+            //     state.listeners.insert((light.object_id, EventType::EndOfTurn));
+            // } else {
+            //     state.listeners.insert((light.object_id, EventType::EndOfTurn));
+            // }
+
+                    game_objs.get(item.get_object_id());
+                    item.active = !item.active;
+                    item.stackable = false;
+                    game_objs.add_to_inventory(item);
+
+                    state.turn += 1;
+                                          
+                    break;                       
+                }
             }
-        } else {
-            state.write_msg_buff("You do not have that item.");
-        }        
+        }
 	} else {
         state.write_msg_buff("Nevermind.");
     }
-    */
 }
 
 fn get_move_tuple(mv: &str) -> (i32, i32) {
@@ -841,7 +866,7 @@ fn run(gui: &mut GameUI, state: &mut GameState, player: &mut Player, game_objs: 
             Cmd::ShowCharacterSheet => show_character_sheet(gui, player),
             Cmd::ShowInventory => show_inventory(gui, state, player, game_objs),
             Cmd::ToggleEquipment => toggle_equipment(state, player, game_objs, gui),
-            Cmd::Use => use_item(state, player, gui),
+            Cmd::Use => use_item(state, player, game_objs, gui),
             Cmd::Quit => break,
             Cmd::Up => take_stairs(state, player, false),
             Cmd::WizardCommand => wiz_command(state, gui, player),

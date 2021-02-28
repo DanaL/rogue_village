@@ -70,119 +70,6 @@ impl Inventory {
 		}
 	}
 
-    // This is pretty simple for now because the only item with an activateable effect are torches
-    pub fn use_item_in_slot(&mut self, slot: char, state: &mut GameState) -> String {
-        // Check to see if the item is actually useable is assumed done by the caller method
-        let val = self.inv.get(&slot).unwrap().clone();
-        let item = val.0;
-        let stack_count = val.1;
-
-        let s = if item.active { 
-            format!("You extinguish {}.", item.name.with_def_article())
-        } else {
-            format!("{} blazes brightly!", item.name.with_def_article().capitalize())
-        };
-
-        // Stackable, equipable items make things slightly complicated. I am assuming any stackble, equipable 
-        // thing is basically something like a torch that has charges counting down so remove it from the stack
-        if stack_count > 1 && item.stackable {
-            //let mut light = Item::get_item(state, &item.name).unwrap();
-            //light.active = !item.active;
-
-            // if light.active {
-            //     state.listeners.insert((light.object_id, EventType::EndOfTurn));
-            // } else {
-            //     state.listeners.insert((light.object_id, EventType::EndOfTurn));
-            // }
-
-            //self.inv.insert(slot, (item, stack_count -1));
-            
-            // TODO: handle the case where there is no free inventory slot for the torch that is now
-            // separate from the stack            
-            //self.add(light);
-        } else {
-            let val = self.inv.get_mut(&slot).unwrap();
-            let mut item = &mut val.0;
-            item.active = !item.active;
-
-            // if item.active {
-            //     state.listeners.insert((item.object_id, EventType::EndOfTurn));
-            // } else {
-            //     state.listeners.insert((item.object_id, EventType::EndOfTurn));
-            // }
-        }
-
-        s
-    }
-
-    // pub fn toggle_slot(&mut self, slot: char) -> (String, bool) {
-	// 	if !self.inv.contains_key(&slot) {
-	// 		return (String::from("You do not have that item!"), false);
-	// 	}
-        
-	// 	let val = self.inv.get(&slot).unwrap().clone();
-    //     let item = val.0;
-    //     let stack_count = val.1;
-	// 	let item_name = item.name.clone();
-        
-
-
-    //     // Stackable, equipable items make things slightly complicated. I am assuming any stackble, equipable 
-    //     // thing is basically something like a torch that has charges counting down so remove it from the stack
-    //     if stack_count > 1 && item.stackable {
-    //         let mut light = item.clone();
-    //         light.equiped = true;
-
-    //         self.inv.insert(slot, (item, stack_count -1));
-                        
-    //         // TODO: handle the case where there is no free inventory slot for the torch that is now
-    //         // separate from the stack            
-    //         self.add(light);
-
-    //         let s = format!("The {} blazes brightly!", item_name);
-
-    //         return (s, true);
-    //     }
-
-    //     let mut swapping = false;
-    //     if item.item_type == ItemType::Weapon {
-    //         if let Some(w) = self.get_readied_weapon() {
-    //             if w.object_id != item.object_id {
-    //                 swapping = true;
-    //                 self.unequip_type(item.item_type);
-    //             }
-    //         }
-    //     } else if item.item_type == ItemType::Armour {
-    //         if let Some(a) = self.get_readied_armour() {
-    //             if a.object_id != item.object_id {
-    //                 return (String::from("You are already wearing armour."), false);
-    //             }
-    //         }
-    //     }
-        
-    //     // Alright, so at this point we can toggle the item in the slot.
-    //     let mut item_slot = self.inv.get_mut(&slot).unwrap();
-    //     item_slot.0.equiped = !item_slot.0.equiped;
-
-    //     let mut s = String::from("You ");
-        
-    //     if swapping {
-    //         s.push_str("are now wielding ")
-    //     } else if item_slot.0.equiped {
-    //         s.push_str("equip ");
-    //     } else {
-    //         s.push_str("unequip ");
-    //     }
-        
-    //     s.push_str(&item_name.with_def_article());
-    //     s.push('.');
-        
-    //     if self.get_readied_weapon() == None {
-    //          s = String::from("You are now empty handed.");
-    //     } 
-
-	// 	(s, true)        
-	// }
     
     pub fn used_slots(&self) -> Vec<char> {
         self.inv.keys().map(|c| *c).collect()
@@ -250,7 +137,7 @@ pub struct Item {
 	pub symbol: char,
 	pub lit_colour: (u8, u8, u8),
     pub unlit_colour: (u8, u8, u8),
-	stackable: bool,
+	pub stackable: bool,
 	pub slot: char,
 	pub dmg_die: u8,
 	pub dmg_dice: u8,
