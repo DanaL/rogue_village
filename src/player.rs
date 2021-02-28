@@ -59,7 +59,7 @@ pub struct Player {
 }
 
 impl Player {
-    pub fn calc_vision_radius(&mut self, state: &mut GameState) {
+    pub fn calc_vision_radius(&mut self, state: &mut GameState, game_objs: &GameObjects) {
         let prev_vr = self.vision_radius;
         let (hour, _) = state.curr_time();
 
@@ -90,7 +90,7 @@ impl Player {
 
         // After we calculate the player's minimum vision radius, here we can check for
         // light sources that increase it.
-        let from_items = 0; // self.inventory.light_from_items(); 
+        let from_items = game_objs.light_from_inv_sources();
         if from_items > self.vision_radius {
             self.vision_radius = from_items;
         }

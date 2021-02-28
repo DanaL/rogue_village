@@ -355,7 +355,7 @@ impl GameObjects {
 
         items
     }
-    
+       
     pub fn readied_armour(&self) -> Option<Item> {
         if self.obj_locs.contains_key(&PLAYER_INV) {
             let ids: Vec<usize> = self.obj_locs[&PLAYER_INV]
@@ -458,18 +458,21 @@ impl GameObjects {
         v
     }
 
-    // pub fn light_from_items(&self) -> u8 {
-    //     let max_aura = self.inv
-    //                 .iter()
-    //                 .filter(|i| i.1.0.active)
-    //                 .map(|i| i.1.0.aura)
-    //                 .max();
-        
-    //     if let Some(v) = max_aura {
-    //         v
-    //     } else {
-    //         0
-    //     }
-    // }
+    pub fn light_from_inv_sources(&self) -> u8 {
+        let items = self.inv_slots_used();
+
+        let max_aura = 
+            items.iter()
+                .map(|i| i.1.clone())
+                .filter(|l| l.active)
+                .map(|l| l.aura)
+                .max();
+
+        if let Some(v) = max_aura {
+            v
+        } else {
+            0
+        }
+    }
 }
 

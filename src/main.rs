@@ -805,7 +805,7 @@ fn pick_player_start_loc(state: &GameState) -> (i32, i32, i8) {
 fn fov_to_tiles(state: &mut GameState, player: &Player, game_objs: &GameObjects, visible: &Vec<((i32, i32, i8), bool)>) -> Vec<(map::Tile, bool)> {
     let mut v_matrix = vec![(map::Tile::Blank, false); visible.len()];
     let underground = state.player_loc.2 > 0;
-    let has_light = false; // player.inventory.light_from_items() > 0;
+    let has_light = game_objs.light_from_inv_sources() > 0;
 
     for j in 0..visible.len() {
         let vis = visible[j];
@@ -819,18 +819,16 @@ fn fov_to_tiles(state: &mut GameState, player: &Player, game_objs: &GameObjects,
                 t.0
             } else {
                 state.tile_memory.insert(vis.0, state.map[&vis.0]);
-                state.map[&vis.0]
+                // I wanted to make tochlight squares be coloured different so this is a slight
+                // kludge. Although perhaps later I might use it to differentiate between a player
+                // walking through the dungeon with a light vs relying on darkvision, etc
+                if underground && has_light && state.map[&vis.0] == Tile::StoneFloor {
+                    Tile::ColourFloor(YELLOW)
+                } else {
+                    state.map[&vis.0]
+                }
             };
             
-            // I wanted to make tochlight squares be coloured different so this is a slight
-            // kludge. Although perhaps later I might use it to differentiate between a player
-            // walking through the dungeon with a light vs relying on darkvision, etc
-            // if underground && has_light && state.map[&vis.0] == Tile::StoneFloor {
-            //     Tile::ColourFloor(YELLOW)
-            // } else {
-            //     state.map[&vis.0]
-            // }
-                        
             v_matrix[j] = (tile, true);
         } else if state.tile_memory.contains_key(&vis.0) {
             v_matrix[j] = (state.tile_memory[&vis.0], false);            
@@ -879,7 +877,7 @@ fn run(gui: &mut GameUI, state: &mut GameState, player: &mut Player, game_objs: 
             game_objs.do_npc_turns(state);
         }
         
-        player.calc_vision_radius(state);
+        player.calc_vision_radius(state, game_objs);
         
         let fov_start = Instant::now();
         let visible = fov::calc_fov(&state.map, player, FOV_HEIGHT, FOV_WIDTH);
