@@ -326,7 +326,7 @@ impl GameObject for Villager {
         self.stats.location = loc;
     }
 
-    fn receive_event(&mut self, event: EventType, state: &mut GameState) -> Option<EventType> {
+    fn receive_event(&mut self, _event: EventType, _state: &mut GameState) -> Option<EventType> {
         None
     }
 

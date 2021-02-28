@@ -13,12 +13,9 @@
 // You should have received a copy of the GNU General Public License
 // along with RogueVillage.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::fs::read;
-
 use rand::Rng;
 
-use super::{GameObjects, GameState, items, PLAYER_INV};
-use crate::game_obj::GameObject;
+use super::{GameObjects, GameState, items};
 use crate::items::Item;
 
 #[derive(Clone, Debug)]
@@ -59,7 +56,7 @@ pub struct Player {
 }
 
 impl Player {
-    pub fn calc_vision_radius(&mut self, state: &mut GameState, game_objs: &GameObjects) {
+    pub fn calc_vision_radius(&mut self, state: &mut GameState, _game_objs: &GameObjects) {
         let prev_vr = self.vision_radius;
         let (hour, _) = state.curr_time();
 

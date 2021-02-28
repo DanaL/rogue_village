@@ -35,7 +35,7 @@ mod world;
 
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::path::Path;
-use std::time::{Duration, Instant};
+//use std::time::{Duration, Instant};
 
 use rand::{Rng, thread_rng};
 
@@ -387,8 +387,6 @@ fn pick_up(state: &mut GameState, player: &mut Player, game_objs: &mut GameObjec
         state.turn += 1;
     } else {
         let mut m = game_objs.get_pickup_menu(player.location);
-        let vs: Vec<String> = m.iter().map(|i| i.0.to_string()).collect();
-
         let mut answer_key = HashMap::new();
         let mut menu = Vec::new();
         for j in 0..m.len() {
@@ -788,7 +786,7 @@ fn pick_player_start_loc(state: &GameState) -> (i32, i32, i8) {
     let x = thread_rng().gen_range(0, 4);
     let b = state.world_info.town_boundary;
 
-    return state.world_info.facts[0].location;
+    //return state.world_info.facts[0].location;
     if x == 0 {
         (b.0 - 5, thread_rng().gen_range(b.1, b.3), 0)
     } else if x == 1 {
@@ -804,9 +802,8 @@ fn pick_player_start_loc(state: &GameState) -> (i32, i32, i8) {
 // From that, we assemble the vector of tiles to send to the GameUI to be drawn. If an NPC is in a visible square,
 // they are on top, otherwise show the tile. If the tile isn't visible but the player has seen it before, show the 
 // tile as unlit, otherwise leave it as a blank square.
-fn fov_to_tiles(state: &mut GameState, player: &Player, game_objs: &GameObjects, visible: &Vec<((i32, i32, i8), bool)>) -> Vec<(map::Tile, bool)> {
+fn fov_to_tiles(state: &mut GameState, game_objs: &GameObjects, visible: &Vec<((i32, i32, i8), bool)>) -> Vec<(map::Tile, bool)> {
     let mut v_matrix = vec![(map::Tile::Blank, false); visible.len()];
-    let underground = state.player_loc.2 > 0;
     
     for j in 0..visible.len() {
         let vis = visible[j];
@@ -841,7 +838,7 @@ fn fov_to_tiles(state: &mut GameState, player: &Player, game_objs: &GameObjects,
 
 fn run(gui: &mut GameUI, state: &mut GameState, player: &mut Player, game_objs: &mut GameObjects, dialogue: &DialogueLibrary) {
     let visible = fov::calc_fov(state, player.location, player.vision_radius, FOV_HEIGHT, FOV_WIDTH);
-	gui.v_matrix = fov_to_tiles(state, player, game_objs, &visible);
+	gui.v_matrix = fov_to_tiles(state, game_objs, &visible);
     let sbi = state.curr_sidebar_info(player);
     state.write_msg_buff("Welcome, adventurer!");   
 	gui.write_screen(&mut state.msg_buff, Some(&sbi));
@@ -883,7 +880,7 @@ fn run(gui: &mut GameUI, state: &mut GameState, player: &mut Player, game_objs: 
         
         //let fov_start = Instant::now();
         let visible = fov::calc_fov(state, player.location, player.vision_radius, FOV_HEIGHT, FOV_WIDTH);
-        gui.v_matrix = fov_to_tiles(state, player, game_objs, &visible);        
+        gui.v_matrix = fov_to_tiles(state, game_objs, &visible);        
         //let fov_duration = fov_start.elapsed();
         //println!("Time for fov: {:?}", fov_duration);
 		

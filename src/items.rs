@@ -13,8 +13,6 @@
 // You should have received a copy of the GNU General Public License
 // along with RogueVillage.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::collections::HashMap;
-
 use display::YELLOW_ORANGE;
 
 use super::{EventType, FOV_HEIGHT, FOV_WIDTH, GameState, GameObjects, PLAYER_INV};
@@ -259,11 +257,11 @@ impl GameObject for Item {
         Some(self.clone())
     }
 
-    fn take_turn(&mut self, state: &mut GameState, game_objs: &mut GameObjects) {
+    fn take_turn(&mut self, _state: &mut GameState, _game_objs: &mut GameObjects) {
          
     }
 
-    fn talk_to(&mut self, state: &mut GameState, player: &Player, dialogue: &DialogueLibrary) -> String {
+    fn talk_to(&mut self, _state: &mut GameState, _player: &Player, _dialogue: &DialogueLibrary) -> String {
         format!("You are trying to talk to {}...", self.get_fullname().with_indef_article())
     }
 }
@@ -298,7 +296,7 @@ impl GameObject for GoldPile {
         self.location = loc;
     }
 
-    fn receive_event(&mut self, event: EventType, state: &mut GameState) -> Option<EventType> {
+    fn receive_event(&mut self, _event: EventType, _state: &mut GameState) -> Option<EventType> {
         None
     }
 
@@ -333,11 +331,11 @@ impl GameObject for GoldPile {
         Some(self.clone())
     }
 
-    fn take_turn(&mut self, state: &mut GameState, game_objs: &mut GameObjects) {
+    fn take_turn(&mut self, _state: &mut GameState, _game_objs: &mut GameObjects) {
          
     }
 
-    fn talk_to(&mut self, state: &mut GameState, player: &Player, dialogue: &DialogueLibrary) -> String {
+    fn talk_to(&mut self, _state: &mut GameState, _player: &Player, _dialogue: &DialogueLibrary) -> String {
         String::from("You are trying to talk to a pile of money...")
     }
 }

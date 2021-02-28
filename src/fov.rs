@@ -16,7 +16,6 @@
 use super::{FOV_WIDTH, FOV_HEIGHT, GameState};
 
 use crate::map;
-use crate::player::Player;
 use crate::util;
 
 #[inline]
