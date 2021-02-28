@@ -457,5 +457,19 @@ impl GameObjects {
         
         v
     }
+
+    // pub fn light_from_items(&self) -> u8 {
+    //     let max_aura = self.inv
+    //                 .iter()
+    //                 .filter(|i| i.1.0.active)
+    //                 .map(|i| i.1.0.aura)
+    //                 .max();
+        
+    //     if let Some(v) = max_aura {
+    //         v
+    //     } else {
+    //         0
+    //     }
+    // }
 }
 
