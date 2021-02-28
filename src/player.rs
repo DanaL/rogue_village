@@ -88,13 +88,6 @@ impl Player {
             }
         }
 
-        // After we calculate the player's minimum vision radius, here we can check for
-        // light sources that increase it.
-        let from_items = game_objs.light_from_inv_sources();
-        if from_items > self.vision_radius {
-            self.vision_radius = from_items;
-        }
-
         // Announce sunrise and sunset if the player is on the surface
         // This should be here and is a dumb calculation because vision radius will be
         // affected by say torches. It should be moved to end-of-turn stuff in the gameloop

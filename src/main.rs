@@ -62,10 +62,6 @@ pub enum EventType {
     TakeTurn,
 }
 
-pub trait EventListener {
-    fn receive(&mut self, event: EventType, state: &mut GameState) -> Option<EventType>;
-}
-
 pub enum Cmd {
 	Quit,
 	Move(String),
@@ -101,6 +97,7 @@ pub struct GameState {
     player_loc: (i32, i32, i8),
     world_info: WorldInfo,
     tile_memory: HashMap<(i32, i32, i8), Tile>,
+    lit_sqs: HashSet<(i32, i32, i8)>, // by light sources independent of player
     next_obj_id: usize,    
 }
 
@@ -114,6 +111,7 @@ impl GameState {
             player_loc: (-1, -1, -1),
             world_info: world_info,
             tile_memory: HashMap::new(),
+            lit_sqs: HashSet::new(),
             next_obj_id: 0,            
         };
 
@@ -786,6 +784,7 @@ fn pick_player_start_loc(state: &GameState) -> (i32, i32, i8) {
     let x = thread_rng().gen_range(0, 4);
     let b = state.world_info.town_boundary;
 
+    return state.world_info.facts[0].location;
     if x == 0 {
         (b.0 - 5, thread_rng().gen_range(b.1, b.3), 0)
     } else if x == 1 {
@@ -804,8 +803,7 @@ fn pick_player_start_loc(state: &GameState) -> (i32, i32, i8) {
 fn fov_to_tiles(state: &mut GameState, player: &Player, game_objs: &GameObjects, visible: &Vec<((i32, i32, i8), bool)>) -> Vec<(map::Tile, bool)> {
     let mut v_matrix = vec![(map::Tile::Blank, false); visible.len()];
     let underground = state.player_loc.2 > 0;
-    let has_light = game_objs.light_from_inv_sources() > 0;
-
+    
     for j in 0..visible.len() {
         let vis = visible[j];
         if vis.0 == state.player_loc {
@@ -821,7 +819,7 @@ fn fov_to_tiles(state: &mut GameState, player: &Player, game_objs: &GameObjects,
                 // I wanted to make tochlight squares be coloured different so this is a slight
                 // kludge. Although perhaps later I might use it to differentiate between a player
                 // walking through the dungeon with a light vs relying on darkvision, etc
-                if underground && has_light && state.map[&vis.0] == Tile::StoneFloor {
+                if state.lit_sqs.contains(&vis.0) && state.map[&vis.0] == Tile::StoneFloor {
                     Tile::ColourFloor(YELLOW)
                 } else {
                     state.map[&vis.0]
@@ -838,7 +836,7 @@ fn fov_to_tiles(state: &mut GameState, player: &Player, game_objs: &GameObjects,
 }
 
 fn run(gui: &mut GameUI, state: &mut GameState, player: &mut Player, game_objs: &mut GameObjects, dialogue: &DialogueLibrary) {
-    let visible = fov::calc_fov(&state.map, player, FOV_HEIGHT, FOV_WIDTH);
+    let visible = fov::calc_fov(state, player.location, player.vision_radius, FOV_HEIGHT, FOV_WIDTH);
 	gui.v_matrix = fov_to_tiles(state, player, game_objs, &visible);
     let sbi = state.curr_sidebar_info(player);
     state.write_msg_buff("Welcome, adventurer!");   
@@ -880,7 +878,7 @@ fn run(gui: &mut GameUI, state: &mut GameState, player: &mut Player, game_objs: 
         player.calc_vision_radius(state, game_objs);
         
         //let fov_start = Instant::now();
-        let visible = fov::calc_fov(&state.map, player, FOV_HEIGHT, FOV_WIDTH);
+        let visible = fov::calc_fov(state, player.location, player.vision_radius, FOV_HEIGHT, FOV_WIDTH);
         gui.v_matrix = fov_to_tiles(state, player, game_objs, &visible);        
         //let fov_duration = fov_start.elapsed();
         //println!("Time for fov: {:?}", fov_duration);

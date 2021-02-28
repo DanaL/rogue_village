@@ -17,10 +17,11 @@ use std::collections::HashMap;
 
 use display::YELLOW_ORANGE;
 
-use super::{EventListener, EventType, GameState, GameObjects, PLAYER_INV};
+use super::{EventType, FOV_HEIGHT, FOV_WIDTH, GameState, GameObjects, PLAYER_INV};
 
 use crate::dialogue::DialogueLibrary;
 use crate::display;
+use crate::fov;
 use crate::game_obj::{GameObject, GameObjType};
 use crate::map::Tile;
 use crate::player::Player;
@@ -137,31 +138,21 @@ impl Item {
             self.stackable
         }
     }
-}
 
-impl EventListener for Item {
-    fn receive(&mut self, event: EventType, state: &mut GameState) -> Option<EventType> {
-        match event {
-            EventType::EndOfTurn => {
-                if self.active {
-                    self.charges -= 1;
-                }
+	fn mark_lit_sqs(&self, state: &mut GameState) {
+		let loc = if self.location == PLAYER_INV {
+			state.player_loc
+		} else {
+			self.location
+		};
 
-                if self.charges == 0 {
-                    let s = format!("{} has gone out!", self.name.with_def_article().capitalize());
-                    state.write_msg_buff(&s);
-                    Some(EventType::LightExpired)
-                } else if self.charges < 100 {
-                    let s = format!("{} sputters.", self.name.with_def_article().capitalize());
-                    state.write_msg_buff(&s);
-                    None
-                } else {                    
-                    None
-                }
-            },
-            _ => None
-        }
-    }
+		let lit = fov::calc_fov(state, loc, self.aura, FOV_HEIGHT, FOV_WIDTH);
+		for sq in lit {
+			if sq.1 {
+				state.lit_sqs.insert(sq.0);
+			}
+		}		
+	}
 }
 
 impl PartialEq for Item {
@@ -193,36 +184,35 @@ impl GameObject for Item {
 		match event {
 			EventType::EndOfTurn => {
 				self.charges -= 1;
+
 				// right now light sources are the only things in the game which times like this
+				// This'll mark squares that are lit independent of the player's vision. Don't bother
+				// with the calculation if the light source is on another level of the dungeon
+				if self.charges > 0 && (self.location == PLAYER_INV || self.location.2 == state.player_loc.2) {
+					self.mark_lit_sqs(state);
+				}
+
 				if self.charges == 150 {
-					let mut s = String::from("");
-					if self.location == PLAYER_INV {
-						s.push_str("Your ");
+					let s = if self.location == PLAYER_INV {
+						format!("Your {} flickes.", self.name)					
 					} else {
-						s.push_str("The ");
-					}
-					s.push_str(&self.name);
-					s.push_str(" flickers.");
+						format!("The {} flickes.", self.name)
+					};
+					self.aura -= 2;
 					state.write_msg_buff(&s);
 				} else if self.charges == 25 {
-					let mut s = String::from("");
-					if self.location == PLAYER_INV {
-						s.push_str("Your ");
+					let s = if self.location == PLAYER_INV {
+						format!("Your {} seems about to go out.", self.name)					
 					} else {
-						s.push_str("The ");
-					}
-					s.push_str(&self.name);
-					s.push_str(" seems about to go out.");
+						format!("The {} seems about to out.", self.name)
+					};
 					state.write_msg_buff(&s);
 				} else if self.charges == 0 {
-					let mut s = String::from("");
-					if self.location == PLAYER_INV {
-						s.push_str("Your ");
+					let s = if self.location == PLAYER_INV {
+						format!("Your {} has gone out!", self.name)					
 					} else {
-						s.push_str("The ");
-					}
-					s.push_str(&self.name);
-					s.push_str(" has gone out!");
+						format!("The {} hss gone out!", self.name)
+					};
 					state.write_msg_buff(&s);
 					return Some(EventType::LightExpired);
 				}
@@ -277,6 +267,7 @@ impl GameObject for Item {
         format!("You are trying to talk to {}...", self.get_fullname().with_indef_article())
     }
 }
+
 #[derive(Debug, Clone)]
 pub struct GoldPile {
     pub object_id: usize,

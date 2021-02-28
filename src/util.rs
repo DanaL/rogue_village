@@ -94,6 +94,19 @@ pub trait StringUtils {
 	fn with_indef_article(&self) -> String;
 }
 
+// Pre-computed circles of various radiuses
+pub const CIRCLE_ROWS_R1: [(i32, i32, i32); 3]  = [(-1, -1, 1), (0, -1, 1), (1, -1, 1)];
+pub const CIRCLE_ROWS_R3: [(i32, i32, i32); 7]  = [(-3, -1, 1), (-2, -2, 2), (-1, -3, 3), (0, -3, 3), (1, -3 ,3), (2, -2, 2), (3, -1, 1)];
+pub const CIRCLE_ROWS_R5: [(i32, i32, i32); 11] = [(-5, -2, 2), (-4, -3, 3), (-3, -4, 4), (-2, -5, 5), (-1, -5, 5), (0, -5, 5),
+											       (1, -5, 5), (2, -5, 5), (3, -4, 4), (4, -3, 3), (5, -2, 2)]; 
+pub const CIRCLE_ROWS_R7: [(i32, i32, i32); 15] = [(-7, -2, 2), (-6, -4, 4), (-5, -5, 5), (-4, -6, 6), (-3, -6, 6), (-2, -7, 7),
+											       (-1, -7, 7), (0, -7, 7), (1, -7, 7), (2, -7, 7), (3, -6, 6), (4, -6, 6),
+											       (5, -5, 5), (6, -4, 4), (7, -2, 2)];
+pub const CIRCLE_ROWS_R9: [(i32, i32, i32); 19] = [(-9, -3, 3), (-8, -5, 5), (-7, -6, 6), (-6, -7, 7), (-5, -8, 8), (-4, -8, 8),
+											       (-3, -9, 9), (-2, -9, 9), (-1, -9, 9), (0, -9, 9), (1, -9, 9), (2, -9, 9),
+											       (3, -9, 9), (4, -8, 8), (5, -8, 8), (6, -7, 7), (7, -6, 6), (8, -5, 5),
+											       (9, -3, 3)];											  									
+
 // I started off with this string util stuff as just free-floating functions,
 // but I think extending String with a Trait is a bit more rustic?
 impl StringUtils for String {

@@ -13,32 +13,11 @@
 // You should have received a copy of the GNU General Public License
 // along with RogueVillage.  If not, see <https://www.gnu.org/licenses/>.
 
-use super::{FOV_WIDTH, FOV_HEIGHT, Map};
+use super::{FOV_WIDTH, FOV_HEIGHT, GameState};
 
 use crate::map;
 use crate::player::Player;
-
-// Pre-computed circles of various radiuses
-const RADIUS_1: [(i32, i32); 8] = [(0, -1), (0, 1), (-1, 0), (1, 0), (-1, -1), (-1, 1), (1, -1), (1, 1)];
-const RADIUS_3: [(i32, i32); 24] = [(3, 0), (3, 0), (-3, 0), (-3, 0), (0, 3), (0, -3), (0, 3), (0, -3), (3, 1), (3, -1), 
-											(-3, 1), (-3, -1), (1, 3), (1, -3), (-1, 3), (-1, -3), (2, 2), (2, -2), (-2, 2), (-2, -2), 
-											(2, 2), (2, -2), (-2, 2), (-2, -2)];
-const RADIUS_5: [(i32, i32); 36] = [(5, 0), (5, 0), (-5, 0), (-5, 0), (0, 5), (0, -5), (0, 5), (0, -5), (5, 1), (5, -1), 
-											(-5, 1), (-5, -1), (1, 5), (1, -5), (-1, 5), (-1, -5), (5, 2), (5, -2), (-5, 2), (-5, -2), (2, 5), 
-											(2, -5), (-2, 5), (-2, -5), (4, 3), (4, -3), (-4, 3), (-4, -3), (3, 4), (3, -4), (-3, 4), (-3, -4),
-											(-3, -3), (3, 3), (-3, 3), (3, -3)];
-const RADIUS_7: [(i32, i32); 56] = [(7, 0), (7, 0), (-7, 0), (-7, 0), (0, 7), (0, -7), (0, 7), (0, -7), (7, 1), (7, -1), (-7, 1), 
-											(-7, -1), (1, 7), (1, -7), (-1, 7), (-1, -7), (7, 2), (7, -2), (-7, 2), (-7, -2), (2, 7), (2, -7), 
-											(-2, 7), (-2, -7), (6, 3), (6, -3), (-6, 3), (-6, -3), (3, 6), (3, -6), (-3, 6), (-3, -6), (6, 4), 
-											(6, -4), (-6, 4), (-6, -4), (4, 6), (4, -6), (-4, 6), (-4, -6), (5, 5), (5, -5), (-5, 5), (-5, -5), 
-											(5, 5), (5, -5), (-5, 5), (-5, -5), (-4, -5), (4, 5), (-4, 5), (4, -5), (-5, -4), (5, 4), (-5, 4), (5, -4)];
-const RADIUS_9: [(i32, i32); 68] = [(9, 0), (9, 0), (-9, 0), (-9, 0), (0, 9), (0, -9), (0, 9), (0, -9), (9, 1), (9, -1), (-9, 1), 
-											(-9, -1), (1, 9), (1, -9), (-1, 9), (-1, -9), (9, 2), (9, -2), (-9, 2), (-9, -2), (2, 9), (2, -9), 
-											(-2, 9), (-2, -9), (9, 3), (9, -3), (-9, 3), (-9, -3), (3, 9), (3, -9), (-3, 9), (-3, -9), (8, 4), 
-											(8, -4), (-8, 4), (-8, -4), (4, 8), (4, -8), (-4, 8), (-4, -8), (8, 5), (8, -5), (-8, 5), (-8, -5), 
-											(5, 8), (5, -8), (-5, 8), (-5, -8), (7, 6), (7, -6), (-7, 6), (-7, -6), (6, 7), (6, -7), (-6, 7), 
-											(-6, -7), (-6, -6), (6, 6), (6, -6), (-6, 6), (-7, -5), (7, 5), (-7, 5), (7, -5), (-5, -7), (5, 7),
-											(-5, 7), (5, -7)];
+use crate::util;
 
 #[inline]
 fn radius_full() -> Vec<(i32, i32)> {
@@ -73,9 +52,9 @@ fn radius_full() -> Vec<(i32, i32)> {
 // As well, I wanted to have the trees obscure/reduce the FOV instead of outright
 // blocking vision and I couldn't think of a simple way to do that with 
 // shadowcasting.
-fn mark_visible(r1: i32, c1: i32, r2: i32, c2: i32,
+fn mark_visible(r1: i32, c1: i32, r2: i32, c2: i32, radius: f64,
 		depth: i8, v_matrix: &mut Vec<bool>, 
-        map: &Map, width: usize) {
+        state: &GameState, width: usize) {
     let mut r = r1;
 	let mut c = c1;
 	let mut error = 0;
@@ -105,22 +84,24 @@ fn mark_visible(r1: i32, c1: i32, r2: i32, c2: i32,
 				break;
 			}
 
-			if !map.contains_key(&(r, c, depth)) {
+			if !state.map.contains_key(&(r, c, depth)) {
 				return;
 			}
 
-			let vm_r = r - r1 + 10;
-			let vm_c = c - c1 + 20;
-            let vmi = (vm_r * width as i32 + vm_c) as usize;
-			v_matrix[vmi] = true;
+			if util::distance(r1, c1, r, c).round() <= radius || state.lit_sqs.contains(&(r, c, depth)) {
+				let vm_r = r - r1 + 10;
+				let vm_c = c - c1 + 20;
+				let vmi = (vm_r * width as i32 + vm_c) as usize;
+				v_matrix[vmi] = true;
+			}
 
-			if !&map[&(r, c, depth)].clear() {
+			if !state.map[&(r, c, depth)].clear() {
 				return;
 			}
 
 			// I want trees to not totally block light, but instead reduce visibility, but fog 
             // completely blocks light.           
-			if map::Tile::Tree == map[&(r, c, depth)] && !(r == r1 && c == c1) {
+			if map::Tile::Tree == state.map[&(r, c, depth)] && !(r == r1 && c == c1) {
 				if r_step > 0 {
 					r_end -= 2;
 				} else {
@@ -144,22 +125,24 @@ fn mark_visible(r1: i32, c1: i32, r2: i32, c2: i32,
 				break;
 			}
 
-			if !map.contains_key(&(r, c, depth)) {
+			if !state.map.contains_key(&(r, c, depth)) {
 				return;
 			}
 
-			let vm_r = r - r1 + 10;
-			let vm_c = c - c1 + 20;
-            let vmi = (vm_r * width as i32 + vm_c) as usize;
-			v_matrix[vmi] = true;
+			if util::distance(r1, c1, r, c).round() <= radius || state.lit_sqs.contains(&(r, c, depth)) {
+				let vm_r = r - r1 + 10;
+				let vm_c = c - c1 + 20;
+				let vmi = (vm_r * width as i32 + vm_c) as usize;
+				v_matrix[vmi] = true;
+			}
 
-			if !&map[&(r, c, depth)].clear() {
+			if !state.map[&(r, c, depth)].clear() {
 				return;
 			}
 
 			// Same as above, trees partially block vision instead of cutting it off
             //if curr_weather.clouds.contains(&(r as usize, c as usize)) && !no_fog.contains(&(r as usize, c as usize)) {
-            if map::Tile::Tree == map[&(r, c, depth)] && !(r == r1 && c == c1) {
+            if map::Tile::Tree == state.map[&(r, c, depth)] && !(r == r1 && c == c1) {
 				if c_step > 0 {
 					c_end -= 2;
 				} else {
@@ -177,29 +160,17 @@ fn mark_visible(r1: i32, c1: i32, r2: i32, c2: i32,
 	}
 }
 
-pub fn calc_fov(map: &Map, player: &Player, height: usize, width: usize) -> Vec<((i32, i32, i8), bool)> {
+pub fn calc_fov(state: &GameState, centre: (i32, i32, i8), radius: u8, height: usize, width: usize) -> Vec<((i32, i32, i8), bool)> {
     let size = height * width;
     let mut visible = vec![false; size];
 	let fov_center_r = height / 2;
 	let fov_center_c = width / 2;
 	visible[fov_center_r * width + fov_center_c] = true;
 
-	let perimeter = if player.vision_radius == 1 {
-		Vec::from(RADIUS_1)
-	} else if player.vision_radius == 3 {
-		Vec::from(RADIUS_3)
-	} else if player.vision_radius == 5 {
-		Vec::from(RADIUS_5)
-	} else if player.vision_radius == 7 {
-		Vec::from(RADIUS_7)
-	} else if player.vision_radius == 9 {
-		Vec::from(RADIUS_9)
-	} else {
-		radius_full()
-	};
-
-    let pr = player.location.0;
-    let pc = player.location.1;
+	let perimeter = radius_full();
+	
+    let pr = centre.0;
+    let pc = centre.1;
 	// Beamcast to all the points around the perimiter of the viewing
 	// area. For RogueVillage's fixed size FOV this seems to work just fine in
 	// terms of performance.
@@ -207,7 +178,7 @@ pub fn calc_fov(map: &Map, player: &Player, height: usize, width: usize) -> Vec<
 		let actual_r = pr + loc.0;
 		let actual_c = pc + loc.1;
 
-		mark_visible(pr, pc, actual_r as i32, actual_c as i32, player.location.2, &mut visible, map, width);
+		mark_visible(pr, pc, actual_r as i32, actual_c as i32, radius as f64, centre.2, &mut visible, state, width);
 	}
 
     // Now we know which locations are actually visible from the player's loc, 
@@ -218,7 +189,7 @@ pub fn calc_fov(map: &Map, player: &Player, height: usize, width: usize) -> Vec<
             let j = r * width + c;
 			let row = pr - fov_center_r as i32 + r as i32;
             let col = pc - fov_center_c as i32 + c as i32;
-			let loc = (row, col, player.location.2);
+			let loc = (row, col, centre.2);
 			v_matrix.push((loc, visible[j]));
         }
     }

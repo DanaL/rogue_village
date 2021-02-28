@@ -195,6 +195,7 @@ impl GameObjects {
             .filter(|l| l.1 == EventType::EndOfTurn)
             .map(|l| l.0).collect();
 
+        state.lit_sqs.clear();
         for obj_id in listeners {
             let mut obj = self.get(obj_id);
 
@@ -473,23 +474,6 @@ impl GameObjects {
         }
         
         v
-    }
-
-    pub fn light_from_inv_sources(&self) -> u8 {
-        let items = self.inv_slots_used();
-
-        let max_aura = 
-            items.iter()
-                .map(|i| i.1.clone())
-                .filter(|l| l.active)
-                .map(|l| l.aura)
-                .max();
-
-        if let Some(v) = max_aura {
-            v
-        } else {
-            0
-        }
     }
 }
 
