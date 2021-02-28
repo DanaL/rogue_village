@@ -14,6 +14,8 @@
 // along with RogueVillage.  If not, see <https://www.gnu.org/licenses/>.
 
 use std::collections::{HashMap, HashSet, VecDeque};
+use sdl2::libc::VM_MEMORY_OBJC_DISPATCHERS;
+
 use super::{EventType, GameState, PLAYER_INV};
 use crate::dialogue::DialogueLibrary;
 use crate::items::{Item, ItemType, GoldPile};
@@ -266,6 +268,7 @@ impl GameObjects {
             for (_, existing_item) in slots {
                 if item == existing_item {
                     let mut i = item.clone();
+                    i.set_location(PLAYER_INV);
                     i.slot = existing_item.slot;
                     self.add(Box::new(i));
                     return;                    
@@ -275,7 +278,7 @@ impl GameObjects {
 
         let mut i = item.clone();
         i.set_location(PLAYER_INV);
-        
+
         if item.slot == '\0' || used_slots.contains(&i.slot) {
             i.slot = self.next_slot;
             
@@ -302,7 +305,7 @@ impl GameObjects {
 
         self.add(Box::new(i));
     }
-
+    
     pub fn get_inventory_menu(&self) -> Vec<String> {
         let mut menu = Vec::new();
         let slots = self.inv_slots_used();
@@ -372,6 +375,25 @@ impl GameObjects {
         None
     }
 
+    pub fn get_pickup_menu(&self, loc: (i32, i32, i8)) -> Vec<(String, usize)> {
+        let mut menu = Vec::new();
+
+        if self.obj_locs.contains_key(&loc) {
+            let obj_ids: Vec<usize> = self.obj_locs[&loc].iter().map(|i| *i).collect();
+
+            for id in obj_ids {
+                if let Some(pile) = self.objects[&id].as_zorkmids() {
+                    let s = format!("{} gold pieces", pile.amount);
+                    menu.push((s, id));
+                } else {
+                    menu.push((self.objects[&id].get_fullname().with_indef_article(), id));
+                }
+            }            
+        }
+
+        menu
+    }
+
     pub fn things_at_loc(&self, loc: (i32, i32, i8)) -> Vec<&Box<dyn GameObject>> {
         let mut items = Vec::new();
 
@@ -384,11 +406,7 @@ impl GameObjects {
                 match self.objects[&id].get_type() {
                     GameObjType::Item | GameObjType::Zorkmids => items.push(&self.objects[&id]),
                     _ => { },
-                }
-                // if self.objects[&id].get_type() == GameObjType::
-                // if let Some(item) = self.objects[&id].as_item() {                    
-                //     items.push(item);
-                // }
+                }                
             }
         }
 

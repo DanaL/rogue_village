@@ -402,9 +402,24 @@ fn pick_up(state: &mut GameState, player: &mut Player, game_objs: &mut GameObjec
             state.write_msg_buff(&s);
             game_objs.add_to_inventory(item);            
         }
-        // let mut item = game_objs.get(items[0].object_id); // this removes the item from game_objs
-        // item.set_location(PLAYER_INV);
-        // game_objs.add_to_inventory(item.as_item().unwrap());
+        
+        player.calc_ac(game_objs);
+        player.set_readied_weapon(game_objs);
+    } else {
+        let m = game_objs.get_pickup_menu(player.location);
+        let vs: Vec<String> = m.iter().map(|i| i.0.to_string()).collect();
+        println!("{:?}", m);
+        println!("{:?}", vs);
+        //let items = vs.iter().map(AsRef::as_ref).collect();
+
+        let mut stuff = Vec::new();
+        stuff.push(("some gold".to_string(), '$'));
+        stuff.push(("item 1".to_string(), 'a'));
+        stuff.push(("item 2".to_string(), 'b'));
+        stuff.push(("item 3".to_string(), 'c'));
+        let answers = gui.menu_picker2("Pick something!".to_string(), &stuff, false, true);
+        println!("{:?}", answers);
+        //let menu = m.into_iter().map(|i| i.0).map(AsRef::as_ref).collect();
     }
 
     
@@ -413,10 +428,7 @@ fn pick_up(state: &mut GameState, player: &mut Player, game_objs: &mut GameObjec
     
     let item_count = items[&player.location].pile.len();	
     if item_count == 1 {
-		let item = items.get_mut(&player.location).unwrap().get();
-        pick_up_item_or_stack(state, player, item);
-        items.remove(&player.location);
-		state.turn += 1;
+		
 	} else {
 		let mut m = items[&player.location].get_menu();
 		m.insert(0, "Pick up what: (* to get everything)".to_string());
