@@ -190,7 +190,7 @@ impl GameObjects {
         }
     }
 
-    fn inv_slots_used(&self) -> Vec<(char, Item)> {
+    pub fn inv_slots_used(&self) -> Vec<(char, Item)> {
         let mut slots = Vec::new();
 
         if self.obj_locs.contains_key(&PLAYER_INV) && self.obj_locs[&PLAYER_INV].len() > 0 {
@@ -356,6 +356,24 @@ impl GameObjects {
         items
     }
     
+    pub fn readied_armour(&self) -> Option<Item> {
+        if self.obj_locs.contains_key(&PLAYER_INV) {
+            let ids: Vec<usize> = self.obj_locs[&PLAYER_INV]
+                          .iter()
+                          .map(|id| *id)
+                          .collect();
+            for id in ids {
+                if let Some(item) = self.objects[&id].as_item() {
+                    if item.equiped && item.item_type == ItemType::Armour {
+                        return Some(item)
+                    }
+                }
+            }
+        }
+
+        None
+    }
+
     pub fn readied_weapon(&self) -> Option<Item> {
         if self.obj_locs.contains_key(&PLAYER_INV) {
             let ids: Vec<usize> = self.obj_locs[&PLAYER_INV]

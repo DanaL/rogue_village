@@ -44,108 +44,6 @@ impl Inventory {
 		Inventory { next_slot: 'a', inv: HashMap::new(), purse: 0 }
 	}
 
-    // This doesn't currently handle when all the inventory slots are used up...
-    // pub fn add(&mut self, item: Item) -> char {
-    //     if item.item_type == ItemType::Zorkmid {
-	// 		self.purse += 1;
-	// 		return '$';
-	// 	}
-
-	// 	if item.stackable {
-	// 		let slots = self.used_slots();
-    //     	for slot in slots {
-	// 			let mut val = self.inv.get_mut(&slot).unwrap();
-	// 			if val.0 == item && val.0.stackable {
-	// 				val.1 += 1;
-	// 				return slot;
-	// 			}
-	// 		}
-	// 	} 
-
-	// 	// If the last slot the item occupied is still available, use that
-	// 	// instead of the next available slot.
-	// 	if item.prev_slot != '\0' && !self.inv.contains_key(&item.prev_slot) {
-    //         let s = item.prev_slot;
-	// 		self.inv.insert(item.prev_slot, (item, 1));
-    //         s
-	// 	} else {
-    //         let s = self.next_slot;
-	// 		self.inv.insert(self.next_slot, (item, 1));
-	// 		self.set_next_slot();
-    //         s
-	// 	}
-	// }
-
-    pub fn count_in_slot(&self, slot: char) -> u32 {
-		if !self.inv.contains_key(&slot) {
-			0
-		} else {
-			let v = self.inv.get(&slot).unwrap();
-			v.1
-		}
-	}
-
-    pub fn get_menu(&self) -> Vec<String> {
-		let mut menu = Vec::new();
-
-		// let mut slots = self.inv
-		// 	.keys()
-		// 	.map(|v| v.clone())
-		// 	.collect::<Vec<char>>();
-		// slots.sort();
-
-        // if self.purse == 1 {
-        //     menu.push(String::from("$) a single zorkmid to your name"));
-        // } else if self.purse > 1 {
-        //     menu.push(format!("$) {} gold pieces", self.purse));
-        // }
-
-		// for slot in slots {
-		// 	let mut s = String::from("");
-		// 	s.push(slot);
-		// 	s.push_str(") ");
-		// 	let val = self.inv.get(&slot).unwrap();
-		// 	if val.1 == 1 {
-		// 		s.push_str("a ");
-		// 		s.push_str(&val.0.get_full_name());
-		// 	} else {
-		// 		s.push_str(&val.0.get_full_name());
-		// 		s.push_str(" x");
-		// 		s.push_str(&val.1.to_string());
-		// 	}
-		// 	menu.push(s);
-		// }
-
-        menu
-	}
-
-    // Am I going to allow players to wield non-weapons, a la nethack?
-    // This would mean separating the wield command from wear/use, which
-    // is a bit more complicated UI for the player.
-    pub fn get_readied_weapon(&self) -> Option<Item> {
-        let slots = self.used_slots();
-        for s in slots {
-			let v = self.inv.get(&s).unwrap();
-			if v.0.item_type == ItemType::Weapon && v.0.equiped {
-				return Some(v.0.clone());
-			}
-		}
-
-        None
-    }
-
-    pub fn get_readied_armour(&self) -> Option<Item> {
-        let slots = self.used_slots();
-        for s in slots {
-			let v = self.inv.get(&s).unwrap();
-			if v.0.item_type == ItemType::Armour && v.0.equiped {
-				return Some(v.0.clone());
-			}
-		}
-
-        None
-    }
-
     // Return the highest light radius from among active items in
     // inventory
     pub fn light_from_items(&self) -> u8 {
@@ -171,44 +69,6 @@ impl Inventory {
 			Some(v.0.clone())
 		}
 	}
-
-    // I'm leaving it up to the caller to ensure the slot exists.
-	// Bad for a library but maybe okay for my internal game code
-	// pub fn remove(&mut self, slot: char) -> Item {
-	// 	let mut v = self.inv.remove(&slot).unwrap();
-	// 	if self.next_slot == '\0' {
-	// 		self.next_slot = slot;
-	// 	}
-	// 	v.0.prev_slot = slot;
-
-	// 	v.0
-	// }
-
-    // pub fn remove_count(&mut self, slot: char, count: u32) -> Vec<Item> {
-	// 	let mut items = Vec::new();
-	// 	let entry = self.inv.remove_entry(&slot).unwrap();
-	// 	let mut v = entry.1;
-
-	// 	let max = if count < v.1 {
-	// 		v.1 -= count;
-	// 		let replacement = (Item { name: v.0.name.clone(), ..v.0 }, v.1);
-	// 		self.inv.insert(slot, replacement);
-	// 		count	
-	// 	} else {
-	// 		if self.next_slot == '\0' {
-	// 			self.next_slot = slot;
-	// 		}
-	// 		v.1
-	// 	};
-
-	// 	for _ in 0..max {
-	// 		let mut i = Item { name:v.0.name.clone(), ..v.0 }; 
-	// 		i.prev_slot = slot;
-	// 		items.push(i);
-	// 	}
-
-	// 	items
-	// }
 
     // This is pretty simple for now because the only item with an activateable effect are torches
     pub fn use_item_in_slot(&mut self, slot: char, state: &mut GameState) -> String {
@@ -265,9 +125,7 @@ impl Inventory {
     //     let stack_count = val.1;
 	// 	let item_name = item.name.clone();
         
-	// 	if !item.equipable() {
-	// 		return (String::from("You cannot wear/wield that!"), false);
-	// 	}
+
 
     //     // Stackable, equipable items make things slightly complicated. I am assuming any stackble, equipable 
     //     // thing is basically something like a torch that has charges counting down so remove it from the stack

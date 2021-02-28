@@ -42,7 +42,7 @@ use rand::{Rng, thread_rng};
 use dialogue::DialogueLibrary;
 use display::{GameUI, SidebarInfo, WHITE, YELLOW};
 use game_obj::{GameObject, GameObjects, GameObjType};
-use items::{GoldPile, Item};
+use items::{GoldPile, Item, ItemType};
 use map::{Tile, DoorState};
 use player::Player;
 use util::StringUtils;
@@ -386,8 +386,7 @@ fn pick_up(state: &mut GameState, player: &mut Player, game_objs: &mut GameObjec
             game_objs.add_to_inventory(item);            
         }
         
-        player.calc_ac(game_objs);
-        player.set_readied_weapon(game_objs);
+        state.turn += 1;
     } else {
         let mut m = game_objs.get_pickup_menu(player.location);
         let vs: Vec<String> = m.iter().map(|i| i.0.to_string()).collect();
@@ -433,24 +432,85 @@ fn pick_up(state: &mut GameState, player: &mut Player, game_objs: &mut GameObjec
     }
 }
 
-fn toggle_equipment(state: &mut GameState, player: &mut Player, gui: &mut GameUI) {
-    /*
-    if player.inventory.used_slots().len() == 0 {
-		state.write_msg_buff("You are empty handed.");
-		return
-	}
+fn toggle_item(state: &mut GameState, game_objs: &mut GameObjects, item: Item, player: &mut Player) {
+    if !item.equipable() {
+        state.write_msg_buff("You cannot wear or wield that!");
+        return;
+    }
 
-	let sbi = state.curr_sidebar_info(player);
+    let mut swapping = false;
+    if item.item_type == ItemType::Weapon {
+        if let Some(w) = game_objs.readied_weapon() {
+            if w.object_id != item.object_id {
+                swapping = true;
+                // unequip the existing weapon
+                let mut other = game_objs.get(w.object_id).as_item().unwrap();
+                other.equiped = false;
+                game_objs.add_to_inventory(other);
+            }
+        }
+    } else if item.item_type == ItemType::Armour {
+        if let Some(a) = game_objs.readied_armour() {
+            if a.object_id != item.object_id {
+                state.write_msg_buff("You're already wearing armour.");
+                return;
+            }
+        }
+    }
+
+    // Alright, so at this point we can toggle the item in the slot.
+    let mut obj = game_objs.get(item.get_object_id()).as_item().unwrap();
+    obj.equiped = !obj.equiped;
+    
+    let mut s = String::from("You ");
+    if swapping {
+        s.push_str("are now wielding ");
+    } else if obj.equiped {
+        s.push_str("equip ");
+    } else {
+        s.push_str("unequip ");
+    }
+    s.push_str(&obj.get_fullname().with_def_article());
+    s.push('.');
+    state.write_msg_buff(&s);
+
+    game_objs.add_to_inventory(obj);
+
+    player.calc_ac(game_objs);
+    player.set_readied_weapon(game_objs);
+
+    if game_objs.readied_weapon() == None {
+        state.write_msg_buff("You are now empty handed.");
+    } 
+
+    state.turn += 1;
+}
+
+fn toggle_equipment(state: &mut GameState, player: &mut Player, game_objs: &mut GameObjects, gui: &mut GameUI) {
+    let inv_items = game_objs.inv_slots_used();
+    let mut slots: HashSet<char> = inv_items.iter().map(|i| i.0).collect();
+    
+    if slots.len() == 0 {
+        state.write_msg_buff("You are empty handed.");
+    }
+
+    let sbi = state.curr_sidebar_info(player);
 	if let Some(ch) = gui.query_single_response("Ready/unready what?", Some(&sbi)) {
-        let result = player.inventory.toggle_slot(ch);
-        state.write_msg_buff(&result.0);
-		state.turn += 1;		
+        if !slots.contains(&ch) {
+            state.write_msg_buff("You do not have that item!");
+        } else {
+            for i in inv_items {
+                if let Some(item) = i.1.as_item() {
+                    if item.slot == ch {
+                        toggle_item(state, game_objs, item, player);
+                        break;                       
+                    }
+                }
+            }
+        }
 	} else {
         state.write_msg_buff("Nevermind.");
     }
-
-	player.calc_ac();
-    */
 }
 
 fn use_item(state: &mut GameState, player: &mut Player, gui: &mut GameUI) {
@@ -779,7 +839,7 @@ fn run(gui: &mut GameUI, state: &mut GameState, player: &mut Player, game_objs: 
             Cmd::PickUp => pick_up(state, player, game_objs, gui),
             Cmd::ShowCharacterSheet => show_character_sheet(gui, player),
             Cmd::ShowInventory => show_inventory(gui, state, player, game_objs),
-            Cmd::ToggleEquipment => toggle_equipment(state, player, gui),
+            Cmd::ToggleEquipment => toggle_equipment(state, player, game_objs, gui),
             Cmd::Use => use_item(state, player, gui),
             Cmd::Quit => break,
             Cmd::Up => take_stairs(state, player, false),
