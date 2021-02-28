@@ -479,7 +479,7 @@ fn toggle_item(state: &mut GameState, game_objs: &mut GameObjects, item: Item, p
     player.calc_ac(game_objs);
     player.set_readied_weapon(game_objs);
 
-    if game_objs.readied_weapon() == None {
+    if item.item_type == ItemType::Weapon && game_objs.readied_weapon() == None {
         state.write_msg_buff("You are now empty handed.");
     } 
 
@@ -492,6 +492,7 @@ fn toggle_equipment(state: &mut GameState, player: &mut Player, game_objs: &mut 
     
     if slots.len() == 0 {
         state.write_msg_buff("You are empty handed.");
+        return;
     }
 
     let sbi = state.curr_sidebar_info(player);
