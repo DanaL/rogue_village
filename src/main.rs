@@ -626,6 +626,10 @@ fn take_stairs(state: &mut GameState, player: &mut Player, down: bool) {
         } else {
             state.write_msg_buff("You cannot do that here.");
         }
+
+        if player.location.2 > player.max_depth as i8 {
+            player.max_depth = player.location.2 as u8;
+        }
     } else {
         if *tile == map::Tile::StairsUp {
             state.write_msg_buff("You climb the stairway.");
