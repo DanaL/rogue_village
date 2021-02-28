@@ -17,6 +17,7 @@
 
 extern crate rand;
 extern crate sdl2;
+extern crate serde;
 
 mod actor;
 mod dialogue;
@@ -34,14 +35,19 @@ mod wilderness;
 mod world;
 
 use std::collections::{HashMap, HashSet, VecDeque};
+use std::io::prelude::*;
+use std::fs;
+use std::fs::File;
 use std::path::Path;
+
 //use std::time::{Duration, Instant};
 
 use rand::{Rng, thread_rng};
+use serde::{Serialize, Deserialize};
 
 use dialogue::DialogueLibrary;
 use display::{GameUI, SidebarInfo, WHITE, YELLOW};
-use game_obj::{GameObject, GameObjects, GameObjType};
+use game_obj::{GameObject, GameObjects, GameObjType, GOForSerde};
 use items::{GoldPile, Item, ItemType};
 use map::{Tile, DoorState};
 use player::Player;
@@ -55,7 +61,14 @@ const PLAYER_INV: (i32, i32, i8) = (-999, -999, -128);
 
 pub type Map = HashMap<(i32, i32, i8), map::Tile>;
 
-#[derive(Debug, Hash, Eq, PartialEq)]
+enum ExitReason {
+    Save,
+    Win,
+    Quit,
+    Death(String),
+}
+
+#[derive(Debug, Hash, Eq, PartialEq, Serialize, Deserialize, Clone, Copy)]
 pub enum EventType {
     EndOfTurn,
     LightExpired,
@@ -89,6 +102,7 @@ pub enum Cmd {
     WizardCommand,
 }
 
+#[derive(Serialize, Deserialize)]
 pub struct GameState {
 	msg_buff: VecDeque<String>,
 	msg_history: VecDeque<(String, u32)>,
@@ -205,6 +219,34 @@ fn title_screen(gui: &mut GameUI) {
 	lines.push("Rogue Village is copyright 2021 by Dana Larose, see COPYING for licence info.");
 	
 	gui.write_long_msg(&lines, true);
+}
+
+fn serialize_game_data(state: &GameState, game_objs: &GameObjects, player: &Player) {
+    let go = GOForSerde::convert(game_objs);
+    let game_data = (state, go, player);
+    let serialized = serde_yaml::to_string(&game_data).unwrap();
+
+    match File::create("savegame") {
+        Ok(mut buffer) => {
+            match buffer.write_all(serialized.as_bytes()) {
+                Ok(_) => { },
+                Err(_) => panic!("Oh no cannot write to file!"),
+            }
+        },
+        Err(_) => panic!("Oh no file error!"),
+    }
+
+}
+
+fn save_and_exit(state: &GameState, game_objs: &GameObjects, player: &Player, gui: &mut GameUI) -> Result<(), ExitReason> {
+    let sbi = state.curr_sidebar_info(player);
+    match gui.query_yes_no("Save and exit? (y/n)", Some(&sbi)) {
+        'y' => {
+            serialize_game_data(state, game_objs, player);
+            Err(ExitReason::Save)
+        },
+        _ => Ok(()),
+    }
 }
 
 fn who_are_you(gui: &mut GameUI) -> String {
@@ -782,11 +824,19 @@ fn wiz_command(state: &mut GameState, gui: &mut GameUI, player: &mut Player) {
     }
 }
 
+fn confirm_quit(state: &GameState, gui: &mut GameUI, player: &Player) -> Result<(), ExitReason> {
+	let sbi = state.curr_sidebar_info(player);
+	match gui.query_yes_no("Do you really want to Quit? (y/n)", Some(&sbi)) {
+		'y' => Err(ExitReason::Quit),
+		_ => Ok(()),
+	}
+}
+
 fn pick_player_start_loc(state: &GameState) -> (i32, i32, i8) {
     let x = thread_rng().gen_range(0, 4);
     let b = state.world_info.town_boundary;
 
-    //return state.world_info.facts[0].location;
+    return state.world_info.facts[0].location;
     if x == 0 {
         (b.0 - 5, thread_rng().gen_range(b.1, b.3), 0)
     } else if x == 1 {
@@ -836,7 +886,7 @@ fn fov_to_tiles(state: &mut GameState, game_objs: &GameObjects, visible: &Vec<((
     v_matrix
 }
 
-fn run(gui: &mut GameUI, state: &mut GameState, player: &mut Player, game_objs: &mut GameObjects, dialogue: &DialogueLibrary) {
+fn run(gui: &mut GameUI, state: &mut GameState, player: &mut Player, game_objs: &mut GameObjects, dialogue: &DialogueLibrary) -> Result<(), ExitReason> {
     let visible = fov::calc_fov(state, player.location, player.vision_radius, FOV_HEIGHT, FOV_WIDTH);
 	gui.v_matrix = fov_to_tiles(state, game_objs, &visible);
     let sbi = state.curr_sidebar_info(player);
@@ -859,11 +909,12 @@ fn run(gui: &mut GameUI, state: &mut GameState, player: &mut Player, game_objs: 
                 println!("{:?}", state.curr_time());
             },
             Cmd::PickUp => pick_up(state, player, game_objs, gui),
+            Cmd::Save => save_and_exit(state, game_objs, player, gui)?,
             Cmd::ShowCharacterSheet => show_character_sheet(gui, player),
             Cmd::ShowInventory => show_inventory(gui, state, player, game_objs),
             Cmd::ToggleEquipment => toggle_equipment(state, player, game_objs, gui),
             Cmd::Use => use_item(state, player, game_objs, gui),
-            Cmd::Quit => break,
+            Cmd::Quit => confirm_quit(state, gui, player)?,
             Cmd::Up => take_stairs(state, player, false),
             Cmd::WizardCommand => wiz_command(state, gui, player),
             _ => continue,
@@ -920,5 +971,12 @@ fn main() {
     let sbi = state.curr_sidebar_info(&player);
     gui.write_screen(&mut state.msg_buff, Some(&sbi));
     
-    run(&mut gui, &mut state, &mut player, &mut game_objs, &dialogue_library);
+    match run(&mut gui, &mut state, &mut player, &mut game_objs, &dialogue_library) {
+		Ok(_) => println!("Game over I guess? Probably the player won?!"),
+		//Err(ExitReason::Save) => save_msg(&mut state, &mut gui),
+		//Err(ExitReason::Quit) => quit_msg(&mut state, &mut gui),
+		//Err(ExitReason::Win) => victory_msg(&mut state, &mut gui),
+		//Err(ExitReason::Death(src)) => death(&mut state, src, &mut gui),
+        Err(_) => println!("okay bye"),
+	}
 }

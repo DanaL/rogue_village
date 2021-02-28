@@ -13,10 +13,15 @@
 // You should have received a copy of the GNU General Public License
 // along with RogueVillage.  If not, see <https://www.gnu.org/licenses/>.
 
+extern crate serde;
+
+use serde::{Serialize, Deserialize};
+
 use display::YELLOW_ORANGE;
 
 use super::{EventType, FOV_HEIGHT, FOV_WIDTH, GameState, GameObjects, PLAYER_INV};
 
+use crate::actor::Villager;
 use crate::dialogue::DialogueLibrary;
 use crate::display;
 use crate::fov;
@@ -31,7 +36,7 @@ pub const IA_LIGHT_ARMOUR: u32 = 0b00000001;
 pub const IA_MED_ARMOUR:   u32 = 0b00000010;
 pub const IA_HEAVY_ARMOUR: u32 = 0b00000100;
 
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ItemType {
 	Weapon,
 	Zorkmid,
@@ -40,7 +45,7 @@ pub enum ItemType {
     Light,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Item {
     pub object_id: usize,
     pub name: String,
@@ -257,6 +262,10 @@ impl GameObject for Item {
         Some(self.clone())
     }
 
+    fn as_villager(&self) -> Option<Villager> {
+        None
+    }
+
     fn take_turn(&mut self, _state: &mut GameState, _game_objs: &mut GameObjects) {
          
     }
@@ -266,7 +275,7 @@ impl GameObject for Item {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GoldPile {
     pub object_id: usize,
     pub amount: u32,
@@ -329,6 +338,10 @@ impl GameObject for GoldPile {
 
     fn as_zorkmids(&self) -> Option<GoldPile> {
         Some(self.clone())
+    }
+
+    fn as_villager(&self) -> Option<Villager> {
+        None
     }
 
     fn take_turn(&mut self, _state: &mut GameState, _game_objs: &mut GameObjects) {

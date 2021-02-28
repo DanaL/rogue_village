@@ -13,10 +13,13 @@
 // You should have received a copy of the GNU General Public License
 // along with RogueVillage.  If not, see <https://www.gnu.org/licenses/>.
 
+extern crate serde;
+
 use std::collections::{HashMap, HashSet, VecDeque};
 
 use rand::thread_rng;
 use rand::Rng;
+use serde::{Serialize, Deserialize};
 //use std::time::{Duration, Instant};
 
 use super::{EventType, GameObjects, GameState};
@@ -31,7 +34,7 @@ use crate::pathfinding::find_path;
 use crate::player::Player;
 use crate::util;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum Venue {
     TownSquare,
     Tavern,
@@ -39,7 +42,7 @@ pub enum Venue {
     Favourite((i32, i32, i8)),
     Visit(i32),
 }
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct AgendaItem {
     pub from: (u16, u16),
     pub to: (u16, u16),
@@ -53,7 +56,7 @@ impl AgendaItem {
     }
 }
 
-#[derive(Debug, Clone, Hash, Eq, PartialEq, Copy)]
+#[derive(Debug, Clone, Hash, Eq, PartialEq, Copy, Serialize, Deserialize)]
 pub enum Attitude {
     Stranger,
     Indifferent,
@@ -61,7 +64,7 @@ pub enum Attitude {
     Hostile,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct BasicStats {
     pub name: String,
 	pub max_hp: u8,
@@ -82,14 +85,14 @@ impl BasicStats {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum Action {
     Move((i32, i32, i8)),
     OpenDoor((i32, i32, i8)),
     CloseDoor((i32, i32, i8)),
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Villager {
     pub stats: BasicStats,	
     pub facts_known: Vec<usize>,
@@ -275,7 +278,7 @@ impl Villager {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SimpleMonster {
     pub stats: BasicStats,    
 }
@@ -352,6 +355,10 @@ impl GameObject for Villager {
 
     fn as_zorkmids(&self) -> Option<GoldPile> {
         None
+    }
+    
+    fn as_villager(&self) -> Option<Villager> {
+        Some(self.clone())
     }
     
     fn take_turn(&mut self, state: &mut GameState, game_objs: &mut GameObjects) {

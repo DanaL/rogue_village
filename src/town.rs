@@ -13,11 +13,14 @@
 // You should have received a copy of the GNU General Public License
 // along with RogueVillage.  If not, see <https://www.gnu.org/licenses/>.
 
+extern crate serde;
+
 use std::collections::{HashMap, HashSet};
 use std::fs;
 
 use rand::Rng;
 use rand::seq::IteratorRandom;
+use serde::{Serialize, Deserialize};
 
 use super::{EventType, Map};
 
@@ -35,7 +38,7 @@ enum BuildingType {
     Tavern,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct TownBuildings {
     pub shrine: HashSet<(i32, i32, i8)>,
     pub tavern: HashSet<(i32, i32, i8)>,

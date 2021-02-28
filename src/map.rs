@@ -15,16 +15,18 @@
 
 extern crate rand;
 extern crate sdl2;
+extern crate serde;
 
 use std::collections::HashMap;
 use std::collections::HashSet;
+use serde::{Serialize, Deserialize};
 use rand::Rng;
 
 use super::Map;
 
 use crate::util;
 
-#[derive(Clone, Copy, Debug, Hash, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Hash, Eq, PartialEq, Serialize, Deserialize)]
 pub enum DoorState {
 	Open,
 	Closed,
@@ -32,7 +34,7 @@ pub enum DoorState {
 	Broken,
 }
 
-#[derive(Debug, Clone, Hash, Eq, PartialEq, Copy)]
+#[derive(Debug, Clone, Hash, Eq, PartialEq, Copy, Serialize, Deserialize)]
 pub enum Tile {
 	Blank,
 	Wall,

@@ -13,12 +13,15 @@
 // You should have received a copy of the GNU General Public License
 // along with RogueVillage.  If not, see <https://www.gnu.org/licenses/>.
 
+extern crate serde;
+
 use rand::Rng;
+use serde::{Serialize, Deserialize};
 
 use super::{GameObjects, GameState, items};
 use crate::items::Item;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum Role {
     Warrior,
     Rogue,
@@ -33,7 +36,7 @@ impl Role {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Player {
     pub object_id: usize,
 	pub name: String,

@@ -13,9 +13,13 @@
 // You should have received a copy of the GNU General Public License
 // along with RogueVillage.  If not, see <https://www.gnu.org/licenses/>.
 
+extern crate serde;
+
+use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet, VecDeque};
 
 use super::{EventType, GameState, PLAYER_INV};
+use crate::actor::Villager;
 use crate::dialogue::DialogueLibrary;
 use crate::items::{Item, ItemType, GoldPile};
 use crate::map::Tile;
@@ -47,6 +51,7 @@ pub trait GameObject {
     // Villager or Item or Zorkminds structs at alll..
     fn as_item(&self) -> Option<Item>;
     fn as_zorkmids(&self) -> Option<GoldPile>;
+    fn as_villager(&self) -> Option<Villager>;
 }
 
 pub struct GameObjects {
@@ -474,6 +479,43 @@ impl GameObjects {
         }
         
         v
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct GOForSerde {
+    pub next_obj_id: usize,
+    pub villagers: Vec<Villager>,
+    pub items: Vec<Item>,
+    pub gold_piles: Vec<GoldPile>,
+    pub listeners: HashSet<(usize, EventType)>,
+    pub next_slot: char,
+}
+
+impl GOForSerde {
+    pub fn convert(game_objs: &GameObjects) -> GOForSerde {
+        let mut for_serde = GOForSerde {
+            next_obj_id: game_objs.next_obj_id, next_slot: game_objs.next_slot,
+            villagers: Vec::new(), items: Vec::new(), gold_piles: Vec::new(),
+            listeners: HashSet::new(),
+        };
+
+        for l in game_objs.listeners.iter() {
+            for_serde.listeners.insert(*l);
+        }
+
+        for id in game_objs.objects.keys() {
+            let obj = game_objs.objects.get(id).unwrap();
+            if let Some(item) = obj.as_item() {
+                for_serde.items.push(item);
+            } else if let Some(pile) = obj.as_zorkmids() {
+                for_serde.gold_piles.push(pile);
+            } else if let Some(villager) = obj.as_villager() {
+                for_serde.villagers.push(villager);
+            }
+        }
+
+        for_serde
     }
 }
 

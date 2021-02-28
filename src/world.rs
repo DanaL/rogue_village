@@ -13,9 +13,12 @@
 // You should have received a copy of the GNU General Public License
 // along with RogueVillage.  If not, see <https://www.gnu.org/licenses/>.
 
+extern crate serde;
+
 use std::collections::{HashMap, HashSet};
 use rand::thread_rng;
 use rand::Rng;
+use serde::{Serialize, Deserialize};
 
 use super::{GameObjects, Map};
 
@@ -28,7 +31,7 @@ use crate::wilderness;
 
 pub const WILDERNESS_SIZE: usize = 257;
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Fact {
     pub detail: String,
     pub timestamp: i32,
@@ -41,6 +44,7 @@ impl Fact {
     }
 }
 
+#[derive(Serialize, Deserialize)]
 pub struct WorldInfo {
     pub facts: Vec<Fact>,
     pub town_boundary: (i32, i32, i32, i32),
