@@ -14,7 +14,6 @@
 // along with RogueVillage.  If not, see <https://www.gnu.org/licenses/>.
 
 use std::collections::{HashMap, HashSet, VecDeque};
-use sdl2::libc::VM_MEMORY_OBJC_DISPATCHERS;
 
 use super::{EventType, GameState, PLAYER_INV};
 use crate::dialogue::DialogueLibrary;

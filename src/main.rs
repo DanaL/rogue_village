@@ -361,23 +361,6 @@ fn drop_item(state: &mut GameState, player: &mut Player, game_objs: &mut GameObj
     player.set_readied_weapon(game_objs);
 }
 
-fn pick_up_item_or_stack(state: &mut GameState, player: &mut Player, item: (Item, u16)) {
-    /*
-    if item.1 == 1 {
-		let s = format!("You pick up {}.", &item.0.name.with_def_article());
-		state.write_msg_buff(&s);
-		player.inventory.add(item.0);
-    } else {
-        let s = format!("You pick up {} {}.", item.1, &item.0.name.pluralize());
-		state.write_msg_buff(&s);
-
-        for _ in 0..item.1 {
-            player.inventory.add(item.0.clone());
-        }
-    }
-    */
-}
-
 fn pick_up(state: &mut GameState, player: &mut Player, game_objs: &mut GameObjects, gui: &mut GameUI) {
     let things = game_objs.things_at_loc(player.location);
 
@@ -406,50 +389,48 @@ fn pick_up(state: &mut GameState, player: &mut Player, game_objs: &mut GameObjec
         player.calc_ac(game_objs);
         player.set_readied_weapon(game_objs);
     } else {
-        let m = game_objs.get_pickup_menu(player.location);
+        let mut m = game_objs.get_pickup_menu(player.location);
         let vs: Vec<String> = m.iter().map(|i| i.0.to_string()).collect();
-        println!("{:?}", m);
-        println!("{:?}", vs);
-        //let items = vs.iter().map(AsRef::as_ref).collect();
 
-        let mut stuff = Vec::new();
-        stuff.push(("some gold".to_string(), '$'));
-        stuff.push(("item 1".to_string(), 'a'));
-        stuff.push(("item 2".to_string(), 'b'));
-        stuff.push(("item 3".to_string(), 'c'));
-        let answers = gui.menu_picker2("Pick something!".to_string(), &stuff, false, true);
-        println!("{:?}", answers);
-        //let menu = m.into_iter().map(|i| i.0).map(AsRef::as_ref).collect();
-    }
-
-    
-    /*
-	
-    
-    let item_count = items[&player.location].pile.len();	
-    if item_count == 1 {
-		
-	} else {
-		let mut m = items[&player.location].get_menu();
-		m.insert(0, "Pick up what: (* to get everything)".to_string());
-        let menu = m.iter().map(AsRef::as_ref).collect();
-		let answers = gui.menu_picker(&menu, menu.len() as u8, false, false);
-		match answers {
-			None => state.write_msg_buff("Nevermind."), // Esc was pressed
-			Some(v) => {
-				state.turn += 1;
-				let picked_up = items.get_mut(&player.location).unwrap().get_many(&v);
-				for item in picked_up {
-                    pick_up_item_or_stack(state, player, item);                    
-				}
-                
-                if items[&player.location].pile.len() == 0 {
-                    items.remove(&player.location);
+        let mut answer_key = HashMap::new();
+        let mut menu = Vec::new();
+        for j in 0..m.len() {
+            if m[j].0.contains("gold piece") {
+                menu.push((m[j].0.to_string(), '$'));
+                answer_key.insert('$', m[j].1);
+                m.remove(j);
+                break;
+            }
+        }
+        for j in 0..m.len() {
+            let ch = (j as u8 + 'a' as u8) as char;
+            menu.push((m[j].0.to_string(), ch));
+            answer_key.insert(ch, m[j].1);
+        }
+        
+        if let Some(answers) = gui.menu_picker2("Pick up what: (* to get everything)".to_string(), &menu, false, true) {
+            let picks: Vec<usize> = answers.iter().map(|a| answer_key[a]).collect();
+            for id in picks {
+                let obj = game_objs.get(id);
+                if let Some(pile) = obj.as_zorkmids() {
+                    player.purse += pile.amount;
+                    if pile.amount == 1 {
+                        state.write_msg_buff("You pick up a single gold piece.");
+                    } else {
+                        let s = format!("You pick up {} gold pieces.", pile.amount);
+                        state.write_msg_buff(&s);
+                    }
+                } else {
+                    let s = format!("You pick up {}.", obj.get_fullname().with_def_article());
+                    state.write_msg_buff(&s);
+                    game_objs.add_to_inventory(obj.as_item().unwrap());
                 }
-			},
-		}
-	}
-    */
+            }
+            state.turn += 1;
+        } else {
+            state.write_msg_buff("Nevermind.");
+        }
+    }
 }
 
 fn toggle_equipment(state: &mut GameState, player: &mut Player, gui: &mut GameUI) {
