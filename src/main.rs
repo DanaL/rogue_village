@@ -226,7 +226,9 @@ fn serialize_game_data(state: &GameState, game_objs: &GameObjects, player: &Play
     let game_data = (state, go, player);
     let serialized = serde_yaml::to_string(&game_data).unwrap();
 
-    match File::create("savegame") {
+    let filename = format!("{}.yaml", player.name);
+
+    match File::create(&filename) {
         Ok(mut buffer) => {
             match buffer.write_all(serialized.as_bytes()) {
                 Ok(_) => { },
@@ -236,6 +238,22 @@ fn serialize_game_data(state: &GameState, game_objs: &GameObjects, player: &Play
         Err(_) => panic!("Oh no file error!"),
     }
 
+}
+
+fn load_save_game(player_name: &str) -> Result<(GameState, GameObjects, Player), serde_yaml::Error> {
+    let filename = format!("{}.yaml", player_name);
+    let blob = fs::read_to_string(filename).expect("Error reading save file");
+    let game_data: (GameState, GOForSerde, Player) = serde_yaml::from_str(&blob)?;
+
+    let game_objs = GOForSerde::revert(game_data.1);
+    Ok((game_data.0, game_objs, game_data.2))
+}
+
+fn save_game_exists(player_name: &str) -> Option<(GameState, GameObjects, Player)> {    
+    match load_save_game(player_name) {
+        Ok(gd) => Some(gd),
+        Err(_) => None,
+    }
 }
 
 fn save_and_exit(state: &GameState, game_objs: &GameObjects, player: &Player, gui: &mut GameUI) -> Result<(), ExitReason> {
@@ -954,22 +972,33 @@ fn main() {
 	let mut gui = GameUI::init(&font, &sm_font)
 		.expect("Error initializing GameUI object.");
 
-    let mut game_objs = GameObjects::new();
+    title_screen(&mut gui);
+
 
     let dialogue_library = dialogue::read_dialogue_lib();
-    
-    let w = world::generate_world(&mut game_objs);
-    
-    let mut state = GameState::init(w.0, w.1);    
-	
-    title_screen(&mut gui);
     let player_name = who_are_you(&mut gui);
+    
+    let mut game_objs: GameObjects;
+    let mut state: GameState;
+    let mut player: Player;
+    if let Some(saved_objs) = save_game_exists(&player_name) {
+        state = saved_objs.0;
+        game_objs = saved_objs.1;
+        player = saved_objs.2;
 
-    let mut player = fetch_player(&state, &mut game_objs, &mut gui, player_name).unwrap();
-    state.player_loc = player.location;
+        let msg = format!("Welcome back, {}!", player.name);
+        state.write_msg_buff(&msg);
+    } else {
+        game_objs = GameObjects::new();                
+        let w = world::generate_world(&mut game_objs);        
+        state = GameState::init(w.0, w.1);    
 
-    let sbi = state.curr_sidebar_info(&player);
-    gui.write_screen(&mut state.msg_buff, Some(&sbi));
+        player = fetch_player(&state, &mut game_objs, &mut gui, player_name).unwrap();
+        state.player_loc = player.location;
+    
+        let sbi = state.curr_sidebar_info(&player);
+        gui.write_screen(&mut state.msg_buff, Some(&sbi));
+    }
     
     match run(&mut gui, &mut state, &mut player, &mut game_objs, &dialogue_library) {
 		Ok(_) => println!("Game over I guess? Probably the player won?!"),

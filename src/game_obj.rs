@@ -517,5 +517,26 @@ impl GOForSerde {
 
         for_serde
     }
+
+    pub fn revert(go: GOForSerde) -> GameObjects {
+        let mut game_objects = GameObjects::new();
+        game_objects.next_slot = go.next_slot;
+        game_objects.next_obj_id = go.next_obj_id;
+        for l in go.listeners.iter() {
+            game_objects.listeners.insert(*l);
+        }
+
+        for v in go.villagers {
+            game_objects.add(Box::new(v));
+        }
+        for i in go.items {
+            game_objects.add(Box::new(i));
+        }
+        for g in go.gold_piles {
+            game_objects.add(Box::new(g));
+        }
+
+        game_objects
+    }
 }
 
