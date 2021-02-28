@@ -190,6 +190,23 @@ impl GameObjects {
         }
     }
 
+    pub fn end_of_turn(&mut self, state: &mut GameState) {
+        let listeners: Vec<usize> = self.listeners.iter()
+            .filter(|l| l.1 == EventType::EndOfTurn)
+            .map(|l| l.0).collect();
+
+        for obj_id in listeners {
+            let mut obj = self.get(obj_id);
+
+            match obj.receive_event(EventType::EndOfTurn, state) {
+                Some(EventType::LightExpired) => {
+                    self.listeners.remove(&(obj.get_object_id(), EventType::EndOfTurn));
+                },
+                _ => self.add(obj),
+            }
+        }
+    }
+
     pub fn inv_slots_used(&self) -> Vec<(char, Item)> {
         let mut slots = Vec::new();
 

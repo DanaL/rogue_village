@@ -17,7 +17,7 @@ use std::collections::HashMap;
 
 use display::YELLOW_ORANGE;
 
-use super::{EventListener, EventType, GameState, GameObjects};
+use super::{EventListener, EventType, GameState, GameObjects, PLAYER_INV};
 
 use crate::dialogue::DialogueLibrary;
 use crate::display;
@@ -190,6 +190,49 @@ impl GameObject for Item {
     }
 
     fn receive_event(&mut self, event: EventType, state: &mut GameState) -> Option<EventType> {
+		match event {
+			EventType::EndOfTurn => {
+				self.charges -= 1;
+				// right now light sources are the only things in the game which times like this
+				if self.charges == 150 {
+					let mut s = String::from("");
+					if self.location == PLAYER_INV {
+						s.push_str("Your ");
+					} else {
+						s.push_str("The ");
+					}
+					s.push_str(&self.name);
+					s.push_str(" flickers.");
+					state.write_msg_buff(&s);
+				} else if self.charges == 25 {
+					let mut s = String::from("");
+					if self.location == PLAYER_INV {
+						s.push_str("Your ");
+					} else {
+						s.push_str("The ");
+					}
+					s.push_str(&self.name);
+					s.push_str(" seems about to go out.");
+					state.write_msg_buff(&s);
+				} else if self.charges == 0 {
+					let mut s = String::from("");
+					if self.location == PLAYER_INV {
+						s.push_str("Your ");
+					} else {
+						s.push_str("The ");
+					}
+					s.push_str(&self.name);
+					s.push_str(" has gone out!");
+					state.write_msg_buff(&s);
+					return Some(EventType::LightExpired);
+				}
+			},
+			_ => {
+				// We don't care about any other events here atm and probably should be an error
+				// condition if we receive one
+			},
+		}
+
         None
     }
 

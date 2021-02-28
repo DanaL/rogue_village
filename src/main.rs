@@ -543,16 +543,15 @@ fn use_item(state: &mut GameState, player: &mut Player, game_objs: &mut GameObje
                         format!("{} blazes brightly!", item.name.with_def_article().capitalize())
                     };
                     state.write_msg_buff(&s);
-
-                    // if light.active {
-            //     state.listeners.insert((light.object_id, EventType::EndOfTurn));
-            // } else {
-            //     state.listeners.insert((light.object_id, EventType::EndOfTurn));
-            // }
-
+                    
                     game_objs.get(item.get_object_id());
                     item.active = !item.active;
-                    item.stackable = false;
+                    item.stackable = false;                    
+                    if item.active {
+                        game_objs.listeners.insert((item.get_object_id(), EventType::EndOfTurn));
+                    } else {
+                        game_objs.listeners.remove(&(item.get_object_id(), EventType::EndOfTurn));
+                    }
                     game_objs.add_to_inventory(item);
 
                     state.turn += 1;
@@ -875,26 +874,22 @@ fn run(gui: &mut GameUI, state: &mut GameState, player: &mut Player, game_objs: 
 
         if state.turn > start_turn {
             game_objs.do_npc_turns(state);
+            game_objs.end_of_turn(state);
         }
         
         player.calc_vision_radius(state, game_objs);
         
-        let fov_start = Instant::now();
+        //let fov_start = Instant::now();
         let visible = fov::calc_fov(&state.map, player, FOV_HEIGHT, FOV_WIDTH);
         gui.v_matrix = fov_to_tiles(state, player, game_objs, &visible);        
-        let fov_duration = fov_start.elapsed();
-        println!("Time for fov: {:?}", fov_duration);
+        //let fov_duration = fov_start.elapsed();
+        //println!("Time for fov: {:?}", fov_duration);
 		
-        // If anything wants an alert when it comes to end of turn...
-        // for l in state.listeners.iter().filter(|i| i.1 == EventType::EndOfTurn) {
-        //     println!("{:?}", l);
-        // }
-
-        let write_screen_start = Instant::now();
-        let sbi = state.curr_sidebar_info(player);
+        //let write_screen_start = Instant::now();
+        //let sbi = state.curr_sidebar_info(player);
         gui.write_screen(&mut state.msg_buff, Some(&sbi));
-        let write_screen_duration = write_screen_start.elapsed();
-        println!("Time for write_screen(): {:?}", write_screen_duration);        
+        //let write_screen_duration = write_screen_start.elapsed();
+        //println!("Time for write_screen(): {:?}", write_screen_duration);        
     }
 }
 
