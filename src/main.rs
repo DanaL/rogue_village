@@ -221,12 +221,24 @@ fn title_screen(gui: &mut GameUI) {
 	gui.write_long_msg(&lines, true);
 }
 
+fn calc_save_filename(player_name: &str) -> String {
+	let s: String = player_name.chars()
+		.map(|ch| match ch {
+			'a'..='z' => ch,
+			'A'..='Z' => ch,
+			'0'..='9' => ch,
+			_ => '_'
+		}).collect();
+	
+	format!("{}.yaml", s)
+}
+
 fn serialize_game_data(state: &GameState, game_objs: &GameObjects, player: &Player) {
     let go = GOForSerde::convert(game_objs);
     let game_data = (state, go, player);
     let serialized = serde_yaml::to_string(&game_data).unwrap();
 
-    let filename = format!("{}.yaml", player.name);
+    let filename = calc_save_filename(&player.name);
 
     match File::create(&filename) {
         Ok(mut buffer) => {
@@ -239,9 +251,21 @@ fn serialize_game_data(state: &GameState, game_objs: &GameObjects, player: &Play
     }
 
 }
+fn existing_save_file(player_name: &str) -> bool {
+	let save_filename = calc_save_filename(player_name);
+
+	let paths = fs::read_dir("./").unwrap();
+	for path in paths {
+		if save_filename == path.unwrap().path().file_name().unwrap().to_str().unwrap() {
+			return true;
+		}
+	}
+	
+	false
+}
 
 fn load_save_game(player_name: &str) -> Result<(GameState, GameObjects, Player), serde_yaml::Error> {
-    let filename = format!("{}.yaml", player_name);
+    let filename = calc_save_filename(player_name);
     let blob = fs::read_to_string(filename).expect("Error reading save file");
     let game_data: (GameState, GOForSerde, Player) = serde_yaml::from_str(&blob)?;
 
@@ -249,7 +273,7 @@ fn load_save_game(player_name: &str) -> Result<(GameState, GameObjects, Player),
     Ok((game_data.0, game_objs, game_data.2))
 }
 
-fn save_game_exists(player_name: &str) -> Option<(GameState, GameObjects, Player)> {    
+fn fetch_saved_data(player_name: &str) -> Option<(GameState, GameObjects, Player)> {    
     match load_save_game(player_name) {
         Ok(gd) => Some(gd),
         Err(_) => None,
@@ -908,8 +932,7 @@ fn run(gui: &mut GameUI, state: &mut GameState, player: &mut Player, game_objs: 
     let visible = fov::calc_fov(state, player.location, player.vision_radius, FOV_HEIGHT, FOV_WIDTH);
 	gui.v_matrix = fov_to_tiles(state, game_objs, &visible);
     let sbi = state.curr_sidebar_info(player);
-    state.write_msg_buff("Welcome, adventurer!");   
-	gui.write_screen(&mut state.msg_buff, Some(&sbi));
+    gui.write_screen(&mut state.msg_buff, Some(&sbi));
 
     loop {
         let start_turn = state.turn;
@@ -981,13 +1004,18 @@ fn main() {
     let mut game_objs: GameObjects;
     let mut state: GameState;
     let mut player: Player;
-    if let Some(saved_objs) = save_game_exists(&player_name) {
-        state = saved_objs.0;
-        game_objs = saved_objs.1;
-        player = saved_objs.2;
+    if existing_save_file(&player_name) {
+        if let Some(saved_objs) = fetch_saved_data(&player_name) {
+            state = saved_objs.0;
+            game_objs = saved_objs.1;
+            player = saved_objs.2;
 
-        let msg = format!("Welcome back, {}!", player.name);
-        state.write_msg_buff(&msg);
+            let msg = format!("Welcome back, {}!", player.name);
+            state.write_msg_buff(&msg);
+        } else {
+            // need to dump some sort of message for corrupted game file
+            return;
+        }
     } else {
         game_objs = GameObjects::new();                
         let w = world::generate_world(&mut game_objs);        
@@ -996,8 +1024,10 @@ fn main() {
         player = fetch_player(&state, &mut game_objs, &mut gui, player_name).unwrap();
         state.player_loc = player.location;
     
-        let sbi = state.curr_sidebar_info(&player);
-        gui.write_screen(&mut state.msg_buff, Some(&sbi));
+        //let sbi = state.curr_sidebar_info(&player);
+        //gui.write_screen(&mut state.msg_buff, Some(&sbi));
+        state.write_msg_buff("Welcome, adventurer!");   
+	
     }
     
     match run(&mut gui, &mut state, &mut player, &mut game_objs, &dialogue_library) {
