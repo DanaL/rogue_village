@@ -110,7 +110,7 @@ impl Item {
             },
             "torch" => {
                 let mut i = Item::new(game_objs.next_id(), name, ItemType::Light, 1, true, '(', display::LIGHT_BROWN, display::BROWN);
-                i.charges = 500;
+                i.charges = 1000;
                 i.aura = 5;
                 Some(i)
             },
@@ -197,9 +197,9 @@ impl GameObject for Item {
 
 				if self.charges == 150 {
 					let s = if self.location == PLAYER_INV {
-						format!("Your {} flickes.", self.name)					
+						format!("Your {} flickers.", self.name)					
 					} else {
-						format!("The {} flickes.", self.name)
+						format!("The {} flickers.", self.name)
 					};
 					self.aura -= 2;
 					state.write_msg_buff(&s);
