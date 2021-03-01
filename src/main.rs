@@ -161,7 +161,7 @@ impl GameState {
         };
 
 		SidebarInfo::new(player.name.to_string(), player.curr_hp, player.max_hp, self.turn, player.ac,
-         player.purse, weapon)
+         player.purse, weapon, player.location.2 as u8)
 	}
 
     // I made life difficult for myself by deciding that Turn 0 of the game is 8:00am T_T
@@ -809,7 +809,7 @@ fn show_character_sheet(gui: &mut GameUI, player: &Player) {
     let s = format!("Aptitude: {}", player.apt);
 	lines.push(&s);
 	lines.push("");
-	let s = format!("AC: {}    Hit Points: {}({})", 10, player.curr_hp, player.max_hp);
+	let s = format!("AC: {}    Hit Points: {}({})", player.ac, player.curr_hp, player.max_hp);
 	lines.push(&s);
     lines.push("");
 
