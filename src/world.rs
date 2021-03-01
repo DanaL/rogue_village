@@ -15,8 +15,8 @@
 
 extern crate serde;
 
-use std::collections::{HashMap, HashSet};
-use rand::thread_rng;
+use std::collections::{HashMap, HashSet, VecDeque};
+use rand::{prelude::{IteratorRandom, SliceRandom}, thread_rng};
 use rand::Rng;
 use serde::{Serialize, Deserialize};
 
@@ -198,6 +198,82 @@ fn add_old_road(map: &mut Map, start: (i32, i32, i8)) {
     }
 }
 
+fn random_sq(sqs: &HashSet<(usize, usize)>) -> (usize, usize) {
+    // I can't believe this is the easiest way I've found to pick a random element
+    // from a HashSet T_T
+    //
+    // In C# you can just access HashSets by index :/
+    let mut rng = rand::thread_rng();
+    let items = sqs.iter()
+                 .map(|i| *i)
+                 .collect::<Vec<(usize, usize)>>();
+    let item = items.choose(&mut rng).unwrap();
+
+    (item.0, item.1)
+}
+
+fn set_stairs(dungeon: &mut Vec<Vec<Tile>>, width: usize, height: usize) -> (usize, usize) {
+    let mut rng = rand::thread_rng();
+    let mut open_sqs = Vec::new();
+    for level_id in 0..dungeon.len() {
+        let mut open = HashSet::new();
+        for r in 0..height {
+            for c in 0..width {
+                if dungeon[level_id][r * width + c] == Tile::StoneFloor {
+                    open.insert((r, c));
+                }
+            }
+        }
+        open_sqs.push(open);
+    }
+
+    // First find the up stairs on level 1 of the dungeon, which is the entrance. Just grab
+    // any ol' open square 
+    let entrance = random_sq(&open_sqs[0]);
+    dungeon[0][entrance.0 * width + entrance.1] = Tile::StairsUp;
+    open_sqs[0].remove(&entrance);
+
+    // I wanted the levels of my dungeon to be aligned. (Ie., if the stairs down from level 3 are at 4,16 then
+    // the stairs back up on level 4 will be at 4,16 as well)
+    for n in 0..dungeon.len() - 1 {
+        let options = open_sqs[n].intersection(&open_sqs[n + 1]);
+        let stairs = options.choose(&mut rng).unwrap().clone();
+        dungeon[n][stairs.0 * width + stairs.1] = Tile::StairsDown;
+        dungeon[n + 1][stairs.0 * width + stairs.1] = Tile::StairsUp;
+        open_sqs[n].remove(&stairs);
+        open_sqs[n + 1].remove(&stairs);        
+    }
+    
+    entrance
+}
+
+fn build_dungeon(world_info: &mut WorldInfo, map: &mut Map, entrance: (i32, i32, i8)) {
+    let width = 125;
+    let height = 40;
+    
+    let mut dungeon = Vec::new();
+    for _ in 0..3 {
+        let level = dungeon::draw_level(width, height);
+        dungeon.push(level);
+    }
+
+    let stairs = set_stairs(&mut dungeon, width, height);
+    
+    // Copy the dungeon onto the world map
+    for lvl in 0..3 {
+        let stairs_row_delta = entrance.0 - stairs.0 as i32;
+        let stairs_col_delta = entrance.1 - stairs.1 as i32;
+        for r in 0..height {
+            for c in 0..width {
+                let i = r * width + c;
+                let curr_row = r as i32 + stairs_row_delta;
+                let curr_col = c as i32 + stairs_col_delta;
+                map.insert((curr_row, curr_col, lvl as i8 + 1), dungeon[lvl][i]);
+            }
+        }
+    }
+}
+
 pub fn generate_world(game_objs: &mut GameObjects) -> (Map, WorldInfo) {
     let mut map = wilderness::gen_wilderness_map();
     let mut world_info = town::create_town(&mut map, game_objs);
@@ -218,31 +294,7 @@ pub fn generate_world(game_objs: &mut GameObjects) -> (Map, WorldInfo) {
 
     let dungeon_entrance = find_good_dungeon_entrance(&map, &valleys[max_id]);
     
-    let dungeon_width = 125;
-    let dungeon_height = 40;
-    let mut dungeon_level = dungeon::draw_level(125, 40);
-    let mut floors = Vec::new();
-    for i in 0..dungeon_level.len() {
-        if dungeon_level[i] == Tile::StoneFloor {
-            floors.push(i);
-        }
-    }
-    let stairs_loc = floors[thread_rng().gen_range(0, floors.len())];
-    dungeon_level[stairs_loc] = Tile::StairsUp;
-    let stairs_row = stairs_loc / dungeon_width;
-    let stairs_col = stairs_loc - (stairs_row * dungeon_width);
-    let stairs_row_delta = dungeon_entrance.0 - stairs_row as i32;
-    let stairs_col_delta = dungeon_entrance.1 - stairs_col as i32;
-    for r in 0..dungeon_height {
-        for c in 0..dungeon_width {
-            let i = r * dungeon_width + c;
-            let curr_row = stairs_row_delta + r as i32;
-            let curr_col = stairs_col_delta + c as i32;
-                        
-            map.insert((curr_row, curr_col, 1), dungeon_level[i]);
-        }
-    }
-    
+    build_dungeon(&mut world_info, &mut map, dungeon_entrance);
 
     world_info.facts.push(Fact::new("dungeon location".to_string(), 0, dungeon_entrance));
 

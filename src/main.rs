@@ -252,7 +252,7 @@ fn serialize_game_data(state: &GameState, game_objs: &GameObjects, player: &Play
 
 }
 fn existing_save_file(player_name: &str) -> bool {
-	let save_filename = calc_save_filename(player_name);
+    let save_filename = calc_save_filename(player_name);
 
 	let paths = fs::read_dir("./").unwrap();
 	for path in paths {
@@ -850,7 +850,10 @@ fn wiz_command(state: &mut GameState, gui: &mut GameUI, player: &mut Player) {
     match gui.query_user(":", 20, Some(&sbi)) {
         Some(result) => {
             let pieces: Vec<&str> = result.trim().split('=').collect();
-            if pieces.len() != 2 {
+
+            if result == "loc" {
+                println!("{:?}", player.location);
+            } else if pieces.len() != 2 {
                 state.write_msg_buff("Invalid wizard command");
             } else if pieces[0] == "turn" {
                 let num = pieces[1].parse::<u32>();
@@ -879,6 +882,7 @@ fn pick_player_start_loc(state: &GameState) -> (i32, i32, i8) {
     let b = state.world_info.town_boundary;
 
     return state.world_info.facts[0].location;
+
     if x == 0 {
         (b.0 - 5, thread_rng().gen_range(b.1, b.3), 0)
     } else if x == 1 {
@@ -977,7 +981,7 @@ fn run(gui: &mut GameUI, state: &mut GameState, player: &mut Player, game_objs: 
         //println!("Time for fov: {:?}", fov_duration);
 		
         //let write_screen_start = Instant::now();
-        //let sbi = state.curr_sidebar_info(player);
+        let sbi = state.curr_sidebar_info(player);
         gui.write_screen(&mut state.msg_buff, Some(&sbi));
         //let write_screen_duration = write_screen_start.elapsed();
         //println!("Time for write_screen(): {:?}", write_screen_duration);        

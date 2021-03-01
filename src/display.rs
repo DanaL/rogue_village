@@ -567,7 +567,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 		let rect = Rect::new(start_x + indent as i32 * self.font_width as i32, (self.font_height * row as u32) as i32, 
 			line.len() as u32 * self.font_width, self.font_height);
 		self.canvas.copy(&texture, None, Some(rect))
-			.expect("Error copying sbi to canvas!");		
+			.expect("Error copying sbi to canvas!");
 	}
 
 	fn write_sidebar(&mut self, sbi: &SidebarInfo) {
@@ -640,7 +640,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 		}
 
 		if let Some(sidebar) = sbi {
-		 	self.write_sidebar(sidebar);
+			self.write_sidebar(sidebar);
 		}
 
 		self.canvas.present();
