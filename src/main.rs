@@ -942,6 +942,47 @@
         }
     }
 
+    fn dump_level(state: &GameState, level: i8) {
+        let dungeon_sqs: Vec<(i32, i32, i8)> = state.map.keys()
+                                                        .filter(|k| k.2 == level)
+                                                        .map(|k| *k)
+                                                        .collect();
+        let min_row = dungeon_sqs.iter().map(|sq| sq.0).min().unwrap();
+        let min_col = dungeon_sqs.iter().map(|sq| sq.1).min().unwrap();
+        let max_col = dungeon_sqs.iter().map(|sq| sq.1).max().unwrap();
+        let width = max_col - min_col + 1;
+        let mut chars = vec![' '; dungeon_sqs.len()];
+        for sq in dungeon_sqs {
+            let row = sq.0 - min_row;
+            let col = sq.1 - min_col;
+            let ch = match state.map[&sq] {
+                    Tile::Wall => '#',
+                    Tile::StoneFloor => '.',
+                    Tile::Door(_) => '+',
+                    Tile::Shrine(_) => '_',
+                    Tile::Trigger(_) => '^',
+                    Tile::OldFirePit(_) => '#',
+                    Tile::StairsDown => '>',
+                    Tile::StairsUp => '<',
+                    _ => ' ',
+                };
+            
+            chars[(row * width + col) as usize] = ch;
+        }
+
+        let mut c = 0;
+        let mut s = String::from("");
+        while c < chars.len() {            
+            s.push(chars[c]);
+            c += 1;
+
+            if c % width as usize == 0 {
+                println!("{}", s);
+                s = String::from("");
+            }
+        }        
+    }
+
     fn wiz_command(state: &mut GameState, gui: &mut GameUI, player: &mut Player) {
         let sbi = state.curr_sidebar_info(player);
         match gui.query_user(":", 20, Some(&sbi)) {
@@ -950,6 +991,12 @@
 
                 if result == "loc" {
                     println!("{:?}", player.location);
+                } else if result == "dump level" {
+                    if player.location.2 == 0 {
+                        state.write_msg_buff("Uhh the wilderness is too big to dump.");
+                    } else {
+                        dump_level(state, player.location.2);
+                    }
                 } else if pieces.len() != 2 {
                     state.write_msg_buff("Invalid wizard command");
                 } else if pieces[0] == "turn" {
