@@ -32,6 +32,14 @@ use crate::items::{GoldPile, Item};
 use crate::player::Player;
 use crate::util;
 
+
+#[derive(Clone, Copy, Debug, Hash, Eq, PartialEq, Serialize, Deserialize)]
+pub enum TriggerType {
+	Step,
+	Weight,
+	Light,
+}
+
 #[derive(Clone, Copy, Debug, Hash, Eq, PartialEq, Serialize, Deserialize)]
 pub enum ShrineType {
 	Woden,
@@ -82,6 +90,7 @@ pub enum Tile {
 	StairsUp,
 	StairsDown,
 	Shrine(ShrineType),
+	Trigger(TriggerType,)
 }
 
 impl Tile {
@@ -163,6 +172,14 @@ impl GameObject for SpecialSquare {
 		match event {
 			EventType::EndOfTurn => {
 				self.mark_aura(state);
+			},
+			EventType::SteppedOn => {
+				if self.active {
+					state.write_msg_buff("click");
+				} else {
+					state.write_msg_buff("CLICK!");
+				}
+				self.active = !self.active;
 			},
 			_ => { 
 				panic!("This event isn't implemented for special squares!");

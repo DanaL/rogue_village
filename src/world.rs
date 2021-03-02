@@ -26,7 +26,7 @@ use super::{EventType, GameObjects, Map};
 use crate::dungeon;
 use crate::game_obj::GameObject;
 use crate::items::{GoldPile, Item};
-use crate::map::{ShrineType, SpecialSquare, Tile};
+use crate::map::{ShrineType, SpecialSquare, Tile, TriggerType};
 use crate::town;
 use crate::town::TownBuildings;
 use crate::pathfinding;
@@ -351,6 +351,12 @@ fn build_dungeon(world_info: &mut WorldInfo, map: &mut Map, entrance: (i32, i32,
             }
         }
     }
+
+    let trigger = Tile::Trigger(TriggerType::Step);
+    map.insert((entrance.0 - 1, entrance.1, 1), trigger);
+    let special_sq = SpecialSquare::new(game_objs.next_id(), Tile::Trigger(TriggerType::Step), (entrance.0 - 1, entrance.1, 1), false, 0);
+    game_objs.listeners.insert((special_sq.get_object_id(), EventType::SteppedOn));
+    game_objs.add(Box::new(special_sq));
 
     decorate_levels(world_info, map, max_level as i8, &mut floor_sqs, game_objs)
 }

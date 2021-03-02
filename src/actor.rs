@@ -24,7 +24,7 @@ use serde::{Serialize, Deserialize};
 
 use super::{EventType, GameObjects, GameState};
 
-use crate::dialogue;
+use crate::{dialogue, land_on_location};
 use crate::dialogue::DialogueLibrary;
 use crate::display::LIGHT_GREY;
 use crate::game_obj::{GameObject, GameObjType};
@@ -157,6 +157,7 @@ impl Villager {
                 self.plan.push_front(Action::CloseDoor(self.get_location()));                
             }
             self.stats.location = loc;
+            land_on_location(state, game_objs, loc, self.get_object_id());
         }
     }
 

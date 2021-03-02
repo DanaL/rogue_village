@@ -46,7 +46,7 @@
     use serde::{Serialize, Deserialize};
 
     use dialogue::DialogueLibrary;
-    use display::{GameUI, SidebarInfo, WHITE, YELLOW};
+    use display::{GameUI, SidebarInfo, WHITE};
     use game_obj::{GameObject, GameObjects, GameObjType, GOForSerde};
     use items::{GoldPile, Item, ItemType};
     use map::{DoorState, ShrineType, Tile};
@@ -73,6 +73,7 @@
         EndOfTurn,
         LightExpired,
         TakeTurn,
+        SteppedOn,
     }
 
     pub enum Cmd {
@@ -801,7 +802,15 @@
         }
     }
 
-    fn do_move(state: &mut GameState, player: &mut Player, game_objs: &GameObjects, dir: &str) {
+    // Stuff that happens after someone steps on a square. I could probably move a bunch of the code here for
+    // stepping on lava, etc. It's a bit awkward right now because Player and NPC are separate types and I can't
+    // just pass a reference in, but if I eventually need to, I can sort out who exactly stepped on the square via
+    // the obj_id (0 is always the player)
+    fn land_on_location(state: &mut GameState, game_objs: &mut GameObjects, loc: (i32, i32, i8), _obj_id: usize) {
+        game_objs.stepped_on_event(state, loc);
+    }
+
+    fn do_move(state: &mut GameState, player: &mut Player, game_objs: &mut GameObjects, dir: &str) {
         let mv = get_move_tuple(dir);
 
         let start_loc = player.location;
@@ -856,6 +865,8 @@
                 state.write_msg_buff("There are several items here.");
             }
             
+            land_on_location(state, game_objs, next_loc, 0);
+
             state.turn += 1;
         } else if *tile == Tile::Door(DoorState::Closed) {
             // Bump to open doors. I might make this an option later
@@ -967,8 +978,12 @@
         let x = thread_rng().gen_range(0, 4);
         let b = state.world_info.town_boundary;
 
-        return state.world_info.facts[0].location;
-
+        for fact in &state.world_info.facts {
+            if fact.detail == "dungeon location" {
+                return fact.location;
+            }
+        }
+        
         if x == 0 {
             (b.0 - 5, thread_rng().gen_range(b.1, b.3), 0)
         } else if x == 1 {
@@ -999,13 +1014,18 @@
                     t.0
                 } else {
                     state.tile_memory.insert(vis.0, state.map[&vis.0]);
+                    
                     // I wanted to make tochlight squares be coloured different so this is a slight
                     // kludge. Although perhaps later I might use it to differentiate between a player
                     // walking through the dungeon with a light vs relying on darkvision, etc
                     if state.aura_sqs.contains(&vis.0) && state.map[&vis.0] == Tile::StoneFloor {
                         Tile::ColourFloor(display::LIGHT_BLUE)
-                    } else if state.lit_sqs.contains(&vis.0) && state.map[&vis.0] == Tile::StoneFloor {
-                        Tile::ColourFloor(YELLOW)
+                    } else if state.lit_sqs.contains(&vis.0) {
+                        match state.map[&vis.0] {
+                            Tile::StoneFloor => Tile::ColourFloor(display::YELLOW),
+                            Tile::Trigger(_) => Tile::ColourFloor(display::YELLOW_ORANGE),
+                            _ => state.map[&vis.0],
+                        }
                     } else {
                         state.map[&vis.0]
                     }
@@ -1103,11 +1123,7 @@
                 state = saved_objs.0;
                 game_objs = saved_objs.1;
                 player = saved_objs.2;
-                println!("{:?}", player.vision_radius);
-                //println!("{:?}", state.lit_sqs.len());
-                //println!("{:?}", state.aura_sqs.len());
-                player.calc_vision_radius(&mut state, &mut game_objs);
-
+                
                 let msg = format!("Welcome back, {}!", player.name);
                 state.write_msg_buff(&msg);
             } else {
@@ -1124,11 +1140,7 @@
             println!("World gen time: {:?}", wg_dur);
 
             player = start_new_game(&state, &mut game_objs, &mut gui, player_name).unwrap();
-            state.player_loc = player.location;        
-            player.calc_vision_radius(&mut state, &mut game_objs);
-
-            //let sbi = state.curr_sidebar_info(&player);
-            //gui.write_screen(&mut state.msg_buff, Some(&sbi));
+            state.player_loc = player.location;            
             state.write_msg_buff("Welcome, adventurer!");
         }
         

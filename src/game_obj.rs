@@ -229,6 +229,20 @@ impl GameObjects {
         }        
     }
 
+    pub fn stepped_on_event(&mut self, state: &mut GameState, loc: (i32, i32, i8)) {
+        let listeners: Vec<usize> = self.listeners.iter()
+            .filter(|l| l.1 == EventType::SteppedOn)
+            .map(|l| l.0).collect();
+
+        for obj_id in listeners {
+            let mut obj = self.get(obj_id);
+            if obj.get_location() == loc {
+                obj.receive_event(EventType::SteppedOn, state);
+            }
+            self.add(obj);
+        }
+    }
+
     pub fn inv_slots_used(&self) -> Vec<(char, Item)> {
         let mut slots = Vec::new();
 
