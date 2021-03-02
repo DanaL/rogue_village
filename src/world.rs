@@ -23,7 +23,8 @@ use serde::{Serialize, Deserialize};
 use super::{GameObjects, Map};
 
 use crate::dungeon;
-use crate::items::Item;
+use crate::game_obj::GameObject;
+use crate::items::{GoldPile, Item};
 use crate::map::Tile;
 use crate::town;
 use crate::town::TownBuildings;
@@ -284,6 +285,10 @@ fn decorate_levels(world_info: &mut WorldInfo, map: &mut Map, deepest_level: i8,
                 note.location = adj;
                 game_objs.add(Box::new(note));
             }
+            let amt = rng.gen_range(4, 11);
+            let mut pile = GoldPile::new(game_objs.next_id(), amt, loc);
+            pile.hide();
+            game_objs.add(Box::new(pile));
         }
 
         curr_level -= 1;

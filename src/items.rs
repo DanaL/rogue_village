@@ -69,13 +69,14 @@ pub struct Item {
     pub aura: u8,
     pub location: (i32, i32, i8),
     pub text: Option<(String, String)>,
+    hidden: bool,
 }
 
 impl Item {    
     fn new(object_id: usize, name: &str, item_type: ItemType, weight: u8, stackable: bool, symbol: char, lit_colour: (u8, u8, u8), unlit_colour: (u8, u8, u8)) -> Item {
 		Item { object_id, name: String::from(name), item_type, weight, stackable, symbol, lit_colour, unlit_colour, slot: '\0',
 				dmg_die: 1, dmg_dice: 1, attack_bonus: 0, ac_bonus: 0, range: 0, equiped: false, attributes: 0, active: false, charges: 0, aura: 0,
-                location: (-1, -1, -1), text: None }								
+                location: (-1, -1, -1), text: None, hidden: false, }								
 	}
     
     pub fn get_item(game_objs: &mut GameObjects, name: &str) -> Option<Item> {
@@ -279,6 +280,18 @@ impl GameObject for Item {
     fn talk_to(&mut self, _state: &mut GameState, _player: &Player, _dialogue: &DialogueLibrary) -> String {
         format!("You are trying to talk to {}...", self.get_fullname().with_indef_article())
     }
+
+    fn hidden(&self) -> bool {
+        self.hidden
+    }
+
+    fn reveal(&mut self) {
+        self.hidden = false;
+    }
+
+    fn hide(&mut self) {
+        self.hidden = true;
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -286,11 +299,12 @@ pub struct GoldPile {
     pub object_id: usize,
     pub amount: u32,
     pub location: (i32, i32, i8),
+    hidden: bool,
 }
 
 impl GoldPile {
     pub fn new( object_id: usize, amount: u32, location: (i32, i32, i8)) -> GoldPile {
-        GoldPile { object_id, amount, location }
+        GoldPile { object_id, amount, location, hidden: false, }
     }
 }
 
@@ -356,5 +370,17 @@ impl GameObject for GoldPile {
 
     fn talk_to(&mut self, _state: &mut GameState, _player: &Player, _dialogue: &DialogueLibrary) -> String {
         String::from("You are trying to talk to a pile of money...")
+    }
+
+    fn hidden(&self) -> bool {
+        self.hidden
+    }
+
+    fn reveal(&mut self) {
+        self.hidden = false;
+    }
+
+    fn hide(&mut self) {
+        self.hidden = true;
     }
 }

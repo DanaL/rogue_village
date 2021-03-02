@@ -444,7 +444,11 @@ fn drop_item(state: &mut GameState, player: &mut Player, game_objs: &mut GameObj
 }
 
 fn pick_up(state: &mut GameState, player: &mut Player, game_objs: &mut GameObjects, gui: &mut GameUI) {
-    let things = game_objs.things_at_loc(player.location);
+    let things:Vec<&Box<dyn GameObject>> = game_objs.things_at_loc(player.location)
+                          .iter()
+                          .filter(|i| !i.hidden())
+                          .map(|i| *i)
+                          .collect();
 
     if things.len() == 0 {
         state.write_msg_buff("There is nothing here.");
@@ -810,7 +814,7 @@ fn do_move(state: &mut GameState, player: &mut Player, game_objs: &GameObjects, 
 			},
 		}
 
-        let items = game_objs.descs_at_loc(next_loc);
+        let items = game_objs.descs_at_loc(next_loc);                             
         if items.len() == 1 {
             let s = format!("You see {} here.", items[0]);
             state.write_msg_buff(&s);

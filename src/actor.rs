@@ -378,4 +378,11 @@ impl GameObject for Villager {
 
         line
     }
+
+    fn hidden(&self) -> bool {
+        false
+    }
+
+    fn reveal(&mut self) { }
+    fn hide(&mut self) { }
 }

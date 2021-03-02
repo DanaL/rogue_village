@@ -45,6 +45,9 @@ pub trait GameObject {
     fn take_turn(&mut self, state: &mut GameState, game_objs: &mut GameObjects);
     fn is_npc(&self) -> bool;
     fn talk_to(&mut self, state: &mut GameState, player: &Player, dialogue: &DialogueLibrary) -> String;
+    fn hidden(&self) -> bool;
+    fn reveal(&mut self);
+    fn hide(&mut self);
     // I'm not sure if this is some terrible design sin but sometimes I need to get at the underlying
     // object and didn't want to write a zillion accessor methods. I wonder if I should have gone whole
     // hog down this around and given GameObjets a HashMap of attributes so that I didn't actually need
@@ -154,7 +157,9 @@ impl GameObjects {
             }
 
             let obj_id = self.obj_locs[&loc].front().unwrap();
-            return Some((self.objects[obj_id].get_tile(), false));
+            if !self.objects[obj_id].hidden() {
+                return Some((self.objects[obj_id].get_tile(), false));
+            }
         }
 
         None
@@ -460,8 +465,11 @@ impl GameObjects {
         
         let mut items = HashMap::new();
         if self.obj_locs.contains_key(&loc) {
-            for j in 0..self.obj_locs[&loc].len() {
+            for j in 0..self.obj_locs[&loc].len() {                
                 let obj_id = self.obj_locs[&loc][j];
+                if self.objects[&obj_id].hidden() {
+                    continue;
+                }
                 let name = self.objects[&obj_id].get_fullname();
                 let i = items.entry(name).or_insert(0);
                 *i += 1;                
