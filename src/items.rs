@@ -43,6 +43,7 @@ pub enum ItemType {
 	Food,
 	Armour,
     Light,
+    Note,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -67,13 +68,14 @@ pub struct Item {
     pub charges: u16,
     pub aura: u8,
     pub location: (i32, i32, i8),
+    pub text: Option<(String, String)>,
 }
 
 impl Item {    
     fn new(object_id: usize, name: &str, item_type: ItemType, weight: u8, stackable: bool, symbol: char, lit_colour: (u8, u8, u8), unlit_colour: (u8, u8, u8)) -> Item {
 		Item { object_id, name: String::from(name), item_type, weight, stackable, symbol, lit_colour, unlit_colour, slot: '\0',
 				dmg_die: 1, dmg_dice: 1, attack_bonus: 0, ac_bonus: 0, range: 0, equiped: false, attributes: 0, active: false, charges: 0, aura: 0,
-                location: (-1, -1, -1) }								
+                location: (-1, -1, -1), text: None }								
 	}
     
     pub fn get_item(game_objs: &mut GameObjects, name: &str) -> Option<Item> {
@@ -114,6 +116,10 @@ impl Item {
                 i.aura = 5;
                 Some(i)
             },
+            "note" => {
+                let i = Item::new(game_objs.next_id(), name, ItemType::Note, 0, false, '?', display::WHITE, display::LIGHT_GREY);
+                Some(i)
+            }
             _ => None,
         }
     }

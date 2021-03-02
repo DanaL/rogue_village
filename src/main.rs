@@ -594,6 +594,40 @@ fn toggle_equipment(state: &mut GameState, player: &mut Player, game_objs: &mut 
     }
 }
 
+fn read_item(state: &mut GameState, player: &mut Player, game_objs: &mut GameObjects, gui: &mut GameUI) {
+    let inv_items = game_objs.inv_slots_used();
+    let slots: HashSet<char> = inv_items.iter().map(|i| i.0).collect();
+    
+    if slots.len() == 0 {
+        state.write_msg_buff("You are empty handed.");
+        return;
+    }
+
+    let sbi = state.curr_sidebar_info(player);
+    if let Some(ch) = gui.query_single_response("Read what?", Some(&sbi)) {
+        if !slots.contains(&ch) {
+            state.write_msg_buff("You do not have that item!");
+            return;
+        } 
+        for i in inv_items {
+            if let Some(mut item) = i.1.as_item() {
+                if item.slot == ch {
+                    if let Some(text) = item.text {
+                        gui.popup_msg(&text.0.with_indef_article().capitalize(), &text.1);
+                    } else {
+                        state.write_msg_buff("There's nothing written on it.");
+                    }
+
+                    state.turn += 1;                                          
+                    break;                       
+                }
+            }
+        }
+	} else {
+        state.write_msg_buff("Nevermind.");
+    }
+}
+
 fn use_item(state: &mut GameState, player: &mut Player, game_objs: &mut GameObjects, gui: &mut GameUI) {
     let inv_items = game_objs.inv_slots_used();
     let slots: HashSet<char> = inv_items.iter().map(|i| i.0).collect();
@@ -968,6 +1002,7 @@ fn run(gui: &mut GameUI, state: &mut GameState, player: &mut Player, game_objs: 
                 println!("{:?}", state.curr_time());
             },
             Cmd::PickUp => pick_up(state, player, game_objs, gui),
+            Cmd::Read => read_item(state, player, game_objs, gui),
             Cmd::Save => save_and_exit(state, game_objs, player, gui)?,
             Cmd::ShowCharacterSheet => show_character_sheet(gui, player),
             Cmd::ShowInventory => show_inventory(gui, state, player, game_objs),

@@ -23,10 +23,12 @@ use serde::{Serialize, Deserialize};
 use super::{GameObjects, Map};
 
 use crate::dungeon;
+use crate::items::Item;
 use crate::map::Tile;
 use crate::town;
 use crate::town::TownBuildings;
 use crate::pathfinding;
+use crate::util;
 use crate::wilderness;
 
 pub const WILDERNESS_SIZE: usize = 257;
@@ -248,7 +250,24 @@ fn set_stairs(dungeon: &mut Vec<Vec<Tile>>, width: usize, height: usize) -> (usi
     entrance
 }
 
-fn decorate_levels(world_info: &mut WorldInfo, map: &mut Map, deepest_level: i8, floor_sqs: &mut HashMap<usize, HashSet<(i32, i32, i8)>>) {
+fn random_open_adj(open: &HashSet<(i32, i32, i8)>, loc: (i32, i32, i8)) -> Option<(i32, i32, i8)> {
+    let mut rng = rand::thread_rng();
+    //let mut options = Vec::new();
+
+    let options = util::ADJ.iter()
+                           .map(|d| (loc.0 + d.0, loc.1 + d.1, loc.2))
+                           .filter(|adj| open.contains(&adj))
+                           .collect::<Vec<(i32, i32, i8)>>();
+
+    if options.len() > 0 {
+        Some(options[rng.gen_range(0, options.len())])
+    } else {
+        None
+    }
+}
+
+fn decorate_levels(world_info: &mut WorldInfo, map: &mut Map, deepest_level: i8, floor_sqs: &mut HashMap<usize, HashSet<(i32, i32, i8)>>,
+            game_objs: &mut GameObjects) {
     let mut rng = rand::thread_rng();
     let mut curr_level = deepest_level;
     while curr_level > 0 {
@@ -259,13 +278,19 @@ fn decorate_levels(world_info: &mut WorldInfo, map: &mut Map, deepest_level: i8,
             floor_sqs.get_mut(&(curr_level as usize))
                      .unwrap()
                      .remove(&loc);
+            if let Some(adj) = random_open_adj(&floor_sqs[&(curr_level as usize)], loc) {
+                let mut note = Item::get_item(game_objs, "note").unwrap();
+                note.text = Some(("burnt scrap".to_string(), "Is there no end to the swarms of kobolds?".to_string()));
+                note.location = adj;
+                game_objs.add(Box::new(note));
+            }
         }
 
         curr_level -= 1;
     }
 }
 
-fn build_dungeon(world_info: &mut WorldInfo, map: &mut Map, entrance: (i32, i32, i8)) {
+fn build_dungeon(world_info: &mut WorldInfo, map: &mut Map, entrance: (i32, i32, i8), game_objs: &mut GameObjects) {
     let width = 125;
     let height = 40;
     let mut floor_sqs = HashMap::new();
@@ -298,7 +323,7 @@ fn build_dungeon(world_info: &mut WorldInfo, map: &mut Map, entrance: (i32, i32,
         }
     }
 
-    decorate_levels(world_info, map, max_level, &mut floor_sqs)
+    decorate_levels(world_info, map, max_level, &mut floor_sqs, game_objs)
 }
 
 pub fn generate_world(game_objs: &mut GameObjects) -> (Map, WorldInfo) {
@@ -321,7 +346,7 @@ pub fn generate_world(game_objs: &mut GameObjects) -> (Map, WorldInfo) {
 
     let dungeon_entrance = find_good_dungeon_entrance(&map, &valleys[max_id]);
     
-    build_dungeon(&mut world_info, &mut map, dungeon_entrance);
+    build_dungeon(&mut world_info, &mut map, dungeon_entrance, game_objs);
 
     world_info.facts.push(Fact::new("dungeon location".to_string(), 0, dungeon_entrance));
 
