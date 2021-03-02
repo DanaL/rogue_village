@@ -22,9 +22,20 @@ use std::collections::HashSet;
 use serde::{Serialize, Deserialize};
 use rand::Rng;
 
-use super::Map;
+use super::{EventType, GameObjects, GameState, Map};
 
+use crate::actor::Villager;
+use crate::dialogue::DialogueLibrary;
+use crate::game_obj::{GameObject, GameObjType};
+use crate::items::{GoldPile, Item};
+use crate::player::Player;
 use crate::util;
+
+#[derive(Clone, Copy, Debug, Hash, Eq, PartialEq, Serialize, Deserialize)]
+pub enum ShrineType {
+	Woden,
+	Crawler,
+}
 
 #[derive(Clone, Copy, Debug, Hash, Eq, PartialEq, Serialize, Deserialize)]
 pub enum DoorState {
@@ -69,6 +80,7 @@ pub enum Tile {
 	BoulderTrap((u8, u8, u8), bool, bool, (usize, usize), (i32, i32)),
 	StairsUp,
 	StairsDown,
+	Shrine(ShrineType),
 }
 
 impl Tile {
@@ -103,6 +115,76 @@ impl Tile {
 			Tile::Floor | Tile::StoneFloor | Tile::StairsUp | Tile::StairsDown => true,
 			_ => false,
 		}
+	}
+}
+
+impl GameObject for Tile {
+	fn blocks(&self) -> bool {
+		self.passable()
+	}
+
+    fn get_location(&self) -> (i32, i32, i8) {
+		panic!("Shouldn't be called for tiles!")
+	}
+
+    fn set_location(&mut self, loc: (i32, i32, i8)) {
+		panic!("Shouldn't be called for tiles!")
+	}
+
+    fn receive_event(&mut self, event: EventType, state: &mut GameState) -> Option<EventType> {
+		None
+	}
+
+    fn get_fullname(&self) -> String {
+		panic!("Shouldn't be called for tiles!")
+	}
+
+    fn get_object_id(&self) -> usize {
+		// uhoh how will this work...
+		0
+	}
+
+    fn get_type(&self) -> GameObjType {
+		GameObjType::SpecialSquare
+	}
+    fn get_tile(&self) -> Tile {
+		self.clone()
+	}
+
+    fn take_turn(&mut self, _state: &mut GameState, _game_objs: &mut GameObjects) {
+
+	}
+
+    fn is_npc(&self) -> bool {
+		false
+	}
+
+    fn talk_to(&mut self, _state: &mut GameState, _player: &Player, _dialogue: &DialogueLibrary) -> String {
+		panic!("Shouldn't be called for tiles!")
+	}
+
+    fn hidden(&self) -> bool {
+		false
+	}
+
+    fn reveal(&mut self) {
+
+	}
+
+    fn hide(&mut self) {
+
+	}
+
+    fn as_item(&self) -> Option<Item> {
+		None
+	}
+
+    fn as_zorkmids(&self) -> Option<GoldPile> {
+		None
+	}
+
+    fn as_villager(&self) -> Option<Villager> {
+		None
 	}
 }
 

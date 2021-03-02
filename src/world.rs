@@ -25,7 +25,7 @@ use super::{GameObjects, Map};
 use crate::dungeon;
 use crate::game_obj::GameObject;
 use crate::items::{GoldPile, Item};
-use crate::map::Tile;
+use crate::map::{ShrineType, Tile};
 use crate::town;
 use crate::town::TownBuildings;
 use crate::pathfinding;
@@ -267,30 +267,49 @@ fn random_open_adj(open: &HashSet<(i32, i32, i8)>, loc: (i32, i32, i8)) -> Optio
     }
 }
 
+fn add_fire_pit(level: usize, map: &mut Map, floor_sqs: &mut HashMap<usize, HashSet<(i32, i32, i8)>>, game_objs: &mut GameObjects) {
+    let mut rng = rand::thread_rng();
+    let loc = random_sq(&floor_sqs[&(level - 1)]);
+    map.insert(loc, Tile::OldFirePit(rng.gen_range(0, 5)));
+    floor_sqs.get_mut(&(level -1))
+             .unwrap()
+             .remove(&loc);
+    if let Some(adj) = random_open_adj(&floor_sqs[&(level - 1)], loc) {
+        let mut note = Item::get_item(game_objs, "note").unwrap();
+        note.text = Some(("burnt scrap".to_string(), "Is there no end to the swarms of kobolds?".to_string()));
+        note.location = adj;
+        game_objs.add(Box::new(note));
+    }
+    let amt = rng.gen_range(4, 11);
+    let mut pile = GoldPile::new(game_objs.next_id(), amt, loc);
+    pile.hide();
+    game_objs.add(Box::new(pile));
+}
+
+fn add_shrine(world_info: &mut WorldInfo, level: usize, map: &mut Map, floor_sqs: &mut HashMap<usize, HashSet<(i32, i32, i8)>>, game_objs: &mut GameObjects) {
+    let mut rng = rand::thread_rng();
+    let loc = random_sq(&floor_sqs[&(level - 1)]);
+    map.insert(loc, Tile::Shrine(ShrineType::Woden));
+    floor_sqs.get_mut(&(level - 1))
+            .unwrap()
+            .remove(&loc);
+    let fact = Fact::new(String::from("shrine to woden"), 0, loc);
+    world_info.facts.push(fact);
+    println!("{:?}", world_info.facts);
+}
+
 fn decorate_levels(world_info: &mut WorldInfo, map: &mut Map, deepest_level: i8, floor_sqs: &mut HashMap<usize, HashSet<(i32, i32, i8)>>,
             game_objs: &mut GameObjects) {
     let mut rng = rand::thread_rng();
     let mut curr_level = deepest_level;
     while curr_level > 0 {
         if curr_level < 3 {
-            // Add an old firepit 
-            let loc = random_sq(&floor_sqs[&(curr_level as usize)]);
-            map.insert(loc, Tile::OldFirePit(rng.gen_range(0, 5)));
-            floor_sqs.get_mut(&(curr_level as usize))
-                     .unwrap()
-                     .remove(&loc);
-            if let Some(adj) = random_open_adj(&floor_sqs[&(curr_level as usize)], loc) {
-                let mut note = Item::get_item(game_objs, "note").unwrap();
-                note.text = Some(("burnt scrap".to_string(), "Is there no end to the swarms of kobolds?".to_string()));
-                note.location = adj;
-                game_objs.add(Box::new(note));
-            }
-            let amt = rng.gen_range(4, 11);
-            let mut pile = GoldPile::new(game_objs.next_id(), amt, loc);
-            pile.hide();
-            game_objs.add(Box::new(pile));
+            add_fire_pit(curr_level as usize, map, floor_sqs, game_objs)             
         }
 
+        if curr_level == 3 {
+            add_shrine(world_info, curr_level as usize, map, floor_sqs, game_objs)
+        }
         curr_level -= 1;
     }
 }
@@ -302,7 +321,7 @@ fn build_dungeon(world_info: &mut WorldInfo, map: &mut Map, entrance: (i32, i32,
     let max_level = 3;
     
     let mut dungeon = Vec::new();
-    for n in 0..3 {
+    for n in 0..max_level {
         let level = dungeon::draw_level(width, height);
         dungeon.push(level);
         floor_sqs.insert(n, HashSet::new());
@@ -310,7 +329,7 @@ fn build_dungeon(world_info: &mut WorldInfo, map: &mut Map, entrance: (i32, i32,
 
     let stairs = set_stairs(&mut dungeon, width, height);
     // Copy the dungeon onto the world map
-    for lvl in 0..3 {
+    for lvl in 0..max_level {
         let stairs_row_delta = entrance.0 - stairs.0 as i32;
         let stairs_col_delta = entrance.1 - stairs.1 as i32;
         for r in 0..height {
@@ -322,13 +341,13 @@ fn build_dungeon(world_info: &mut WorldInfo, map: &mut Map, entrance: (i32, i32,
                 
                 if dungeon[lvl][i] == Tile::StoneFloor {
                     let fqs = floor_sqs.get_mut(&lvl).unwrap();
-                    fqs.insert((curr_row, curr_col, lvl as i8));
+                    fqs.insert((curr_row, curr_col, lvl as i8 + 1));
                 }
             }
         }
     }
 
-    decorate_levels(world_info, map, max_level, &mut floor_sqs, game_objs)
+    decorate_levels(world_info, map, max_level as i8, &mut floor_sqs, game_objs)
 }
 
 pub fn generate_world(game_objs: &mut GameObjects) -> (Map, WorldInfo) {

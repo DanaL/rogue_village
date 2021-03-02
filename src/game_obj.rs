@@ -31,6 +31,7 @@ pub enum GameObjType {
     NPC,
     Item,
     Zorkmids,
+    SpecialSquare,
 }
 
 pub trait GameObject {

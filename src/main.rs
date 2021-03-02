@@ -49,7 +49,7 @@ use dialogue::DialogueLibrary;
 use display::{GameUI, SidebarInfo, WHITE, YELLOW};
 use game_obj::{GameObject, GameObjects, GameObjType, GOForSerde};
 use items::{GoldPile, Item, ItemType};
-use map::{Tile, DoorState};
+use map::{DoorState, ShrineType, Tile};
 use player::Player;
 use util::StringUtils;
 use world::WorldInfo;
@@ -642,7 +642,7 @@ fn read_item(state: &mut GameState, player: &mut Player, game_objs: &mut GameObj
             return;
         } 
         for i in inv_items {
-            if let Some(mut item) = i.1.as_item() {
+            if let Some(item) = i.1.as_item() {
                 if item.slot == ch {
                     if let Some(text) = item.text {
                         gui.popup_msg(&text.0.with_indef_article().capitalize(), &text.1);
@@ -823,23 +823,29 @@ fn do_move(state: &mut GameState, player: &mut Player, game_objs: &GameObjects, 
 		player.location = next_loc;
 
 		match tile {
-			map::Tile::Water => state.write_msg_buff("You splash in the shallow water."),
-			map::Tile::DeepWater => {
+			Tile::Water => state.write_msg_buff("You splash in the shallow water."),
+			Tile::DeepWater => {
 				if *start_tile != map::Tile::DeepWater {
 					state.write_msg_buff("You begin to swim.");				
 				}
 			},
-			map::Tile::Lava => state.write_msg_buff("MOLTEN LAVA!"),
-			map::Tile::FirePit => {
+			Tile::Lava => state.write_msg_buff("MOLTEN LAVA!"),
+			Tile::FirePit => {
 				state.write_msg_buff("You step in the fire!");
 			},
-			map::Tile::OldFirePit(n) => state.write_msg_buff(firepit_msg(*n)),
-            map::Tile::Portal => state.write_msg_buff("Where could this lead..."),
+			Tile::OldFirePit(n) => state.write_msg_buff(firepit_msg(*n)),
+            Tile::Portal => state.write_msg_buff("Where could this lead..."),
+            Tile::Shrine(stype) => {
+                match stype {
+                    ShrineType::Woden => state.write_msg_buff("A shrine to Woden -- you feel at peace."),
+                    ShrineType::Crawler => state.write_msg_buff("The misshapen altar makes your skin crawl"),
+                }
+            },
 			_ => {
 				if *start_tile == map::Tile::DeepWater { 
 					state.write_msg_buff("Whew, you stumble ashore.");
 				}
-			},
+			},            
 		}
 
         let items = game_objs.descs_at_loc(next_loc);                             

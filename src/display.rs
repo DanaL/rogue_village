@@ -1036,5 +1036,12 @@ fn sq_info_for_tile(tile: &map::Tile, lit: bool) -> (char, sdl2::pixels::Color) 
 				('>', tuple_to_sdl2_color(&DARK_GREY))
 			}
 		},
+		map::Tile::Shrine(_) => {
+			if lit {
+				('_', tuple_to_sdl2_color(&LIGHT_GREY))
+			} else {
+				('_', tuple_to_sdl2_color(&GREY))
+			}
+		},
 	}
 }
