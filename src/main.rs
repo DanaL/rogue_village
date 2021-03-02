@@ -40,7 +40,7 @@ use std::fs;
 use std::fs::File;
 use std::path::Path;
 
-//use std::time::{Duration, Instant};
+use std::time::Instant;
 
 use rand::{Rng, thread_rng};
 use serde::{Serialize, Deserialize};
@@ -112,7 +112,7 @@ pub struct GameState {
     world_info: WorldInfo,
     tile_memory: HashMap<(i32, i32, i8), Tile>,
     lit_sqs: HashSet<(i32, i32, i8)>, // by light sources independent of player
-    next_obj_id: usize,    
+    aura_sqs: HashSet<(i32, i32, i8)>, // areas of special effects
 }
 
 impl GameState {
@@ -126,7 +126,7 @@ impl GameState {
             world_info: world_info,
             tile_memory: HashMap::new(),
             lit_sqs: HashSet::new(),
-            next_obj_id: 0,            
+            aura_sqs: HashSet::new(),
         };
 
         state
@@ -260,7 +260,7 @@ fn existing_save_file(player_name: &str) -> bool {
 			return true;
 		}
 	}
-	
+
 	false
 }
 
@@ -324,12 +324,6 @@ fn start_new_game(state: &GameState, game_objs: &mut GameObjects, gui: &mut Game
     }
 
     None
-}
-
-fn fetch_player(state: &GameState, game_objs: &mut GameObjects,  gui: &mut GameUI, player_name: String) -> Option<Player> {
-    // Of course eventually this is where I'll check for a saved game and load
-    // it if one exists.
-    start_new_game(state, game_objs, gui, player_name)
 }
 
 fn drop_zorkmids(state: &mut GameState, player: &mut Player, game_objs: &mut GameObjects, gui: &mut GameUI) {
@@ -810,6 +804,7 @@ fn firepit_msg(num: u8) -> &'static str {
 fn do_move(state: &mut GameState, player: &mut Player, game_objs: &GameObjects, dir: &str) {
 	let mv = get_move_tuple(dir);
 
+    let start_loc = player.location;
 	let start_tile = &state.map[&player.location];
 	let next_row = player.location.0 + mv.0;
 	let next_col = player.location.1 + mv.1;
@@ -837,14 +832,16 @@ fn do_move(state: &mut GameState, player: &mut Player, game_objs: &GameObjects, 
             Tile::Portal => state.write_msg_buff("Where could this lead..."),
             Tile::Shrine(stype) => {
                 match stype {
-                    ShrineType::Woden => state.write_msg_buff("A shrine to Woden -- you feel at peace."),
+                    ShrineType::Woden => state.write_msg_buff("A shrine to Woden."),
                     ShrineType::Crawler => state.write_msg_buff("The misshapen altar makes your skin crawl"),
                 }
             },
 			_ => {
 				if *start_tile == map::Tile::DeepWater { 
 					state.write_msg_buff("Whew, you stumble ashore.");
-				}
+				} else if state.aura_sqs.contains(&next_loc) && !state.aura_sqs.contains(&start_loc) {
+                    state.write_msg_buff("You feel a sense of peace.");
+                }
 			},            
 		}
 
@@ -1002,7 +999,9 @@ fn fov_to_tiles(state: &mut GameState, game_objs: &GameObjects, visible: &Vec<((
                 // I wanted to make tochlight squares be coloured different so this is a slight
                 // kludge. Although perhaps later I might use it to differentiate between a player
                 // walking through the dungeon with a light vs relying on darkvision, etc
-                if state.lit_sqs.contains(&vis.0) && state.map[&vis.0] == Tile::StoneFloor {
+                if state.aura_sqs.contains(&vis.0) && state.map[&vis.0] == Tile::StoneFloor {
+                    Tile::ColourFloor(display::LIGHT_BLUE)
+                } else if state.lit_sqs.contains(&vis.0) && state.map[&vis.0] == Tile::StoneFloor {
                     Tile::ColourFloor(YELLOW)
                 } else {
                     state.map[&vis.0]
@@ -1018,8 +1017,8 @@ fn fov_to_tiles(state: &mut GameState, game_objs: &GameObjects, visible: &Vec<((
     v_matrix
 }
 
-fn run(gui: &mut GameUI, state: &mut GameState, player: &mut Player, game_objs: &mut GameObjects, dialogue: &DialogueLibrary) -> Result<(), ExitReason> {
-    let visible = fov::calc_fov(state, player.location, player.vision_radius, FOV_HEIGHT, FOV_WIDTH);
+fn run(gui: &mut GameUI, state: &mut GameState, player: &mut Player, game_objs: &mut GameObjects, dialogue: &DialogueLibrary) -> Result<(), ExitReason> {    
+    let visible = fov::calc_fov(state, player.location, player.vision_radius, FOV_HEIGHT, FOV_WIDTH, false);
 	gui.v_matrix = fov_to_tiles(state, game_objs, &visible);
     let sbi = state.curr_sidebar_info(player);
     gui.write_screen(&mut state.msg_buff, Some(&sbi));
@@ -1057,16 +1056,16 @@ fn run(gui: &mut GameUI, state: &mut GameState, player: &mut Player, game_objs: 
 
         if state.turn > start_turn {
             game_objs.do_npc_turns(state);
-            game_objs.end_of_turn(state);
+            game_objs.end_of_turn(state);            
         }
         
         player.calc_vision_radius(state, game_objs);
         
-        //let fov_start = Instant::now();
-        let visible = fov::calc_fov(state, player.location, player.vision_radius, FOV_HEIGHT, FOV_WIDTH);
+        let fov_start = Instant::now();
+        let visible = fov::calc_fov(state, player.location, player.vision_radius, FOV_HEIGHT, FOV_WIDTH, false);
         gui.v_matrix = fov_to_tiles(state, game_objs, &visible);        
-        //let fov_duration = fov_start.elapsed();
-        //println!("Time for fov: {:?}", fov_duration);
+        let fov_duration = fov_start.elapsed();
+        println!("Time for fov: {:?}", fov_duration);
 		
         //let write_screen_start = Instant::now();
         let sbi = state.curr_sidebar_info(player);
@@ -1101,6 +1100,10 @@ fn main() {
             state = saved_objs.0;
             game_objs = saved_objs.1;
             player = saved_objs.2;
+            println!("{:?}", player.vision_radius);
+            //println!("{:?}", state.lit_sqs.len());
+            //println!("{:?}", state.aura_sqs.len());
+            player.calc_vision_radius(&mut state, &mut game_objs);
 
             let msg = format!("Welcome back, {}!", player.name);
             state.write_msg_buff(&msg);
@@ -1109,17 +1112,21 @@ fn main() {
             return;
         }
     } else {
-        game_objs = GameObjects::new();                
+        game_objs = GameObjects::new();
+
+        let wg_start = Instant::now();
         let w = world::generate_world(&mut game_objs);        
         state = GameState::init(w.0, w.1);    
+        let wg_dur = wg_start.elapsed();
+        println!("World gen time: {:?}", wg_dur);
 
-        player = fetch_player(&state, &mut game_objs, &mut gui, player_name).unwrap();
-        state.player_loc = player.location;
-    
+        player = start_new_game(&state, &mut game_objs, &mut gui, player_name).unwrap();
+        state.player_loc = player.location;        
+        player.calc_vision_radius(&mut state, &mut game_objs);
+
         //let sbi = state.curr_sidebar_info(&player);
         //gui.write_screen(&mut state.msg_buff, Some(&sbi));
-        state.write_msg_buff("Welcome, adventurer!");   
-	
+        state.write_msg_buff("Welcome, adventurer!");
     }
     
     match run(&mut gui, &mut state, &mut player, &mut game_objs, &dialogue_library) {

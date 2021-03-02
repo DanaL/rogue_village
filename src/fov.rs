@@ -18,6 +18,49 @@ use super::{FOV_WIDTH, FOV_HEIGHT, GameState};
 use crate::map;
 use crate::util;
 
+// Kind of ugly by why recalculate these everytime?
+#[inline]
+fn radius_3() -> Vec<(i32, i32)> {
+	let c = vec![(3, 0), (3, 0), (-3, 0), (-3, 0), (0, 3), (0, -3), (0, 3), (0, -3), (3, 1), (3, -1), 
+		(-3, 1), (-3, -1), (1, 3), (1, -3), (-1, 3), (-1, -3), (2, 2), (2, -2), (-2, 2), (-2, -2), 
+		(2, 2), (2, -2), (-2, 2), (-2, -2)];
+	c	
+}
+
+#[inline]
+fn radius_5() -> Vec<(i32, i32)> {
+	let c = vec![(5, 0), (5, 0), (-5, 0), (-5, 0), (0, 5), (0, -5), (0, 5), (0, -5), (5, 1), (5, -1), 
+		(-5, 1), (-5, -1), (1, 5), (1, -5), (-1, 5), (-1, -5), (5, 2), (5, -2), (-5, 2), (-5, -2), (2, 5), 
+		(2, -5), (-2, 5), (-2, -5), (4, 3), (4, -3), (-4, 3), (-4, -3), (3, 4), (3, -4), (-3, 4), (-3, -4),
+		(-3, -3), (3, 3), (-3, 3), (3, -3)];
+
+	c	
+}
+
+#[inline]
+fn radius_7() -> Vec<(i32, i32)> {
+	let c = vec![(7, 0), (7, 0), (-7, 0), (-7, 0), (0, 7), (0, -7), (0, 7), (0, -7), (7, 1), (7, -1), (-7, 1), 
+		(-7, -1), (1, 7), (1, -7), (-1, 7), (-1, -7), (7, 2), (7, -2), (-7, 2), (-7, -2), (2, 7), (2, -7), 
+		(-2, 7), (-2, -7), (6, 3), (6, -3), (-6, 3), (-6, -3), (3, 6), (3, -6), (-3, 6), (-3, -6), (6, 4), 
+		(6, -4), (-6, 4), (-6, -4), (4, 6), (4, -6), (-4, 6), (-4, -6), (5, 5), (5, -5), (-5, 5), (-5, -5), 
+		(5, 5), (5, -5), (-5, 5), (-5, -5), (-4, -5), (4, 5), (-4, 5), (4, -5), (-5, -4), (5, 4), (-5, 4),
+		(5, -4)];
+
+	c
+}
+
+fn radius_9() -> Vec<(i32, i32)> {
+	let c = vec![(9, 0), (9, 0), (-9, 0), (-9, 0), (0, 9), (0, -9), (0, 9), (0, -9), (9, 1), (9, -1), (-9, 1), 
+		(-9, -1), (1, 9), (1, -9), (-1, 9), (-1, -9), (9, 2), (9, -2), (-9, 2), (-9, -2), (2, 9), (2, -9), 
+		(-2, 9), (-2, -9), (9, 3), (9, -3), (-9, 3), (-9, -3), (3, 9), (3, -9), (-3, 9), (-3, -9), (8, 4), 
+		(8, -4), (-8, 4), (-8, -4), (4, 8), (4, -8), (-4, 8), (-4, -8), (8, 5), (8, -5), (-8, 5), (-8, -5), 
+		(5, 8), (5, -8), (-5, 8), (-5, -8), (7, 6), (7, -6), (-7, 6), (-7, -6), (6, 7), (6, -7), (-6, 7), 
+		(-6, -7), (-6, -6), (6, 6), (6, -6), (-6, 6), (-7, -5), (7, 5), (-7, 5), (7, -5), (-5, -7), (5, 7),
+		(-5, 7), (5, -7)];
+
+	c
+}
+
 #[inline]
 fn radius_full() -> Vec<(i32, i32)> {
 	let mut c = Vec::new();
@@ -52,8 +95,7 @@ fn radius_full() -> Vec<(i32, i32)> {
 // blocking vision and I couldn't think of a simple way to do that with 
 // shadowcasting.
 fn mark_visible(r1: i32, c1: i32, r2: i32, c2: i32, radius: f64,
-		depth: i8, v_matrix: &mut Vec<bool>, 
-        state: &GameState, width: usize) {
+		depth: i8, v_matrix: &mut Vec<bool>, state: &GameState, width: usize) {
     let mut r = r1;
 	let mut c = c1;
 	let mut error = 0;
@@ -159,14 +201,33 @@ fn mark_visible(r1: i32, c1: i32, r2: i32, c2: i32, radius: f64,
 	}
 }
 
-pub fn calc_fov(state: &GameState, centre: (i32, i32, i8), radius: u8, height: usize, width: usize) -> Vec<((i32, i32, i8), bool)> {
+// fov_only option is for when I want to check only what squares are visible from centre inside vision radius. When it's false, I also look
+// for squares that are lit according to the list of lit sqs in GameState. (Ie., so the player may have no torch burning underground but can
+// see the light from an independent light source)
+pub fn calc_fov(state: &GameState, centre: (i32, i32, i8), radius: u8, height: usize, width: usize, fov_only: bool) -> Vec<((i32, i32, i8), bool)> {
     let size = height * width;
     let mut visible = vec![false; size];
 	let fov_center_r = height / 2;
 	let fov_center_c = width / 2;
 	visible[fov_center_r * width + fov_center_c] = true;
 
-	let perimeter = radius_full();
+	// Even if the player's vision radius is only, say, 3 we still need to scan to the 
+	// perimiter of the FOV area in case there are independently lit squares for which
+	// the player has line-of-sight
+	// To revisit: I bet this is quite likely a case of premature optimization
+	let perimeter = if fov_only && radius <= 9 {
+		if radius == 3 {
+			radius_3()
+		} else if radius == 5 {
+			radius_5()
+		} else if radius == 7 {
+			radius_7()
+		} else {
+			radius_9()
+		}
+	} else {
+		radius_full()
+	};
 	
     let pr = centre.0;
     let pc = centre.1;

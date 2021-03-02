@@ -15,17 +15,18 @@
 
 extern crate serde;
 
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::{HashMap, HashSet};
+use std::time::Instant;
 use rand::{prelude::{IteratorRandom, SliceRandom}, thread_rng};
 use rand::Rng;
 use serde::{Serialize, Deserialize};
 
-use super::{GameObjects, Map};
+use super::{EventType, GameObjects, Map};
 
 use crate::dungeon;
 use crate::game_obj::GameObject;
 use crate::items::{GoldPile, Item};
-use crate::map::{ShrineType, Tile};
+use crate::map::{ShrineType, SpecialSquare, Tile};
 use crate::town;
 use crate::town::TownBuildings;
 use crate::pathfinding;
@@ -289,6 +290,10 @@ fn add_fire_pit(level: usize, map: &mut Map, floor_sqs: &mut HashMap<usize, Hash
 fn add_shrine(world_info: &mut WorldInfo, level: usize, map: &mut Map, floor_sqs: &mut HashMap<usize, HashSet<(i32, i32, i8)>>, game_objs: &mut GameObjects) {
     let mut rng = rand::thread_rng();
     let loc = random_sq(&floor_sqs[&(level - 1)]);
+    let special_sq = SpecialSquare::new(game_objs.next_id(), Tile::Shrine(ShrineType::Woden), loc, true, 3);
+    game_objs.listeners.insert((special_sq.get_object_id(), EventType::EndOfTurn));
+    game_objs.add(Box::new(special_sq));
+
     map.insert(loc, Tile::Shrine(ShrineType::Woden));
     floor_sqs.get_mut(&(level - 1))
             .unwrap()
@@ -351,7 +356,11 @@ fn build_dungeon(world_info: &mut WorldInfo, map: &mut Map, entrance: (i32, i32,
 }
 
 pub fn generate_world(game_objs: &mut GameObjects) -> (Map, WorldInfo) {
+    let map_start = Instant::now();
     let mut map = wilderness::gen_wilderness_map();
+    let map_end = map_start.elapsed();
+    println!("Time to make world map: {:?}", map_end);
+
     let mut world_info = town::create_town(&mut map, game_objs);
 
     let valleys = find_all_valleys(&map);
@@ -370,7 +379,10 @@ pub fn generate_world(game_objs: &mut GameObjects) -> (Map, WorldInfo) {
 
     let dungeon_entrance = find_good_dungeon_entrance(&map, &valleys[max_id]);
     
+    let dungeon_start = Instant::now();
     build_dungeon(&mut world_info, &mut map, dungeon_entrance, game_objs);
+    let dungeon_end = dungeon_start.elapsed();
+    println!("Time to make dungeon: {:?}", dungeon_end);
 
     world_info.facts.push(Fact::new("dungeon location".to_string(), 0, dungeon_entrance));
 

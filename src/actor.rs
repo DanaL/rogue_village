@@ -29,7 +29,7 @@ use crate::dialogue::DialogueLibrary;
 use crate::display::LIGHT_GREY;
 use crate::game_obj::{GameObject, GameObjType};
 use crate::items::{GoldPile, Item};
-use crate::map::{Tile, DoorState};
+use crate::map::{Tile, DoorState, SpecialSquare};
 use crate::pathfinding::find_path;
 use crate::player::Player;
 use crate::util;
@@ -361,6 +361,10 @@ impl GameObject for Villager {
         Some(self.clone())
     }
     
+    fn as_special_sq(&self) -> Option<SpecialSquare> {
+        None
+    }
+
     fn take_turn(&mut self, state: &mut GameState, game_objs: &mut GameObjects) {
         if self.plan.len() > 0 {
             self.follow_plan(state, game_objs);            

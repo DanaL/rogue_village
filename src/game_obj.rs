@@ -22,10 +22,18 @@ use super::{EventType, GameState, PLAYER_INV};
 use crate::actor::Villager;
 use crate::dialogue::DialogueLibrary;
 use crate::items::{Item, ItemType, GoldPile};
-use crate::map::Tile;
+use crate::map::{SpecialSquare, Tile};
 use crate::player::Player;
 use crate::util::StringUtils;
 
+// I keep feeling like in a lot of ways it would be easier to ditch the concrete
+// structs that implement the GameObject trait and just have a GameObject struct
+// but the various data each type tracks is so disparate I think THAT would turn into
+// a mess. A lot of them could go into a table of attributes but some things are more
+// complicated. Like the list of steps an npc has for their current plan, the facts 
+// they know. Some of the fields will be numeric, some bool, some char or strings.
+// What I really want is proper polymorphism instead of traits, which feel like a 
+// huge kludge.
 #[derive(Debug, Hash, Eq, PartialEq)]
 pub enum GameObjType {
     NPC,
@@ -56,6 +64,7 @@ pub trait GameObject {
     fn as_item(&self) -> Option<Item>;
     fn as_zorkmids(&self) -> Option<GoldPile>;
     fn as_villager(&self) -> Option<Villager>;
+    fn as_special_sq(&self) -> Option<SpecialSquare>;
 }
 
 pub struct GameObjects {
@@ -207,6 +216,7 @@ impl GameObjects {
             .map(|l| l.0).collect();
 
         state.lit_sqs.clear();
+        state.aura_sqs.clear();
         for obj_id in listeners {
             let mut obj = self.get(obj_id);
 
@@ -216,7 +226,7 @@ impl GameObjects {
                 },
                 _ => self.add(obj),
             }
-        }
+        }        
     }
 
     pub fn inv_slots_used(&self) -> Vec<(char, Item)> {
@@ -497,6 +507,7 @@ pub struct GOForSerde {
     pub villagers: Vec<Villager>,
     pub items: Vec<Item>,
     pub gold_piles: Vec<GoldPile>,
+    pub special_sqs: Vec<SpecialSquare>,
     pub listeners: HashSet<(usize, EventType)>,
     pub next_slot: char,
 }
@@ -506,7 +517,7 @@ impl GOForSerde {
         let mut for_serde = GOForSerde {
             next_obj_id: game_objs.next_obj_id, next_slot: game_objs.next_slot,
             villagers: Vec::new(), items: Vec::new(), gold_piles: Vec::new(),
-            listeners: HashSet::new(),
+            listeners: HashSet::new(), special_sqs: Vec::new(),
         };
 
         for l in game_objs.listeners.iter() {
@@ -521,6 +532,8 @@ impl GOForSerde {
                 for_serde.gold_piles.push(pile);
             } else if let Some(villager) = obj.as_villager() {
                 for_serde.villagers.push(villager);
+            } else if let Some(special_sq) = obj.as_special_sq() {
+                for_serde.special_sqs.push(special_sq);
             }
         }
 
@@ -531,10 +544,10 @@ impl GOForSerde {
         let mut game_objects = GameObjects::new();
         game_objects.next_slot = go.next_slot;
         game_objects.next_obj_id = go.next_obj_id;
+
         for l in go.listeners.iter() {
             game_objects.listeners.insert(*l);
         }
-
         for v in go.villagers {
             game_objects.add(Box::new(v));
         }
@@ -543,6 +556,9 @@ impl GOForSerde {
         }
         for g in go.gold_piles {
             game_objects.add(Box::new(g));
+        }
+        for sq in go.special_sqs {
+            game_objects.add(Box::new(sq));
         }
 
         game_objects

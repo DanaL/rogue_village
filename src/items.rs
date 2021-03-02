@@ -21,7 +21,7 @@ use display::YELLOW_ORANGE;
 
 use super::{EventType, FOV_HEIGHT, FOV_WIDTH, GameState, GameObjects, PLAYER_INV};
 
-use crate::actor::Villager;
+use crate::{actor::Villager, map::SpecialSquare};
 use crate::dialogue::DialogueLibrary;
 use crate::display;
 use crate::fov;
@@ -156,7 +156,7 @@ impl Item {
 			self.location
 		};
 
-		let lit = fov::calc_fov(state, loc, self.aura, FOV_HEIGHT, FOV_WIDTH);
+		let lit = fov::calc_fov(state, loc, self.aura, FOV_HEIGHT, FOV_WIDTH, true);
 		for sq in lit {
 			if sq.1 {
 				state.lit_sqs.insert(sq.0);
@@ -273,6 +273,10 @@ impl GameObject for Item {
         None
     }
 
+    fn as_special_sq(&self) -> Option<SpecialSquare> {
+        None
+    }
+
     fn take_turn(&mut self, _state: &mut GameState, _game_objs: &mut GameObjects) {
          
     }
@@ -361,6 +365,10 @@ impl GameObject for GoldPile {
     }
 
     fn as_villager(&self) -> Option<Villager> {
+        None
+    }
+
+    fn as_special_sq(&self) -> Option<SpecialSquare> {
         None
     }
 

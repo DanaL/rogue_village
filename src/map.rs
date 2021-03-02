@@ -22,10 +22,11 @@ use std::collections::HashSet;
 use serde::{Serialize, Deserialize};
 use rand::Rng;
 
-use super::{EventType, GameObjects, GameState, Map};
+use super::{EventType, FOV_HEIGHT, FOV_WIDTH, GameObjects, GameState, Map};
 
 use crate::actor::Villager;
 use crate::dialogue::DialogueLibrary;
+use crate::fov;
 use crate::game_obj::{GameObject, GameObjType};
 use crate::items::{GoldPile, Item};
 use crate::player::Player;
@@ -118,13 +119,40 @@ impl Tile {
 	}
 }
 
-impl GameObject for Tile {
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SpecialSquare {
+	object_id: usize,
+	tile: Tile,
+	location: (i32, i32, i8),
+	active: bool,
+	radius: u8,
+}
+
+impl SpecialSquare {
+	pub fn new(object_id: usize, tile: Tile, location: (i32, i32, i8), active: bool, radius: u8) -> SpecialSquare {
+		SpecialSquare { object_id, tile, location, active, radius, }
+	}
+
+	fn mark_aura(&self, state: &mut GameState) {
+		if self.active {
+			let in_aura = fov::calc_fov(state, self.location, self.radius, FOV_HEIGHT, FOV_WIDTH, true);
+			for sq in in_aura {
+				if sq.1 {
+					state.aura_sqs.insert(sq.0);
+					state.lit_sqs.insert(sq.0);
+				}
+			}
+		}
+	}
+}
+
+impl GameObject for SpecialSquare {
 	fn blocks(&self) -> bool {
-		self.passable()
+		!self.tile.passable()
 	}
 
     fn get_location(&self) -> (i32, i32, i8) {
-		panic!("Shouldn't be called for tiles!")
+		self.location
 	}
 
     fn set_location(&mut self, loc: (i32, i32, i8)) {
@@ -132,6 +160,15 @@ impl GameObject for Tile {
 	}
 
     fn receive_event(&mut self, event: EventType, state: &mut GameState) -> Option<EventType> {
+		match event {
+			EventType::EndOfTurn => {
+				self.mark_aura(state);
+			},
+			_ => { 
+				panic!("This event isn't implemented for special squares!");
+			}
+		}
+
 		None
 	}
 
@@ -140,15 +177,14 @@ impl GameObject for Tile {
 	}
 
     fn get_object_id(&self) -> usize {
-		// uhoh how will this work...
-		0
+		self.object_id
 	}
 
     fn get_type(&self) -> GameObjType {
 		GameObjType::SpecialSquare
 	}
     fn get_tile(&self) -> Tile {
-		self.clone()
+		self.tile.clone()
 	}
 
     fn take_turn(&mut self, _state: &mut GameState, _game_objs: &mut GameObjects) {
@@ -164,7 +200,7 @@ impl GameObject for Tile {
 	}
 
     fn hidden(&self) -> bool {
-		false
+		true
 	}
 
     fn reveal(&mut self) {
@@ -186,6 +222,10 @@ impl GameObject for Tile {
     fn as_villager(&self) -> Option<Villager> {
 		None
 	}
+
+	fn as_special_sq(&self) -> Option<SpecialSquare> {
+        Some(self.clone())
+    }
 }
 
 pub fn adjacent_door(map: &Map, loc: (i32, i32, i8), door_state: DoorState) -> Option<(i32, i32, i8)> {
