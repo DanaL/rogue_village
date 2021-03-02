@@ -727,6 +727,20 @@ fn take_stairs(state: &mut GameState, player: &mut Player, down: bool) {
     }
 }
 
+fn firepit_msg(num: u8) -> &'static str {
+    if num == 0 {
+        "An old fire pit -- some previous adventurer?"
+    } else if num == 1 {
+        "A long dead campfire."
+    } else if num == 2 {
+        "Some of the bones in the fire look human-shaped..."
+    } else if num == 3 {
+        "The ashes are cold."
+    } else {
+        "You see the remnants of a cooked rat."
+    }
+}
+
 fn do_move(state: &mut GameState, player: &mut Player, game_objs: &GameObjects, dir: &str) {
 	let mv = get_move_tuple(dir);
 
@@ -753,7 +767,7 @@ fn do_move(state: &mut GameState, player: &mut Player, game_objs: &GameObjects, 
 			map::Tile::FirePit => {
 				state.write_msg_buff("You step in the fire!");
 			},
-			map::Tile::OldFirePit => state.write_msg_buff("An old campsite! Rum runners? A castaway?"),
+			map::Tile::OldFirePit(n) => state.write_msg_buff(firepit_msg(*n)),
             map::Tile::Portal => state.write_msg_buff("Where could this lead..."),
 			_ => {
 				if *start_tile == map::Tile::DeepWater { 

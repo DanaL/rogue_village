@@ -198,7 +198,7 @@ fn add_old_road(map: &mut Map, start: (i32, i32, i8)) {
     }
 }
 
-fn random_sq(sqs: &HashSet<(usize, usize)>) -> (usize, usize) {
+fn random_sq<T: Copy>(sqs: &HashSet<T>) -> T {
     // I can't believe this is the easiest way I've found to pick a random element
     // from a HashSet T_T
     //
@@ -206,10 +206,11 @@ fn random_sq(sqs: &HashSet<(usize, usize)>) -> (usize, usize) {
     let mut rng = rand::thread_rng();
     let items = sqs.iter()
                  .map(|i| *i)
-                 .collect::<Vec<(usize, usize)>>();
+                 .collect::<Vec<T>>();
+    
     let item = items.choose(&mut rng).unwrap();
 
-    (item.0, item.1)
+    item.clone()
 }
 
 fn set_stairs(dungeon: &mut Vec<Vec<Tile>>, width: usize, height: usize) -> (usize, usize) {
@@ -229,7 +230,7 @@ fn set_stairs(dungeon: &mut Vec<Vec<Tile>>, width: usize, height: usize) -> (usi
 
     // First find the up stairs on level 1 of the dungeon, which is the entrance. Just grab
     // any ol' open square 
-    let entrance = random_sq(&open_sqs[0]);
+    let entrance = random_sq(&open_sqs[0]).clone();
     dungeon[0][entrance.0 * width + entrance.1] = Tile::StairsUp;
     open_sqs[0].remove(&entrance);
 
@@ -243,22 +244,41 @@ fn set_stairs(dungeon: &mut Vec<Vec<Tile>>, width: usize, height: usize) -> (usi
         open_sqs[n].remove(&stairs);
         open_sqs[n + 1].remove(&stairs);        
     }
-    
+
     entrance
+}
+
+fn decorate_levels(world_info: &mut WorldInfo, map: &mut Map, deepest_level: i8, floor_sqs: &mut HashMap<usize, HashSet<(i32, i32, i8)>>) {
+    let mut rng = rand::thread_rng();
+    let mut curr_level = deepest_level;
+    while curr_level > 0 {
+        if curr_level < 3 {
+            // Add an old firepit 
+            let loc = random_sq(&floor_sqs[&(curr_level as usize)]);
+            map.insert(loc, Tile::OldFirePit(rng.gen_range(0, 5)));
+            floor_sqs.get_mut(&(curr_level as usize))
+                     .unwrap()
+                     .remove(&loc);
+        }
+
+        curr_level -= 1;
+    }
 }
 
 fn build_dungeon(world_info: &mut WorldInfo, map: &mut Map, entrance: (i32, i32, i8)) {
     let width = 125;
     let height = 40;
+    let mut floor_sqs = HashMap::new();
+    let max_level = 3;
     
     let mut dungeon = Vec::new();
-    for _ in 0..3 {
+    for n in 0..3 {
         let level = dungeon::draw_level(width, height);
         dungeon.push(level);
+        floor_sqs.insert(n, HashSet::new());
     }
 
     let stairs = set_stairs(&mut dungeon, width, height);
-    
     // Copy the dungeon onto the world map
     for lvl in 0..3 {
         let stairs_row_delta = entrance.0 - stairs.0 as i32;
@@ -269,9 +289,16 @@ fn build_dungeon(world_info: &mut WorldInfo, map: &mut Map, entrance: (i32, i32,
                 let curr_row = r as i32 + stairs_row_delta;
                 let curr_col = c as i32 + stairs_col_delta;
                 map.insert((curr_row, curr_col, lvl as i8 + 1), dungeon[lvl][i]);
+                
+                if dungeon[lvl][i] == Tile::StoneFloor {
+                    let fqs = floor_sqs.get_mut(&lvl).unwrap();
+                    fqs.insert((curr_row, curr_col, lvl as i8));
+                }
             }
         }
     }
+
+    decorate_levels(world_info, map, max_level, &mut floor_sqs)
 }
 
 pub fn generate_world(game_objs: &mut GameObjects) -> (Map, WorldInfo) {

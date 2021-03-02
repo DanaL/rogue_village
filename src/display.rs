@@ -972,11 +972,11 @@ fn sq_info_for_tile(tile: &map::Tile, lit: bool) -> (char, sdl2::pixels::Color) 
 		},
 		map::Tile::Separator => ('|', tuple_to_sdl2_color(&WHITE)),
 		map::Tile::Bullet(ch) => (*ch, tuple_to_sdl2_color(&WHITE)),
-		map::Tile::OldFirePit => {
+		map::Tile::OldFirePit(_) => {
 			if lit {
-				('#', tuple_to_sdl2_color(&GREY))
+				('#', tuple_to_sdl2_color(&LIGHT_GREY))
 			} else {
-				('#', tuple_to_sdl2_color(&DARK_GREY))
+				('#', tuple_to_sdl2_color(&GREY))
 			}
 		},
 		map::Tile::FirePit => {
