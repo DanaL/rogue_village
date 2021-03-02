@@ -187,6 +187,16 @@ impl Player {
         };
     }
 
+    pub fn perception_roll(&self) -> u8 {
+        let mut rng = rand::thread_rng();
+        let roll = rng.gen_range(1, 21) + stat_to_mod(self.apt);
+        if roll < 0 {
+            0
+        } else {
+            roll as u8
+        }
+    }
+
     pub fn set_readied_weapon(&mut self, game_objs: &GameObjects) {
         self.readied_weapon = game_objs.readied_weapon();
     }

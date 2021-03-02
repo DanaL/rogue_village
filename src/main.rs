@@ -443,6 +443,34 @@ fn drop_item(state: &mut GameState, player: &mut Player, game_objs: &mut GameObj
     player.set_readied_weapon(game_objs);
 }
 
+fn search_loc(state: &mut GameState, roll: u8, loc: (i32, i32, i8), game_objs: &mut GameObjects) {
+    let things:Vec<usize> = game_objs.things_at_loc(loc)
+        .iter()
+        .filter(|i| i.hidden())
+        .map(|i| i.get_object_id())
+        .collect();
+
+    for obj_id in &things {
+        if roll >= 15 {
+            let mut t = game_objs.get(*obj_id);
+            let s = format!("You find {}!", t.get_fullname().with_indef_article());
+            state.write_msg_buff(&s);            
+            t.reveal();
+            game_objs.add(t);
+        }
+    }
+}
+
+fn search(state: &mut GameState, player: &Player, game_objs: &mut GameObjects) {
+    let roll = player.perception_roll();
+    
+    search_loc(state, roll, player.location, game_objs);
+    for adj in util::ADJ.iter() {
+        let loc = (player.location.0 + adj.0, player.location.1 + adj.1, player.location.2);
+        search_loc(state, roll, loc, game_objs);
+    }
+}
+
 fn pick_up(state: &mut GameState, player: &mut Player, game_objs: &mut GameObjects, gui: &mut GameUI) {
     let things:Vec<&Box<dyn GameObject>> = game_objs.things_at_loc(player.location)
                           .iter()
@@ -1008,6 +1036,7 @@ fn run(gui: &mut GameUI, state: &mut GameState, player: &mut Player, game_objs: 
             Cmd::PickUp => pick_up(state, player, game_objs, gui),
             Cmd::Read => read_item(state, player, game_objs, gui),
             Cmd::Save => save_and_exit(state, game_objs, player, gui)?,
+            Cmd::Search => search(state, player, game_objs),
             Cmd::ShowCharacterSheet => show_character_sheet(gui, player),
             Cmd::ShowInventory => show_inventory(gui, state, player, game_objs),
             Cmd::ToggleEquipment => toggle_equipment(state, player, game_objs, gui),
