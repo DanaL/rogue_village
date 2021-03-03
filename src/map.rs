@@ -162,6 +162,26 @@ impl SpecialSquare {
 			_ => { },
 		}
 	}
+
+	// This is assuming a special square will only have this function called when it's signed up to be
+	// alerted about being lit/unlit.
+	fn handle_litup(&mut self, state: &mut GameState, lit: bool) {
+		match self.get_tile() {
+			Tile::Gate(_) => {
+				// An active Gate is a closed gate
+				if lit && self.active {
+					state.write_msg_buff("You here a metallic grinding.");
+					state.map.insert(self.get_location(), Tile::Gate(DoorState::Open));
+					self.active = !self.active;
+				} else if !lit && !self.active {
+					state.write_msg_buff("You here a metallic grinding.");
+					state.map.insert(self.get_location(), Tile::Gate(DoorState::Closed));
+					self.active = !self.active;
+				}				
+			},
+			_ => { },
+		}
+	}
 }
 
 impl GameObject for SpecialSquare {
@@ -193,6 +213,10 @@ impl GameObject for SpecialSquare {
 				if let Some(target) = self.target {
 					return Some(EventResponse::new(target, EventType::Triggered));
 				}
+			},
+			EventType::LitUp => {
+				let lit = state.lit_sqs.contains(&self.location);
+				self.handle_litup(state, lit);
 			},
 			EventType::Triggered => {
 				self.handle_triggered_event(state);

@@ -311,7 +311,7 @@ fn loc_in_vault(vault: &Vault, loc: (i32, i32, i8)) -> bool {
     }
 }
 
-fn setup_vault_gate(world_info: &mut WorldInfo, map: &mut Map, game_objs: &mut GameObjects, trigger_loc: (i32, i32, i8),
+fn place_simple_triggered_gate(world_info: &mut WorldInfo, map: &mut Map, game_objs: &mut GameObjects, trigger_loc: (i32, i32, i8),
         vault_loc: (i32, i32, i8)) {
     map.insert(trigger_loc, Tile::Trigger);
     map.insert(vault_loc, Tile::Gate(DoorState::Closed));
@@ -328,6 +328,47 @@ fn setup_vault_gate(world_info: &mut WorldInfo, map: &mut Map, game_objs: &mut G
     game_objs.listeners.insert((obj_id, EventType::SteppedOn));
 }
 
+fn simple_triggered_gate(world_info: &mut WorldInfo, map: &mut Map, floors: &mut HashSet<(i32, i32, i8)>,
+        game_objs: &mut GameObjects, vault: &Vault, level: i8) {
+    // Find a place for the trigger. Probably need a bail out option after X iterations in case it's some
+    // weird dungeon layout where a trigger can't be placed.
+    let mut delta = 2;
+    loop {
+        let loc = (vault.entrance.0 + delta, vault.entrance.1, level);
+        let vault_entrance = (vault.entrance.0, vault.entrance.1, level);
+        if floors.contains(&loc) && !loc_in_vault(vault, loc) {
+            place_simple_triggered_gate(world_info, map, game_objs, loc, vault_entrance);
+            break;
+        }
+        let loc = (vault.entrance.0 - delta, vault.entrance.1, level);
+        if floors.contains(&loc) && !loc_in_vault(vault, loc) {
+            place_simple_triggered_gate(world_info, map, game_objs, loc, vault_entrance);
+            break;
+        }
+        let loc = (vault.entrance.0, vault.entrance.1 + delta, level);
+        if floors.contains(&loc) && !loc_in_vault(vault, loc) {
+            place_simple_triggered_gate(world_info, map, game_objs, loc, vault_entrance);
+            break;
+        }
+        let loc = (vault.entrance.0, vault.entrance.1 - delta, level);
+        if floors.contains(&loc) && !loc_in_vault(vault, loc) {
+            place_simple_triggered_gate(world_info, map, game_objs, loc, vault_entrance);
+            break;
+        }
+        delta += 1;
+    }
+}
+
+fn light_triggered_gate(world_info: &mut WorldInfo, map: &mut Map, floors: &mut HashSet<(i32, i32, i8)>,
+        game_objs: &mut GameObjects, vault: &Vault, level: i8) {
+    let vault_loc = (vault.entrance.0, vault.entrance.1, level);
+    map.insert(vault_loc, Tile::Gate(DoorState::Closed));
+    let gate_sq = SpecialSquare::new(game_objs.next_id(), Tile::Gate(DoorState::Closed), vault_loc, true, 0);
+    let gate_id = gate_sq.get_object_id();
+    game_objs.add(Box::new(gate_sq));
+    game_objs.listeners.insert((gate_id, EventType::LitUp));
+}
+
 fn add_vault(world_info: &mut WorldInfo, map: &mut Map, floors: &mut HashSet<(i32, i32, i8)>,
             game_objs: &mut GameObjects, vaults: &Vec<Vault>, level: i8) {
     // In the real game, I want to make sure I never create a gated vault in a room with the upstairs 
@@ -336,32 +377,8 @@ fn add_vault(world_info: &mut WorldInfo, map: &mut Map, floors: &mut HashSet<(i3
     let vault_num = rng.gen_range(0, vaults.len());
     let vault = &vaults[vault_num];
     
-    // find a place for the trigger.
-    let mut delta = 2;
-    loop {
-        let loc = (vault.entrance.0 + delta, vault.entrance.1, level);
-        let vault_entrance = (vault.entrance.0, vault.entrance.1, level);
-        if floors.contains(&loc) && !loc_in_vault(vault, loc) {
-            setup_vault_gate(world_info, map, game_objs, loc, vault_entrance);
-            break;
-        }
-        let loc = (vault.entrance.0 - delta, vault.entrance.1, level);
-        if floors.contains(&loc) && !loc_in_vault(vault, loc) {
-            setup_vault_gate(world_info, map, game_objs, loc, vault_entrance);
-            break;
-        }
-        let loc = (vault.entrance.0, vault.entrance.1 + delta, level);
-        if floors.contains(&loc) && !loc_in_vault(vault, loc) {
-            setup_vault_gate(world_info, map, game_objs, loc, vault_entrance);
-            break;
-        }
-        let loc = (vault.entrance.0, vault.entrance.1 - delta, level);
-        if floors.contains(&loc) && !loc_in_vault(vault, loc) {
-            setup_vault_gate(world_info, map, game_objs, loc, vault_entrance);
-            break;
-        }
-        delta += 1;
-    }
+    //simple_triggered_gate(world_info, map, floors, game_objs, vault, level);
+    light_triggered_gate(world_info, map, floors, game_objs, vault, level);
 }
 
 fn decorate_levels(world_info: &mut WorldInfo, map: &mut Map, deepest_level: i8, floor_sqs: &mut HashMap<usize, HashSet<(i32, i32, i8)>>,

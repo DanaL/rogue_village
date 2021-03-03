@@ -228,7 +228,18 @@ impl GameObjects {
                 },
                 _ => self.add(obj),
             }
-        }        
+        }
+
+        // Now that we've updated which squares are lit, let any listeners know
+        let listeners: Vec<usize> = self.listeners.iter()
+            .filter(|l| l.1 == EventType::LitUp)
+            .map(|l| l.0).collect();
+
+        for obj_id in listeners {
+            let mut obj = self.get(obj_id);
+            obj.receive_event(EventType::LitUp, state);
+            self.add(obj);
+        }
     }
 
     pub fn stepped_on_event(&mut self, state: &mut GameState, loc: (i32, i32, i8)) {

@@ -85,7 +85,8 @@
         LightExpired,
         TakeTurn,
         SteppedOn,
-        Triggered,
+        Triggered, // used in chains of events. Ie., a tigger is stepped on and it sends a Triggered event to the gate it controls
+        LitUp,
     }
 
     pub enum Cmd {
@@ -978,6 +979,7 @@
                     Tile::OldFirePit(_) => '#',
                     Tile::StairsDown => '>',
                     Tile::StairsUp => '<',
+                    Tile::Gate(_) => '/',
                     _ => ' ',
                 };
             
