@@ -87,6 +87,8 @@
         SteppedOn,
         Triggered, // used in chains of events. Ie., a tigger is stepped on and it sends a Triggered event to the gate it controls
         LitUp,
+        GateOpened,
+        GateClosed,
     }
 
     pub enum Cmd {
@@ -127,6 +129,7 @@
         tile_memory: HashMap<(i32, i32, i8), Tile>,
         lit_sqs: HashSet<(i32, i32, i8)>, // by light sources independent of player
         aura_sqs: HashSet<(i32, i32, i8)>, // areas of special effects
+        queued_events: VecDeque<(EventType, (i32, i32, i8), usize)>, // events queue during a turn that should be resolved at the end of turn
     }
 
     impl GameState {
@@ -141,6 +144,7 @@
                 tile_memory: HashMap::new(),
                 lit_sqs: HashSet::new(),
                 aura_sqs: HashSet::new(),
+                queued_events: VecDeque::new(),
             };
 
             state
@@ -1145,13 +1149,23 @@
                 game_objs.end_of_turn(state);            
             }
             
+            // Are there any accumulated events we need to deal with?
+            while state.queued_events.len() > 0 {
+                match state.queued_events.pop_front().unwrap() {
+                    (EventType::GateClosed, loc, obj_id) => {
+                        println!("Gate closed at {:?}", loc);
+                    },
+                    _ => { },
+                }                
+            }
+
             player.calc_vision_radius(state, game_objs);
             
             let fov_start = Instant::now();
             let visible = fov::calc_fov(state, player.location, player.vision_radius, FOV_HEIGHT, FOV_WIDTH, false);
             gui.v_matrix = fov_to_tiles(state, game_objs, &visible);        
             let fov_duration = fov_start.elapsed();
-            println!("Time for fov: {:?}", fov_duration);
+            //println!("Time for fov: {:?}", fov_duration);
             
             //let write_screen_start = Instant::now();
             let sbi = state.curr_sidebar_info(player);

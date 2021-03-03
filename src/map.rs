@@ -154,9 +154,11 @@ impl SpecialSquare {
 				self.active = !self.active;
 				state.write_msg_buff("You here a metallic grinding.");
 				if self.active {
+					state.queued_events.push_back((EventType::GateClosed, self.location, self.object_id));
 					state.map.insert(self.get_location(), Tile::Gate(DoorState::Closed));
 				} else {
 					state.map.insert(self.get_location(), Tile::Gate(DoorState::Open));
+					state.queued_events.push_back((EventType::GateOpened, self.location, self.object_id));
 				}
 			},
 			_ => { },
@@ -170,13 +172,9 @@ impl SpecialSquare {
 			Tile::Gate(_) => {
 				// An active Gate is a closed gate
 				if lit && self.active {
-					state.write_msg_buff("You here a metallic grinding.");
-					state.map.insert(self.get_location(), Tile::Gate(DoorState::Open));
-					self.active = !self.active;
+					self.handle_triggered_event(state);					
 				} else if !lit && !self.active {
-					state.write_msg_buff("You here a metallic grinding.");
-					state.map.insert(self.get_location(), Tile::Gate(DoorState::Closed));
-					self.active = !self.active;
+					self.handle_triggered_event(state);
 				}				
 			},
 			_ => { },
@@ -203,11 +201,7 @@ impl GameObject for SpecialSquare {
 				self.mark_aura(state);
 			},
 			EventType::SteppedOn => {
-				if self.active {
-					state.write_msg_buff("Click.");
-				} else {
-					state.write_msg_buff("Click.");
-				}
+				state.write_msg_buff("Click.");
 				self.active = !self.active;
 
 				if let Some(target) = self.target {
