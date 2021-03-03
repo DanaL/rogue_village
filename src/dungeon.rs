@@ -21,11 +21,11 @@ use crate::map::{Tile, DoorState};
 use crate::util;
 #[derive(Debug)]
 pub struct Vault {
-    r1: i32,
-    c1: i32,
-    r2: i32,
-    c2: i32,
-    entrance: (i32, i32),
+    pub r1: i32,
+    pub c1: i32,
+    pub r2: i32,
+    pub c2: i32,
+    pub entrance: (i32, i32),
 }
 
 impl Vault {

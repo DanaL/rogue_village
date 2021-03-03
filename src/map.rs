@@ -22,7 +22,7 @@ use std::collections::HashSet;
 use serde::{Serialize, Deserialize};
 use rand::Rng;
 
-use super::{EventType, FOV_HEIGHT, FOV_WIDTH, GameObjects, GameState, Map};
+use super::{EventResponse, EventType, FOV_HEIGHT, FOV_WIDTH, GameObjects, GameState, Map};
 
 use crate::actor::Villager;
 use crate::dialogue::DialogueLibrary;
@@ -71,7 +71,7 @@ pub enum Tile {
 	Sand,
 	Mountain,
 	SnowPeak,
-	Gate,
+	Gate(DoorState),
 	StoneFloor,
 	ColourFloor((u8, u8, u8)),
 	Creature((u8, u8, u8), char), // ie., NPCs
@@ -105,8 +105,8 @@ impl Tile {
 	pub fn passable(&self) -> bool {
 		match self {
 			Tile::Wall | Tile::Blank | Tile::WorldEdge |
-			Tile::Mountain | Tile::SnowPeak | Tile::Gate | Tile::Door(DoorState::Closed) |
-			Tile::Door(DoorState::Locked) | Tile::WoodWall | Tile::Window(_) => false,		
+			Tile::Mountain | Tile::SnowPeak | Tile::Gate(DoorState::Closed) | Tile::Gate(DoorState::Locked) |
+			Tile::Door(DoorState::Closed) | Tile::Door(DoorState::Locked) | Tile::WoodWall | Tile::Window(_) => false,		
 			_ => true,
 		}
 	}
@@ -114,8 +114,9 @@ impl Tile {
 	pub fn passable_dry_land(&self) -> bool {
 		match self {
 			Tile::Wall | Tile::Blank | Tile::WorldEdge |
-			Tile::Mountain | Tile::SnowPeak | Tile::Gate | Tile::Door(DoorState::Closed) |
-			Tile::Door(DoorState::Locked) | Tile::WoodWall | Tile::Window(_) | Tile::DeepWater => false,		
+			Tile::Mountain | Tile::SnowPeak | Tile::Gate(DoorState::Closed) | Tile::Gate(DoorState::Locked) | 
+			Tile::Door(DoorState::Closed) | Tile::Door(DoorState::Locked) | Tile::WoodWall | Tile::Window(_) | 
+			Tile::DeepWater => false,		
 			_ => true,
 		}
 	}
@@ -135,11 +136,12 @@ pub struct SpecialSquare {
 	location: (i32, i32, i8),
 	active: bool,
 	radius: u8,
+	pub target: Option<usize>,
 }
 
 impl SpecialSquare {
 	pub fn new(object_id: usize, tile: Tile, location: (i32, i32, i8), active: bool, radius: u8) -> SpecialSquare {
-		SpecialSquare { object_id, tile, location, active, radius, }
+		SpecialSquare { object_id, tile, location, active, radius, target: None }
 	}
 
 	fn mark_aura(&self, state: &mut GameState) {
@@ -153,11 +155,26 @@ impl SpecialSquare {
 			}
 		}
 	}
+
+	fn handle_triggered_event(&mut self, state: &mut GameState) {
+		match self.get_tile() {
+			Tile::Gate(_) => {
+				self.active = !self.active;
+				state.write_msg_buff("You here a metallic grinding.");
+				if self.active {
+					state.map.insert(self.get_location(), Tile::Gate(DoorState::Closed));
+				} else {
+					state.map.insert(self.get_location(), Tile::Gate(DoorState::Open));
+				}
+			},
+			_ => { },
+		}
+	}
 }
 
 impl GameObject for SpecialSquare {
 	fn blocks(&self) -> bool {
-		!self.tile.passable()
+		false
 	}
 
     fn get_location(&self) -> (i32, i32, i8) {
@@ -167,20 +184,27 @@ impl GameObject for SpecialSquare {
     fn set_location(&mut self, loc: (i32, i32, i8)) {
 		panic!("Shouldn't be called for tiles!")
 	}
-
-    fn receive_event(&mut self, event: EventType, state: &mut GameState) -> Option<EventType> {
+	
+    fn receive_event(&mut self, event: EventType, state: &mut GameState) -> Option<EventResponse> {
 		match event {
 			EventType::EndOfTurn => {
 				self.mark_aura(state);
 			},
 			EventType::SteppedOn => {
 				if self.active {
-					state.write_msg_buff("click");
+					state.write_msg_buff("Click.");
 				} else {
-					state.write_msg_buff("CLICK!");
+					state.write_msg_buff("Click.");
 				}
 				self.active = !self.active;
+
+				if let Some(target) = self.target {
+					return Some(EventResponse::new(target, EventType::Triggered));
+				}
 			},
+			EventType::Triggered => {
+				self.handle_triggered_event(state);
+			}
 			_ => { 
 				panic!("This event isn't implemented for special squares!");
 			}

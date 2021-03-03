@@ -19,7 +19,7 @@ use serde::{Serialize, Deserialize};
 
 use display::YELLOW_ORANGE;
 
-use super::{EventType, FOV_HEIGHT, FOV_WIDTH, GameState, GameObjects, PLAYER_INV};
+use super::{EventResponse, EventType, FOV_HEIGHT, FOV_WIDTH, GameState, GameObjects, PLAYER_INV};
 
 use crate::{actor::Villager, map::SpecialSquare};
 use crate::dialogue::DialogueLibrary;
@@ -190,7 +190,7 @@ impl GameObject for Item {
         self.location = loc;
     }
 
-    fn receive_event(&mut self, event: EventType, state: &mut GameState) -> Option<EventType> {
+    fn receive_event(&mut self, event: EventType, state: &mut GameState) -> Option<EventResponse> {
 		match event {
 			EventType::EndOfTurn => {
 				self.charges -= 1;
@@ -224,7 +224,9 @@ impl GameObject for Item {
 						format!("The {} hss gone out!", self.name)
 					};
 					state.write_msg_buff(&s);
-					return Some(EventType::LightExpired);
+
+                    let er = EventResponse::new(self.object_id, EventType::LightExpired);
+					return Some(er);
 				}
 			},
 			_ => {
@@ -329,7 +331,7 @@ impl GameObject for GoldPile {
         self.location = loc;
     }
 
-    fn receive_event(&mut self, _event: EventType, _state: &mut GameState) -> Option<EventType> {
+    fn receive_event(&mut self, _event: EventType, _state: &mut GameState) -> Option<EventResponse> {
         None
     }
 

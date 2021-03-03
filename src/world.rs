@@ -27,7 +27,7 @@ use crate::dungeon;
 use crate::dungeon::Vault;
 use crate::game_obj::GameObject;
 use crate::items::{GoldPile, Item};
-use crate::map::{ShrineType, SpecialSquare, Tile, TriggerType};
+use crate::map::{DoorState, ShrineType, SpecialSquare, Tile, TriggerType};
 use crate::town;
 use crate::town::TownBuildings;
 use crate::pathfinding;
@@ -301,11 +301,71 @@ fn add_shrine(world_info: &mut WorldInfo, level: usize, map: &mut Map, floor_sqs
             .remove(&loc);
     let fact = Fact::new(String::from("shrine to woden"), 0, loc);
     world_info.facts.push(fact);
-    println!("{:?}", world_info.facts);
+}
+
+fn loc_in_vault(vault: &Vault, loc: (i32, i32, i8)) -> bool {
+    if loc.0 >= vault.r1 && loc.0 <= vault.r2 && loc.1 >= vault.c1 && loc.1 <= vault.c2 {
+        true
+    } else {
+        false
+    }
+}
+
+fn setup_vault_gate(world_info: &mut WorldInfo, map: &mut Map, game_objs: &mut GameObjects, trigger_loc: (i32, i32, i8),
+        vault_loc: (i32, i32, i8)) {
+    map.insert(trigger_loc, Tile::Trigger(TriggerType::Step));
+    map.insert(vault_loc, Tile::Gate(DoorState::Closed));
+    let gate_sq = SpecialSquare::new(game_objs.next_id(), Tile::Gate(DoorState::Closed), vault_loc, true, 0);
+    let gate_id = gate_sq.get_object_id();
+    game_objs.add(Box::new(gate_sq));
+
+    let mut trigger_sq = SpecialSquare::new(game_objs.next_id(), Tile::Trigger(TriggerType::Step), trigger_loc, 
+        false, 0);
+    trigger_sq.target = Some(gate_id);
+    let obj_id = trigger_sq.get_object_id();
+    
+    game_objs.add(Box::new(trigger_sq));
+    game_objs.listeners.insert((obj_id, EventType::SteppedOn));
+}
+
+fn add_vault(world_info: &mut WorldInfo, map: &mut Map, floors: &mut HashSet<(i32, i32, i8)>,
+            game_objs: &mut GameObjects, vaults: &Vec<Vault>, level: i8) {
+    // In the real game, I want to make sure I never create a gated vault in a room with the upstairs 
+    // because that would result in a dungeon where the player probably can't progress without magic
+    let mut rng = rand::thread_rng();
+    let vault_num = rng.gen_range(0, vaults.len());
+    let vault = &vaults[vault_num];
+    
+    // find a place for the trigger.
+    let mut delta = 2;
+    loop {
+        let loc = (vault.entrance.0 + delta, vault.entrance.1, level);
+        let vault_entrance = (vault.entrance.0, vault.entrance.1, level);
+        if floors.contains(&loc) && !loc_in_vault(vault, loc) {
+            setup_vault_gate(world_info, map, game_objs, loc, vault_entrance);
+            break;
+        }
+        let loc = (vault.entrance.0 - delta, vault.entrance.1, level);
+        if floors.contains(&loc) && !loc_in_vault(vault, loc) {
+            setup_vault_gate(world_info, map, game_objs, loc, vault_entrance);
+            break;
+        }
+        let loc = (vault.entrance.0, vault.entrance.1 + delta, level);
+        if floors.contains(&loc) && !loc_in_vault(vault, loc) {
+            setup_vault_gate(world_info, map, game_objs, loc, vault_entrance);
+            break;
+        }
+        let loc = (vault.entrance.0, vault.entrance.1 - delta, level);
+        if floors.contains(&loc) && !loc_in_vault(vault, loc) {
+            setup_vault_gate(world_info, map, game_objs, loc, vault_entrance);
+            break;
+        }
+        delta += 1;
+    }
 }
 
 fn decorate_levels(world_info: &mut WorldInfo, map: &mut Map, deepest_level: i8, floor_sqs: &mut HashMap<usize, HashSet<(i32, i32, i8)>>,
-            game_objs: &mut GameObjects) {
+            game_objs: &mut GameObjects, vaults: HashMap<usize, Vec<Vault>>) {
     let mut rng = rand::thread_rng();
     let mut curr_level = deepest_level;
     while curr_level > 0 {
@@ -316,6 +376,12 @@ fn decorate_levels(world_info: &mut WorldInfo, map: &mut Map, deepest_level: i8,
         if curr_level == 3 {
             add_shrine(world_info, curr_level as usize, map, floor_sqs, game_objs)
         }
+
+        if vaults[&(curr_level as usize - 1)].len() > 0 {
+            let floors = floor_sqs.get_mut(&(curr_level as usize - 1)).unwrap();
+            add_vault(world_info, map, floors, game_objs, &vaults[&(curr_level as usize - 1)], curr_level);
+        }
+
         curr_level -= 1;
     }
 }
@@ -324,18 +390,17 @@ fn build_dungeon(world_info: &mut WorldInfo, map: &mut Map, entrance: (i32, i32,
     let width = 125;
     let height = 40;
     let mut floor_sqs = HashMap::new();
+    let mut vaults = HashMap::new();
     let max_level = 1;
         
     let mut dungeon = Vec::new();
     for n in 0..max_level {
         let result = dungeon::draw_level(width, height);
         let level = result.0;
-        // vaults are rooms with only one entrance, which are useful for setting puzzles
-        let vaults = result.1;
-        println!("{:?}", vaults);
-
+        
         dungeon.push(level);
         floor_sqs.insert(n, HashSet::new());
+        vaults.insert(n, result.1); // vaults are rooms with only one entrance, which are useful for setting puzzles
     }
 
     let stairs = set_stairs(&mut dungeon, width, height);
@@ -356,15 +421,19 @@ fn build_dungeon(world_info: &mut WorldInfo, map: &mut Map, entrance: (i32, i32,
                 }
             }
         }
+
+        // Need to update the co-ordinates in the vaults
+        let curr_vaults = vaults.get_mut(&lvl).unwrap();
+        for vault in curr_vaults {
+            vault.r1 += stairs_row_delta;
+            vault.c1 += stairs_col_delta;
+            vault.r2 += stairs_row_delta;
+            vault.c2 += stairs_col_delta;
+            vault.entrance = (vault.entrance.0 + stairs_row_delta, vault.entrance.1 + stairs_col_delta);
+        }
     }
 
-    let trigger = Tile::Trigger(TriggerType::Step);
-    map.insert((entrance.0 - 1, entrance.1, 1), trigger);
-    let special_sq = SpecialSquare::new(game_objs.next_id(), Tile::Trigger(TriggerType::Step), (entrance.0 - 1, entrance.1, 1), false, 0);
-    game_objs.listeners.insert((special_sq.get_object_id(), EventType::SteppedOn));
-    game_objs.add(Box::new(special_sq));
-
-    decorate_levels(world_info, map, max_level as i8, &mut floor_sqs, game_objs)
+    decorate_levels(world_info, map, max_level as i8, &mut floor_sqs, game_objs, vaults)
 }
 
 pub fn generate_world(game_objs: &mut GameObjects) -> (Map, WorldInfo) {

@@ -18,7 +18,7 @@ extern crate serde;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet, VecDeque};
 
-use super::{EventType, GameState, PLAYER_INV};
+use super::{EventResponse, EventType, GameState, PLAYER_INV};
 use crate::actor::Villager;
 use crate::dialogue::DialogueLibrary;
 use crate::items::{Item, ItemType, GoldPile};
@@ -46,7 +46,7 @@ pub trait GameObject {
     fn blocks(&self) -> bool;
     fn get_location(&self) -> (i32, i32, i8);
     fn set_location(&mut self, loc: (i32, i32, i8));
-    fn receive_event(&mut self, event: EventType, state: &mut GameState) -> Option<EventType>;
+    fn receive_event(&mut self, event: EventType, state: &mut GameState) -> Option<EventResponse>;
     fn get_fullname(&self) -> String;
     fn get_object_id(&self) -> usize;
     fn get_type(&self) -> GameObjType;
@@ -221,8 +221,10 @@ impl GameObjects {
             let mut obj = self.get(obj_id);
 
             match obj.receive_event(EventType::EndOfTurn, state) {
-                Some(EventType::LightExpired) => {
-                    self.listeners.remove(&(obj.get_object_id(), EventType::EndOfTurn));
+                Some(response) => {
+                    if response.event_type == EventType::LightExpired {
+                        self.listeners.remove(&(obj.get_object_id(), EventType::EndOfTurn));
+                    }
                 },
                 _ => self.add(obj),
             }
@@ -237,7 +239,10 @@ impl GameObjects {
         for obj_id in listeners {
             let mut obj = self.get(obj_id);
             if obj.get_location() == loc {
-                obj.receive_event(EventType::SteppedOn, state);
+                if let Some(result) = obj.receive_event(EventType::SteppedOn, state) {
+                    let target = self.objects.get_mut(&result.object_id).unwrap();
+                    target.receive_event(EventType::Triggered, state);
+                }
             }
             self.add(obj);
         }

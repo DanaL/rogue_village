@@ -22,7 +22,7 @@ use rand::Rng;
 use serde::{Serialize, Deserialize};
 //use std::time::{Duration, Instant};
 
-use super::{EventType, GameObjects, GameState};
+use super::{EventResponse, EventType, GameObjects, GameState};
 
 use crate::{dialogue, land_on_location};
 use crate::dialogue::DialogueLibrary;
@@ -330,7 +330,7 @@ impl GameObject for Villager {
         self.stats.location = loc;
     }
 
-    fn receive_event(&mut self, _event: EventType, _state: &mut GameState) -> Option<EventType> {
+    fn receive_event(&mut self, _event: EventType, _state: &mut GameState) -> Option<EventResponse> {
         None
     }
 

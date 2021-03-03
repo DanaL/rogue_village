@@ -68,12 +68,24 @@
         Death(String),
     }
 
+    pub struct EventResponse {
+        object_id: usize,
+        event_type: EventType,
+    }
+
+    impl EventResponse {
+        pub fn new(object_id: usize, event_type: EventType) -> EventResponse {
+            EventResponse { object_id, event_type, }
+        }
+    }
+
     #[derive(Debug, Hash, Eq, PartialEq, Serialize, Deserialize, Clone, Copy)]
     pub enum EventType {
         EndOfTurn,
         LightExpired,
         TakeTurn,
         SteppedOn,
+        Triggered,
     }
 
     pub enum Cmd {
@@ -871,6 +883,8 @@
         } else if *tile == Tile::Door(DoorState::Closed) {
             // Bump to open doors. I might make this an option later
             do_open(state, next_loc);
+        } else if *tile == Tile::Gate(DoorState::Closed) || *tile == Tile::Gate(DoorState::Locked) {
+            state.write_msg_buff("A portcullis bars your way.");    
         } else  {
             state.write_msg_buff("You cannot go that way.");
         }
