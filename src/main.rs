@@ -42,7 +42,7 @@
 
     use std::time::Instant;
 
-    use rand::{Rng, thread_rng};
+    use rand::{Rng, prelude::SliceRandom, thread_rng};
     use serde::{Serialize, Deserialize};
 
     use dialogue::DialogueLibrary;
@@ -805,6 +805,43 @@
         }
     }
 
+    fn check_closed_gate(state: &mut GameState, game_objs: &mut GameObjects, player: &mut Player, loc: (i32, i32, i8)) {
+        let mut rng = rand::thread_rng();
+        if player.location == loc {
+            let mut options: Vec<usize> = (0..util::ADJ.len()).collect();            
+            options.shuffle(&mut rng);
+            while options.len() > 0 {
+                let id = options.pop().unwrap();
+                let landing_spot = (loc.0 + util::ADJ[id].0, loc.1 + util::ADJ[id].1, loc.2);
+                if !game_objs.location_occupied(&landing_spot) {
+                    state.write_msg_buff("You are shoved out of the way by the falling gate!");
+                    state.player_loc = landing_spot;
+                    player.location = landing_spot;
+                    return;
+                }
+            }
+
+            // If we get here there are no available landing spots. What to do?
+            // Just crush the player to death??
+            return;
+        } else if let Some(mut npc) = game_objs.npc_at(&loc) {
+            // This is untested because I don't have NPCs aside from villagers in the game...
+            let mut options: Vec<usize> = (0..util::ADJ.len()).collect();            
+            options.shuffle(&mut rng);
+            while options.len() > 0 {
+                let id = options.pop().unwrap();
+                let landing_spot = (loc.0 + util::ADJ[id].0, loc.1 + util::ADJ[id].1, loc.2);
+                if landing_spot != player.location && !game_objs.location_occupied(&landing_spot) {
+                    let s = format!("{} is shoved out of the way by the falling gate!", npc.get_fullname().with_def_article());
+                    state.write_msg_buff(&s);
+                    npc.set_location(landing_spot);
+                    game_objs.add(npc);
+                    return;
+                }
+            }
+        }
+    }
+
     fn firepit_msg(num: u8) -> &'static str {
         if num == 0 {
             "An old fire pit -- some previous adventurer?"
@@ -1152,8 +1189,8 @@
             // Are there any accumulated events we need to deal with?
             while state.queued_events.len() > 0 {
                 match state.queued_events.pop_front().unwrap() {
-                    (EventType::GateClosed, loc, obj_id) => {
-                        println!("Gate closed at {:?}", loc);
+                    (EventType::GateClosed, loc, _) => {
+                        check_closed_gate(state, game_objs, player, loc);
                     },
                     _ => { },
                 }                
