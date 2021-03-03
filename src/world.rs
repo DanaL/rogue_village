@@ -24,6 +24,7 @@ use serde::{Serialize, Deserialize};
 use super::{EventType, GameObjects, Map};
 
 use crate::dungeon;
+use crate::dungeon::Vault;
 use crate::game_obj::GameObject;
 use crate::items::{GoldPile, Item};
 use crate::map::{ShrineType, SpecialSquare, Tile, TriggerType};
@@ -323,11 +324,16 @@ fn build_dungeon(world_info: &mut WorldInfo, map: &mut Map, entrance: (i32, i32,
     let width = 125;
     let height = 40;
     let mut floor_sqs = HashMap::new();
-    let max_level = 3;
-    
+    let max_level = 1;
+        
     let mut dungeon = Vec::new();
     for n in 0..max_level {
-        let level = dungeon::draw_level(width, height);
+        let result = dungeon::draw_level(width, height);
+        let level = result.0;
+        // vaults are rooms with only one entrance, which are useful for setting puzzles
+        let vaults = result.1;
+        println!("{:?}", vaults);
+
         dungeon.push(level);
         floor_sqs.insert(n, HashSet::new());
     }

@@ -19,6 +19,20 @@ use rand::seq::SliceRandom;
 
 use crate::map::{Tile, DoorState};
 use crate::util;
+#[derive(Debug)]
+pub struct Vault {
+    r1: i32,
+    c1: i32,
+    r2: i32,
+    c2: i32,
+    entrance: (i32, i32),
+}
+
+impl Vault {
+    pub fn new(r1: i32, c1: i32, r2: i32, c2: i32, entrance: (i32, i32)) -> Vault {
+        Vault { r1, c1, r2, c2, entrance }
+    }
+}
 
 fn pick_room() -> (Vec<Vec<Tile>>, usize, usize) {
     let mut rng = rand::thread_rng();
@@ -620,7 +634,38 @@ fn try_to_add_corridor(level: &mut Vec<Tile>, rooms: &Vec<(Vec<Vec<Tile>>, usize
     }
 }
 
-fn carve(level: &mut Vec<Tile>, width: usize, height: usize) {
+fn find_vaults(level: &Vec<Tile>,  width: usize, rooms: Vec<(usize, usize, usize, usize)>) -> Vec<Vault> {
+    let mut vaults = Vec::new();
+
+    for room in rooms.iter() {        
+        let mut egresses = Vec::new();
+        for col in room.1..room.3 {
+            if level[room.0 * width + col] != Tile::Wall {
+                egresses.push((room.0, col));                
+            }
+            if level[(room.2 - 1) * width + col] != Tile::Wall {
+                egresses.push((room.2 - 1, col));
+            }
+        }
+        for row in room.0..room.2 {
+            if level[row * width + room.1] != Tile::Wall {
+                egresses.push((row, room.1));
+            }
+            if level[row * width + room.3 - 1] != Tile::Wall {
+                egresses.push((row, room.3 - 1));
+            }
+        }
+
+        if egresses.len() == 1 {
+            let entrance = (egresses[0].0 as i32, egresses[0].1 as i32);
+            vaults.push(Vault::new(room.0 as i32, room.1 as i32, room.2 as i32, room.3 as i32, entrance))
+        }
+    }
+
+    vaults
+}
+
+fn carve(level: &mut Vec<Tile>, width: usize, height: usize) -> Vec<Vault> {
     let mut rooms = Vec::new();
     let mut rng = rand::thread_rng();
     let center_row = (height / 2) as i16;
@@ -649,40 +694,29 @@ fn carve(level: &mut Vec<Tile>, width: usize, height: usize) {
     for _ in 0..3 {
         try_to_add_corridor(level, &rooms, width as usize);
     }
-}
 
-fn dump_level(level: &Vec<Tile>, width: usize, height: usize) {
-    for r in 0..height {
-        let mut s = String::from("");
-        for c in 0..width {
-            match level[width * r + c] {
-                Tile::StoneFloor => s.push_str("."),
-                Tile::Wall => s.push_str("#"),
-                Tile::Door(_) => s.push_str("+"),
-                _ => s.push_str("?"),
-            }            
-        }
-        println!("{}", s);
-    }
+    let room_borders: Vec<(usize, usize, usize, usize)> = rooms.iter().map(|r| (r.1, r.2, r.3, r.4)).collect();
+    find_vaults(level, width, room_borders)
 }
 
 // I originally had a floodfill check to make sure the level was fully connected 
 // but after generating 100,000 levels and not hitting a single disjoint map, I 
 //dropped the check.
-pub fn draw_level(width: usize, height: usize) -> Vec<Tile> {
+pub fn draw_level(width: usize, height: usize) -> (Vec<Tile>, Vec<Vault>) {
     let mut level;
     
     // Loop unitl we generate a level with sufficient open space. 35% seems
     // to be decently full maps. Alternatively, I could have just kept trying
     // to add rooms until the level was sufficiently full, but this is simpler
     // and 80% of the time a generated map is more thna 35% open squares.
+    let mut vaults;
     loop {
         level = Vec::new();
         for _ in 0..width*height {
             level.push(Tile::Wall);
         }
 
-        carve(&mut level, width, height);
+        vaults = carve(&mut level, width, height);
 
         let mut non_walls = 0;
         for &sq in &level {
@@ -696,7 +730,5 @@ pub fn draw_level(width: usize, height: usize) -> Vec<Tile> {
         }
     }
 
-    //dump_level(&level, width as usize, height as usize);
-    
-    level
+    (level, vaults)
 }
