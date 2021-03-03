@@ -221,7 +221,7 @@ impl GameObject for Item {
 					let s = if self.location == PLAYER_INV {
 						format!("Your {} has gone out!", self.name)					
 					} else {
-						format!("The {} hss gone out!", self.name)
+						format!("The {} has gone out!", self.name)
 					};
 					state.write_msg_buff(&s);
 

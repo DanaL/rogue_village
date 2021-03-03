@@ -191,7 +191,7 @@ impl GameObject for SpecialSquare {
 		self.location
 	}
 
-    fn set_location(&mut self, loc: (i32, i32, i8)) {
+    fn set_location(&mut self, _loc: (i32, i32, i8)) {
 		panic!("Shouldn't be called for tiles!")
 	}
 	

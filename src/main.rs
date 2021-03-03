@@ -1198,10 +1198,10 @@
 
             player.calc_vision_radius(state, game_objs);
             
-            let fov_start = Instant::now();
+            let _fov_start = Instant::now();
             let visible = fov::calc_fov(state, player.location, player.vision_radius, FOV_HEIGHT, FOV_WIDTH, false);
             gui.v_matrix = fov_to_tiles(state, game_objs, &visible);        
-            let fov_duration = fov_start.elapsed();
+            //let fov_duration = fov_start.elapsed();
             //println!("Time for fov: {:?}", fov_duration);
             
             //let write_screen_start = Instant::now();
