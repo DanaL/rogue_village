@@ -15,7 +15,7 @@
 
 extern crate serde;
 
-use std::{collections::{HashMap, HashSet, VecDeque}, ops::Index};
+use std::collections::{HashMap, HashSet, VecDeque};
 
 use rand::thread_rng;
 use rand::Rng;
@@ -33,6 +33,7 @@ use crate::map::{Tile, DoorState, SpecialSquare};
 use crate::pathfinding::find_path;
 use crate::player::Player;
 use crate::util;
+use crate::util::StringUtils;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum Venue {
@@ -98,13 +99,14 @@ pub struct NPC {
     pub dmg_dice: u8,
     pub dmg_die: u8,
     pub dmg_bonus: u8,
+    pub edc: u8,
 }
 
 impl NPC {
     pub fn villager(name: String, location: (i32, i32, i8), home_id: usize, voice: &str, object_id: usize) -> NPC {
         NPC { name, ac: 10, curr_hp: 8, max_hp: 8, location, ch: '@', color: display::LIGHT_GREY, attitude: Attitude::Stranger, 
             facts_known: Vec::new(), home_id, plan: VecDeque::new(), voice: String::from(voice), 
-            schedule: Vec::new(), object_id, mode: NPCMode::Villager, attack_mod: 2, dmg_dice: 1, dmg_die: 3, dmg_bonus: 0,
+            schedule: Vec::new(), object_id, mode: NPCMode::Villager, attack_mod: 2, dmg_dice: 1, dmg_die: 3, dmg_bonus: 0, edc: 12,
         }
     }
     
@@ -275,7 +277,7 @@ impl NPC {
     }
 
     fn simple_monster_schedule(&mut self, state: &GameState) {
-
+        println!("I am a monster doing my monster thing.");
     }
 
     fn check_schedule(&mut self, state: &GameState) {
@@ -382,6 +384,11 @@ impl GameObject for NPC {
     }
 
     fn talk_to(&mut self, state: &mut GameState, player: &Player, dialogue: &DialogueLibrary) -> String {
+        if self.voice == "monster" {
+            let s = format!("{} growls.", self.name.with_def_article().capitalize());
+            return s;
+        }
+
         let line = dialogue::parse_voice_line(&dialogue::pick_voice_line(dialogue, &self.voice, self.attitude), &state.world_info, player,
             &self.name, self.location);
         if self.attitude == Attitude::Stranger {
@@ -403,18 +410,34 @@ impl GameObject for NPC {
 // This could be in a data file and maybe one day will be but for now the compiler will help me avoid stupid typos
 // in basic monster definitions!
 pub struct MonsterFactory {
-    // AC, HP, ch, colour, mode, attack_mod, dmg_dice, dmg_die, dmg_bonus
-    table: HashMap<String, (u8, u8, char, (u8, u8, u8), NPCMode, u8, u8, u8, u8)>,
+    // AC, HP, ch, colour, mode, attack_mod, dmg_dice, dmg_die, dmg_bonus, level
+    table: HashMap<String, (u8, u8, char, (u8, u8, u8), NPCMode, u8, u8, u8, u8, u8)>,
 }
 
 impl MonsterFactory {
     pub fn init() -> MonsterFactory {
         let mut mf = MonsterFactory { table: HashMap::new() };
 
-        mf.table.insert(String::from("kobold"), (13, 7, 'k', display::DULL_RED, NPCMode::SimpleMonster, 4, 1, 4, 2));
-        mf.table.insert(String::from("goblin"), (15, 7, 'o', display::GREEN, NPCMode::SimpleMonster, 4, 1, 6, 2));
+        mf.table.insert(String::from("kobold"), (13, 7, 'k', display::DULL_RED, NPCMode::SimpleMonster, 4, 1, 4, 2, 1));
+        mf.table.insert(String::from("goblin"), (15, 7, 'o', display::GREEN, NPCMode::SimpleMonster, 4, 1, 6, 2, 1));
 
         mf
+    }
+
+    fn calc_dc(&self, level: u8) -> u8 {
+        if level < 5 {
+            12
+        } else if level < 8 {
+            13
+        } else if level <  11 {
+            14
+        } else if level < 14 {
+            15
+        } else if level < 17 {
+            16
+        } else {
+            18
+        }
     }
 
     pub fn add_monster(&self, name: &str, loc: (i32, i32, i8), game_objs: &mut GameObjects) {
@@ -428,7 +451,7 @@ impl MonsterFactory {
         let npc = NPC { name: String::from(name), ac: stats.0, curr_hp: stats.1, max_hp: stats.1, location: loc, ch: stats.2, 
             color: stats.3, attitude: Attitude::Indifferent, facts_known: Vec::new(), home_id: 0, plan: VecDeque::new(), 
             voice: String::from("monster"), schedule: Vec::new(), object_id: obj_id, mode: stats.4, attack_mod: stats.5, 
-            dmg_dice: stats.6, dmg_die: stats.7, dmg_bonus: stats.8,
+            dmg_dice: stats.6, dmg_die: stats.7, dmg_bonus: stats.8, edc: self.calc_dc(stats.9),
         };
 
         game_objs.add(Box::new(npc));

@@ -413,6 +413,23 @@ fn decorate_levels(world_info: &mut WorldInfo, map: &mut Map, deepest_level: i8,
     }
 }
 
+fn populate_levels(_world_info: &mut WorldInfo, deepest_level: i8, floor_sqs: &HashMap<usize, HashSet<(i32, i32, i8)>>,
+            game_objs: &mut GameObjects, monster_fac: &MonsterFactory) {
+    let mut curr_level = deepest_level;
+    let mut rng = rand::thread_rng();
+    while curr_level > 0 {
+        let level_index = curr_level as usize - 1;
+        let loc = random_sq(&floor_sqs[&level_index]);
+        if rng.gen_range(0.0, 1.0) < 0.5 {
+            monster_fac.add_monster("kobold", loc, game_objs);
+        } else {
+            monster_fac.add_monster("goblin", loc, game_objs);
+        }
+
+        curr_level -= 1;
+    }
+}
+
 fn build_dungeon(world_info: &mut WorldInfo, map: &mut Map, entrance: (i32, i32, i8), game_objs: &mut GameObjects, monster_fac: &MonsterFactory) {
     let width = 125;
     let height = 40;
@@ -427,10 +444,7 @@ fn build_dungeon(world_info: &mut WorldInfo, map: &mut Map, entrance: (i32, i32,
         
         dungeon.push(level);
         floor_sqs.insert(n, HashSet::new());
-        vaults.insert(n, result.1); // vaults are rooms with only one entrance, which are useful for setting puzzles
-
-        // add a single monster
-        
+        vaults.insert(n, result.1); // vaults are rooms with only one entrance, which are useful for setting puzzles        
     }
 
     let stairs = set_stairs(&mut dungeon, width, height);
@@ -463,7 +477,8 @@ fn build_dungeon(world_info: &mut WorldInfo, map: &mut Map, entrance: (i32, i32,
         }
     }
 
-    decorate_levels(world_info, map, max_level as i8, &mut floor_sqs, game_objs, vaults)
+    decorate_levels(world_info, map, max_level as i8, &mut floor_sqs, game_objs, vaults);
+    populate_levels(world_info, max_level as i8, &floor_sqs, game_objs, monster_fac);
 }
 
 pub fn generate_world(game_objs: &mut GameObjects, monster_fac: &MonsterFactory) -> (Map, WorldInfo) {

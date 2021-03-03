@@ -215,8 +215,14 @@ impl GameObjects {
 
         for actor_id in actors {
             let mut obj = self.get(actor_id);
-                        
-            obj.take_turn(state, self);
+            
+            // I don't want to have every single monster in the game taking a turn every round, so
+            // only update monsters on the surface or on the same level as the player. (Who knows, in
+            // the end maybe it'll be fast enough to always update 100s of monsters..)
+            let loc = obj.get_location();
+            if loc.2 == 0 || loc.2 == state.player_loc.2 {
+                obj.take_turn(state, self);
+            }
 
             // There will stuff here that may happen, like if a monster dies while taking
             // its turn, etc

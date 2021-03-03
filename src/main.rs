@@ -937,7 +937,7 @@
         if let Some(mut npc) = game_objs.npc_at(&loc) {
             let line = npc.talk_to(state, player, dialogue);
             state.add_to_msg_history(&line);
-            gui.popup_msg(&npc.get_fullname(), &line);
+            gui.popup_msg(&npc.get_fullname().with_indef_article().capitalize(), &line);
             game_objs.add(npc);
         } else {
             if let Tile::Door(_) = state.map[&loc] {
@@ -1083,11 +1083,11 @@
         let x = thread_rng().gen_range(0, 4);
         let b = state.world_info.town_boundary;
 
-        // for fact in &state.world_info.facts {
-        //     if fact.detail == "dungeon location" {
-        //         return fact.location;
-        //     }
-        // }
+        for fact in &state.world_info.facts {
+            if fact.detail == "dungeon location" {
+                return fact.location;
+            }
+        }
         
         if x == 0 {
             (b.0 - 5, thread_rng().gen_range(b.1, b.3), 0)
