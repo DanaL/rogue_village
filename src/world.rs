@@ -27,7 +27,7 @@ use crate::dungeon;
 use crate::dungeon::Vault;
 use crate::game_obj::GameObject;
 use crate::items::{GoldPile, Item};
-use crate::map::{DoorState, ShrineType, SpecialSquare, Tile, TriggerType};
+use crate::map::{DoorState, ShrineType, SpecialSquare, Tile};
 use crate::town;
 use crate::town::TownBuildings;
 use crate::pathfinding;
@@ -313,13 +313,13 @@ fn loc_in_vault(vault: &Vault, loc: (i32, i32, i8)) -> bool {
 
 fn setup_vault_gate(world_info: &mut WorldInfo, map: &mut Map, game_objs: &mut GameObjects, trigger_loc: (i32, i32, i8),
         vault_loc: (i32, i32, i8)) {
-    map.insert(trigger_loc, Tile::Trigger(TriggerType::Step));
+    map.insert(trigger_loc, Tile::Trigger);
     map.insert(vault_loc, Tile::Gate(DoorState::Closed));
     let gate_sq = SpecialSquare::new(game_objs.next_id(), Tile::Gate(DoorState::Closed), vault_loc, true, 0);
     let gate_id = gate_sq.get_object_id();
     game_objs.add(Box::new(gate_sq));
 
-    let mut trigger_sq = SpecialSquare::new(game_objs.next_id(), Tile::Trigger(TriggerType::Step), trigger_loc, 
+    let mut trigger_sq = SpecialSquare::new(game_objs.next_id(), Tile::Trigger, trigger_loc, 
         false, 0);
     trigger_sq.target = Some(gate_id);
     let obj_id = trigger_sq.get_object_id();

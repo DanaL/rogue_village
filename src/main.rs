@@ -974,7 +974,7 @@
                     Tile::StoneFloor => '.',
                     Tile::Door(_) => '+',
                     Tile::Shrine(_) => '_',
-                    Tile::Trigger(_) => '^',
+                    Tile::Trigger => '^',
                     Tile::OldFirePit(_) => '#',
                     Tile::StairsDown => '>',
                     Tile::StairsUp => '<',
@@ -1084,7 +1084,7 @@
                     } else if state.lit_sqs.contains(&vis.0) {
                         match state.map[&vis.0] {
                             Tile::StoneFloor => Tile::ColourFloor(display::YELLOW),
-                            Tile::Trigger(_) => Tile::ColourFloor(display::YELLOW_ORANGE),
+                            Tile::Trigger => Tile::ColourFloor(display::YELLOW_ORANGE),
                             _ => state.map[&vis.0],
                         }
                     } else {

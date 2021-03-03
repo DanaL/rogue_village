@@ -1064,7 +1064,7 @@ fn sq_info_for_tile(tile: &map::Tile, lit: bool) -> (char, sdl2::pixels::Color) 
 				('_', tuple_to_sdl2_color(&GREY))
 			}
 		},
-		map::Tile::Trigger(_) => {
+		map::Tile::Trigger => {
 			if lit {
 				('.', tuple_to_sdl2_color(&DARK_GREY))
 			} else {

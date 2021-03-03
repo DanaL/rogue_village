@@ -32,14 +32,6 @@ use crate::items::{GoldPile, Item};
 use crate::player::Player;
 use crate::util;
 
-
-#[derive(Clone, Copy, Debug, Hash, Eq, PartialEq, Serialize, Deserialize)]
-pub enum TriggerType {
-	Step,
-	Weight,
-	Light,
-}
-
 #[derive(Clone, Copy, Debug, Hash, Eq, PartialEq, Serialize, Deserialize)]
 pub enum ShrineType {
 	Woden,
@@ -90,7 +82,7 @@ pub enum Tile {
 	StairsUp,
 	StairsDown,
 	Shrine(ShrineType),
-	Trigger(TriggerType,)
+	Trigger,
 }
 
 impl Tile {
