@@ -1146,7 +1146,7 @@
     }
 
     fn run(gui: &mut GameUI, state: &mut GameState, player: &mut Player, game_objs: &mut GameObjects, dialogue: &DialogueLibrary) -> Result<(), ExitReason> {    
-        let visible = fov::calc_fov(state, player.location, player.vision_radius, FOV_HEIGHT, FOV_WIDTH, false);
+        let visible = fov::calc_fov(state, player.location, player.vision_radius, false);
         gui.v_matrix = fov_to_tiles(state, game_objs, &visible);
         let sbi = state.curr_sidebar_info(player);
         gui.write_screen(&mut state.msg_buff, Some(&sbi));
@@ -1200,7 +1200,7 @@
             player.calc_vision_radius(state, game_objs);
             
             let _fov_start = Instant::now();
-            let visible = fov::calc_fov(state, player.location, player.vision_radius, FOV_HEIGHT, FOV_WIDTH, false);
+            let visible = fov::calc_fov(state, player.location, player.vision_radius, false);
             gui.v_matrix = fov_to_tiles(state, game_objs, &visible);        
             //let fov_duration = fov_start.elapsed();
             //println!("Time for fov: {:?}", fov_duration);

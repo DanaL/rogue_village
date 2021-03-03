@@ -204,12 +204,12 @@ fn mark_visible(r1: i32, c1: i32, r2: i32, c2: i32, radius: f64,
 // fov_only option is for when I want to check only what squares are visible from centre inside vision radius. When it's false, I also look
 // for squares that are lit according to the list of lit sqs in GameState. (Ie., so the player may have no torch burning underground but can
 // see the light from an independent light source)
-pub fn calc_fov(state: &GameState, centre: (i32, i32, i8), radius: u8, height: usize, width: usize, fov_only: bool) -> Vec<((i32, i32, i8), bool)> {
-    let size = height * width;
+pub fn calc_fov(state: &GameState, centre: (i32, i32, i8), radius: u8, fov_only: bool) -> Vec<((i32, i32, i8), bool)> {
+    let size = FOV_HEIGHT * FOV_WIDTH;
     let mut visible = vec![false; size];
-	let fov_center_r = height / 2;
-	let fov_center_c = width / 2;
-	visible[fov_center_r * width + fov_center_c] = true;
+	let fov_center_r = FOV_HEIGHT / 2;
+	let fov_center_c = FOV_WIDTH / 2;
+	visible[fov_center_r * FOV_WIDTH + fov_center_c] = true;
 
 	// Even if the player's vision radius is only, say, 3 we still need to scan to the 
 	// perimiter of the FOV area in case there are independently lit squares for which
@@ -238,15 +238,15 @@ pub fn calc_fov(state: &GameState, centre: (i32, i32, i8), radius: u8, height: u
 		let actual_r = pr + loc.0;
 		let actual_c = pc + loc.1;
 
-		mark_visible(pr, pc, actual_r as i32, actual_c as i32, radius as f64, centre.2, &mut visible, state, width);
+		mark_visible(pr, pc, actual_r as i32, actual_c as i32, radius as f64, centre.2, &mut visible, state, FOV_WIDTH);
 	}
 
     // Now we know which locations are actually visible from the player's loc, 
     // copy the tiles into the v_matrix
     let mut v_matrix = Vec::with_capacity(size);
-    for r in 0..height {
-        for c in 0..width {
-            let j = r * width + c;
+    for r in 0..FOV_HEIGHT {
+        for c in 0..FOV_WIDTH {
+            let j = r * FOV_WIDTH + c;
 			let row = pr - fov_center_r as i32 + r as i32;
             let col = pc - fov_center_c as i32 + c as i32;
 			let loc = (row, col, centre.2);

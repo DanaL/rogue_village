@@ -15,7 +15,8 @@
 
 extern crate serde;
 
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::{collections::{HashMap, HashSet, VecDeque}, u128};
+use std::time::Instant;
 
 use rand::thread_rng;
 use rand::Rng;
@@ -34,6 +35,14 @@ use crate::pathfinding::find_path;
 use crate::player::Player;
 use crate::util;
 use crate::util::StringUtils;
+use crate::fov;
+
+// Some bitmasks for various monster attributes
+pub const MA_OPEN_DOORS: u128       = 0b00000001;
+pub const MA_UNLOCK_DOORS: u128     = 0b00000010;
+pub const MA_WEAK_VENOMS: u128      = 0b00000100;
+pub const MA_PACK_TACTICS: u128     = 0b00001000;
+pub const MA_FEARLESS: u128         = 0b00010000;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum Venue {
@@ -63,6 +72,7 @@ pub enum Attitude {
     Indifferent,
     Friendly,
     Hostile,
+    Fleeing,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -100,6 +110,7 @@ pub struct NPC {
     pub dmg_die: u8,
     pub dmg_bonus: u8,
     pub edc: u8,
+    pub attributes: u128,
 }
 
 impl NPC {
@@ -107,17 +118,10 @@ impl NPC {
         NPC { name, ac: 10, curr_hp: 8, max_hp: 8, location, ch: '@', color: display::LIGHT_GREY, attitude: Attitude::Stranger, 
             facts_known: Vec::new(), home_id, plan: VecDeque::new(), voice: String::from(voice), 
             schedule: Vec::new(), object_id, mode: NPCMode::Villager, attack_mod: 2, dmg_dice: 1, dmg_die: 3, dmg_bonus: 0, edc: 12,
+            attributes: MA_OPEN_DOORS | MA_UNLOCK_DOORS,
         }
     }
     
-    // pub fn simple_monster(name: String, hp: u8, ch: char, color: (u8, u8, u8), location: (i32, i32, i8), object_id: usize) -> NPC {
-    //     NPC {
-    //         stats: BasicStats::new(name, hp, hp, location, ch, color, Attitude::Hostile),
-    //         facts_known: Vec::new(), home_id: usize::MAX, plan: VecDeque::new(), voice: String::from("monster"),
-    //         schedule: Vec::new(), object_id, mode: NPCMode::SimpleMonster
-    //     }
-    // }
-
     // I should be able to move calc_plan_to_move, try_to_move_to_loc, etc to generic
     // places for all Villager types since they'll be pretty same-y. The differences
     // will be in how NPCs set their plans/schedules. 
@@ -128,11 +132,16 @@ impl NPC {
             passable.insert(Tile::Dirt, 1.0);
             passable.insert(Tile::Tree, 1.0);
             passable.insert(Tile::Door(DoorState::Open), 1.0);
-            passable.insert(Tile::Door(DoorState::Closed), 2.0);
             passable.insert(Tile::Door(DoorState::Broken), 1.0);
-            passable.insert(Tile::Door(DoorState::Locked), 2.5);
+            if self.attributes & MA_OPEN_DOORS > 0 {
+                passable.insert(Tile::Door(DoorState::Closed), 2.0);
+            }
+            if self.attributes & MA_UNLOCK_DOORS > 0 {
+                passable.insert(Tile::Door(DoorState::Locked), 2.5);
+            }
             passable.insert(Tile::StoneFloor, 1.0);
             passable.insert(Tile::Floor, 1.0);
+            passable.insert(Tile::Trigger, 1.0);
 
             let mut path = find_path(&state.map, stop_before, self.location.0, self.location.1, 
                 self.location.2, goal.0, goal.1, 50, &passable);
@@ -153,14 +162,12 @@ impl NPC {
             self.plan.push_front(Action::Move(loc));
             self.open_door(loc, state);
         } else {
-            // Villagers are fairly polite. If they go through a door, they will close it after them, 
-            // just like their parents said they should.
-            // There's a flaw here in that at the moment, villagers never abandon their plans. So, if, say
-            // a villager is going through a door and someone is following right behind, they will wait for
-            // the other to move so they can close the door, but the other will want to move into the 
-            // building and they'll be deadlocked forever.
-            if let Tile::Door(DoorState::Open) = state.map[&self.get_location()] {
-                self.plan.push_front(Action::CloseDoor(self.get_location()));                
+            // Villagers will close doors after they pass through them, although monsters in the dungeon 
+            // shouldn't for the most part.
+            if !(self.attitude == Attitude::Hostile || self.attitude == Attitude::Fleeing) {
+                if let Tile::Door(DoorState::Open) = state.map[&self.get_location()] {
+                    self.plan.push_front(Action::CloseDoor(self.get_location()));                
+                }
             }
             self.location = loc;
             land_on_location(state, game_objs, loc, self.get_object_id());
@@ -168,12 +175,8 @@ impl NPC {
     }
 
     fn open_door(&mut self, loc: (i32, i32, i8), state: &mut GameState) {
-        if self.attitude == Attitude::Stranger {
-            state.write_msg_buff("The villager opens the door.");
-        } else {
-            let s = format!("{} opens the door.", self.get_fullname());
-            state.write_msg_buff(&s);
-        }
+        let s = format!("{} opens the door.", self.get_fullname().with_def_article().capitalize());
+        state.write_msg_buff(&s);
         state.map.insert(loc, Tile::Door(DoorState::Open));
     }
 
@@ -277,7 +280,25 @@ impl NPC {
     }
 
     fn simple_monster_schedule(&mut self, state: &GameState) {
-        println!("I am a monster doing my monster thing.");
+        if self.attitude != Attitude::Hostile {
+            // Can I see the player? if so, become hostile
+            let m_fov_time = Instant::now();
+            let sqs = fov::calc_fov(state, self.location, 10, true);
+            let m_fov_elapsed = m_fov_time.elapsed();
+            println!("Monster fov: {:?}", m_fov_elapsed);
+
+            let visible: HashSet<(i32, i32, i8)> = sqs.iter().filter(|sq| sq.1).map(|sq| sq.0).collect();
+            if visible.contains(&state.player_loc) {
+                self.attitude = Attitude::Hostile;
+            }
+        }
+
+        if self.attitude == Attitude::Hostile {
+            let m_pf_time = Instant::now();
+            self.calc_plan_to_move(state, state.player_loc, true);
+            let m_pf_elapsed = m_pf_time.elapsed();
+            println!("Monster pf time: {:?}", m_pf_elapsed);
+        }        
     }
 
     fn check_schedule(&mut self, state: &GameState) {
@@ -410,17 +431,20 @@ impl GameObject for NPC {
 // This could be in a data file and maybe one day will be but for now the compiler will help me avoid stupid typos
 // in basic monster definitions!
 pub struct MonsterFactory {
-    // AC, HP, ch, colour, mode, attack_mod, dmg_dice, dmg_die, dmg_bonus, level
-    table: HashMap<String, (u8, u8, char, (u8, u8, u8), NPCMode, u8, u8, u8, u8, u8)>,
+    // AC, HP, ch, colour, mode, attack_mod, dmg_dice, dmg_die, dmg_bonus, level, attributes
+    table: HashMap<String, (u8, u8, char, (u8, u8, u8), NPCMode, u8, u8, u8, u8, u8, u128)>, 
 }
 
 impl MonsterFactory {
     pub fn init() -> MonsterFactory {
         let mut mf = MonsterFactory { table: HashMap::new() };
 
-        mf.table.insert(String::from("kobold"), (13, 7, 'k', display::DULL_RED, NPCMode::SimpleMonster, 4, 1, 4, 2, 1));
-        mf.table.insert(String::from("goblin"), (15, 7, 'o', display::GREEN, NPCMode::SimpleMonster, 4, 1, 6, 2, 1));
-
+        mf.table.insert(String::from("kobold"), (13, 7, 'k', display::DULL_RED, NPCMode::SimpleMonster, 4, 1, 4, 2, 1,
+            MA_OPEN_DOORS | MA_UNLOCK_DOORS | MA_PACK_TACTICS));
+        mf.table.insert(String::from("goblin"), (15, 7, 'o', display::GREEN, NPCMode::SimpleMonster, 4, 1, 6, 2, 1,
+            MA_OPEN_DOORS | MA_UNLOCK_DOORS));
+        mf.table.insert(String::from("zombie"), (11, 8, 'z', display::GREY, NPCMode::SimpleMonster, 4, 1, 6, 2, 1,
+            MA_OPEN_DOORS | MA_UNLOCK_DOORS | MA_FEARLESS));
         mf
     }
 
@@ -451,7 +475,7 @@ impl MonsterFactory {
         let npc = NPC { name: String::from(name), ac: stats.0, curr_hp: stats.1, max_hp: stats.1, location: loc, ch: stats.2, 
             color: stats.3, attitude: Attitude::Indifferent, facts_known: Vec::new(), home_id: 0, plan: VecDeque::new(), 
             voice: String::from("monster"), schedule: Vec::new(), object_id: obj_id, mode: stats.4, attack_mod: stats.5, 
-            dmg_dice: stats.6, dmg_die: stats.7, dmg_bonus: stats.8, edc: self.calc_dc(stats.9),
+            dmg_dice: stats.6, dmg_die: stats.7, dmg_bonus: stats.8, edc: self.calc_dc(stats.9), attributes: stats.10,
         };
 
         game_objs.add(Box::new(npc));

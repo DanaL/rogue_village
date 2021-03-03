@@ -19,7 +19,7 @@ use serde::{Serialize, Deserialize};
 
 use display::YELLOW_ORANGE;
 
-use super::{EventResponse, EventType, FOV_HEIGHT, FOV_WIDTH, GameState, GameObjects, PLAYER_INV};
+use super::{EventResponse, EventType, GameState, GameObjects, PLAYER_INV};
 
 use crate::{actor::NPC, map::SpecialSquare};
 use crate::dialogue::DialogueLibrary;
@@ -156,7 +156,7 @@ impl Item {
 			self.location
 		};
 
-		let lit = fov::calc_fov(state, loc, self.aura, FOV_HEIGHT, FOV_WIDTH, true);
+		let lit = fov::calc_fov(state, loc, self.aura, true);
 		for sq in lit {
 			if sq.1 {
 				state.lit_sqs.insert(sq.0);

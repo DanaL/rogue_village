@@ -22,7 +22,7 @@ use std::collections::HashSet;
 use serde::{Serialize, Deserialize};
 use rand::Rng;
 
-use super::{EventResponse, EventType, FOV_HEIGHT, FOV_WIDTH, GameObjects, GameState, Map};
+use super::{EventResponse, EventType, GameObjects, GameState, Map};
 
 use crate::actor::NPC;
 use crate::dialogue::DialogueLibrary;
@@ -138,7 +138,7 @@ impl SpecialSquare {
 
 	fn mark_aura(&self, state: &mut GameState) {
 		if self.active {
-			let in_aura = fov::calc_fov(state, self.location, self.radius, FOV_HEIGHT, FOV_WIDTH, true);
+			let in_aura = fov::calc_fov(state, self.location, self.radius, true);
 			for sq in in_aura {
 				if sq.1 {
 					state.aura_sqs.insert(sq.0);
