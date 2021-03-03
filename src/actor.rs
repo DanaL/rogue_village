@@ -15,7 +15,7 @@
 
 extern crate serde;
 
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::{collections::{HashMap, HashSet, VecDeque}, ops::Index};
 
 use rand::thread_rng;
 use rand::Rng;
@@ -26,7 +26,7 @@ use super::{EventResponse, EventType, GameObjects, GameState};
 
 use crate::{dialogue, land_on_location};
 use crate::dialogue::DialogueLibrary;
-use crate::display::LIGHT_GREY;
+use crate::display;
 use crate::game_obj::{GameObject, GameObjType};
 use crate::items::{GoldPile, Item};
 use crate::map::{Tile, DoorState, SpecialSquare};
@@ -65,52 +65,56 @@ pub enum Attitude {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct BasicStats {
-    pub name: String,
-	pub max_hp: u8,
-	pub curr_hp: u8,
-	pub location: (i32, i32, i8),
-    pub ch: char,
-    pub color: (u8, u8, u8),
-    pub attitude: Attitude,
-}
-
-impl BasicStats {
-    pub fn new(name: String, max_hp: u8, curr_hp: u8, location: (i32, i32, i8), ch: char, color: (u8, u8, u8), attitude: Attitude) -> BasicStats {
-        let bs = BasicStats {
-            name, max_hp, curr_hp, location, ch, color, attitude,
-        };  
-
-        bs
-    }
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum Action {
     Move((i32, i32, i8)),
     OpenDoor((i32, i32, i8)),
     CloseDoor((i32, i32, i8)),
 }
 
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+pub enum NPCMode {
+    Villager,
+    SimpleMonster,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct Villager {
-    pub stats: BasicStats,	
+pub struct NPC {
+    pub name: String,
+    pub ac: u8,
+	pub max_hp: u8,
+	pub curr_hp: u8,
+	pub location: (i32, i32, i8),
+    pub ch: char,
+    pub color: (u8, u8, u8),
+    pub attitude: Attitude,
     pub facts_known: Vec<usize>,
-    pub greeted_player: bool,
     pub home_id: usize,
     pub plan: VecDeque<Action>,
     pub voice: String,
     pub schedule: Vec<AgendaItem>,
     pub object_id: usize,
+    pub mode: NPCMode,
+    pub attack_mod: u8,
+    pub dmg_dice: u8,
+    pub dmg_die: u8,
+    pub dmg_bonus: u8,
 }
 
-impl Villager {
-    pub fn new(name: String, location: (i32, i32, i8), home_id: usize, voice: &str, object_id: usize) -> Villager {
-        Villager { stats: BasicStats::new(name, 8,  8, location,  '@',  LIGHT_GREY, Attitude::Stranger), 
-            facts_known: Vec::new(), greeted_player: false, home_id,
-            plan: VecDeque::new(), voice: String::from(voice), schedule: Vec::new(), object_id
+impl NPC {
+    pub fn villager(name: String, location: (i32, i32, i8), home_id: usize, voice: &str, object_id: usize) -> NPC {
+        NPC { name, ac: 10, curr_hp: 8, max_hp: 8, location, ch: '@', color: display::LIGHT_GREY, attitude: Attitude::Stranger, 
+            facts_known: Vec::new(), home_id, plan: VecDeque::new(), voice: String::from(voice), 
+            schedule: Vec::new(), object_id, mode: NPCMode::Villager, attack_mod: 2, dmg_dice: 1, dmg_die: 3, dmg_bonus: 0,
         }
     }
+    
+    // pub fn simple_monster(name: String, hp: u8, ch: char, color: (u8, u8, u8), location: (i32, i32, i8), object_id: usize) -> NPC {
+    //     NPC {
+    //         stats: BasicStats::new(name, hp, hp, location, ch, color, Attitude::Hostile),
+    //         facts_known: Vec::new(), home_id: usize::MAX, plan: VecDeque::new(), voice: String::from("monster"),
+    //         schedule: Vec::new(), object_id, mode: NPCMode::SimpleMonster
+    //     }
+    // }
 
     // I should be able to move calc_plan_to_move, try_to_move_to_loc, etc to generic
     // places for all Villager types since they'll be pretty same-y. The differences
@@ -128,13 +132,13 @@ impl Villager {
             passable.insert(Tile::StoneFloor, 1.0);
             passable.insert(Tile::Floor, 1.0);
 
-            let mut path = find_path(&state.map, stop_before, self.stats.location.0, self.stats.location.1, 
-                self.stats.location.2, goal.0, goal.1, 50, &passable);
+            let mut path = find_path(&state.map, stop_before, self.location.0, self.location.1, 
+                self.location.2, goal.0, goal.1, 50, &passable);
             
             path.pop(); // first square in path is the start location
             while path.len() > 0 {
                 let sq = path.pop().unwrap();
-                self.plan.push_back(Action::Move((sq.0, sq.1, self.stats.location.2)));
+                self.plan.push_back(Action::Move((sq.0, sq.1, self.location.2)));
             }
         }
     }
@@ -156,13 +160,13 @@ impl Villager {
             if let Tile::Door(DoorState::Open) = state.map[&self.get_location()] {
                 self.plan.push_front(Action::CloseDoor(self.get_location()));                
             }
-            self.stats.location = loc;
+            self.location = loc;
             land_on_location(state, game_objs, loc, self.get_object_id());
         }
     }
 
     fn open_door(&mut self, loc: (i32, i32, i8), state: &mut GameState) {
-        if self.stats.attitude == Attitude::Stranger {
+        if self.attitude == Attitude::Stranger {
             state.write_msg_buff("The villager opens the door.");
         } else {
             let s = format!("{} opens the door.", self.get_fullname());
@@ -177,7 +181,7 @@ impl Villager {
             self.plan.push_front(Action::CloseDoor(loc));
         } else {
             if let Tile::Door(DoorState::Open) = state.map[&loc] {
-                if self.stats.attitude == Attitude::Stranger {
+                if self.attitude == Attitude::Stranger {
                     state.write_msg_buff("The villager closes the door.");
                 } else {
                     let s = format!("{} closes the door.", self.get_fullname());
@@ -215,7 +219,7 @@ impl Villager {
         if thread_rng().gen_range(0.0, 1.0) < 0.33 {
             let j = thread_rng().gen_range(0, util::ADJ.len()) as usize;
             let d = util::ADJ[j];
-            let adj = (self.stats.location.0 + d.0, self.stats.location.1 + d.1, self.stats.location.2);
+            let adj = (self.location.0 + d.0, self.location.1 + d.1, self.location.2);
             if state.map[&adj].passable_dry_land() {
                 self.calc_plan_to_move(state, adj, false);
             }
@@ -246,7 +250,7 @@ impl Villager {
         }
     }
 
-    fn check_schedule(&mut self, state: &GameState) {
+    fn villager_schedule(&mut self, state: &GameState) {
         let ct = state.curr_time();
         let minutes = ct.0 * 60 + ct.1;
         
@@ -270,23 +274,26 @@ impl Villager {
         }
     }
 
+    fn simple_monster_schedule(&mut self, state: &GameState) {
+
+    }
+
+    fn check_schedule(&mut self, state: &GameState) {
+        // I feel like there HAS to be way a better way to do polymorphism/different behaviours in Rust. I
+        // feel like Traits will be too much of a pain with the GameObjs and I couldn't really share code between the 
+        // NPC types. Unless I make them floating functions and have no private fields?
+        match self.mode {
+            NPCMode::Villager => self.villager_schedule(state),
+            NPCMode::SimpleMonster => self.simple_monster_schedule(state),
+        }
+    }
+
     // Generally, when I have an NPC go a building/place, I assume it doesn't matter too much if 
     // they go to specific square inside it, so just pick any one of them.
     fn go_to_place(&mut self, state: &GameState, sqs: &HashSet<(i32, i32, i8)>) {
         let j = thread_rng().gen_range(0, &sqs.len());
         let goal_loc = &sqs.iter().nth(j).unwrap().clone(); // Clone prevents a compiler warning...
         self.calc_plan_to_move(state, *goal_loc, false);
-    }
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct SimpleMonster {
-    pub stats: BasicStats,    
-}
-
-impl SimpleMonster {
-    pub fn new(name: String, location:( i32, i32, i8), ch: char, color: (u8, u8, u8)) -> SimpleMonster {
-        SimpleMonster { stats: BasicStats::new(name,  8,  8, location, ch, color, Attitude::Hostile) }
     }
 }
 
@@ -313,7 +320,7 @@ pub fn pick_villager_name(used_names: &HashSet<String>) -> String {
     }
 }
 
-impl GameObject for Villager {
+impl GameObject for NPC {
     fn blocks(&self) -> bool {
         true
     }
@@ -323,11 +330,11 @@ impl GameObject for Villager {
     }
 
     fn get_location(&self) -> (i32, i32, i8) {
-        self.stats.location
+        self.location
     }
 
     fn set_location(&mut self, loc: (i32, i32, i8)) {
-        self.stats.location = loc;
+        self.location = loc;
     }
 
     fn receive_event(&mut self, _event: EventType, _state: &mut GameState) -> Option<EventResponse> {
@@ -335,7 +342,7 @@ impl GameObject for Villager {
     }
 
     fn get_fullname(&self) -> String {
-        self.stats.name.clone()
+        self.name.clone()
     }
 
     fn get_object_id(&self) -> usize {
@@ -343,7 +350,7 @@ impl GameObject for Villager {
     }
 
     fn get_tile(&self) -> Tile {
-        Tile::Creature(self.stats.color, self.stats.ch)
+        Tile::Creature(self.color, self.ch)
     }
 
     fn get_type(&self) -> GameObjType {
@@ -358,7 +365,7 @@ impl GameObject for Villager {
         None
     }
     
-    fn as_villager(&self) -> Option<Villager> {
+    fn as_villager(&self) -> Option<NPC> {
         Some(self.clone())
     }
     
@@ -375,10 +382,11 @@ impl GameObject for Villager {
     }
 
     fn talk_to(&mut self, state: &mut GameState, player: &Player, dialogue: &DialogueLibrary) -> String {
-        let line = dialogue::parse_voice_line(&dialogue::pick_voice_line(dialogue, &self.voice, self.stats.attitude), &state.world_info, player, &self.stats);        
-        if self.stats.attitude == Attitude::Stranger {
+        let line = dialogue::parse_voice_line(&dialogue::pick_voice_line(dialogue, &self.voice, self.attitude), &state.world_info, player,
+            &self.name, self.location);
+        if self.attitude == Attitude::Stranger {
             // Perhaps a charisma check to possibly jump straight to friendly?
-            self.stats.attitude = Attitude::Indifferent;
+            self.attitude = Attitude::Indifferent;
         }
 
         line
@@ -390,4 +398,40 @@ impl GameObject for Villager {
 
     fn reveal(&mut self) { }
     fn hide(&mut self) { }
+}
+
+// This could be in a data file and maybe one day will be but for now the compiler will help me avoid stupid typos
+// in basic monster definitions!
+pub struct MonsterFactory {
+    // AC, HP, ch, colour, mode, attack_mod, dmg_dice, dmg_die, dmg_bonus
+    table: HashMap<String, (u8, u8, char, (u8, u8, u8), NPCMode, u8, u8, u8, u8)>,
+}
+
+impl MonsterFactory {
+    pub fn init() -> MonsterFactory {
+        let mut mf = MonsterFactory { table: HashMap::new() };
+
+        mf.table.insert(String::from("kobold"), (13, 7, 'k', display::DULL_RED, NPCMode::SimpleMonster, 4, 1, 4, 2));
+        mf.table.insert(String::from("goblin"), (15, 7, 'o', display::GREEN, NPCMode::SimpleMonster, 4, 1, 6, 2));
+
+        mf
+    }
+
+    pub fn add_monster(&self, name: &str, loc: (i32, i32, i8), game_objs: &mut GameObjects) {
+        if !self.table.contains_key(name) {
+            let s = format!("Unknown monster: {}!!", name);
+            panic!(s);
+        }
+
+        let stats = self.table.get(name).unwrap();
+        let obj_id = game_objs.next_id();
+        let npc = NPC { name: String::from(name), ac: stats.0, curr_hp: stats.1, max_hp: stats.1, location: loc, ch: stats.2, 
+            color: stats.3, attitude: Attitude::Indifferent, facts_known: Vec::new(), home_id: 0, plan: VecDeque::new(), 
+            voice: String::from("monster"), schedule: Vec::new(), object_id: obj_id, mode: stats.4, attack_mod: stats.5, 
+            dmg_dice: stats.6, dmg_die: stats.7, dmg_bonus: stats.8,
+        };
+
+        game_objs.add(Box::new(npc));
+        game_objs.listeners.insert((obj_id, EventType::TakeTurn));
+    }
 }

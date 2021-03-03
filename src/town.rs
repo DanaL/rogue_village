@@ -25,7 +25,7 @@ use serde::{Serialize, Deserialize};
 use super::{EventType, Map};
 
 use crate::actor;
-use crate::actor::{AgendaItem, Venue, Villager};
+use crate::actor::{AgendaItem, Venue, NPC};
 use crate::game_obj::{GameObject, GameObjects};
 use crate::map::{DoorState, Tile};
 use crate::pathfinding;
@@ -372,12 +372,12 @@ fn random_town_name() -> String {
     String::from(*names.iter().choose(&mut rng).unwrap())
 }
 
-fn create_villager(voice: &str, tb: &mut TownBuildings, used_names: &HashSet<String>, obj_id: usize) -> Villager {
+fn create_villager(voice: &str, tb: &mut TownBuildings, used_names: &HashSet<String>, obj_id: usize) -> NPC {
     let home_id = tb.vacant_home().unwrap();
     let home = &tb.homes[home_id];
     let j = rand::thread_rng().gen_range(0, home.len());    
     let loc = home.iter().nth(j).unwrap().clone(); 
-    let mut villager = Villager::new(actor::pick_villager_name(used_names), loc, home_id, voice, obj_id);
+    let mut villager = NPC::villager(actor::pick_villager_name(used_names), loc, home_id, voice, obj_id);
     tb.taken_homes.push(home_id);
     
     if voice.starts_with("mayor") {

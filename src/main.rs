@@ -45,6 +45,7 @@
     use rand::{Rng, prelude::SliceRandom, thread_rng};
     use serde::{Serialize, Deserialize};
 
+    use actor::MonsterFactory;
     use dialogue::DialogueLibrary;
     use display::{GameUI, SidebarInfo, WHITE};
     use game_obj::{GameObject, GameObjects, GameObjType, GOForSerde};
@@ -1082,11 +1083,11 @@
         let x = thread_rng().gen_range(0, 4);
         let b = state.world_info.town_boundary;
 
-        for fact in &state.world_info.facts {
-            if fact.detail == "dungeon location" {
-                return fact.location;
-            }
-        }
+        // for fact in &state.world_info.facts {
+        //     if fact.detail == "dungeon location" {
+        //         return fact.location;
+        //     }
+        // }
         
         if x == 0 {
             (b.0 - 5, thread_rng().gen_range(b.1, b.3), 0)
@@ -1225,7 +1226,7 @@
 
         title_screen(&mut gui);
 
-
+        let mf = MonsterFactory::init();
         let dialogue_library = dialogue::read_dialogue_lib();
         let player_name = who_are_you(&mut gui);
         
@@ -1248,7 +1249,7 @@
             game_objs = GameObjects::new();
 
             let wg_start = Instant::now();
-            let w = world::generate_world(&mut game_objs);        
+            let w = world::generate_world(&mut game_objs, &mf);        
             state = GameState::init(w.0, w.1);    
             let wg_dur = wg_start.elapsed();
             println!("World gen time: {:?}", wg_dur);

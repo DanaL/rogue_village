@@ -23,6 +23,7 @@ use serde::{Serialize, Deserialize};
 
 use super::{EventType, GameObjects, Map};
 
+use crate::actor::MonsterFactory;
 use crate::dungeon;
 use crate::dungeon::Vault;
 use crate::game_obj::GameObject;
@@ -412,7 +413,7 @@ fn decorate_levels(world_info: &mut WorldInfo, map: &mut Map, deepest_level: i8,
     }
 }
 
-fn build_dungeon(world_info: &mut WorldInfo, map: &mut Map, entrance: (i32, i32, i8), game_objs: &mut GameObjects) {
+fn build_dungeon(world_info: &mut WorldInfo, map: &mut Map, entrance: (i32, i32, i8), game_objs: &mut GameObjects, monster_fac: &MonsterFactory) {
     let width = 125;
     let height = 40;
     let mut floor_sqs = HashMap::new();
@@ -427,6 +428,9 @@ fn build_dungeon(world_info: &mut WorldInfo, map: &mut Map, entrance: (i32, i32,
         dungeon.push(level);
         floor_sqs.insert(n, HashSet::new());
         vaults.insert(n, result.1); // vaults are rooms with only one entrance, which are useful for setting puzzles
+
+        // add a single monster
+        
     }
 
     let stairs = set_stairs(&mut dungeon, width, height);
@@ -462,7 +466,7 @@ fn build_dungeon(world_info: &mut WorldInfo, map: &mut Map, entrance: (i32, i32,
     decorate_levels(world_info, map, max_level as i8, &mut floor_sqs, game_objs, vaults)
 }
 
-pub fn generate_world(game_objs: &mut GameObjects) -> (Map, WorldInfo) {
+pub fn generate_world(game_objs: &mut GameObjects, monster_fac: &MonsterFactory) -> (Map, WorldInfo) {
     let map_start = Instant::now();
     let mut map = wilderness::gen_wilderness_map();
     let map_end = map_start.elapsed();
@@ -487,7 +491,7 @@ pub fn generate_world(game_objs: &mut GameObjects) -> (Map, WorldInfo) {
     let dungeon_entrance = find_good_dungeon_entrance(&map, &valleys[max_id]);
     
     let dungeon_start = Instant::now();
-    build_dungeon(&mut world_info, &mut map, dungeon_entrance, game_objs);
+    build_dungeon(&mut world_info, &mut map, dungeon_entrance, game_objs, monster_fac);
     let dungeon_end = dungeon_start.elapsed();
     println!("Time to make dungeon: {:?}", dungeon_end);
 

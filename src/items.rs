@@ -21,7 +21,7 @@ use display::YELLOW_ORANGE;
 
 use super::{EventResponse, EventType, FOV_HEIGHT, FOV_WIDTH, GameState, GameObjects, PLAYER_INV};
 
-use crate::{actor::Villager, map::SpecialSquare};
+use crate::{actor::NPC, map::SpecialSquare};
 use crate::dialogue::DialogueLibrary;
 use crate::display;
 use crate::fov;
@@ -271,7 +271,7 @@ impl GameObject for Item {
         Some(self.clone())
     }
 
-    fn as_villager(&self) -> Option<Villager> {
+    fn as_villager(&self) -> Option<NPC> {
         None
     }
 
@@ -366,7 +366,7 @@ impl GameObject for GoldPile {
         Some(self.clone())
     }
 
-    fn as_villager(&self) -> Option<Villager> {
+    fn as_villager(&self) -> Option<NPC> {
         None
     }
 

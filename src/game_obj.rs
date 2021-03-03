@@ -19,7 +19,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet, VecDeque};
 
 use super::{EventResponse, EventType, GameState, PLAYER_INV};
-use crate::actor::Villager;
+use crate::actor::NPC;
 use crate::dialogue::DialogueLibrary;
 use crate::items::{Item, ItemType, GoldPile};
 use crate::map::{SpecialSquare, Tile};
@@ -63,7 +63,7 @@ pub trait GameObject {
     // Villager or Item or Zorkminds structs at alll..
     fn as_item(&self) -> Option<Item>;
     fn as_zorkmids(&self) -> Option<GoldPile>;
-    fn as_villager(&self) -> Option<Villager>;
+    fn as_villager(&self) -> Option<NPC>;
     fn as_special_sq(&self) -> Option<SpecialSquare>;
 }
 
@@ -548,7 +548,7 @@ impl GameObjects {
 #[derive(Serialize, Deserialize)]
 pub struct GOForSerde {
     pub next_obj_id: usize,
-    pub villagers: Vec<Villager>,
+    pub villagers: Vec<NPC>,
     pub items: Vec<Item>,
     pub gold_piles: Vec<GoldPile>,
     pub special_sqs: Vec<SpecialSquare>,

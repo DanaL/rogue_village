@@ -24,7 +24,7 @@ use rand::Rng;
 
 use super::{EventResponse, EventType, FOV_HEIGHT, FOV_WIDTH, GameObjects, GameState, Map};
 
-use crate::actor::Villager;
+use crate::actor::NPC;
 use crate::dialogue::DialogueLibrary;
 use crate::fov;
 use crate::game_obj::{GameObject, GameObjType};
@@ -270,7 +270,7 @@ impl GameObject for SpecialSquare {
 		None
 	}
 
-    fn as_villager(&self) -> Option<Villager> {
+    fn as_villager(&self) -> Option<NPC> {
 		None
 	}
 
