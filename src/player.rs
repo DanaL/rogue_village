@@ -117,11 +117,11 @@ impl Player {
         
         // Warrior starting equipment
         let mut sword = Item::get_item(game_objs, "longsword").unwrap();        
-        //sword.item.as_mut().unwrap().equiped = true;
+        sword.item.as_mut().unwrap().equiped = true;
         game_objs.add_to_inventory(sword);
         
         let mut armour = Item::get_item(game_objs, "ringmail").unwrap();
-        //armour.item.as_mut().unwrap().equiped = true;
+        armour.item.as_mut().unwrap().equiped = true;
         game_objs.add_to_inventory(armour);
 
         let dagger = Item::get_item(game_objs, "dagger").unwrap();

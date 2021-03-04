@@ -160,7 +160,7 @@ impl GameObjects {
         self.objects.insert(obj_id, obj);        
     }
 
-    fn set_to_loc(&mut self, obj_id: usize, loc: (i32, i32, i8)) {
+    pub fn set_to_loc(&mut self, obj_id: usize, loc: (i32, i32, i8)) {
         if !self.obj_locs.contains_key(&loc) {
             self.obj_locs.insert(loc, VecDeque::new());
         }
@@ -190,32 +190,30 @@ impl GameObjects {
     //     false
     // }
 
-    // pub fn get(&mut self, obj_id: usize) -> Box<dyn GameObject> {
-    //     let obj = self.objects.remove(&obj_id).unwrap();
-    //     let loc = obj.get_location();
-    //     self.remove_from_loc(obj_id, loc);
+    pub fn get(&mut self, obj_id: usize) -> Option<&mut GameObject> {
+        if !self.objects.contains_key(&obj_id) {
+            None
+        } else {
+            self.objects.get_mut(&obj_id)
+        }
+    }
 
-    //     obj
-    // }
+    pub fn remove_from_loc(&mut self, obj_id: usize, loc: (i32, i32, i8)) {
+        let q = self.obj_locs.get_mut(&loc).unwrap();
+        q.retain(|v| *v != obj_id);
+    }
 
-    // pub fn remove_from_loc(&mut self, obj_id: usize, loc: (i32, i32, i8)) {
-    //     let q = self.obj_locs.get_mut(&loc).unwrap();
-    //     q.retain(|v| *v != obj_id);
-    // }
+    pub fn blocking_obj_at(&self, loc: &(i32, i32, i8)) -> bool {
+        if self.obj_locs.contains_key(&loc) && self.obj_locs[&loc].len() > 0 {
+            for obj_id in self.obj_locs[&loc].iter() {
+                if self.objects[&obj_id].blocks() {
+                    return true;
+                }
+            }
+        }
 
-    
-
-    // pub fn blocking_obj_at(&self, loc: &(i32, i32, i8)) -> bool {
-    //     if self.obj_locs.contains_key(&loc) && self.obj_locs[&loc].len() > 0 {
-    //         for obj_id in self.obj_locs[&loc].iter() {
-    //             if self.objects[&obj_id].blocks() {
-    //                 return true;
-    //             }
-    //         }
-    //     }
-
-    //     return false;
-    // }
+        return false;
+    }
 
     // pub fn tile_at(&self, loc: &(i32, i32, i8)) -> Option<(Tile, bool)> {
     //     if self.obj_locs.contains_key(&loc) && self.obj_locs[&loc].len() > 0 {
@@ -354,51 +352,52 @@ impl GameObjects {
         slots
     }
 
-    // pub fn inv_count_at_slot(&self, slot: char) -> u8 {
-    //     if !self.obj_locs.contains_key(&PLAYER_INV) || self.obj_locs[&PLAYER_INV].len() == 0 {
-    //         return 0;
-    //     }
+    pub fn inv_count_at_slot(&self, slot: char) -> u8 {
+        if !self.obj_locs.contains_key(&PLAYER_INV) || self.obj_locs[&PLAYER_INV].len() == 0 {
+            return 0;
+        }
 
-    //     let items: Vec<usize> = self.obj_locs[&PLAYER_INV].iter().map(|i| *i).collect();        
-    //     let mut sum = 0;
-    //     for id in items {
-    //         if let Some(item) = self.objects[&id].as_item() {
-    //             if item.slot == slot {
-    //                 sum += 1;
-    //             }
-    //         }
-    //     }     
+        let ids: Vec<usize> = self.obj_locs[&PLAYER_INV].iter().map(|i| *i).collect();        
+        let mut sum = 0;
+        for id in ids {
+            if let Some(item) = &self.objects[&id].item {
+                if item.slot == slot {
+                    sum += 1;
+                }
+            }
+        }     
 
-    //     sum
-    // }
+        sum
+    }
 
     // // Caller should check if the slot exists before calling this...
-    // pub fn inv_remove_from_slot(&mut self, slot: char, amt: u32) -> Result<Vec<Item>, String>  {
-    //     let mut removed = Vec::new();
+    pub fn inv_remove_from_slot(&mut self, slot: char, amt: u32) -> Result<Vec<usize>, String>  {
+        let mut removed = Vec::new();
 
-    //     let items: Vec<usize> = self.obj_locs[&PLAYER_INV].iter().map(|i| *i).collect();        
+        let items: Vec<usize> = self.obj_locs[&PLAYER_INV].iter().map(|i| *i).collect();        
         
-    //     let mut count = 0;
-    //     for id in items {
-    //         if count >= amt {
-    //             break;
-    //         }
+        let mut count = 0;
+        for id in items {
+            if count >= amt {
+                break;
+            }
 
-    //         if let Some(item) = self.objects[&id].as_item() {
-    //             if item.slot == slot {
-    //                 if item.equiped && item.item_type == ItemType::Armour {
-    //                     return Err("You're wearing that!".to_string());
-    //                 } else {
-    //                     removed.push(item);
-    //                     self.remove_from_loc(id, PLAYER_INV);
-    //                     count += 1;
-    //                 }
-    //             }
-    //         }
-    //     }     
+            let obj_id = self.objects[&id].object_id;
+            if let Some(item) = &self.objects[&id].item {
+                if item.slot == slot {
+                    if item.equiped && item.item_type == ItemType::Armour {
+                        return Err("You're wearing that!".to_string());
+                    } else {
+                        removed.push(obj_id);
+                        self.remove_from_loc(id, PLAYER_INV);
+                        count += 1;
+                    }
+                }
+            }
+        }     
 
-    //     Ok(removed)
-    // }
+        Ok(removed)
+    }
 
     pub fn add_to_inventory(&mut self, mut obj: GameObject) {
         // to add a new item, we
@@ -426,7 +425,7 @@ impl GameObjects {
         self.add(obj);
         self.set_to_loc(obj_id, PLAYER_INV);
         self.objects.get_mut(&obj_id).unwrap().set_loc(PLAYER_INV);
-
+        
         let curr_slot = self.objects[&obj_id].item.as_ref().unwrap().slot;     
         if curr_slot == '\0' || slots.contains(&curr_slot) {
             self.objects.get_mut(&obj_id).unwrap()
@@ -587,36 +586,36 @@ impl GameObjects {
     //     items
     // }
 
-    // // Okay to make life difficult I want to return stackable items described as
-    // // "X things" instead of having 4 of them in the list
-    // pub fn descs_at_loc(&self, loc: (i32, i32, i8)) -> Vec<String> {
-    //     let mut v = Vec::new();
+    // Okay to make life difficult I want to return stackable items described as
+    // "X things" instead of having 4 of them in the list
+    pub fn descs_at_loc(&self, loc: &(i32, i32, i8)) -> Vec<String> {
+        let mut v = Vec::new();
         
-    //     let mut items = HashMap::new();
-    //     if self.obj_locs.contains_key(&loc) {
-    //         for j in 0..self.obj_locs[&loc].len() {                
-    //             let obj_id = self.obj_locs[&loc][j];
-    //             if self.objects[&obj_id].hidden() {
-    //                 continue;
-    //             }
-    //             let name = self.objects[&obj_id].get_fullname();
-    //             let i = items.entry(name).or_insert(0);
-    //             *i += 1;                
-    //         }
-    //     }
+        let mut items = HashMap::new();
+        if self.obj_locs.contains_key(loc) {
+            for j in 0..self.obj_locs[&loc].len() {                
+                let obj_id = self.obj_locs[&loc][j];
+                if self.objects[&obj_id].hidden() {
+                    continue;
+                }
+                let name = self.objects[&obj_id].get_fullname();
+                let i = items.entry(name).or_insert(0);
+                *i += 1;                
+            }
+        }
 
-    //     for (key, value) in items {
-    //         if value == 1 {
-    //             let s = format!("{}", key.with_indef_article());
-    //             v.push(s);
-    //         } else {
-    //             let s = format!("{} {}", value, key.pluralize());
-    //             v.push(s);
-    //         }            
-    //     }
+        for (key, value) in items {
+            if value == 1 {
+                let s = format!("{}", key.with_indef_article());
+                v.push(s);
+            } else {
+                let s = format!("{} {}", value, key.pluralize());
+                v.push(s);
+            }            
+        }
         
-    //     v
-    // }
+        v
+    }
 }
 
 #[derive(Serialize, Deserialize)]

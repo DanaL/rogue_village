@@ -379,81 +379,81 @@
     }
 
     // Pretty similar to item_hits_grounds() but this keeps calculating the message to display simpler
-    fn stack_hits_ground(state: &mut GameState, stack: &Vec<Item>, loc: (i32, i32, i8), game_objs: &mut GameObjects) {
-        // let s = format!("You drop {}", stack[0].get_fullname().with_def_article().pluralize());
-        // for item in stack {
-        //     let mut obj = item.clone();
-        //     obj.equiped = false;
-        //     obj.location = loc;
-        //     game_objs.add(Box::new(obj));
-        // }
-        // state.write_msg_buff(&s);
+    fn stack_hits_ground(state: &mut GameState, stack: &Vec<usize>, loc: (i32, i32, i8), game_objs: &mut GameObjects) {
+        let stack_name = game_objs.objects.get(&stack[0]).unwrap().get_fullname().with_def_article().pluralize();
+        let s = format!("You drop {}", stack_name);
+        for id in stack {
+            game_objs.set_to_loc(*id, loc);
+            let obj = game_objs.get(*id).unwrap();
+            obj.item.as_mut().unwrap().equiped = false;
+        }
+        state.write_msg_buff(&s);
     }
 
-    fn item_hits_ground(state: &mut GameState, item: &Item, loc: (i32, i32, i8), game_objs: &mut GameObjects) {
-        // let mut obj = item.clone();
-        // obj.equiped = false;
-        // obj.location = loc;
-        // let s = format!("You drop {}.", &obj.get_fullname().with_def_article());                
-        // state.write_msg_buff(&s);
-        // game_objs.add(Box::new(obj));
+    fn item_hits_ground(state: &mut GameState, obj_id: usize, loc: (i32, i32, i8), game_objs: &mut GameObjects) {
+        game_objs.set_to_loc(obj_id, loc);
+        let obj = game_objs.get(obj_id).unwrap();
+        obj.item.as_mut().unwrap().equiped = false;
+
+        let s = format!("You drop {}.", &obj.get_fullname().with_def_article());
+        state.write_msg_buff(&s);        
     }
 
     fn drop_stack(state: &mut GameState, game_objs: &mut GameObjects, loc: (i32, i32, i8), slot: char, count: u32) {
-        // match game_objs.inv_remove_from_slot(slot, count) {
-        //     Ok(mut pile) => {
-        //         if pile.len() == 1 {
-        //             let item = pile.remove(0);
-        //             item_hits_ground(state, &item, loc, game_objs);
-        //             state.turn += 1;
-        //         } else if pile.len() > 1 {
-        //             stack_hits_ground(state, &pile, loc, game_objs);
-        //             state.turn += 1;
-        //         } else {
-        //             state.write_msg_buff("Nevermind.");
-        //         }
-        //     },
-        //     Err(msg) => state.write_msg_buff(&msg),
-        // }        
+        match game_objs.inv_remove_from_slot(slot, count) {
+            Ok(mut pile) => {
+                if pile.len() == 1 {
+                    let id = pile.remove(0);
+                    item_hits_ground(state, id, loc, game_objs);
+                    state.turn += 1;
+                } else if pile.len() > 1 {
+                    stack_hits_ground(state, &pile, loc, game_objs);
+                    state.turn += 1;
+                } else {
+                    state.write_msg_buff("Nevermind.");
+                }
+            },
+            Err(msg) => state.write_msg_buff(&msg),
+        }        
     }
 
     fn drop_item(state: &mut GameState, player: &mut Player, game_objs: &mut GameObjects, gui: &mut GameUI) {    
-        // if player.purse == 0 && game_objs.descs_at_loc(PLAYER_INV).len() == 0 {
-        //     state.write_msg_buff("You are empty handed.");
-        //     return;
-        // }
+        if player.purse == 0 && game_objs.descs_at_loc(&PLAYER_INV).len() == 0 {
+            state.write_msg_buff("You are empty handed.");
+            return;
+        }
         
-        // let sbi = state.curr_sidebar_info(player);
-        // if let Some(ch) = gui.query_single_response("Drop what?", Some(&sbi)) {
-        //     if ch == '$' {
-        //         drop_zorkmids(state, player, game_objs, gui);
-        //     } else {
-        //         let count = game_objs.inv_count_at_slot(ch);
-        //         if count == 0 {
-        //             state.write_msg_buff("You do not have that item.");
-        //         } else if count > 1 {
-        //             match gui.query_natural_num("Drop how many?", Some(&sbi)) {
-        //                 Some(v) => drop_stack(state, game_objs, player.location, ch, v),
-        //                 None => state.write_msg_buff("Nevermind"),
-        //             }
-        //         } else {
-        //             let result = game_objs.inv_remove_from_slot(ch, 1);
-        //             match result {
-        //                 Ok(items) => {
-        //                     item_hits_ground(state, &items[0], player.location, game_objs);
-        //                     state.turn += 1;
-        //                 },
-        //                 Err(msg) => state.write_msg_buff(&msg),
-        //             }
+        let sbi = state.curr_sidebar_info(player);
+        if let Some(ch) = gui.query_single_response("Drop what?", Some(&sbi)) {
+            if ch == '$' {
+                drop_zorkmids(state, player, game_objs, gui);
+            } else {
+                let count = game_objs.inv_count_at_slot(ch);
+                if count == 0 {
+                    state.write_msg_buff("You do not have that item.");
+                } else if count > 1 {
+                    match gui.query_natural_num("Drop how many?", Some(&sbi)) {
+                        Some(v) => drop_stack(state, game_objs, player.location, ch, v),
+                        None => state.write_msg_buff("Nevermind"),
+                    }
+                } else {
+                    let result = game_objs.inv_remove_from_slot(ch, 1);
+                    match result {
+                        Ok(items) => {
+                            item_hits_ground(state, items[0], player.location, game_objs);
+                            state.turn += 1;
+                        },
+                        Err(msg) => state.write_msg_buff(&msg),
+                    }
                     
-        //         }
-        //     }
-        // } else {
-        //     state.write_msg_buff("Nevermind.");            
-        // }
+                }
+            }
+        } else {
+            state.write_msg_buff("Nevermind.");            
+        }
         
-        // player.calc_ac(game_objs);
-        // player.set_readied_weapon(game_objs);
+        player.calc_ac(game_objs);
+        player.set_readied_weapon(game_objs);
     }
 
     fn search_loc(state: &mut GameState, roll: u8, loc: (i32, i32, i8), game_objs: &mut GameObjects) {
@@ -875,62 +875,62 @@
         let next_loc = (next_row, next_col, player.location.2);
         let tile = &state.map[&next_loc].clone();
         
-        // if game_objs.blocking_obj_at(&next_loc) {
-        //     // Not quite ready to implement combat yet...
-        //     state.write_msg_buff("There's someone in your way!");
-        // } else if tile.passable() {
-        //     player.location = next_loc;
+        if game_objs.blocking_obj_at(&next_loc) {
+            // Not quite ready to implement combat yet...
+            state.write_msg_buff("There's someone in your way!");
+        } else if tile.passable() {
+            player.location = next_loc;
 
-        //     match tile {
-        //         Tile::Water => state.write_msg_buff("You splash in the shallow water."),
-        //         Tile::DeepWater => {
-        //             if *start_tile != map::Tile::DeepWater {
-        //                 state.write_msg_buff("You begin to swim.");				
-        //             }
-        //         },
-        //         Tile::Lava => state.write_msg_buff("MOLTEN LAVA!"),
-        //         Tile::FirePit => {
-        //             state.write_msg_buff("You step in the fire!");
-        //         },
-        //         Tile::OldFirePit(n) => state.write_msg_buff(firepit_msg(*n)),
-        //         Tile::Portal => state.write_msg_buff("Where could this lead..."),
-        //         Tile::Shrine(stype) => {
-        //             match stype {
-        //                 ShrineType::Woden => state.write_msg_buff("A shrine to Woden."),
-        //                 ShrineType::Crawler => state.write_msg_buff("The misshapen altar makes your skin crawl"),
-        //             }
-        //         },
-        //         _ => {
-        //             if *start_tile == map::Tile::DeepWater { 
-        //                 state.write_msg_buff("Whew, you stumble ashore.");
-        //             } else if state.aura_sqs.contains(&next_loc) && !state.aura_sqs.contains(&start_loc) {
-        //                 state.write_msg_buff("You feel a sense of peace.");
-        //             }
-        //         },            
-        //     }
+            match tile {
+                Tile::Water => state.write_msg_buff("You splash in the shallow water."),
+                Tile::DeepWater => {
+                    if *start_tile != map::Tile::DeepWater {
+                        state.write_msg_buff("You begin to swim.");				
+                    }
+                },
+                Tile::Lava => state.write_msg_buff("MOLTEN LAVA!"),
+                Tile::FirePit => {
+                    state.write_msg_buff("You step in the fire!");
+                },
+                Tile::OldFirePit(n) => state.write_msg_buff(firepit_msg(*n)),
+                Tile::Portal => state.write_msg_buff("Where could this lead..."),
+                Tile::Shrine(stype) => {
+                    match stype {
+                        ShrineType::Woden => state.write_msg_buff("A shrine to Woden."),
+                        ShrineType::Crawler => state.write_msg_buff("The misshapen altar makes your skin crawl"),
+                    }
+                },
+                _ => {
+                    if *start_tile == map::Tile::DeepWater { 
+                        state.write_msg_buff("Whew, you stumble ashore.");
+                    } else if state.aura_sqs.contains(&next_loc) && !state.aura_sqs.contains(&start_loc) {
+                        state.write_msg_buff("You feel a sense of peace.");
+                    }
+                },            
+            }
 
-        //     let items = game_objs.descs_at_loc(next_loc);                             
-        //     if items.len() == 1 {
-        //         let s = format!("You see {} here.", items[0]);
-        //         state.write_msg_buff(&s);
-        //     } else if items.len() == 2 {
-        //         let s = format!("You see {} and {} here.", items[0], items[1]);
-        //         state.write_msg_buff(&s);
-        //     } else if items.len() > 2 {
-        //         state.write_msg_buff("There are several items here.");
-        //     }
+            let items = game_objs.descs_at_loc(&next_loc);                             
+            if items.len() == 1 {
+                let s = format!("You see {} here.", items[0]);
+                state.write_msg_buff(&s);
+            } else if items.len() == 2 {
+                let s = format!("You see {} and {} here.", items[0], items[1]);
+                state.write_msg_buff(&s);
+            } else if items.len() > 2 {
+                state.write_msg_buff("There are several items here.");
+            }
             
-        //     land_on_location(state, game_objs, next_loc, 0);
+            land_on_location(state, game_objs, next_loc, 0);
 
-        //     state.turn += 1;
-        // } else if *tile == Tile::Door(DoorState::Closed) {
-        //     // Bump to open doors. I might make this an option later
-        //     do_open(state, next_loc);
-        // } else if *tile == Tile::Gate(DoorState::Closed) || *tile == Tile::Gate(DoorState::Locked) {
-        //     state.write_msg_buff("A portcullis bars your way.");    
-        // } else  {
-        //     state.write_msg_buff("You cannot go that way.");
-        // }
+            state.turn += 1;
+        } else if *tile == Tile::Door(DoorState::Closed) {
+            // Bump to open doors. I might make this an option later
+            do_open(state, next_loc);
+        } else if *tile == Tile::Gate(DoorState::Closed) || *tile == Tile::Gate(DoorState::Locked) {
+            state.write_msg_buff("A portcullis bars your way.");    
+        } else  {
+            state.write_msg_buff("You cannot go that way.");
+        }
     }
 
     fn chat_with(state: &mut GameState, gui: &mut GameUI, loc: (i32, i32, i8), player: &mut Player, game_objs: &mut GameObjects, dialogue: &DialogueLibrary) {
