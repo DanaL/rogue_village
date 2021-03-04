@@ -79,6 +79,7 @@ pub enum Action {
     Move((i32, i32, i8)),
     OpenDoor((i32, i32, i8)),
     CloseDoor((i32, i32, i8)),
+    Attack((i32, i32, i8)),
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
@@ -199,11 +200,16 @@ impl NPC {
     }
 
     fn follow_plan(&mut self, state: &mut GameState, game_objs: &mut GameObjects) {
-        let action = self.plan.pop_front().unwrap();
-        match action {
-            Action::Move(loc) => self.try_to_move_to_loc(loc, state, game_objs),
-            Action::OpenDoor(loc) => self.open_door(loc, state),
-            Action::CloseDoor(loc) => self.close_door(loc, state, game_objs),
+        if let Some(action) = self.plan.pop_front() {
+            match action {
+                Action::Move(loc) => self.try_to_move_to_loc(loc, state, game_objs),
+                Action::OpenDoor(loc) => self.open_door(loc, state),
+                Action::CloseDoor(loc) => self.close_door(loc, state, game_objs),
+                Action::Attack(loc) => {
+                    let s = format!("Grr! Argh! {} attacks you.", self.name.with_def_article());
+                    state.write_msg_buff(&s);
+                },
+            }
         }
     }
 
@@ -281,11 +287,13 @@ impl NPC {
     }
 
     fn simple_monster_schedule(&mut self, state: &GameState) {
+        let dr = self.location.0 - state.player_loc.0;
+        let dc = self.location.1 - state.player_loc.1;
+        let d = dr * dr + dc * dc;
+
         if self.attitude != Attitude::Hostile {
-            // Can I see the player? if so, become hostile
-            let dr = self.location.0 - state.player_loc.0;
-            let dc = self.location.1 - state.player_loc.1;
-            if dr * dr + dc * dc < 100 {
+            // Can I see the player? if so, become hostile            
+            if d < 100 {
                 let m_fov_time = Instant::now();
                 let visible = fov::calc_fov(state, self.location, 10, true);
                 let m_fov_elapsed = m_fov_time.elapsed();
@@ -298,10 +306,19 @@ impl NPC {
         }
 
         if self.attitude == Attitude::Hostile {
-            let m_pf_time = Instant::now();
-            self.calc_plan_to_move(state, state.player_loc, true);
-            let m_pf_elapsed = m_pf_time.elapsed();
-            println!("Monster pf time: {:?}", m_pf_elapsed);
+            if d <= 2 {
+                self.plan.push_front(Action::Attack(state.player_loc));
+            } else {
+                let m_pf_time = Instant::now();
+                self.calc_plan_to_move(state, state.player_loc, true);
+                // Since the player is probably moving, only keep the first 2 or 3 
+                // steps of the move plan
+                while self.plan.len() > 1 {
+                    self.plan.pop_back();
+                }
+                let m_pf_elapsed = m_pf_time.elapsed();
+                println!("Monster pf time: {:?}", m_pf_elapsed);
+            }
         }        
     }
 
@@ -401,11 +418,11 @@ impl GameObject for NPC {
     }
 
     fn take_turn(&mut self, state: &mut GameState, game_objs: &mut GameObjects) {
-        if self.plan.len() > 0 {
-            self.follow_plan(state, game_objs);            
-        } else {
+        if self.plan.len() == 0 {
             self.check_schedule(state);
-        }        
+        }
+        
+        self.follow_plan(state, game_objs);
     }
 
     fn talk_to(&mut self, state: &mut GameState, player: &Player, dialogue: &DialogueLibrary) -> String {
