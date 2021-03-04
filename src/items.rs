@@ -111,7 +111,7 @@ impl Item {
             },            
             "torch" => {
                 let mut i = Item::new(ItemType::Light, 1, true);
-                i.charges = 200;
+                i.charges = 1000;
                 i.aura = 5;
                 
                 let obj = GameObject::new(game_objs.next_id(), name, (0, 0, 0), '(', display::LIGHT_BROWN, display::BROWN, None, Some(i) , None, None, false);

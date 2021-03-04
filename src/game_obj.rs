@@ -642,6 +642,19 @@ impl GameObjects {
         }
     }
 
+    pub fn hidden_at_loc(&self, loc: (i32, i32, i8)) -> Vec<usize> {
+        if self.obj_locs.contains_key(&loc) {
+            let ids: Vec<usize> = self.obj_locs[&loc]
+                          .iter()
+                          .map(|id| *id)
+                          .collect();
+            
+            ids.iter().filter(|id| self.objects[*id].hidden).map(|k| *k).collect()
+        } else {
+            Vec::new()
+        }
+    }
+
     // Okay to make life difficult I want to return stackable items described as
     // "X things" instead of having 4 of them in the list
     pub fn descs_at_loc(&self, loc: &(i32, i32, i8)) -> Vec<String> {

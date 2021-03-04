@@ -456,21 +456,16 @@
     }
 
     fn search_loc(state: &mut GameState, roll: u8, loc: (i32, i32, i8), game_objs: &mut GameObjects) {
-        // let things:Vec<usize> = game_objs.things_at_loc(loc)
-        //     .iter()
-        //     .filter(|i| i.hidden())
-        //     .map(|i| i.get_object_id())
-        //     .collect();
+        let things:Vec<usize> = game_objs.hidden_at_loc(loc);
 
-        // for obj_id in &things {
-        //     if roll >= 15 {
-        //         let mut t = game_objs.get(*obj_id);
-        //         let s = format!("You find {}!", t.get_fullname().with_indef_article());
-        //         state.write_msg_buff(&s);            
-        //         t.reveal();
-        //         game_objs.add(t);
-        //     }
-        // }
+        for obj_id in &things {
+            if roll >= 15 {
+                let t = game_objs.get_mut(*obj_id).unwrap();
+                let s = format!("You find {}!", t.get_fullname().with_indef_article());
+                state.write_msg_buff(&s);            
+                t.reveal();
+            }
+        }
     }
 
     fn search(state: &mut GameState, player: &Player, game_objs: &mut GameObjects) {
@@ -647,29 +642,26 @@
             return;
         }
 
-        // let sbi = state.curr_sidebar_info(player);
-        // if let Some(ch) = gui.query_single_response("Read what?", Some(&sbi)) {
-        //     if !slots.contains(&ch) {
-        //         state.write_msg_buff("You do not have that item!");
-        //         return;
-        //     } 
-        //     for i in inv_items {
-        //         if let Some(item) = i.1.as_item() {
-        //             if item.slot == ch {
-        //                 if let Some(text) = item.text {
-        //                     gui.popup_msg(&text.0.with_indef_article().capitalize(), &text.1);
-        //                 } else {
-        //                     state.write_msg_buff("There's nothing written on it.");
-        //                 }
-
-        //                 state.turn += 1;                                          
-        //                 break;                       
-        //             }
-        //         }
-        //     }
-        // } else {
-        //     state.write_msg_buff("Nevermind.");
-        // }
+        let sbi = state.curr_sidebar_info(player);
+        if let Some(ch) = gui.query_single_response("Read what?", Some(&sbi)) {
+            if !slots.contains(&ch) {
+                state.write_msg_buff("You do not have that item!");
+                return;
+            }
+            
+            let obj_id = game_objs.obj_id_in_slot(ch);
+            let obj = game_objs.get_mut(obj_id).unwrap();
+            if obj.item.is_some() {                
+                if let Some(text) = &obj.item.as_ref().unwrap().text {
+                    gui.popup_msg(&text.0.with_indef_article().capitalize(), &text.1);
+                } else {
+                    state.write_msg_buff("There's nothing written on it.");
+                }
+            }
+            
+        } else {
+            state.write_msg_buff("Nevermind.");
+        }
     }
 
     fn use_item(state: &mut GameState, player: &mut Player, game_objs: &mut GameObjects, gui: &mut GameUI) {
