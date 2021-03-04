@@ -17,18 +17,11 @@ extern crate serde;
 
 use serde::{Serialize, Deserialize};
 
-use display::YELLOW_ORANGE;
-
 use super::{EventResponse, EventType, GameState, GameObjects, PLAYER_INV};
 
-use crate::{actor::NPC, display::{LIGHT_BROWN, YELLOW}, map::SpecialSquare};
-use crate::dialogue::DialogueLibrary;
 use crate::display;
 use crate::fov;
-use crate::game_obj::{GameObject, GameObjType};
-use crate::map::Tile;
-use crate::player::Player;
-use crate::util::StringUtils;
+use crate::game_obj::{GameObject};
 
 // Some bitmasks so that I can store various extra item attributes beyond
 // just the item type enum. (Ie., heavy armour, two-handed, etc)
@@ -235,65 +228,6 @@ impl Item {
     }
 }
 
-// impl GameObject for Item {
-//     fn blocks(&self) -> bool {
-//         false
-//     }
-
-
-
-
-
-
-//     fn get_object_id(&self) -> usize {
-//         self.object_id
-//     }
-
-//     fn get_tile(&self) -> Tile {
-//         Tile::Thing(self.lit_colour, self.unlit_colour, self.symbol)        
-//     }
-
-//     fn get_type(&self) -> GameObjType {
-//         GameObjType::Item
-//     }
-
-//     fn as_zorkmids(&self) -> Option<GoldPile> {
-//         None
-//     }
-
-//     fn as_item(&self) -> Option<Item> {
-//         Some(self.clone())
-//     }
-
-//     fn as_villager(&self) -> Option<NPC> {
-//         None
-//     }
-
-//     fn as_special_sq(&self) -> Option<SpecialSquare> {
-//         None
-//     }
-
-//     fn take_turn(&mut self, _state: &mut GameState, _game_objs: &mut GameObjects) {
-         
-//     }
-
-//     fn talk_to(&mut self, _state: &mut GameState, _player: &Player, _dialogue: &DialogueLibrary) -> String {
-//         format!("You are trying to talk to {}...", self.get_fullname().with_indef_article())
-//     }
-
-//     fn hidden(&self) -> bool {
-//         self.hidden
-//     }
-
-//     fn reveal(&mut self) {
-//         self.hidden = false;
-//     }
-
-//     fn hide(&mut self) {
-//         self.hidden = true;
-//     }
-// }
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GoldPile {
     pub amount: u32,    
@@ -318,84 +252,3 @@ impl GoldPile {
         name
     }
 }
-
-// impl GameObject for GoldPile {
-//     fn blocks(&self) -> bool {
-//         false
-//     }
-
-//     fn is_npc(&self) -> bool {
-//         false
-//     }
-
-//     fn get_location(&self) -> (i32, i32, i8) {
-//         self.location
-//     }
-
-//     fn set_location(&mut self, loc: (i32, i32, i8)) {
-//         self.location = loc;
-//     }
-
-//     fn receive_event(&mut self, _event: EventType, _state: &mut GameState) -> Option<EventResponse> {
-//         None
-//     }
-
-//     fn get_fullname(&self) -> String {
-//         let name  = if self.amount == 1 {
-//             String::from("1 gold piece")
-//         } else {
-//             let s = format!("{} gold pieces", self.amount);
-//             s
-//         };
-
-//         name
-//     }
-
-//     fn get_object_id(&self) -> usize {
-//         self.object_id
-//     }
-
-//     fn get_tile(&self) -> Tile {
-//         Tile::Thing(display::GOLD,  YELLOW_ORANGE, '$')
-//     }
-
-//     fn get_type(&self) -> GameObjType {
-//         GameObjType::Zorkmids
-//     }
-
-//     fn as_item(&self) -> Option<Item> {
-//         None
-//     }
-
-//     fn as_zorkmids(&self) -> Option<GoldPile> {
-//         Some(self.clone())
-//     }
-
-//     fn as_villager(&self) -> Option<NPC> {
-//         None
-//     }
-
-//     fn as_special_sq(&self) -> Option<SpecialSquare> {
-//         None
-//     }
-
-//     fn take_turn(&mut self, _state: &mut GameState, _game_objs: &mut GameObjects) {
-         
-//     }
-
-//     fn talk_to(&mut self, _state: &mut GameState, _player: &Player, _dialogue: &DialogueLibrary) -> String {
-//         String::from("You are trying to talk to a pile of money...")
-//     }
-
-//     fn hidden(&self) -> bool {
-//         self.hidden
-//     }
-
-//     fn reveal(&mut self) {
-//         self.hidden = false;
-//     }
-
-//     fn hide(&mut self) {
-//         self.hidden = true;
-//     }
-// }

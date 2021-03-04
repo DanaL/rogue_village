@@ -19,28 +19,10 @@ use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet, VecDeque};
 
 use super::{EventResponse, EventType, GameState, PLAYER_INV};
-use crate::actor::{Action, NPC};
-use crate::dialogue::DialogueLibrary;
+use crate::actor::NPC;
 use crate::items::{Item, ItemType, GoldPile};
 use crate::map::{SpecialSquare, Tile};
-use crate::player::Player;
 use crate::util::StringUtils;
-
-// I keep feeling like in a lot of ways it would be easier to ditch the concrete
-// structs that implement the GameObject trait and just have a GameObject struct
-// but the various data each type tracks is so disparate I think THAT would turn into
-// a mess. A lot of them could go into a table of attributes but some things are more
-// complicated. Like the list of steps an npc has for their current plan, the facts 
-// they know. Some of the fields will be numeric, some bool, some char or strings.
-// What I really want is proper polymorphism instead of traits, which feel like a 
-// huge kludge.
-#[derive(Debug, Hash, Eq, PartialEq)]
-pub enum GameObjType {
-    NPC,
-    Item,
-    Zorkmids,
-    SpecialSquare,
-}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct GameObject {
@@ -336,7 +318,7 @@ impl GameObjects {
             // only update monsters on the surface or on the same level as the player. (Who knows, in
             // the end maybe it'll be fast enough to always update 100s of monsters..)            
             if actor_loc.2 == 0 || actor_loc.2 == state.player_loc.2 {
-                actor.npc.as_mut().unwrap().take_turn(state, self, actor_loc, actor_id);
+                actor.npc.as_mut().unwrap().take_turn(state, self, actor_loc);
             }
 
             // There will stuff here that may happen, like if a monster dies while taking
@@ -563,24 +545,6 @@ impl GameObjects {
 
         (sum, attributes)
     }
-       
-    // pub fn readied_armour(&self) -> Option<Item> {
-    //     if self.obj_locs.contains_key(&PLAYER_INV) {
-    //         let ids: Vec<usize> = self.obj_locs[&PLAYER_INV]
-    //                       .iter()
-    //                       .map(|id| *id)
-    //                       .collect();
-    //         for id in ids {
-    //             if let Some(item) = self.objects[&id].as_item() {
-    //                 if item.equiped && item.item_type == ItemType::Armour {
-    //                     return Some(item)
-    //                 }
-    //             }
-    //         }
-    //     }
-
-    //     None
-    // }
 
     pub fn readied_items_of_type(&self, item_type: ItemType) -> Vec<usize> {
         let mut ids = Vec::new();

@@ -48,8 +48,8 @@
     use actor::MonsterFactory;
     use dialogue::DialogueLibrary;
     use display::{GameUI, SidebarInfo, WHITE};
-    use game_obj::{GameObject, GameObjects, GameObjType, GOForSerde};
-    use items::{GoldPile, Item, ItemType};
+    use game_obj::{GameObjects, GOForSerde};
+    use items::{GoldPile, ItemType};
     use map::{DoorState, ShrineType, Tile};
     use player::Player;
     use util::StringUtils;

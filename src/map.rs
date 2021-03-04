@@ -24,13 +24,9 @@ use rand::Rng;
 
 use super::{EventResponse, EventType, GameObjects, GameState, Map};
 
-use crate::actor::NPC;
-use crate::dialogue::DialogueLibrary;
 use crate::display;
 use crate::fov;
-use crate::game_obj::{GameObject, GameObjType};
-use crate::items::{GoldPile, Item};
-use crate::player::Player;
+use crate::game_obj::GameObject;
 use crate::util;
 
 #[derive(Clone, Copy, Debug, Hash, Eq, PartialEq, Serialize, Deserialize)]
@@ -211,77 +207,6 @@ impl SpecialSquare {
 		None
 	}
 }
-
-// impl GameObject for SpecialSquare {
-// 	fn blocks(&self) -> bool {
-// 		false
-// 	}
-
-//     fn get_location(&self) -> (i32, i32, i8) {
-// 		self.location
-// 	}
-
-//     fn set_location(&mut self, _loc: (i32, i32, i8)) {
-// 		panic!("Shouldn't be called for tiles!")
-// 	}
-	
-
-
-//     fn get_fullname(&self) -> String {
-// 		panic!("Shouldn't be called for tiles!")
-// 	}
-
-//     fn get_object_id(&self) -> usize {
-// 		self.object_id
-// 	}
-
-//     fn get_type(&self) -> GameObjType {
-// 		GameObjType::SpecialSquare
-// 	}
-//     fn get_tile(&self) -> Tile {
-// 		self.tile.clone()
-// 	}
-
-//     fn take_turn(&mut self, _state: &mut GameState, _game_objs: &mut GameObjects) {
-
-// 	}
-
-//     fn is_npc(&self) -> bool {
-// 		false
-// 	}
-
-//     fn talk_to(&mut self, _state: &mut GameState, _player: &Player, _dialogue: &DialogueLibrary) -> String {
-// 		panic!("Shouldn't be called for tiles!")
-// 	}
-
-//     fn hidden(&self) -> bool {
-// 		true
-// 	}
-
-//     fn reveal(&mut self) {
-
-// 	}
-
-//     fn hide(&mut self) {
-
-// 	}
-
-//     fn as_item(&self) -> Option<Item> {
-// 		None
-// 	}
-
-//     fn as_zorkmids(&self) -> Option<GoldPile> {
-// 		None
-// 	}
-
-//     fn as_villager(&self) -> Option<NPC> {
-// 		None
-// 	}
-
-// 	fn as_special_sq(&self) -> Option<SpecialSquare> {
-//         Some(self.clone())
-//     }
-// }
 
 pub fn adjacent_door(map: &Map, loc: (i32, i32, i8), door_state: DoorState) -> Option<(i32, i32, i8)> {
 	let mut doors = 0;

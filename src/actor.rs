@@ -22,14 +22,13 @@ use rand::thread_rng;
 use rand::Rng;
 use serde::{Serialize, Deserialize};
 
-use super::{EventResponse, EventType, GameObjects, GameState};
+use super::{GameObjects, GameState};
 
-use crate::{dialogue, land_on_location};
+use crate::dialogue;
 use crate::dialogue::DialogueLibrary;
 use crate::display;
-use crate::game_obj::{GameObject, GameObjType};
-use crate::items::{GoldPile, Item};
-use crate::map::{Tile, DoorState, SpecialSquare};
+use crate::game_obj::GameObject;
+use crate::map::{Tile, DoorState};
 use crate::pathfinding::find_path;
 use crate::player::Player;
 use crate::util;
@@ -157,7 +156,7 @@ impl NPC {
         }
     }
 
-    fn try_to_move_to_loc(&mut self, goal_loc: (i32, i32, i8), state: &mut GameState, game_objs: &mut GameObjects, my_loc: (i32, i32, i8), obj_id : usize) {        
+    fn try_to_move_to_loc(&mut self, goal_loc: (i32, i32, i8), state: &mut GameState, game_objs: &mut GameObjects, my_loc: (i32, i32, i8)) {        
         if game_objs.blocking_obj_at(&goal_loc) || state.player_loc == goal_loc {
             state.write_msg_buff("\"Excuse me.\"");
             self.plan.push_front(Action::Move(goal_loc));
@@ -200,10 +199,10 @@ impl NPC {
         }
     }
 
-    fn follow_plan(&mut self, state: &mut GameState, game_objs: &mut GameObjects, my_loc: (i32, i32, i8), obj_id: usize) {
+    fn follow_plan(&mut self, state: &mut GameState, game_objs: &mut GameObjects, my_loc: (i32, i32, i8),) {
         if let Some(action) = self.plan.pop_front() {
             match action {
-                Action::Move(loc) => self.try_to_move_to_loc(loc, state, game_objs, my_loc, obj_id),
+                Action::Move(loc) => self.try_to_move_to_loc(loc, state, game_objs, my_loc),
                 Action::OpenDoor(loc) => self.open_door(loc, state),
                 Action::CloseDoor(loc) => self.close_door(loc, state, game_objs),
                 Action::Attack(_loc) => {
@@ -341,12 +340,12 @@ impl NPC {
         self.calc_plan_to_move(state, *goal_loc, false, my_loc);
     }
 
-    pub fn take_turn(&mut self, state: &mut GameState, game_objs: &mut GameObjects, loc: (i32, i32, i8), obj_id : usize) {
+    pub fn take_turn(&mut self, state: &mut GameState, game_objs: &mut GameObjects, loc: (i32, i32, i8)) {
         if self.plan.len() == 0 {
             self.check_schedule(state, loc);
         }
         
-        self.follow_plan(state, game_objs, loc, obj_id);
+        self.follow_plan(state, game_objs, loc);
     }
 
     pub fn talk_to(&mut self, state: &mut GameState, player: &Player, dialogue: &DialogueLibrary, my_loc: (i32, i32, i8)) -> String {
@@ -388,48 +387,6 @@ pub fn pick_villager_name(used_names: &HashSet<String>) -> String {
         }
     }
 }
-
-// impl GameObject for NPC {
-//     fn blocks(&self) -> bool {
-//         true
-//     }
-
-//     fn is_npc(&self) -> bool {
-//         true
-//     }
-
-//     fn get_location(&self) -> (i32, i32, i8) {
-//         self.location
-//     }
-
-//     fn set_location(&mut self, loc: (i32, i32, i8)) {
-//         self.location = loc;
-//     }
-
-//     fn receive_event(&mut self, _event: EventType, _state: &mut GameState) -> Option<EventResponse> {
-//         None
-//     }
-
-//     fn get_fullname(&self) -> String {
-//         self.name.clone()
-//     }
-
-//     fn get_object_id(&self) -> usize {
-//         self.object_id
-//     }
-
-
-
-
-
-
-//     fn hidden(&self) -> bool {
-//         false
-//     }
-
-//     fn reveal(&mut self) { }
-//     fn hide(&mut self) { }
-// }
 
 // This could be in a data file and maybe one day will be but for now the compiler will help me avoid stupid typos
 // in basic monster definitions!
