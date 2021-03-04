@@ -21,7 +21,6 @@ use std::time::Instant;
 use rand::thread_rng;
 use rand::Rng;
 use serde::{Serialize, Deserialize};
-//use std::time::{Duration, Instant};
 
 use super::{EventResponse, EventType, GameObjects, GameState};
 
@@ -133,6 +132,8 @@ impl NPC {
             passable.insert(Tile::Tree, 1.0);
             passable.insert(Tile::Door(DoorState::Open), 1.0);
             passable.insert(Tile::Door(DoorState::Broken), 1.0);
+            passable.insert(Tile::Gate(DoorState::Open), 1.0);
+            passable.insert(Tile::Gate(DoorState::Broken), 1.0);
             if self.attributes & MA_OPEN_DOORS > 0 {
                 passable.insert(Tile::Door(DoorState::Closed), 2.0);
             }
@@ -282,13 +283,17 @@ impl NPC {
     fn simple_monster_schedule(&mut self, state: &GameState) {
         if self.attitude != Attitude::Hostile {
             // Can I see the player? if so, become hostile
-            let m_fov_time = Instant::now();
-            let visible = fov::calc_fov(state, self.location, 10, true);
-            let m_fov_elapsed = m_fov_time.elapsed();
-            println!("Monster fov: {:?}", m_fov_elapsed);
-
-            if visible.contains(&state.player_loc) {
-                self.attitude = Attitude::Hostile;
+            let dr = self.location.0 - state.player_loc.0;
+            let dc = self.location.1 - state.player_loc.1;
+            if dr * dr + dc * dc < 100 {
+                let m_fov_time = Instant::now();
+                let visible = fov::calc_fov(state, self.location, 10, true);
+                let m_fov_elapsed = m_fov_time.elapsed();
+                println!("Monster fov: {:?}", m_fov_elapsed);
+            
+                if visible.contains(&state.player_loc) {
+                    self.attitude = Attitude::Hostile;
+                }
             }
         }
 
