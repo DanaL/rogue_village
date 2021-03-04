@@ -186,6 +186,9 @@ impl GameObjects {
         }
 
         self.obj_locs.get_mut(&loc).unwrap().push_front(obj_id);
+        if self.objects.contains_key(&obj_id) {
+            self.objects.get_mut(&obj_id).unwrap().location = loc;
+        }
     }
 
     pub fn remove_from_loc(&mut self, obj_id: usize, loc: (i32, i32, i8)) {
@@ -403,9 +406,9 @@ impl GameObjects {
                 let o = &self.objects[&id];
                 let other_item = &o.item.as_ref().unwrap();
                 if obj.name == o.name && other_item.stackable {
-                    obj.item.as_mut().unwrap().slot = other_item.slot;                    
+                    obj.item.as_mut().unwrap().slot = other_item.slot;
+                    obj.location = PLAYER_INV;                 
                     self.add(obj);
-                    self.set_to_loc(obj_id, PLAYER_INV);
                     self.objects.get_mut(&obj_id).unwrap().set_loc(PLAYER_INV);
                     return;
                 }
@@ -540,24 +543,25 @@ impl GameObjects {
         "".to_string()
     }
 
-    // pub fn get_pickup_menu(&self, loc: (i32, i32, i8)) -> Vec<(String, usize)> {
-    //     let mut menu = Vec::new();
+    pub fn get_pickup_menu(&self, loc: (i32, i32, i8)) -> Vec<(String, usize)> {
+        let mut menu = Vec::new();
 
-    //     if self.obj_locs.contains_key(&loc) {
-    //         let obj_ids: Vec<usize> = self.obj_locs[&loc].iter().map(|i| *i).collect();
+        if self.obj_locs.contains_key(&loc) {
+            let obj_ids: Vec<usize> = self.obj_locs[&loc].iter().map(|i| *i).collect();
 
-    //         for id in obj_ids {
-    //             if let Some(pile) = self.objects[&id].as_zorkmids() {
-    //                 let s = format!("{} gold pieces", pile.amount);
-    //                 menu.push((s, id));
-    //             } else {
-    //                 menu.push((self.objects[&id].get_fullname().with_indef_article(), id));
-    //             }
-    //         }            
-    //     }
+            for id in obj_ids {
+                if self.objects[&id].gold_pile.is_some() {
+                    let amt = self.objects[&id].gold_pile.as_ref().unwrap().amount;
+                    let s = format!("{} gold pieces", amt);
+                    menu.push((s, id));
+                } else {
+                    menu.push((self.objects[&id].get_fullname().with_indef_article(), id));
+                }
+            }            
+        }
 
-    //     menu
-    // }
+        menu
+    }
 
     pub fn things_at_loc(&self, loc: (i32, i32, i8)) -> Vec<usize> {
         if self.obj_locs.contains_key(&loc) {
