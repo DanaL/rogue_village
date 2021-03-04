@@ -1088,11 +1088,11 @@
         let x = thread_rng().gen_range(0, 4);
         let b = state.world_info.town_boundary;
 
-        for fact in &state.world_info.facts {
-            if fact.detail == "dungeon location" {
-                return fact.location;
-            }
-        }
+        // for fact in &state.world_info.facts {
+        //     if fact.detail == "dungeon location" {
+        //         return fact.location;
+        //     }
+        // }
         
         if x == 0 {
             (b.0 - 5, thread_rng().gen_range(b.1, b.3), 0)
@@ -1188,7 +1188,7 @@
             state.player_loc = player.location;
 
             if state.turn > start_turn {
-                // game_objs.do_npc_turns(state);
+                 game_objs.do_npc_turns(state);
                  game_objs.end_of_turn(state);
             }
             

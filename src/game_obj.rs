@@ -19,7 +19,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet, VecDeque};
 
 use super::{EventResponse, EventType, GameState, PLAYER_INV};
-use crate::actor::NPC;
+use crate::actor::{Action, NPC};
 use crate::dialogue::DialogueLibrary;
 use crate::items::{Item, ItemType, GoldPile};
 use crate::map::{SpecialSquare, Tile};
@@ -315,6 +315,47 @@ impl GameObjects {
         None
     }
 
+    pub fn do_npc_turns(&mut self, state: &mut GameState) {
+        let actors = self.listeners.iter()
+                                   .filter(|i| i.1 == EventType::TakeTurn)
+                                   .map(|i| i.0).collect::<Vec<usize>>();
+        
+        for actor_id in actors {
+            // Okay, so I need (or at any rate it's *super* convenient) to pass game_objs int othe take_turns()
+            // function for the NPC. (For things like check if squares they want to move to are occupied, etc).
+            // But the simplest way to do that I could think of is to remove the NPC GameObject from objects
+            // so that there isn't a mutual borrow situation going on. But we gotta remember to re-add it after
+            // the NPC's turn is over. (Of course if the die or something we don't have to).
+            // I'm not going to remove them from listeners or obj_locs tables, although we'll have to check if their 
+            // position changed after their turn.
+            let mut actor = self.objects.remove(&actor_id).unwrap();
+            let actor_loc = actor.location;
+            actor.npc.as_mut().unwrap().curr_loc = actor_loc;
+            
+            // I don't want to have every single monster in the game taking a turn every round, so
+            // only update monsters on the surface or on the same level as the player. (Who knows, in
+            // the end maybe it'll be fast enough to always update 100s of monsters..)            
+            if actor_loc.2 == 0 || actor_loc.2 == state.player_loc.2 {
+                actor.npc.as_mut().unwrap().take_turn(state, self, actor_loc, actor_id);
+            }
+
+            // There will stuff here that may happen, like if a monster dies while taking
+            // its turn, etc
+            if actor.npc.as_ref().unwrap().curr_loc != actor_loc {
+                let new_loc = actor.npc.as_ref().unwrap().curr_loc;
+                // the NPC moved on their turn, so we need to update them in the obj_locs table and
+                // re-insert them into the objects table. 
+                self.remove_from_loc(actor_id, actor_loc);
+                actor.location = new_loc;
+                self.stepped_on_event(state, new_loc);
+                self.add(actor);
+            } else {
+                // the NPC didn't move so we should just have to put them back into the objects table
+                self.objects.insert(actor_id, actor);
+            }
+        }
+    }
+
     // pub fn location_occupied(&self, loc: &(i32, i32, i8)) -> bool {
     //     if !self.obj_locs.contains_key(loc) {
     //         return false;
@@ -348,27 +389,7 @@ impl GameObjects {
     //     }        
     // }
 
-    // pub fn do_npc_turns(&mut self, state: &mut GameState) {
-    //     let actors = self.listeners.iter()
-    //                                .filter(|i| i.1 == EventType::TakeTurn)
-    //                                .map(|i| i.0).collect::<Vec<usize>>();
 
-    //     for actor_id in actors {
-    //         let mut obj = self.get(actor_id);
-            
-    //         // I don't want to have every single monster in the game taking a turn every round, so
-    //         // only update monsters on the surface or on the same level as the player. (Who knows, in
-    //         // the end maybe it'll be fast enough to always update 100s of monsters..)
-    //         let loc = obj.get_location();
-    //         if loc.2 == 0 || loc.2 == state.player_loc.2 {
-    //             obj.take_turn(state, self);
-    //         }
-
-    //         // There will stuff here that may happen, like if a monster dies while taking
-    //         // its turn, etc
-    //         self.add(obj);
-    //     }
-    // }
 
 
     // }

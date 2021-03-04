@@ -372,20 +372,20 @@ fn random_town_name() -> String {
     String::from(*names.iter().choose(&mut rng).unwrap())
 }
 
-fn create_villager(voice: &str, tb: &mut TownBuildings, used_names: &HashSet<String>, obj_id: usize) -> NPC {
+fn create_villager(voice: &str, tb: &mut TownBuildings, used_names: &HashSet<String>, game_objs: &mut GameObjects) -> GameObject {
     let home_id = tb.vacant_home().unwrap();
     let home = &tb.homes[home_id];
     let j = rand::thread_rng().gen_range(0, home.len());    
-    let loc = home.iter().nth(j).unwrap().clone(); 
-    let mut villager = NPC::villager(actor::pick_villager_name(used_names), loc, home_id, voice, obj_id);
+    let loc = home.iter().nth(j).unwrap().clone();
+    let mut villager = NPC::villager(actor::pick_villager_name(used_names), loc, home_id, voice, game_objs);
     tb.taken_homes.push(home_id);
     
     if voice.starts_with("mayor") {
-        villager.schedule.push(AgendaItem::new((9, 0), (21, 0), 0, Venue::TownSquare));
-        villager.schedule.push(AgendaItem::new((12, 0), (13, 0), 10, Venue::Tavern));
+        villager.npc.as_mut().unwrap().schedule.push(AgendaItem::new((9, 0), (21, 0), 0, Venue::TownSquare));
+        villager.npc.as_mut().unwrap().schedule.push(AgendaItem::new((12, 0), (13, 0), 10, Venue::Tavern));
     } else {
-        villager.schedule.push(AgendaItem::new((11, 0), (14, 0), 10, Venue::Tavern));
-        villager.schedule.push(AgendaItem::new((18, 0), (22, 0), 10, Venue::Tavern));
+        villager.npc.as_mut().unwrap().schedule.push(AgendaItem::new((11, 0), (14, 0), 10, Venue::Tavern));
+        villager.npc.as_mut().unwrap().schedule.push(AgendaItem::new((18, 0), (22, 0), 10, Venue::Tavern));
     }
 
     villager
@@ -432,19 +432,19 @@ pub fn create_town(map: &mut Map, game_objs: &mut GameObjects) -> WorldInfo {
 
     draw_paths_in_town(map, &world_info);
 
-    //let mut used_names = HashSet::new();
-    // let v = create_villager("mayor1", &mut tb, &used_names, game_objs.next_id());
-    // used_names.insert(v.get_fullname());
-    // let obj_id = v.get_object_id();    
-    // game_objs.add(Box::new(v));
-    // game_objs.listeners.insert((obj_id, EventType::TakeTurn));
+    let mut used_names = HashSet::new();
+    let v = create_villager("mayor1", &mut tb, &used_names, game_objs);
+    used_names.insert(v.get_fullname());
+    let obj_id = v.object_id;    
+    game_objs.add(v);
+    game_objs.listeners.insert((obj_id, EventType::TakeTurn));
 
-    // let v = create_villager("villager1", &mut tb, &used_names, game_objs.next_id());
-    // used_names.insert(v.get_fullname());
-    // let obj_id = v.get_object_id();
-    // game_objs.add(Box::new(v));
-    // game_objs.listeners.insert((obj_id, EventType::TakeTurn));
-
+    let v = create_villager("villager1", &mut tb, &used_names, game_objs);
+    used_names.insert(v.get_fullname());
+    let obj_id = v.object_id;
+    game_objs.add(v);
+    game_objs.listeners.insert((obj_id, EventType::TakeTurn));
+    
     world_info.town_buildings = Some(tb);
 
     world_info
