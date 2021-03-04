@@ -170,6 +170,23 @@ impl GameObjects {
         }
     }
 
+    // Note there can be more than one item in a slot if they are stackable (ie torches).
+    // But if the player is just using one of the items in the stack, we don't really care
+    // which one it is so just return the first one.
+    pub fn obj_id_in_slot(&self, slot: char) -> usize {
+        let inv_ids: Vec<usize> = self.obj_locs[&PLAYER_INV].iter().map(|i| *i).collect();
+
+        for id in inv_ids {
+            if self.objects[&id].item.is_some() {
+                if self.objects.get(&id).unwrap().item.as_ref().unwrap().slot == slot {
+                    return id;
+                }
+            }
+        }
+
+        0
+    }
+
     pub fn remove(&mut self, obj_id: usize) -> GameObject {  
         let obj = self.objects.get(&obj_id).unwrap();
         let loc = obj.location;
@@ -524,6 +541,19 @@ impl GameObjects {
 
     //     None
     // }
+
+    pub fn readied_items_of_type(&self, item_type: ItemType) -> Vec<usize> {
+        let mut ids = Vec::new();
+
+        for id in self.obj_locs[&PLAYER_INV].iter() {
+            let obj = self.objects.get(&id).unwrap();
+            if obj.item.is_some() && obj.item.as_ref().unwrap().item_type == item_type && obj.item.as_ref().unwrap().equiped  {
+                ids.push(*id);
+            }
+        }
+
+        ids
+    }
 
     pub fn readied_weapon(&self) -> String {
         if self.obj_locs.contains_key(&PLAYER_INV) {
