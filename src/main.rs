@@ -1196,7 +1196,7 @@
 
             if state.turn > start_turn {
                 // game_objs.do_npc_turns(state);
-                // game_objs.end_of_turn(state);            
+                 game_objs.end_of_turn(state);
             }
             
             // Are there any accumulated events we need to deal with?

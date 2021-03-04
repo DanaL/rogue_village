@@ -271,22 +271,22 @@ fn random_open_adj(open: &HashSet<(i32, i32, i8)>, loc: (i32, i32, i8)) -> Optio
 }
 
 fn add_fire_pit(level: usize, map: &mut Map, floor_sqs: &mut HashMap<usize, HashSet<(i32, i32, i8)>>, game_objs: &mut GameObjects) {
-    // let mut rng = rand::thread_rng();
-    // let loc = random_sq(&floor_sqs[&(level - 1)]);
-    // map.insert(loc, Tile::OldFirePit(rng.gen_range(0, 5)));
-    // floor_sqs.get_mut(&(level -1))
-    //          .unwrap()
-    //          .remove(&loc);
-    // if let Some(adj) = random_open_adj(&floor_sqs[&(level - 1)], loc) {
-    //     let mut note = Item::get_item(game_objs, "note").unwrap();
-    //     note.text = Some(("burnt scrap".to_string(), "Is there no end to the swarms of kobolds?".to_string()));
-    //     note.location = adj;
-    //     game_objs.add(Box::new(note));
-    // }
-    // let amt = rng.gen_range(4, 11);
-    // let mut pile = GoldPile::new(game_objs.next_id(), amt, loc);
-    // pile.hide();
-    // game_objs.add(Box::new(pile));
+    let mut rng = rand::thread_rng();
+    let loc = random_sq(&floor_sqs[&(level - 1)]);
+    map.insert(loc, Tile::OldFirePit(rng.gen_range(0, 5)));
+    floor_sqs.get_mut(&(level -1))
+             .unwrap()
+             .remove(&loc);
+    if let Some(adj) = random_open_adj(&floor_sqs[&(level - 1)], loc) {
+        let mut note = Item::get_item(game_objs, "note").unwrap();
+        note.item.as_mut().unwrap().text = Some(("burnt scrap".to_string(), "Is there no end to the swarms of kobolds?".to_string()));
+        note.location = adj;
+        game_objs.add(note);
+    }
+    let amt = rng.gen_range(4, 11);
+    let mut pile = GoldPile::make(game_objs, amt, loc);
+    pile.hide();
+    game_objs.add(pile);
 }
 
 fn add_shrine(world_info: &mut WorldInfo, level: usize, map: &mut Map, floor_sqs: &mut HashMap<usize, HashSet<(i32, i32, i8)>>, game_objs: &mut GameObjects) {

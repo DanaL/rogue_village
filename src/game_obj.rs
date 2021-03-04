@@ -106,6 +106,14 @@ impl GameObject {
     pub fn reveal(&mut self) {
         self.hidden = false
     }
+
+    fn receive_event(&mut self, event: EventType, state: &mut GameState) -> Option<EventResponse> {
+        if self.item.is_some() {
+            self.item.as_mut().unwrap().receive_event(event, state, self.location, self.name.clone(), self.object_id)
+        } else {
+            None
+        }
+    }
 }
 
 pub struct GameObjects {
@@ -206,6 +214,7 @@ impl GameObjects {
         let obj = self.objects.get(&obj_id).unwrap();
         let loc = obj.location;
 
+        self.listeners.retain(|l| l.0 != obj_id);
         self.remove_from_loc(obj_id, loc);
         self.objects.remove(&obj_id).unwrap()        
     }
@@ -238,6 +247,32 @@ impl GameObjects {
         return false;
     }
 
+    pub fn end_of_turn(&mut self, state: &mut GameState) {
+        let listeners: Vec<usize> = self.listeners.iter()
+            .filter(|l| l.1 == EventType::EndOfTurn)
+            .map(|l| l.0).collect();
+
+        let mut to_remove = Vec::new();
+        state.lit_sqs.clear();
+        state.aura_sqs.clear();
+        for obj_id in listeners {
+            let obj = self.get_mut(obj_id).unwrap();
+
+            match obj.receive_event(EventType::EndOfTurn, state) {
+                Some(response) => {
+                    if response.event_type == EventType::LightExpired {
+                        to_remove.push(obj_id);                        
+                    }
+                },
+                _ => { },
+            }
+        }
+
+        for obj_id in to_remove {
+            self.remove(obj_id);
+        }
+    }
+    
     // pub fn tile_at(&self, loc: &(i32, i32, i8)) -> Option<(Tile, bool)> {
     //     if self.obj_locs.contains_key(&loc) && self.obj_locs[&loc].len() > 0 {
     //         for obj_id in self.obj_locs[&loc].iter() {
@@ -309,26 +344,6 @@ impl GameObjects {
     //         self.add(obj);
     //     }
     // }
-
-    // pub fn end_of_turn(&mut self, state: &mut GameState) {
-    //     let listeners: Vec<usize> = self.listeners.iter()
-    //         .filter(|l| l.1 == EventType::EndOfTurn)
-    //         .map(|l| l.0).collect();
-
-    //     state.lit_sqs.clear();
-    //     state.aura_sqs.clear();
-    //     for obj_id in listeners {
-    //         let mut obj = self.get(obj_id);
-
-    //         match obj.receive_event(EventType::EndOfTurn, state) {
-    //             Some(response) => {
-    //                 if response.event_type == EventType::LightExpired {
-    //                     self.listeners.remove(&(obj.get_object_id(), EventType::EndOfTurn));
-    //                 }
-    //             },
-    //             _ => self.add(obj),
-    //         }
-    //     }
 
     //     // Now that we've updated which squares are lit, let any listeners know
     //     let listeners: Vec<usize> = self.listeners.iter()

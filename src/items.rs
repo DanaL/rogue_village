@@ -111,7 +111,7 @@ impl Item {
             },            
             "torch" => {
                 let mut i = Item::new(ItemType::Light, 1, true);
-                i.charges = 1000;
+                i.charges = 200;
                 i.aura = 5;
                 
                 let obj = GameObject::new(game_objs.next_id(), name, (0, 0, 0), '(', display::LIGHT_BROWN, display::BROWN, None, Some(i) , None, None, false);
@@ -174,18 +174,66 @@ impl Item {
         }
     }
 
-	fn mark_lit_sqs(&self, state: &mut GameState) {
-		// let loc = if self.get_location() == PLAYER_INV {
-		// 	state.player_loc
-		// } else {
-		// 	self.location
-		// };
+	fn mark_lit_sqs(&self, state: &mut GameState, loc: (i32, i32, i8)) {
+		let location = if loc == PLAYER_INV {
+			state.player_loc
+		} else {
+			loc
+		};
 
-		// let lit = fov::calc_fov(state, loc, self.aura, true);
-		// for sq in lit {			
-		// 	state.lit_sqs.insert(sq);			
-		// }		
+		let lit = fov::calc_fov(state, location, self.aura, true);
+		for sq in lit {			
+			state.lit_sqs.insert(sq);			
+		}		
 	}
+
+    pub fn receive_event(&mut self, event: EventType, state: &mut GameState, loc: (i32, i32, i8), name: String, obj_id: usize) -> Option<EventResponse> {
+		match event {
+			EventType::EndOfTurn => {
+				self.charges -= 1;
+                println!("Event!");
+				// right now light sources are the only things in the game which times like this
+				// This'll mark squares that are lit independent of the player's vision. Don't bother
+				// with the calculation if the light source is on another level of the dungeon
+				if self.charges > 0 && (loc == PLAYER_INV || loc.2 == state.player_loc.2) {
+					self.mark_lit_sqs(state, loc);
+				}
+
+				if self.charges == 150 {
+					let s = if loc == PLAYER_INV {
+						format!("Your {} flickers.", name)					
+					} else {
+						format!("The {} flickers.", name)
+					};
+					self.aura -= 2;
+					state.write_msg_buff(&s);
+				} else if self.charges == 25 {
+					let s = if loc == PLAYER_INV {
+						format!("Your {} seems about to go out.", name)					
+					} else {
+						format!("The {} seems about to out.", name)
+					};
+					state.write_msg_buff(&s);
+				} else if self.charges == 0 {
+					let s = if loc == PLAYER_INV {
+						format!("Your {} has gone out!", name)					
+					} else {
+						format!("The {} has gone out!", name)
+					};
+					state.write_msg_buff(&s);
+
+                    let er = EventResponse::new(obj_id, EventType::LightExpired);
+					return Some(er);
+				}
+			},
+			_ => {
+				// We don't care about any other events here atm and probably should be an error
+				// condition if we receive one
+			},
+		}
+
+        None
+    }
 }
 
 // impl GameObject for Item {
@@ -193,65 +241,8 @@ impl Item {
 //         false
 //     }
 
-//     fn is_npc(&self) -> bool {
-//         false
-//     }
 
-//     fn get_location(&self) -> (i32, i32, i8) {
-//         self.location
-//     }
 
-//     fn set_location(&mut self, loc: (i32, i32, i8)) {
-//         self.location = loc;
-//     }
-
-//     fn receive_event(&mut self, event: EventType, state: &mut GameState) -> Option<EventResponse> {
-// 		match event {
-// 			EventType::EndOfTurn => {
-// 				self.charges -= 1;
-
-// 				// right now light sources are the only things in the game which times like this
-// 				// This'll mark squares that are lit independent of the player's vision. Don't bother
-// 				// with the calculation if the light source is on another level of the dungeon
-// 				if self.charges > 0 && (self.location == PLAYER_INV || self.location.2 == state.player_loc.2) {
-// 					self.mark_lit_sqs(state);
-// 				}
-
-// 				if self.charges == 150 {
-// 					let s = if self.location == PLAYER_INV {
-// 						format!("Your {} flickers.", self.name)					
-// 					} else {
-// 						format!("The {} flickers.", self.name)
-// 					};
-// 					self.aura -= 2;
-// 					state.write_msg_buff(&s);
-// 				} else if self.charges == 25 {
-// 					let s = if self.location == PLAYER_INV {
-// 						format!("Your {} seems about to go out.", self.name)					
-// 					} else {
-// 						format!("The {} seems about to out.", self.name)
-// 					};
-// 					state.write_msg_buff(&s);
-// 				} else if self.charges == 0 {
-// 					let s = if self.location == PLAYER_INV {
-// 						format!("Your {} has gone out!", self.name)					
-// 					} else {
-// 						format!("The {} has gone out!", self.name)
-// 					};
-// 					state.write_msg_buff(&s);
-
-//                     let er = EventResponse::new(self.object_id, EventType::LightExpired);
-// 					return Some(er);
-// 				}
-// 			},
-// 			_ => {
-// 				// We don't care about any other events here atm and probably should be an error
-// 				// condition if we receive one
-// 			},
-// 		}
-
-//         None
-//     }
 
 
 
