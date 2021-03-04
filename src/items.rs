@@ -110,7 +110,7 @@ impl Item {
                 Some(obj)
             },            
             "torch" => {
-                let mut i = Item::new(ItemType::Armour, 1, true);
+                let mut i = Item::new(ItemType::Light, 1, true);
                 i.charges = 1000;
                 i.aura = 5;
                 
@@ -128,13 +128,15 @@ impl Item {
     }
 
     pub fn desc(&self,) -> String {
+        // Will I ever want an item that's both equiped AND active??
         if self.equiped {
             return match self.item_type {
                 ItemType::Weapon =>  String::from("(in hand)"),
-                ItemType::Armour => String::from("(being worn)"),
-                ItemType::Light =>  String::from("(lit)"),
+                ItemType::Armour => String::from("(being worn)"),                
                 _ => "".to_string(),
             }
+        } else if self.active {
+            return "(lit)".to_string()
         }
 
 		"".to_string()
@@ -157,7 +159,7 @@ impl Item {
     }
 
     pub fn useable(&self) -> bool {
-        if let ItemType::Light = self.item_type {
+        if self.item_type == ItemType::Light {
             true
         } else {
             false

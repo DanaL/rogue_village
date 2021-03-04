@@ -639,13 +639,13 @@
     }
 
     fn read_item(state: &mut GameState, player: &mut Player, game_objs: &mut GameObjects, gui: &mut GameUI) {
-        // let inv_items = game_objs.inv_slots_used();
-        // let slots: HashSet<char> = inv_items.iter().map(|i| i.0).collect();
-        
-        // if slots.len() == 0 {
-        //     state.write_msg_buff("You are empty handed.");
-        //     return;
-        // }
+        let inv = game_objs.inv_slots_used();
+        let slots: HashSet<char> = inv.iter().map(|i| *i).collect();
+
+        if slots.len() == 0 {
+            state.write_msg_buff("You are empty handed.");
+            return;
+        }
 
         // let sbi = state.curr_sidebar_info(player);
         // if let Some(ch) = gui.query_single_response("Read what?", Some(&sbi)) {
@@ -673,54 +673,65 @@
     }
 
     fn use_item(state: &mut GameState, player: &mut Player, game_objs: &mut GameObjects, gui: &mut GameUI) {
-        // let inv_items = game_objs.inv_slots_used();
-        // let slots: HashSet<char> = inv_items.iter().map(|i| i.0).collect();
-        
-        // if slots.len() == 0 {
-        //     state.write_msg_buff("You are empty handed.");
-        //     return;
-        // }
-        
-        // let sbi = state.curr_sidebar_info(player);
-        // if let Some(ch) = gui.query_single_response("Use what?", Some(&sbi)) {
-        //     if !slots.contains(&ch) {
-        //         state.write_msg_buff("You do not have that item!");
-        //         return;
-        //     } 
-        //     for i in inv_items {
-        //         if let Some(mut item) = i.1.as_item() {
-        //             if item.slot == ch {
-        //                 if !item.useable() {
-        //                     state.write_msg_buff("You don't know how to use that.");
-        //                     return;
-        //                 } 
+        let inv = game_objs.inv_slots_used();
+        let slots: HashSet<char> = inv.iter().map(|i| *i).collect();
 
-        //                 let s = if item.active { 
-        //                     format!("You extinguish {}.", item.name.with_def_article())
-        //                 } else {
-        //                     format!("{} blazes brightly!", item.name.with_def_article().capitalize())
-        //                 };
-        //                 state.write_msg_buff(&s);
-                        
-        //                 game_objs.get(item.get_object_id());
-        //                 item.active = !item.active;
-        //                 item.stackable = false;                    
-        //                 if item.active {
-        //                     game_objs.listeners.insert((item.get_object_id(), EventType::EndOfTurn));
-        //                 } else {
-        //                     game_objs.listeners.remove(&(item.get_object_id(), EventType::EndOfTurn));
-        //                 }
-        //                 game_objs.add_to_inventory(item);
+        if slots.len() == 0 {
+            state.write_msg_buff("You are empty handed.");
+            return;
+        }
+        
+        let sbi = state.curr_sidebar_info(player);
+        if let Some(ch) = gui.query_single_response("Use what?", Some(&sbi)) {
+            if !slots.contains(&ch) {
+                state.write_msg_buff("You do not have that item!");
+                return;
+            }
+            
+            let next_slot = game_objs.next_slot; // We might need to give the item a new inventory slot
+            let was_in_stack = game_objs.count_in_slot(ch) > 1;
+            let obj_id = game_objs.obj_id_in_slot(ch);
+            let obj = game_objs.get_mut(obj_id).unwrap();
+            let name = obj.get_fullname();
+            let is_item = obj.item.is_some();
+            let useable = if is_item {
+                obj.item.as_ref().unwrap().useable()
+            } else {
+                false
+            };
 
-        //                 state.turn += 1;
-                                            
-        //                 break;                       
-        //             }
-        //         }
-        //     }
-        // } else {
-        //     state.write_msg_buff("Nevermind.");
-        // }
+            if is_item && useable {
+                let item = obj.item.as_mut().unwrap();
+                let s = if item.active { 
+                    format!("You extinguish {}.", name.with_def_article())
+                } else {
+                    format!("{} blazes brightly!", name.with_def_article().capitalize())
+                };
+                state.write_msg_buff(&s);
+
+                item.active = !item.active;
+                item.stackable = false;
+                if was_in_stack {
+                    item.slot = next_slot;
+                }
+
+                let active = item.active;
+                if active {
+                    game_objs.listeners.insert((obj_id, EventType::EndOfTurn));
+                } else {
+                    game_objs.listeners.remove(&(obj_id, EventType::EndOfTurn));
+                }
+
+                if was_in_stack {
+                    game_objs.inc_slot();
+                }
+            } else {
+                state.write_msg_buff("You don't know how to use that.");
+                return;
+            }       
+        } else {
+            state.write_msg_buff("Nevermind.");
+        }
     }
 
     fn get_move_tuple(mv: &str) -> (i32, i32) {

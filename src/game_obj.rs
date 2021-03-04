@@ -113,7 +113,7 @@ pub struct GameObjects {
     pub obj_locs: HashMap<(i32, i32, i8), VecDeque<usize>>,
     pub objects: HashMap<usize, GameObject>,
     pub listeners: HashSet<(usize, EventType)>,
-    next_slot: char,
+    pub next_slot: char,
 }
 
 impl GameObjects {
@@ -187,13 +187,26 @@ impl GameObjects {
         0
     }
 
+    pub fn count_in_slot(&self, slot: char) -> usize {
+        let inv_ids: Vec<usize> = self.obj_locs[&PLAYER_INV].iter().map(|i| *i).collect();
+
+        let mut count = 0;
+        for id in inv_ids {
+            if self.objects[&id].item.is_some() {
+                if self.objects.get(&id).unwrap().item.as_ref().unwrap().slot == slot {
+                    count += 1;
+                }
+            }
+        }
+
+        count
+    }
+
     pub fn remove(&mut self, obj_id: usize) -> GameObject {  
         let obj = self.objects.get(&obj_id).unwrap();
         let loc = obj.location;
 
-        println!("{:?}", self.obj_locs[&loc]);
         self.remove_from_loc(obj_id, loc);
-        println!("{:?}", self.obj_locs[&loc]);
         self.objects.remove(&obj_id).unwrap()        
     }
 
@@ -441,28 +454,32 @@ impl GameObjects {
             self.objects.get_mut(&obj_id).unwrap()
                         .item.as_mut().unwrap().slot = self.next_slot;
             
-            // Increment the next slot
-            let mut nslot = self.next_slot;		
-            loop {
-                nslot = (nslot as u8 + 1) as char;
-                if nslot > 'z' {
-                    nslot = 'a';
-                }
-
-                if !slots.contains(&nslot) {
-                    self.next_slot = nslot;
-                    break;
-                }
-
-                if nslot == self.next_slot {
-                    // No free spaces left in the invetory!
-                    self.next_slot = '\0';
-                    break;
-                }
-            }
+            self.inc_slot();            
         }        
     }
     
+    pub fn inc_slot(&mut self) {
+        let slots = self.inv_slots_used();
+        let mut nslot = self.next_slot;		
+        loop {
+            nslot = (nslot as u8 + 1) as char;
+            if nslot > 'z' {
+                nslot = 'a';
+            }
+
+            if !slots.contains(&nslot) {
+                self.next_slot = nslot;
+                break;
+            }
+
+            if nslot == self.next_slot {
+                // No free spaces left in the invetory!
+                self.next_slot = '\0';
+                break;
+            }
+        }
+    }
+
     pub fn get_inventory_menu(&self) -> Vec<String> {
         let mut items = Vec::new();
         if self.obj_locs.contains_key(&PLAYER_INV) && self.obj_locs[&PLAYER_INV].len() > 0 {
