@@ -21,7 +21,7 @@ use display::YELLOW_ORANGE;
 
 use super::{EventResponse, EventType, GameState, GameObjects, PLAYER_INV};
 
-use crate::{actor::NPC, display::LIGHT_BROWN, map::SpecialSquare};
+use crate::{actor::NPC, display::{LIGHT_BROWN, YELLOW}, map::SpecialSquare};
 use crate::dialogue::DialogueLibrary;
 use crate::display;
 use crate::fov;
@@ -304,15 +304,26 @@ impl Item {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GoldPile {
-    pub object_id: usize,
-    pub amount: u32,
-    pub location: (i32, i32, i8),
-    hidden: bool,
+    pub amount: u32,    
 }
 
 impl GoldPile {
-    pub fn new( object_id: usize, amount: u32, location: (i32, i32, i8)) -> GoldPile {
-        GoldPile { object_id, amount, location, hidden: false, }
+    pub fn make(game_objs: &mut GameObjects, amount: u32, loc: (i32, i32, i8)) -> GameObject {
+        let g = GoldPile { amount };
+        let obj = GameObject::new(game_objs.next_id(), "zorkmids", loc, '$', display::GOLD, display::YELLOW_ORANGE, None, None , Some(g), None, false);            
+
+        obj
+    }
+
+    pub fn get_fullname(&self) -> String {
+        let name  = if self.amount == 1 {
+            String::from("1 gold piece")
+        } else {
+            let s = format!("{} gold pieces", self.amount);
+            s
+        };
+
+        name
     }
 }
 

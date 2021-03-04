@@ -346,7 +346,6 @@
     }
 
     fn drop_zorkmids(state: &mut GameState, player: &mut Player, game_objs: &mut GameObjects, gui: &mut GameUI) {
-        // I need to add a check in GameObjects to see if there is an existing pile of gold I can merge with    
         if player.purse == 0 {
             state.write_msg_buff("You have no money!");
             return;
@@ -357,23 +356,23 @@
         if amt == 0 {
             state.write_msg_buff("Never mind.");                
         } else {
-            // if amt >= player.purse {
-            //     state.write_msg_buff("You drop all your money.");
-            //     let zorkmids = GoldPile::new(game_objs.next_id(), player.purse, player.location);
-            //     game_objs.add(Box::new(zorkmids));
-            //     player.purse = 0;
-            // } else if amt > 1 {
-            //     let s = format!("You drop {} gold pieces.", amt);
-            //     state.write_msg_buff(&s);
-            //     let zorkmids = GoldPile::new(game_objs.next_id(), amt, player.location);
-            //     game_objs.add(Box::new(zorkmids));
-            //     player.purse -= amt;
-            // } else {
-            //     state.write_msg_buff("You drop a gold piece.");
-            //     let zorkmids = GoldPile::new(game_objs.next_id(), amt, player.location);
-            //     game_objs.add(Box::new(zorkmids));
-            //     player.purse -= 1;
-            // }
+            if amt >= player.purse {
+                state.write_msg_buff("You drop all your money.");
+                let zorkmids = GoldPile::make(game_objs, player.purse, player.location);
+                game_objs.add(zorkmids);
+                player.purse = 0;
+            } else if amt > 1 {
+                let s = format!("You drop {} gold pieces.", amt);
+                state.write_msg_buff(&s);
+                let zorkmids = GoldPile::make(game_objs, amt, player.location);
+                game_objs.add(zorkmids);
+                player.purse -= amt;
+            } else {
+                state.write_msg_buff("You drop a gold piece.");
+                let zorkmids = GoldPile::make(game_objs, 1, player.location);
+                game_objs.add(zorkmids);
+                player.purse -= 1;
+            }
             state.turn += 1;
         }
     }
