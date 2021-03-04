@@ -127,6 +127,19 @@ impl Item {
         }
     }
 
+    pub fn desc(&self,) -> String {
+        if self.equiped {
+            return match self.item_type {
+                ItemType::Weapon =>  String::from("(in hand)"),
+                ItemType::Armour => String::from("(being worn)"),
+                ItemType::Light =>  String::from("(lit)"),
+                _ => "".to_string(),
+            }
+        }
+
+		"".to_string()
+    }
+
     pub fn equip(&mut self) {
         self.equiped = true;
     }
@@ -238,18 +251,7 @@ impl Item {
 //         None
 //     }
 
-//     fn get_fullname(&self) -> String {
-//         let mut s = String::from(&self.name);
-		
-//         match self.item_type {
-//             ItemType::Weapon => if self.equiped { s.push_str(" (in hand)"); },
-//             ItemType::Armour => if self.equiped { s.push_str(" (being worn)"); },
-//             ItemType::Light =>  if self.active { s.push_str( " (lit)"); },
-//             _ => { },
-//         }
 
-// 		s
-//     }
 
 //     fn get_object_id(&self) -> usize {
 //         self.object_id

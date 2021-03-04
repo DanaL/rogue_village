@@ -173,11 +173,11 @@
         }
 
         pub fn curr_sidebar_info(&self, player: &Player) -> SidebarInfo {
-            // let weapon = if let Some(w) = &player.readied_weapon {
-            //     w.name.capitalize()    
-            // } else {
-            let weapon=    String::from("Empty handed");
-            //};
+            let weapon = if player.readied_weapon != "" {
+                String::from(&player.readied_weapon)
+            } else {
+                String::from("Empty handed")
+            };
 
             SidebarInfo::new(player.name.to_string(), player.curr_hp, player.max_hp, self.turn, player.ac,
             player.purse, weapon, player.location.2 as u8)
@@ -384,7 +384,7 @@
         let s = format!("You drop {}", stack_name);
         for id in stack {
             game_objs.set_to_loc(*id, loc);
-            let obj = game_objs.get(*id).unwrap();
+            let obj = game_objs.get_mut(*id).unwrap();
             obj.item.as_mut().unwrap().equiped = false;
         }
         state.write_msg_buff(&s);
@@ -392,7 +392,7 @@
 
     fn item_hits_ground(state: &mut GameState, obj_id: usize, loc: (i32, i32, i8), game_objs: &mut GameObjects) {
         game_objs.set_to_loc(obj_id, loc);
-        let obj = game_objs.get(obj_id).unwrap();
+        let obj = game_objs.get_mut(obj_id).unwrap();
         obj.item.as_mut().unwrap().equiped = false;
 
         let s = format!("You drop {}.", &obj.get_fullname().with_def_article());

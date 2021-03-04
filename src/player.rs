@@ -18,8 +18,10 @@ extern crate serde;
 use rand::Rng;
 use serde::{Serialize, Deserialize};
 
-use super::{GameObjects, GameState, items};
+use super::{GameObjects, GameState};
+use crate::items;
 use crate::items::Item;
+use crate::util::StringUtils;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum Role {
@@ -36,7 +38,7 @@ impl Role {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Player {
     pub object_id: usize,
 	pub name: String,
@@ -55,7 +57,7 @@ pub struct Player {
     pub max_depth: u8,
     pub ac: u8,
     pub purse: u32,
-    pub readied_weapon: Option<Item>,
+    pub readied_weapon: String,
 }
 
 impl Player {
@@ -112,7 +114,7 @@ impl Player {
 
         let mut p = Player {            
             object_id: 0, name, max_hp: 15 + stat_to_mod(stats[1]), curr_hp: 15 + stat_to_mod(stats[1]), location: (0, 0, 0), vision_radius: default_vision_radius,
-                str: stats[0], con: stats[1], dex: stats[2], chr, apt, role: Role::Warrior, xp: 0, level: 1, max_depth: 0, ac: 10, purse: 20, readied_weapon: None,
+                str: stats[0], con: stats[1], dex: stats[2], chr, apt, role: Role::Warrior, xp: 0, level: 1, max_depth: 0, ac: 10, purse: 20, readied_weapon: "".to_string(),
         };
         
         // Warrior starting equipment
@@ -151,7 +153,7 @@ impl Player {
 
         let mut p = Player {            
             object_id: 0, name, max_hp: 12 + stat_to_mod(stats[2]), curr_hp: 12 + stat_to_mod(stats[2]), location: (0, 0, 0), vision_radius: default_vision_radius,
-                str, con: stats[2], dex: stats[0], chr, apt: stats[1], role: Role::Rogue, xp: 0, level: 1, max_depth: 0, ac: 10, purse: 20, readied_weapon: None,
+                str, con: stats[2], dex: stats[0], chr, apt: stats[1], role: Role::Rogue, xp: 0, level: 1, max_depth: 0, ac: 10, purse: 20, readied_weapon: "".to_string(),
         };
 
         p.calc_ac(game_objs);
@@ -161,24 +163,18 @@ impl Player {
     }
 
     pub fn calc_ac(&mut self, game_objs: &GameObjects) {
-        let mut ac: i8 = 10;
-        let mut attributes = 0;
-        // let items = game_objs.gear_with_ac_mods();
-
-        // for i in items {
-        //     ac += i.ac_bonus;
-        //     attributes |= i.attributes;            
-        // }
-
+        let mut ac: i8 = 10;        
+        let (armour, attributes) = game_objs.ac_mods_from_gear();
+        
         // // Heavier armour types reduce the benefit you get from a higher dex
         let mut dex_mod = stat_to_mod(self.dex);
-        // if attributes & items::IA_MED_ARMOUR > 0 && dex_mod > 2 {
-        //     dex_mod = 2;
-        // } else if attributes & items::IA_HEAVY_ARMOUR > 0 {
-        //     dex_mod = 0;
-        // }
+        if attributes & items::IA_MED_ARMOUR > 0 && dex_mod > 2 {
+            dex_mod = 2;
+        } else if attributes & items::IA_HEAVY_ARMOUR > 0 {
+            dex_mod = 0;
+        }
 
-        ac += dex_mod;
+        ac += dex_mod + armour;
 
         self.ac = if ac < 0 {
             0
@@ -198,7 +194,7 @@ impl Player {
     }
 
     pub fn set_readied_weapon(&mut self, game_objs: &GameObjects) {
-        //self.readied_weapon = game_objs.readied_weapon();
+        self.readied_weapon = game_objs.readied_weapon().capitalize();
     }
 }
 

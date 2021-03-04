@@ -42,7 +42,7 @@ pub enum GameObjType {
     SpecialSquare,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct GameObject {
     pub object_id: usize,
     pub location: (i32, i32, i8),
@@ -77,7 +77,12 @@ impl GameObject {
     }
 
     pub fn get_fullname(&self) -> String {
-        self.name.clone()
+        if self.item.is_some() {
+            let s = format!("{} {}", self.name, self.item.as_ref().unwrap().desc());
+            s.trim().to_string()
+        } else {
+            self.name.clone()
+        }
     }
 
     pub fn get_object_id(&self) -> usize {
@@ -190,7 +195,15 @@ impl GameObjects {
     //     false
     // }
 
-    pub fn get(&mut self, obj_id: usize) -> Option<&mut GameObject> {
+    pub fn get(&mut self, obj_id: usize) -> Option<&GameObject> {
+        if !self.objects.contains_key(&obj_id) {
+            None
+        } else {
+            self.objects.get(&obj_id)
+        }
+    }
+
+    pub fn get_mut(&mut self, obj_id: usize) -> Option<&mut GameObject> {
         if !self.objects.contains_key(&obj_id) {
             None
         } else {
@@ -492,25 +505,27 @@ impl GameObjects {
         menu
     }
 
-    // pub fn gear_with_ac_mods(&self) -> Vec<Item> {
-    //     let mut items = Vec::new();
+    pub fn ac_mods_from_gear(&self) -> (i8, u32) {
+        let mut sum = 0;
+        let mut attributes = 0;
+        if self.obj_locs.contains_key(&PLAYER_INV) {
+            let ids: Vec<usize> = self.obj_locs[&PLAYER_INV]
+                          .iter()
+                          .map(|id| *id)
+                          .collect();
+                      
+            for id in ids {
+                if let Some(item) = &self.objects[&id].item {
+                    if item.equiped && item.ac_bonus > 0 {
+                        sum += item.ac_bonus;
+                        attributes |= item.attributes;                 
+                    }
+                }
+            }
+        }
 
-    //     if self.obj_locs.contains_key(&PLAYER_INV) {
-    //         let ids: Vec<usize> = self.obj_locs[&PLAYER_INV]
-    //                       .iter()
-    //                       .map(|id| *id)
-    //                       .collect();
-    //         for id in ids {
-    //             if let Some(item) = self.objects[&id].as_item() {
-    //                 if item.equiped && item.ac_bonus > 0 {
-    //                     items.push(item);
-    //                 }
-    //             }
-    //         }
-    //     }
-
-    //     items
-    // }
+        (sum, attributes)
+    }
        
     // pub fn readied_armour(&self) -> Option<Item> {
     //     if self.obj_locs.contains_key(&PLAYER_INV) {
@@ -530,23 +545,23 @@ impl GameObjects {
     //     None
     // }
 
-    // pub fn readied_weapon(&self) -> Option<Item> {
-    //     if self.obj_locs.contains_key(&PLAYER_INV) {
-    //         let ids: Vec<usize> = self.obj_locs[&PLAYER_INV]
-    //                       .iter()
-    //                       .map(|id| *id)
-    //                       .collect();
-    //         for id in ids {
-    //             if let Some(item) = self.objects[&id].as_item() {
-    //                 if item.equiped && item.item_type == ItemType::Weapon {
-    //                     return Some(item)
-    //                 }
-    //             }
-    //         }
-    //     }
+    pub fn readied_weapon(&self) -> String {
+        if self.obj_locs.contains_key(&PLAYER_INV) {
+            let ids: Vec<usize> = self.obj_locs[&PLAYER_INV]
+                          .iter()
+                          .map(|id| *id)
+                          .collect();
+            for id in ids {
+                if let Some(item) = &self.objects[&id].item {
+                    if item.equiped && item.item_type == ItemType::Weapon {
+                        return self.objects[&id].name.clone()
+                    }
+                }
+            }
+        }
 
-    //     None
-    // }
+        "".to_string()
+    }
 
     // pub fn get_pickup_menu(&self, loc: (i32, i32, i8)) -> Vec<(String, usize)> {
     //     let mut menu = Vec::new();
