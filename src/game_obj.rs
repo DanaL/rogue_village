@@ -613,6 +613,9 @@ impl GameObjects {
             let obj_ids: Vec<usize> = self.obj_locs[&loc].iter().map(|i| *i).collect();
 
             for id in obj_ids {
+                if self.objects[&id].hidden {
+                    continue;
+                }
                 if self.objects[&id].gold_pile.is_some() {
                     let amt = self.objects[&id].gold_pile.as_ref().unwrap().amount;
                     let s = format!("{} gold pieces", amt);
@@ -632,7 +635,8 @@ impl GameObjects {
                           .iter()
                           .map(|id| *id)
                           .collect();
-            ids            
+            
+            ids.iter().filter(|id| !self.objects[*id].hidden).map(|k| *k).collect()
         } else {
             Vec::new()
         }

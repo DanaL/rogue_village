@@ -191,8 +191,7 @@ impl Item {
 		match event {
 			EventType::EndOfTurn => {
 				self.charges -= 1;
-                println!("Event!");
-				// right now light sources are the only things in the game which times like this
+                // right now light sources are the only things in the game which times like this
 				// This'll mark squares that are lit independent of the player's vision. Don't bother
 				// with the calculation if the light source is on another level of the dungeon
 				if self.charges > 0 && (loc == PLAYER_INV || loc.2 == state.player_loc.2) {
