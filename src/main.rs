@@ -1122,32 +1122,30 @@
             if vis.0 == state.player_loc {
                 v_matrix[j] = (map::Tile::Player(WHITE), true);
             } else if visible[j].1 {      
-                // let tile = if let Some(t) = game_objs.tile_at(&vis.0) {
-                //     if !t.1 {
-                //         state.tile_memory.insert(vis.0, t.0);
-                //     }
-                //     t.0
-                // } else {
-                //     state.tile_memory.insert(vis.0, state.map[&vis.0]);
+                let tile = if let Some(t) = game_objs.tile_at(&vis.0) {
+                    if !t.1 {
+                        state.tile_memory.insert(vis.0, t.0);
+                    }
+                    t.0
+                } else {
+                    state.tile_memory.insert(vis.0, state.map[&vis.0]);
                     
-                //     // I wanted to make tochlight squares be coloured different so this is a slight
-                //     // kludge. Although perhaps later I might use it to differentiate between a player
-                //     // walking through the dungeon with a light vs relying on darkvision, etc
-                //     if state.aura_sqs.contains(&vis.0) && state.map[&vis.0] == Tile::StoneFloor {
-                //         Tile::ColourFloor(display::LIGHT_BLUE)
-                //     } else if state.lit_sqs.contains(&vis.0) {
-                //         match state.map[&vis.0] {
-                //             Tile::StoneFloor => Tile::ColourFloor(display::YELLOW),
-                //             Tile::Trigger => Tile::ColourFloor(display::YELLOW_ORANGE),
-                //             _ => state.map[&vis.0],
-                //         }
-                //     } else {
-                //         state.map[&vis.0]
-                //     }
-                // };
+                    // I wanted to make tochlight squares be coloured different so this is a slight
+                    // kludge. Although perhaps later I might use it to differentiate between a player
+                    // walking through the dungeon with a light vs relying on darkvision, etc
+                    if state.aura_sqs.contains(&vis.0) && state.map[&vis.0] == Tile::StoneFloor {
+                        Tile::ColourFloor(display::LIGHT_BLUE)
+                    } else if state.lit_sqs.contains(&vis.0) {
+                        match state.map[&vis.0] {
+                            Tile::StoneFloor => Tile::ColourFloor(display::YELLOW),
+                            Tile::Trigger => Tile::ColourFloor(display::YELLOW_ORANGE),
+                            _ => state.map[&vis.0],
+                        }
+                    } else {
+                        state.map[&vis.0]
+                    }
+                };
                 
-                // temp
-                let tile = state.map[&vis.0];
                 v_matrix[j] = (tile, true);
             } else if state.tile_memory.contains_key(&vis.0) {
                 v_matrix[j] = (state.tile_memory[&vis.0], false);            

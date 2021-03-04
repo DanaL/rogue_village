@@ -272,23 +272,24 @@ impl GameObjects {
             self.remove(obj_id);
         }
     }
-    
-    // pub fn tile_at(&self, loc: &(i32, i32, i8)) -> Option<(Tile, bool)> {
-    //     if self.obj_locs.contains_key(&loc) && self.obj_locs[&loc].len() > 0 {
-    //         for obj_id in self.obj_locs[&loc].iter() {
-    //             if self.objects[&obj_id].blocks() {
-    //                 return Some((self.objects[&obj_id].get_tile(), self.objects[&obj_id].is_npc()));
-    //             }
-    //         }
 
-    //         let obj_id = self.obj_locs[&loc].front().unwrap();
-    //         if !self.objects[obj_id].hidden() {
-    //             return Some((self.objects[obj_id].get_tile(), false));
-    //         }
-    //     }
+    pub fn tile_at(&self, loc: &(i32, i32, i8)) -> Option<(Tile, bool)> {
+        if self.obj_locs.contains_key(&loc) && self.obj_locs[&loc].len() > 0 {
+            for obj_id in self.obj_locs[&loc].iter() {
+                if self.objects[&obj_id].blocks() {
+                    return Some((self.objects[&obj_id].get_tile(), self.objects[&obj_id].npc.is_some()));
+                }
+            }
 
-    //     None
-    // }
+            // I think this actually should be looking for the first non-hidden tile?
+            let obj_id = self.obj_locs[&loc].front().unwrap();
+            if !self.objects[obj_id].hidden() {
+                return Some((self.objects[obj_id].get_tile(), false));
+            }
+        }
+
+        None
+    }
 
     // pub fn location_occupied(&self, loc: &(i32, i32, i8)) -> bool {
     //     if !self.obj_locs.contains_key(loc) {
