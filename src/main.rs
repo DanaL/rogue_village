@@ -392,6 +392,7 @@
     fn item_hits_ground(state: &mut GameState, obj_id: usize, loc: (i32, i32, i8), game_objs: &mut GameObjects) {
         game_objs.set_to_loc(obj_id, loc);
         let obj = game_objs.get_mut(obj_id).unwrap();
+        obj.location = loc;
         obj.item.as_mut().unwrap().equiped = false;
 
         let s = format!("You drop {}.", &obj.get_fullname().with_def_article());
@@ -484,76 +485,75 @@
     }
 
     fn pick_up(state: &mut GameState, player: &mut Player, game_objs: &mut GameObjects, gui: &mut GameUI) {
-        // let things:Vec<&Box<dyn GameObject>> = game_objs.things_at_loc(player.location)
-        //                     .iter()
-        //                     .filter(|i| !i.hidden())
-        //                     .map(|i| *i)
-        //                     .collect();
+        let things = game_objs.things_at_loc(player.location);
 
-        // if things.len() == 0 {
-        //     state.write_msg_buff("There is nothing here.");
-        //     return;
-        // } else if things.len() == 1 {
-        //     if things[0].get_type() == GameObjType::Zorkmids {
-        //         let obj_id = things[0].get_object_id();
-        //         let zorkmids = game_objs.get(obj_id).as_zorkmids().unwrap();
-        //         if zorkmids.amount == 1 {
-        //             state.write_msg_buff(&"You pick up a single gold piece.");
-        //         } else {
-        //             let s = format!("You pick up {} gold pieces.", zorkmids.amount);
-        //             state.write_msg_buff(&s);
-        //         }
-        //         player.purse += zorkmids.amount;
-        //     } else if things[0].get_type() == GameObjType::Item {
-        //         let obj_id = things[0].get_object_id();
-        //         let item = game_objs.get(obj_id).as_item().unwrap();
-        //         let s = format!("You pick up {}.", item.get_fullname().with_def_article());
-        //         state.write_msg_buff(&s);
-        //         game_objs.add_to_inventory(item);            
-        //     }
+        if things.len() == 0 {
+            state.write_msg_buff("There is nothing here.");
+            return;
+        } else if things.len() == 1 {
+            let obj = game_objs.get(things[0]).unwrap();
+            let is_zorkmids = obj.gold_pile.is_some();
+            let is_item = obj.item.is_some();
+
+            if is_zorkmids {
+                let zorkmids = obj.gold_pile.as_ref().unwrap().amount;
+                if zorkmids == 1 {
+                    state.write_msg_buff(&"You pick up a single gold piece.");
+                } else {
+                    let s = format!("You pick up {} gold pieces.", zorkmids);
+                    state.write_msg_buff(&s);
+                }
+                game_objs.remove(things[0]);
+                player.purse += zorkmids;
+            } else if is_item {
+                let obj = game_objs.remove(things[0]);
+                let s = format!("You pick up {}.", obj.get_fullname().with_def_article());
+                state.write_msg_buff(&s);
+                game_objs.add_to_inventory(obj);            
+            }
             
-        //     state.turn += 1;
-        // } else {
-        //     let mut m = game_objs.get_pickup_menu(player.location);
-        //     let mut answer_key = HashMap::new();
-        //     let mut menu = Vec::new();
-        //     for j in 0..m.len() {
-        //         if m[j].0.contains("gold piece") {
-        //             menu.push((m[j].0.to_string(), '$'));
-        //             answer_key.insert('$', m[j].1);
-        //             m.remove(j);
-        //             break;
-        //         }
-        //     }
-        //     for j in 0..m.len() {
-        //         let ch = (j as u8 + 'a' as u8) as char;
-        //         menu.push((m[j].0.to_string(), ch));
-        //         answer_key.insert(ch, m[j].1);
-        //     }
+            state.turn += 1;
+        } else {
+            // let mut m = game_objs.get_pickup_menu(player.location);
+            // let mut answer_key = HashMap::new();
+            // let mut menu = Vec::new();
+            // for j in 0..m.len() {
+            //     if m[j].0.contains("gold piece") {
+            //         menu.push((m[j].0.to_string(), '$'));
+            //         answer_key.insert('$', m[j].1);
+            //         m.remove(j);
+            //         break;
+            //     }
+            // }
+            // for j in 0..m.len() {
+            //     let ch = (j as u8 + 'a' as u8) as char;
+            //     menu.push((m[j].0.to_string(), ch));
+            //     answer_key.insert(ch, m[j].1);
+            // }
             
-        //     if let Some(answers) = gui.menu_picker2("Pick up what: (* to get everything)".to_string(), &menu, false, true) {
-        //         let picks: Vec<usize> = answers.iter().map(|a| answer_key[a]).collect();
-        //         for id in picks {
-        //             let obj = game_objs.get(id);
-        //             if let Some(pile) = obj.as_zorkmids() {
-        //                 player.purse += pile.amount;
-        //                 if pile.amount == 1 {
-        //                     state.write_msg_buff("You pick up a single gold piece.");
-        //                 } else {
-        //                     let s = format!("You pick up {} gold pieces.", pile.amount);
-        //                     state.write_msg_buff(&s);
-        //                 }
-        //             } else {
-        //                 let s = format!("You pick up {}.", obj.get_fullname().with_def_article());
-        //                 state.write_msg_buff(&s);
-        //                 game_objs.add_to_inventory(obj.as_item().unwrap());
-        //             }
-        //         }
-        //         state.turn += 1;
-        //     } else {
-        //         state.write_msg_buff("Nevermind.");
-        //     }
-        // }
+            // if let Some(answers) = gui.menu_picker2("Pick up what: (* to get everything)".to_string(), &menu, false, true) {
+            //     let picks: Vec<usize> = answers.iter().map(|a| answer_key[a]).collect();
+            //     for id in picks {
+            //         let obj = game_objs.get(id);
+            //         if let Some(pile) = obj.as_zorkmids() {
+            //             player.purse += pile.amount;
+            //             if pile.amount == 1 {
+            //                 state.write_msg_buff("You pick up a single gold piece.");
+            //             } else {
+            //                 let s = format!("You pick up {} gold pieces.", pile.amount);
+            //                 state.write_msg_buff(&s);
+            //             }
+            //         } else {
+            //             let s = format!("You pick up {}.", obj.get_fullname().with_def_article());
+            //             state.write_msg_buff(&s);
+            //             game_objs.add_to_inventory(obj.as_item().unwrap());
+            //         }
+            //     }
+            //     state.turn += 1;
+            // } else {
+            //     state.write_msg_buff("Nevermind.");
+            // }
+        }
     }
 
     fn toggle_item(state: &mut GameState, game_objs: &mut GameObjects, item: Item, player: &mut Player) {

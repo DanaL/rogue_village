@@ -154,14 +154,6 @@ impl GameObjects {
         self.objects.insert(obj_id, obj);        
     }
 
-    pub fn set_to_loc(&mut self, obj_id: usize, loc: (i32, i32, i8)) {
-        if !self.obj_locs.contains_key(&loc) {
-            self.obj_locs.insert(loc, VecDeque::new());
-        }
-
-        self.obj_locs.get_mut(&loc).unwrap().push_front(obj_id);
-    }
-
     pub fn get(&mut self, obj_id: usize) -> Option<&GameObject> {
         if !self.objects.contains_key(&obj_id) {
             None
@@ -176,6 +168,24 @@ impl GameObjects {
         } else {
             self.objects.get_mut(&obj_id)
         }
+    }
+
+    pub fn remove(&mut self, obj_id: usize) -> GameObject {  
+        let obj = self.objects.get(&obj_id).unwrap();
+        let loc = obj.location;
+
+        println!("{:?}", self.obj_locs[&loc]);
+        self.remove_from_loc(obj_id, loc);
+        println!("{:?}", self.obj_locs[&loc]);
+        self.objects.remove(&obj_id).unwrap()        
+    }
+
+    pub fn set_to_loc(&mut self, obj_id: usize, loc: (i32, i32, i8)) {
+        if !self.obj_locs.contains_key(&loc) {
+            self.obj_locs.insert(loc, VecDeque::new());
+        }
+
+        self.obj_locs.get_mut(&loc).unwrap().push_front(obj_id);
     }
 
     pub fn remove_from_loc(&mut self, obj_id: usize, loc: (i32, i32, i8)) {
@@ -402,8 +412,8 @@ impl GameObjects {
             }            
         }
 
-        self.add(obj);
-        self.set_to_loc(obj_id, PLAYER_INV);
+        obj.location = PLAYER_INV;
+        self.add(obj);        
         self.objects.get_mut(&obj_id).unwrap().set_loc(PLAYER_INV);
         
         let curr_slot = self.objects[&obj_id].item.as_ref().unwrap().slot;     
@@ -549,24 +559,17 @@ impl GameObjects {
     //     menu
     // }
 
-    // pub fn things_at_loc(&self, loc: (i32, i32, i8)) -> Vec<&Box<dyn GameObject>> {
-    //     let mut items = Vec::new();
-
-    //     if self.obj_locs.contains_key(&loc) {
-    //         let ids: Vec<usize> = self.obj_locs[&loc]
-    //                       .iter()
-    //                       .map(|id| *id)
-    //                       .collect();
-    //         for id in ids {
-    //             match self.objects[&id].get_type() {
-    //                 GameObjType::Item | GameObjType::Zorkmids => items.push(&self.objects[&id]),
-    //                 _ => { },
-    //             }                
-    //         }
-    //     }
-
-    //     items
-    // }
+    pub fn things_at_loc(&self, loc: (i32, i32, i8)) -> Vec<usize> {
+        if self.obj_locs.contains_key(&loc) {
+            let ids: Vec<usize> = self.obj_locs[&loc]
+                          .iter()
+                          .map(|id| *id)
+                          .collect();
+            ids            
+        } else {
+            Vec::new()
+        }
+    }
 
     // Okay to make life difficult I want to return stackable items described as
     // "X things" instead of having 4 of them in the list
