@@ -348,6 +348,22 @@ impl NPC {
         
         self.follow_plan(state, game_objs, loc, obj_id);
     }
+
+    pub fn talk_to(&mut self, state: &mut GameState, player: &Player, dialogue: &DialogueLibrary, my_loc: (i32, i32, i8)) -> String {
+        if self.voice == "monster" {
+            let s = format!("{} growls.", self.name.with_def_article().capitalize());
+            return s;
+        }
+
+        let line = dialogue::parse_voice_line(&dialogue::pick_voice_line(dialogue, &self.voice, self.attitude), &state.world_info, player,
+            &self.name, my_loc);
+        if self.attitude == Attitude::Stranger {
+            // Perhaps a charisma check to possibly jump straight to friendly?
+            self.attitude = Attitude::Indifferent;
+        }
+
+        line
+    }
 }
 
 fn in_location(state: &GameState, loc: (i32, i32, i8), sqs: &HashSet<(i32, i32, i8)>, indoors: bool) -> bool {
@@ -405,21 +421,7 @@ pub fn pick_villager_name(used_names: &HashSet<String>) -> String {
 
 
 
-//     fn talk_to(&mut self, state: &mut GameState, player: &Player, dialogue: &DialogueLibrary) -> String {
-//         if self.voice == "monster" {
-//             let s = format!("{} growls.", self.name.with_def_article().capitalize());
-//             return s;
-//         }
 
-//         let line = dialogue::parse_voice_line(&dialogue::pick_voice_line(dialogue, &self.voice, self.attitude), &state.world_info, player,
-//             &self.name, self.location);
-//         if self.attitude == Attitude::Stranger {
-//             // Perhaps a charisma check to possibly jump straight to friendly?
-//             self.attitude = Attitude::Indifferent;
-//         }
-
-//         line
-//     }
 
 //     fn hidden(&self) -> bool {
 //         false

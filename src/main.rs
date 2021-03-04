@@ -939,18 +939,19 @@
     }
 
     fn chat_with(state: &mut GameState, gui: &mut GameUI, loc: (i32, i32, i8), player: &mut Player, game_objs: &mut GameObjects, dialogue: &DialogueLibrary) {
-        // if let Some(mut npc) = game_objs.npc_at(&loc) {
-        //     let line = npc.talk_to(state, player, dialogue);
-        //     state.add_to_msg_history(&line);
-        //     gui.popup_msg(&npc.get_fullname().with_indef_article().capitalize(), &line);
-        //     game_objs.add(npc);
-        // } else {
-        //     if let Tile::Door(_) = state.map[&loc] {
-        //         state.write_msg_buff("The door is ignoring you.");
-        //     } else {
-        //         state.write_msg_buff("Oh no, talking to yourself?");
-        //     } 
-        // }
+        if let Some(obj_id) = game_objs.npc_at(&loc) {
+            let npc = game_objs.get_mut(obj_id).unwrap();
+
+            let line = npc.npc.as_mut().unwrap().talk_to(state, player, dialogue, npc.location);
+            state.add_to_msg_history(&line);
+            gui.popup_msg(&npc.get_fullname().with_indef_article().capitalize(), &line);            
+        } else {
+            if let Tile::Door(_) = state.map[&loc] {
+                state.write_msg_buff("The door is ignoring you.");
+            } else {
+                state.write_msg_buff("Oh no, talking to yourself?");
+            } 
+        }
     }
 
     fn show_character_sheet(gui: &mut GameUI, player: &Player) {

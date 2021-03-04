@@ -370,29 +370,17 @@ impl GameObjects {
     //     false
     // }
 
-    // pub fn npc_at(&mut self, loc: &(i32, i32, i8)) -> Option<Box<dyn GameObject>> {
-    //     let mut npc_id = 0;
+    pub fn npc_at(&mut self, loc: &(i32, i32, i8)) -> Option<usize> {        
+        if let Some(objs) = self.obj_locs.get(loc) {
+            for id in objs {
+                if self.objects[&id].npc.is_some() {
+                    return Some(*id);
+                }
+            }
+        }
 
-    //     if let Some(objs) = self.obj_locs.get(loc) {
-    //         for id in objs {
-    //             if self.objects[&id].is_npc() {
-    //                 npc_id = *id;
-    //                 break;                    
-    //             }
-    //         }
-    //     }
-
-    //     if npc_id > 0 {
-    //         Some(self.get(npc_id))
-    //     } else {
-    //         None
-    //     }        
-    // }
-
-
-
-
-    // }
+        None
+    }
 
     pub fn inv_slots_used(&self) -> Vec<char> {
         let mut slots = Vec::new();
