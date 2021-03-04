@@ -173,11 +173,11 @@
         }
 
         pub fn curr_sidebar_info(&self, player: &Player) -> SidebarInfo {
-            let weapon = if let Some(w) = &player.readied_weapon {
-                w.name.capitalize()    
-            } else {
-                String::from("Empty handed")
-            };
+            // let weapon = if let Some(w) = &player.readied_weapon {
+            //     w.name.capitalize()    
+            // } else {
+            let weapon=    String::from("Empty handed");
+            //};
 
             SidebarInfo::new(player.name.to_string(), player.curr_hp, player.max_hp, self.turn, player.ac,
             player.purse, weapon, player.location.2 as u8)
@@ -357,121 +357,121 @@
         if amt == 0 {
             state.write_msg_buff("Never mind.");                
         } else {
-            if amt >= player.purse {
-                state.write_msg_buff("You drop all your money.");
-                let zorkmids = GoldPile::new(game_objs.next_id(), player.purse, player.location);
-                game_objs.add(Box::new(zorkmids));
-                player.purse = 0;
-            } else if amt > 1 {
-                let s = format!("You drop {} gold pieces.", amt);
-                state.write_msg_buff(&s);
-                let zorkmids = GoldPile::new(game_objs.next_id(), amt, player.location);
-                game_objs.add(Box::new(zorkmids));
-                player.purse -= amt;
-            } else {
-                state.write_msg_buff("You drop a gold piece.");
-                let zorkmids = GoldPile::new(game_objs.next_id(), amt, player.location);
-                game_objs.add(Box::new(zorkmids));
-                player.purse -= 1;
-            }
+            // if amt >= player.purse {
+            //     state.write_msg_buff("You drop all your money.");
+            //     let zorkmids = GoldPile::new(game_objs.next_id(), player.purse, player.location);
+            //     game_objs.add(Box::new(zorkmids));
+            //     player.purse = 0;
+            // } else if amt > 1 {
+            //     let s = format!("You drop {} gold pieces.", amt);
+            //     state.write_msg_buff(&s);
+            //     let zorkmids = GoldPile::new(game_objs.next_id(), amt, player.location);
+            //     game_objs.add(Box::new(zorkmids));
+            //     player.purse -= amt;
+            // } else {
+            //     state.write_msg_buff("You drop a gold piece.");
+            //     let zorkmids = GoldPile::new(game_objs.next_id(), amt, player.location);
+            //     game_objs.add(Box::new(zorkmids));
+            //     player.purse -= 1;
+            // }
             state.turn += 1;
         }
     }
 
     // Pretty similar to item_hits_grounds() but this keeps calculating the message to display simpler
     fn stack_hits_ground(state: &mut GameState, stack: &Vec<Item>, loc: (i32, i32, i8), game_objs: &mut GameObjects) {
-        let s = format!("You drop {}", stack[0].get_fullname().with_def_article().pluralize());
-        for item in stack {
-            let mut obj = item.clone();
-            obj.equiped = false;
-            obj.location = loc;
-            game_objs.add(Box::new(obj));
-        }
-        state.write_msg_buff(&s);
+        // let s = format!("You drop {}", stack[0].get_fullname().with_def_article().pluralize());
+        // for item in stack {
+        //     let mut obj = item.clone();
+        //     obj.equiped = false;
+        //     obj.location = loc;
+        //     game_objs.add(Box::new(obj));
+        // }
+        // state.write_msg_buff(&s);
     }
 
     fn item_hits_ground(state: &mut GameState, item: &Item, loc: (i32, i32, i8), game_objs: &mut GameObjects) {
-        let mut obj = item.clone();
-        obj.equiped = false;
-        obj.location = loc;
-        let s = format!("You drop {}.", &obj.get_fullname().with_def_article());                
-        state.write_msg_buff(&s);
-        game_objs.add(Box::new(obj));
+        // let mut obj = item.clone();
+        // obj.equiped = false;
+        // obj.location = loc;
+        // let s = format!("You drop {}.", &obj.get_fullname().with_def_article());                
+        // state.write_msg_buff(&s);
+        // game_objs.add(Box::new(obj));
     }
 
     fn drop_stack(state: &mut GameState, game_objs: &mut GameObjects, loc: (i32, i32, i8), slot: char, count: u32) {
-        match game_objs.inv_remove_from_slot(slot, count) {
-            Ok(mut pile) => {
-                if pile.len() == 1 {
-                    let item = pile.remove(0);
-                    item_hits_ground(state, &item, loc, game_objs);
-                    state.turn += 1;
-                } else if pile.len() > 1 {
-                    stack_hits_ground(state, &pile, loc, game_objs);
-                    state.turn += 1;
-                } else {
-                    state.write_msg_buff("Nevermind.");
-                }
-            },
-            Err(msg) => state.write_msg_buff(&msg),
-        }        
+        // match game_objs.inv_remove_from_slot(slot, count) {
+        //     Ok(mut pile) => {
+        //         if pile.len() == 1 {
+        //             let item = pile.remove(0);
+        //             item_hits_ground(state, &item, loc, game_objs);
+        //             state.turn += 1;
+        //         } else if pile.len() > 1 {
+        //             stack_hits_ground(state, &pile, loc, game_objs);
+        //             state.turn += 1;
+        //         } else {
+        //             state.write_msg_buff("Nevermind.");
+        //         }
+        //     },
+        //     Err(msg) => state.write_msg_buff(&msg),
+        // }        
     }
 
     fn drop_item(state: &mut GameState, player: &mut Player, game_objs: &mut GameObjects, gui: &mut GameUI) {    
-        if player.purse == 0 && game_objs.descs_at_loc(PLAYER_INV).len() == 0 {
-            state.write_msg_buff("You are empty handed.");
-            return;
-        }
+        // if player.purse == 0 && game_objs.descs_at_loc(PLAYER_INV).len() == 0 {
+        //     state.write_msg_buff("You are empty handed.");
+        //     return;
+        // }
         
-        let sbi = state.curr_sidebar_info(player);
-        if let Some(ch) = gui.query_single_response("Drop what?", Some(&sbi)) {
-            if ch == '$' {
-                drop_zorkmids(state, player, game_objs, gui);
-            } else {
-                let count = game_objs.inv_count_at_slot(ch);
-                if count == 0 {
-                    state.write_msg_buff("You do not have that item.");
-                } else if count > 1 {
-                    match gui.query_natural_num("Drop how many?", Some(&sbi)) {
-                        Some(v) => drop_stack(state, game_objs, player.location, ch, v),
-                        None => state.write_msg_buff("Nevermind"),
-                    }
-                } else {
-                    let result = game_objs.inv_remove_from_slot(ch, 1);
-                    match result {
-                        Ok(items) => {
-                            item_hits_ground(state, &items[0], player.location, game_objs);
-                            state.turn += 1;
-                        },
-                        Err(msg) => state.write_msg_buff(&msg),
-                    }
+        // let sbi = state.curr_sidebar_info(player);
+        // if let Some(ch) = gui.query_single_response("Drop what?", Some(&sbi)) {
+        //     if ch == '$' {
+        //         drop_zorkmids(state, player, game_objs, gui);
+        //     } else {
+        //         let count = game_objs.inv_count_at_slot(ch);
+        //         if count == 0 {
+        //             state.write_msg_buff("You do not have that item.");
+        //         } else if count > 1 {
+        //             match gui.query_natural_num("Drop how many?", Some(&sbi)) {
+        //                 Some(v) => drop_stack(state, game_objs, player.location, ch, v),
+        //                 None => state.write_msg_buff("Nevermind"),
+        //             }
+        //         } else {
+        //             let result = game_objs.inv_remove_from_slot(ch, 1);
+        //             match result {
+        //                 Ok(items) => {
+        //                     item_hits_ground(state, &items[0], player.location, game_objs);
+        //                     state.turn += 1;
+        //                 },
+        //                 Err(msg) => state.write_msg_buff(&msg),
+        //             }
                     
-                }
-            }
-        } else {
-            state.write_msg_buff("Nevermind.");            
-        }
+        //         }
+        //     }
+        // } else {
+        //     state.write_msg_buff("Nevermind.");            
+        // }
         
-        player.calc_ac(game_objs);
-        player.set_readied_weapon(game_objs);
+        // player.calc_ac(game_objs);
+        // player.set_readied_weapon(game_objs);
     }
 
     fn search_loc(state: &mut GameState, roll: u8, loc: (i32, i32, i8), game_objs: &mut GameObjects) {
-        let things:Vec<usize> = game_objs.things_at_loc(loc)
-            .iter()
-            .filter(|i| i.hidden())
-            .map(|i| i.get_object_id())
-            .collect();
+        // let things:Vec<usize> = game_objs.things_at_loc(loc)
+        //     .iter()
+        //     .filter(|i| i.hidden())
+        //     .map(|i| i.get_object_id())
+        //     .collect();
 
-        for obj_id in &things {
-            if roll >= 15 {
-                let mut t = game_objs.get(*obj_id);
-                let s = format!("You find {}!", t.get_fullname().with_indef_article());
-                state.write_msg_buff(&s);            
-                t.reveal();
-                game_objs.add(t);
-            }
-        }
+        // for obj_id in &things {
+        //     if roll >= 15 {
+        //         let mut t = game_objs.get(*obj_id);
+        //         let s = format!("You find {}!", t.get_fullname().with_indef_article());
+        //         state.write_msg_buff(&s);            
+        //         t.reveal();
+        //         game_objs.add(t);
+        //     }
+        // }
     }
 
     fn search(state: &mut GameState, player: &Player, game_objs: &mut GameObjects) {
@@ -485,243 +485,243 @@
     }
 
     fn pick_up(state: &mut GameState, player: &mut Player, game_objs: &mut GameObjects, gui: &mut GameUI) {
-        let things:Vec<&Box<dyn GameObject>> = game_objs.things_at_loc(player.location)
-                            .iter()
-                            .filter(|i| !i.hidden())
-                            .map(|i| *i)
-                            .collect();
+        // let things:Vec<&Box<dyn GameObject>> = game_objs.things_at_loc(player.location)
+        //                     .iter()
+        //                     .filter(|i| !i.hidden())
+        //                     .map(|i| *i)
+        //                     .collect();
 
-        if things.len() == 0 {
-            state.write_msg_buff("There is nothing here.");
-            return;
-        } else if things.len() == 1 {
-            if things[0].get_type() == GameObjType::Zorkmids {
-                let obj_id = things[0].get_object_id();
-                let zorkmids = game_objs.get(obj_id).as_zorkmids().unwrap();
-                if zorkmids.amount == 1 {
-                    state.write_msg_buff(&"You pick up a single gold piece.");
-                } else {
-                    let s = format!("You pick up {} gold pieces.", zorkmids.amount);
-                    state.write_msg_buff(&s);
-                }
-                player.purse += zorkmids.amount;
-            } else if things[0].get_type() == GameObjType::Item {
-                let obj_id = things[0].get_object_id();
-                let item = game_objs.get(obj_id).as_item().unwrap();
-                let s = format!("You pick up {}.", item.get_fullname().with_def_article());
-                state.write_msg_buff(&s);
-                game_objs.add_to_inventory(item);            
-            }
+        // if things.len() == 0 {
+        //     state.write_msg_buff("There is nothing here.");
+        //     return;
+        // } else if things.len() == 1 {
+        //     if things[0].get_type() == GameObjType::Zorkmids {
+        //         let obj_id = things[0].get_object_id();
+        //         let zorkmids = game_objs.get(obj_id).as_zorkmids().unwrap();
+        //         if zorkmids.amount == 1 {
+        //             state.write_msg_buff(&"You pick up a single gold piece.");
+        //         } else {
+        //             let s = format!("You pick up {} gold pieces.", zorkmids.amount);
+        //             state.write_msg_buff(&s);
+        //         }
+        //         player.purse += zorkmids.amount;
+        //     } else if things[0].get_type() == GameObjType::Item {
+        //         let obj_id = things[0].get_object_id();
+        //         let item = game_objs.get(obj_id).as_item().unwrap();
+        //         let s = format!("You pick up {}.", item.get_fullname().with_def_article());
+        //         state.write_msg_buff(&s);
+        //         game_objs.add_to_inventory(item);            
+        //     }
             
-            state.turn += 1;
-        } else {
-            let mut m = game_objs.get_pickup_menu(player.location);
-            let mut answer_key = HashMap::new();
-            let mut menu = Vec::new();
-            for j in 0..m.len() {
-                if m[j].0.contains("gold piece") {
-                    menu.push((m[j].0.to_string(), '$'));
-                    answer_key.insert('$', m[j].1);
-                    m.remove(j);
-                    break;
-                }
-            }
-            for j in 0..m.len() {
-                let ch = (j as u8 + 'a' as u8) as char;
-                menu.push((m[j].0.to_string(), ch));
-                answer_key.insert(ch, m[j].1);
-            }
+        //     state.turn += 1;
+        // } else {
+        //     let mut m = game_objs.get_pickup_menu(player.location);
+        //     let mut answer_key = HashMap::new();
+        //     let mut menu = Vec::new();
+        //     for j in 0..m.len() {
+        //         if m[j].0.contains("gold piece") {
+        //             menu.push((m[j].0.to_string(), '$'));
+        //             answer_key.insert('$', m[j].1);
+        //             m.remove(j);
+        //             break;
+        //         }
+        //     }
+        //     for j in 0..m.len() {
+        //         let ch = (j as u8 + 'a' as u8) as char;
+        //         menu.push((m[j].0.to_string(), ch));
+        //         answer_key.insert(ch, m[j].1);
+        //     }
             
-            if let Some(answers) = gui.menu_picker2("Pick up what: (* to get everything)".to_string(), &menu, false, true) {
-                let picks: Vec<usize> = answers.iter().map(|a| answer_key[a]).collect();
-                for id in picks {
-                    let obj = game_objs.get(id);
-                    if let Some(pile) = obj.as_zorkmids() {
-                        player.purse += pile.amount;
-                        if pile.amount == 1 {
-                            state.write_msg_buff("You pick up a single gold piece.");
-                        } else {
-                            let s = format!("You pick up {} gold pieces.", pile.amount);
-                            state.write_msg_buff(&s);
-                        }
-                    } else {
-                        let s = format!("You pick up {}.", obj.get_fullname().with_def_article());
-                        state.write_msg_buff(&s);
-                        game_objs.add_to_inventory(obj.as_item().unwrap());
-                    }
-                }
-                state.turn += 1;
-            } else {
-                state.write_msg_buff("Nevermind.");
-            }
-        }
+        //     if let Some(answers) = gui.menu_picker2("Pick up what: (* to get everything)".to_string(), &menu, false, true) {
+        //         let picks: Vec<usize> = answers.iter().map(|a| answer_key[a]).collect();
+        //         for id in picks {
+        //             let obj = game_objs.get(id);
+        //             if let Some(pile) = obj.as_zorkmids() {
+        //                 player.purse += pile.amount;
+        //                 if pile.amount == 1 {
+        //                     state.write_msg_buff("You pick up a single gold piece.");
+        //                 } else {
+        //                     let s = format!("You pick up {} gold pieces.", pile.amount);
+        //                     state.write_msg_buff(&s);
+        //                 }
+        //             } else {
+        //                 let s = format!("You pick up {}.", obj.get_fullname().with_def_article());
+        //                 state.write_msg_buff(&s);
+        //                 game_objs.add_to_inventory(obj.as_item().unwrap());
+        //             }
+        //         }
+        //         state.turn += 1;
+        //     } else {
+        //         state.write_msg_buff("Nevermind.");
+        //     }
+        // }
     }
 
     fn toggle_item(state: &mut GameState, game_objs: &mut GameObjects, item: Item, player: &mut Player) {
-        if !item.equipable() {
-            state.write_msg_buff("You cannot wear or wield that!");
-            return;
-        }
+        // if !item.equipable() {
+        //     state.write_msg_buff("You cannot wear or wield that!");
+        //     return;
+        // }
 
-        let mut swapping = false;
-        if item.item_type == ItemType::Weapon {
-            if let Some(w) = game_objs.readied_weapon() {
-                if w.object_id != item.object_id {
-                    swapping = true;
-                    // unequip the existing weapon
-                    let mut other = game_objs.get(w.object_id).as_item().unwrap();
-                    other.equiped = false;
-                    game_objs.add_to_inventory(other);
-                }
-            }
-        } else if item.item_type == ItemType::Armour {
-            if let Some(a) = game_objs.readied_armour() {
-                if a.object_id != item.object_id {
-                    state.write_msg_buff("You're already wearing armour.");
-                    return;
-                }
-            }
-        }
+        // let mut swapping = false;
+        // if item.item_type == ItemType::Weapon {
+        //     if let Some(w) = game_objs.readied_weapon() {
+        //         if w.object_id != item.object_id {
+        //             swapping = true;
+        //             // unequip the existing weapon
+        //             let mut other = game_objs.get(w.object_id).as_item().unwrap();
+        //             other.equiped = false;
+        //             game_objs.add_to_inventory(other);
+        //         }
+        //     }
+        // } else if item.item_type == ItemType::Armour {
+        //     if let Some(a) = game_objs.readied_armour() {
+        //         if a.object_id != item.object_id {
+        //             state.write_msg_buff("You're already wearing armour.");
+        //             return;
+        //         }
+        //     }
+        // }
 
-        // Alright, so at this point we can toggle the item in the slot.
-        let mut obj = game_objs.get(item.get_object_id()).as_item().unwrap();
-        obj.equiped = !obj.equiped;
+        // // Alright, so at this point we can toggle the item in the slot.
+        // let mut obj = game_objs.get(item.get_object_id()).as_item().unwrap();
+        // obj.equiped = !obj.equiped;
         
-        let mut s = String::from("You ");
-        if swapping {
-            s.push_str("are now wielding ");
-        } else if obj.equiped {
-            s.push_str("equip ");
-        } else {
-            s.push_str("unequip ");
-        }
-        s.push_str(&obj.get_fullname().with_def_article());
-        s.push('.');
-        state.write_msg_buff(&s);
+        // let mut s = String::from("You ");
+        // if swapping {
+        //     s.push_str("are now wielding ");
+        // } else if obj.equiped {
+        //     s.push_str("equip ");
+        // } else {
+        //     s.push_str("unequip ");
+        // }
+        // s.push_str(&obj.get_fullname().with_def_article());
+        // s.push('.');
+        // state.write_msg_buff(&s);
 
-        game_objs.add_to_inventory(obj);
+        // game_objs.add_to_inventory(obj);
 
-        player.calc_ac(game_objs);
-        player.set_readied_weapon(game_objs);
+        // player.calc_ac(game_objs);
+        // player.set_readied_weapon(game_objs);
 
-        if item.item_type == ItemType::Weapon && game_objs.readied_weapon() == None {
-            state.write_msg_buff("You are now empty handed.");
-        } 
+        // if item.item_type == ItemType::Weapon && game_objs.readied_weapon() == None {
+        //     state.write_msg_buff("You are now empty handed.");
+        // } 
 
-        state.turn += 1;
+        // state.turn += 1;
     }
 
     fn toggle_equipment(state: &mut GameState, player: &mut Player, game_objs: &mut GameObjects, gui: &mut GameUI) {
-        let inv_items = game_objs.inv_slots_used();
-        let slots: HashSet<char> = inv_items.iter().map(|i| i.0).collect();
+        // let inv_items = game_objs.inv_slots_used();
+        // let slots: HashSet<char> = inv_items.iter().map(|i| i.0).collect();
         
-        if slots.len() == 0 {
-            state.write_msg_buff("You are empty handed.");
-            return;
-        }
+        // if slots.len() == 0 {
+        //     state.write_msg_buff("You are empty handed.");
+        //     return;
+        // }
 
-        let sbi = state.curr_sidebar_info(player);
-        if let Some(ch) = gui.query_single_response("Ready/unready what?", Some(&sbi)) {
-            if !slots.contains(&ch) {
-                state.write_msg_buff("You do not have that item!");
-            } else {
-                for i in inv_items {
-                    if let Some(item) = i.1.as_item() {
-                        if item.slot == ch {
-                            toggle_item(state, game_objs, item, player);
-                            break;                       
-                        }
-                    }
-                }
-            }
-        } else {
-            state.write_msg_buff("Nevermind.");
-        }
+        // let sbi = state.curr_sidebar_info(player);
+        // if let Some(ch) = gui.query_single_response("Ready/unready what?", Some(&sbi)) {
+        //     if !slots.contains(&ch) {
+        //         state.write_msg_buff("You do not have that item!");
+        //     } else {
+        //         for i in inv_items {
+        //             if let Some(item) = i.1.as_item() {
+        //                 if item.slot == ch {
+        //                     toggle_item(state, game_objs, item, player);
+        //                     break;                       
+        //                 }
+        //             }
+        //         }
+        //     }
+        // } else {
+        //     state.write_msg_buff("Nevermind.");
+        // }
     }
 
     fn read_item(state: &mut GameState, player: &mut Player, game_objs: &mut GameObjects, gui: &mut GameUI) {
-        let inv_items = game_objs.inv_slots_used();
-        let slots: HashSet<char> = inv_items.iter().map(|i| i.0).collect();
+        // let inv_items = game_objs.inv_slots_used();
+        // let slots: HashSet<char> = inv_items.iter().map(|i| i.0).collect();
         
-        if slots.len() == 0 {
-            state.write_msg_buff("You are empty handed.");
-            return;
-        }
+        // if slots.len() == 0 {
+        //     state.write_msg_buff("You are empty handed.");
+        //     return;
+        // }
 
-        let sbi = state.curr_sidebar_info(player);
-        if let Some(ch) = gui.query_single_response("Read what?", Some(&sbi)) {
-            if !slots.contains(&ch) {
-                state.write_msg_buff("You do not have that item!");
-                return;
-            } 
-            for i in inv_items {
-                if let Some(item) = i.1.as_item() {
-                    if item.slot == ch {
-                        if let Some(text) = item.text {
-                            gui.popup_msg(&text.0.with_indef_article().capitalize(), &text.1);
-                        } else {
-                            state.write_msg_buff("There's nothing written on it.");
-                        }
+        // let sbi = state.curr_sidebar_info(player);
+        // if let Some(ch) = gui.query_single_response("Read what?", Some(&sbi)) {
+        //     if !slots.contains(&ch) {
+        //         state.write_msg_buff("You do not have that item!");
+        //         return;
+        //     } 
+        //     for i in inv_items {
+        //         if let Some(item) = i.1.as_item() {
+        //             if item.slot == ch {
+        //                 if let Some(text) = item.text {
+        //                     gui.popup_msg(&text.0.with_indef_article().capitalize(), &text.1);
+        //                 } else {
+        //                     state.write_msg_buff("There's nothing written on it.");
+        //                 }
 
-                        state.turn += 1;                                          
-                        break;                       
-                    }
-                }
-            }
-        } else {
-            state.write_msg_buff("Nevermind.");
-        }
+        //                 state.turn += 1;                                          
+        //                 break;                       
+        //             }
+        //         }
+        //     }
+        // } else {
+        //     state.write_msg_buff("Nevermind.");
+        // }
     }
 
     fn use_item(state: &mut GameState, player: &mut Player, game_objs: &mut GameObjects, gui: &mut GameUI) {
-        let inv_items = game_objs.inv_slots_used();
-        let slots: HashSet<char> = inv_items.iter().map(|i| i.0).collect();
+        // let inv_items = game_objs.inv_slots_used();
+        // let slots: HashSet<char> = inv_items.iter().map(|i| i.0).collect();
         
-        if slots.len() == 0 {
-            state.write_msg_buff("You are empty handed.");
-            return;
-        }
+        // if slots.len() == 0 {
+        //     state.write_msg_buff("You are empty handed.");
+        //     return;
+        // }
         
-        let sbi = state.curr_sidebar_info(player);
-        if let Some(ch) = gui.query_single_response("Use what?", Some(&sbi)) {
-            if !slots.contains(&ch) {
-                state.write_msg_buff("You do not have that item!");
-                return;
-            } 
-            for i in inv_items {
-                if let Some(mut item) = i.1.as_item() {
-                    if item.slot == ch {
-                        if !item.useable() {
-                            state.write_msg_buff("You don't know how to use that.");
-                            return;
-                        } 
+        // let sbi = state.curr_sidebar_info(player);
+        // if let Some(ch) = gui.query_single_response("Use what?", Some(&sbi)) {
+        //     if !slots.contains(&ch) {
+        //         state.write_msg_buff("You do not have that item!");
+        //         return;
+        //     } 
+        //     for i in inv_items {
+        //         if let Some(mut item) = i.1.as_item() {
+        //             if item.slot == ch {
+        //                 if !item.useable() {
+        //                     state.write_msg_buff("You don't know how to use that.");
+        //                     return;
+        //                 } 
 
-                        let s = if item.active { 
-                            format!("You extinguish {}.", item.name.with_def_article())
-                        } else {
-                            format!("{} blazes brightly!", item.name.with_def_article().capitalize())
-                        };
-                        state.write_msg_buff(&s);
+        //                 let s = if item.active { 
+        //                     format!("You extinguish {}.", item.name.with_def_article())
+        //                 } else {
+        //                     format!("{} blazes brightly!", item.name.with_def_article().capitalize())
+        //                 };
+        //                 state.write_msg_buff(&s);
                         
-                        game_objs.get(item.get_object_id());
-                        item.active = !item.active;
-                        item.stackable = false;                    
-                        if item.active {
-                            game_objs.listeners.insert((item.get_object_id(), EventType::EndOfTurn));
-                        } else {
-                            game_objs.listeners.remove(&(item.get_object_id(), EventType::EndOfTurn));
-                        }
-                        game_objs.add_to_inventory(item);
+        //                 game_objs.get(item.get_object_id());
+        //                 item.active = !item.active;
+        //                 item.stackable = false;                    
+        //                 if item.active {
+        //                     game_objs.listeners.insert((item.get_object_id(), EventType::EndOfTurn));
+        //                 } else {
+        //                     game_objs.listeners.remove(&(item.get_object_id(), EventType::EndOfTurn));
+        //                 }
+        //                 game_objs.add_to_inventory(item);
 
-                        state.turn += 1;
+        //                 state.turn += 1;
                                             
-                        break;                       
-                    }
-                }
-            }
-        } else {
-            state.write_msg_buff("Nevermind.");
-        }
+        //                 break;                       
+        //             }
+        //         }
+        //     }
+        // } else {
+        //     state.write_msg_buff("Nevermind.");
+        // }
     }
 
     fn get_move_tuple(mv: &str) -> (i32, i32) {
@@ -807,40 +807,40 @@
     }
 
     fn check_closed_gate(state: &mut GameState, game_objs: &mut GameObjects, player: &mut Player, loc: (i32, i32, i8)) {
-        let mut rng = rand::thread_rng();
-        if player.location == loc {
-            let mut options: Vec<usize> = (0..util::ADJ.len()).collect();            
-            options.shuffle(&mut rng);
-            while options.len() > 0 {
-                let id = options.pop().unwrap();
-                let landing_spot = (loc.0 + util::ADJ[id].0, loc.1 + util::ADJ[id].1, loc.2);
-                if !game_objs.location_occupied(&landing_spot) {
-                    state.write_msg_buff("You are shoved out of the way by the falling gate!");
-                    state.player_loc = landing_spot;
-                    player.location = landing_spot;
-                    return;
-                }
-            }
+        // let mut rng = rand::thread_rng();
+        // if player.location == loc {
+        //     let mut options: Vec<usize> = (0..util::ADJ.len()).collect();            
+        //     options.shuffle(&mut rng);
+        //     while options.len() > 0 {
+        //         let id = options.pop().unwrap();
+        //         let landing_spot = (loc.0 + util::ADJ[id].0, loc.1 + util::ADJ[id].1, loc.2);
+        //         if !game_objs.location_occupied(&landing_spot) {
+        //             state.write_msg_buff("You are shoved out of the way by the falling gate!");
+        //             state.player_loc = landing_spot;
+        //             player.location = landing_spot;
+        //             return;
+        //         }
+        //     }
 
-            // If we get here there are no available landing spots. What to do?
-            // Just crush the player to death??
-            return;
-        } else if let Some(mut npc) = game_objs.npc_at(&loc) {
-            // This is untested because I don't have NPCs aside from villagers in the game...
-            let mut options: Vec<usize> = (0..util::ADJ.len()).collect();            
-            options.shuffle(&mut rng);
-            while options.len() > 0 {
-                let id = options.pop().unwrap();
-                let landing_spot = (loc.0 + util::ADJ[id].0, loc.1 + util::ADJ[id].1, loc.2);
-                if landing_spot != player.location && !game_objs.location_occupied(&landing_spot) {
-                    let s = format!("{} is shoved out of the way by the falling gate!", npc.get_fullname().with_def_article());
-                    state.write_msg_buff(&s);
-                    npc.set_location(landing_spot);
-                    game_objs.add(npc);
-                    return;
-                }
-            }
-        }
+        //     // If we get here there are no available landing spots. What to do?
+        //     // Just crush the player to death??
+        //     return;
+        // } else if let Some(mut npc) = game_objs.npc_at(&loc) {
+        //     // This is untested because I don't have NPCs aside from villagers in the game...
+        //     let mut options: Vec<usize> = (0..util::ADJ.len()).collect();            
+        //     options.shuffle(&mut rng);
+        //     while options.len() > 0 {
+        //         let id = options.pop().unwrap();
+        //         let landing_spot = (loc.0 + util::ADJ[id].0, loc.1 + util::ADJ[id].1, loc.2);
+        //         if landing_spot != player.location && !game_objs.location_occupied(&landing_spot) {
+        //             let s = format!("{} is shoved out of the way by the falling gate!", npc.get_fullname().with_def_article());
+        //             state.write_msg_buff(&s);
+        //             npc.set_location(landing_spot);
+        //             game_objs.add(npc);
+        //             return;
+        //         }
+        //     }
+        // }
     }
 
     fn firepit_msg(num: u8) -> &'static str {
@@ -862,7 +862,7 @@
     // just pass a reference in, but if I eventually need to, I can sort out who exactly stepped on the square via
     // the obj_id (0 is always the player)
     fn land_on_location(state: &mut GameState, game_objs: &mut GameObjects, loc: (i32, i32, i8), _obj_id: usize) {
-        game_objs.stepped_on_event(state, loc);
+        //game_objs.stepped_on_event(state, loc);
     }
 
     fn do_move(state: &mut GameState, player: &mut Player, game_objs: &mut GameObjects, dir: &str) {
@@ -875,77 +875,77 @@
         let next_loc = (next_row, next_col, player.location.2);
         let tile = &state.map[&next_loc].clone();
         
-        if game_objs.blocking_obj_at(&next_loc) {
-            // Not quite ready to implement combat yet...
-            state.write_msg_buff("There's someone in your way!");
-        } else if tile.passable() {
-            player.location = next_loc;
+        // if game_objs.blocking_obj_at(&next_loc) {
+        //     // Not quite ready to implement combat yet...
+        //     state.write_msg_buff("There's someone in your way!");
+        // } else if tile.passable() {
+        //     player.location = next_loc;
 
-            match tile {
-                Tile::Water => state.write_msg_buff("You splash in the shallow water."),
-                Tile::DeepWater => {
-                    if *start_tile != map::Tile::DeepWater {
-                        state.write_msg_buff("You begin to swim.");				
-                    }
-                },
-                Tile::Lava => state.write_msg_buff("MOLTEN LAVA!"),
-                Tile::FirePit => {
-                    state.write_msg_buff("You step in the fire!");
-                },
-                Tile::OldFirePit(n) => state.write_msg_buff(firepit_msg(*n)),
-                Tile::Portal => state.write_msg_buff("Where could this lead..."),
-                Tile::Shrine(stype) => {
-                    match stype {
-                        ShrineType::Woden => state.write_msg_buff("A shrine to Woden."),
-                        ShrineType::Crawler => state.write_msg_buff("The misshapen altar makes your skin crawl"),
-                    }
-                },
-                _ => {
-                    if *start_tile == map::Tile::DeepWater { 
-                        state.write_msg_buff("Whew, you stumble ashore.");
-                    } else if state.aura_sqs.contains(&next_loc) && !state.aura_sqs.contains(&start_loc) {
-                        state.write_msg_buff("You feel a sense of peace.");
-                    }
-                },            
-            }
+        //     match tile {
+        //         Tile::Water => state.write_msg_buff("You splash in the shallow water."),
+        //         Tile::DeepWater => {
+        //             if *start_tile != map::Tile::DeepWater {
+        //                 state.write_msg_buff("You begin to swim.");				
+        //             }
+        //         },
+        //         Tile::Lava => state.write_msg_buff("MOLTEN LAVA!"),
+        //         Tile::FirePit => {
+        //             state.write_msg_buff("You step in the fire!");
+        //         },
+        //         Tile::OldFirePit(n) => state.write_msg_buff(firepit_msg(*n)),
+        //         Tile::Portal => state.write_msg_buff("Where could this lead..."),
+        //         Tile::Shrine(stype) => {
+        //             match stype {
+        //                 ShrineType::Woden => state.write_msg_buff("A shrine to Woden."),
+        //                 ShrineType::Crawler => state.write_msg_buff("The misshapen altar makes your skin crawl"),
+        //             }
+        //         },
+        //         _ => {
+        //             if *start_tile == map::Tile::DeepWater { 
+        //                 state.write_msg_buff("Whew, you stumble ashore.");
+        //             } else if state.aura_sqs.contains(&next_loc) && !state.aura_sqs.contains(&start_loc) {
+        //                 state.write_msg_buff("You feel a sense of peace.");
+        //             }
+        //         },            
+        //     }
 
-            let items = game_objs.descs_at_loc(next_loc);                             
-            if items.len() == 1 {
-                let s = format!("You see {} here.", items[0]);
-                state.write_msg_buff(&s);
-            } else if items.len() == 2 {
-                let s = format!("You see {} and {} here.", items[0], items[1]);
-                state.write_msg_buff(&s);
-            } else if items.len() > 2 {
-                state.write_msg_buff("There are several items here.");
-            }
+        //     let items = game_objs.descs_at_loc(next_loc);                             
+        //     if items.len() == 1 {
+        //         let s = format!("You see {} here.", items[0]);
+        //         state.write_msg_buff(&s);
+        //     } else if items.len() == 2 {
+        //         let s = format!("You see {} and {} here.", items[0], items[1]);
+        //         state.write_msg_buff(&s);
+        //     } else if items.len() > 2 {
+        //         state.write_msg_buff("There are several items here.");
+        //     }
             
-            land_on_location(state, game_objs, next_loc, 0);
+        //     land_on_location(state, game_objs, next_loc, 0);
 
-            state.turn += 1;
-        } else if *tile == Tile::Door(DoorState::Closed) {
-            // Bump to open doors. I might make this an option later
-            do_open(state, next_loc);
-        } else if *tile == Tile::Gate(DoorState::Closed) || *tile == Tile::Gate(DoorState::Locked) {
-            state.write_msg_buff("A portcullis bars your way.");    
-        } else  {
-            state.write_msg_buff("You cannot go that way.");
-        }
+        //     state.turn += 1;
+        // } else if *tile == Tile::Door(DoorState::Closed) {
+        //     // Bump to open doors. I might make this an option later
+        //     do_open(state, next_loc);
+        // } else if *tile == Tile::Gate(DoorState::Closed) || *tile == Tile::Gate(DoorState::Locked) {
+        //     state.write_msg_buff("A portcullis bars your way.");    
+        // } else  {
+        //     state.write_msg_buff("You cannot go that way.");
+        // }
     }
 
     fn chat_with(state: &mut GameState, gui: &mut GameUI, loc: (i32, i32, i8), player: &mut Player, game_objs: &mut GameObjects, dialogue: &DialogueLibrary) {
-        if let Some(mut npc) = game_objs.npc_at(&loc) {
-            let line = npc.talk_to(state, player, dialogue);
-            state.add_to_msg_history(&line);
-            gui.popup_msg(&npc.get_fullname().with_indef_article().capitalize(), &line);
-            game_objs.add(npc);
-        } else {
-            if let Tile::Door(_) = state.map[&loc] {
-                state.write_msg_buff("The door is ignoring you.");
-            } else {
-                state.write_msg_buff("Oh no, talking to yourself?");
-            } 
-        }
+        // if let Some(mut npc) = game_objs.npc_at(&loc) {
+        //     let line = npc.talk_to(state, player, dialogue);
+        //     state.add_to_msg_history(&line);
+        //     gui.popup_msg(&npc.get_fullname().with_indef_article().capitalize(), &line);
+        //     game_objs.add(npc);
+        // } else {
+        //     if let Tile::Door(_) = state.map[&loc] {
+        //         state.write_msg_buff("The door is ignoring you.");
+        //     } else {
+        //         state.write_msg_buff("Oh no, talking to yourself?");
+        //     } 
+        // }
     }
 
     fn show_character_sheet(gui: &mut GameUI, player: &Player) {
@@ -1112,30 +1112,32 @@
             if vis.0 == state.player_loc {
                 v_matrix[j] = (map::Tile::Player(WHITE), true);
             } else if visible[j].1 {      
-                let tile = if let Some(t) = game_objs.tile_at(&vis.0) {
-                    if !t.1 {
-                        state.tile_memory.insert(vis.0, t.0);
-                    }
-                    t.0
-                } else {
-                    state.tile_memory.insert(vis.0, state.map[&vis.0]);
+                // let tile = if let Some(t) = game_objs.tile_at(&vis.0) {
+                //     if !t.1 {
+                //         state.tile_memory.insert(vis.0, t.0);
+                //     }
+                //     t.0
+                // } else {
+                //     state.tile_memory.insert(vis.0, state.map[&vis.0]);
                     
-                    // I wanted to make tochlight squares be coloured different so this is a slight
-                    // kludge. Although perhaps later I might use it to differentiate between a player
-                    // walking through the dungeon with a light vs relying on darkvision, etc
-                    if state.aura_sqs.contains(&vis.0) && state.map[&vis.0] == Tile::StoneFloor {
-                        Tile::ColourFloor(display::LIGHT_BLUE)
-                    } else if state.lit_sqs.contains(&vis.0) {
-                        match state.map[&vis.0] {
-                            Tile::StoneFloor => Tile::ColourFloor(display::YELLOW),
-                            Tile::Trigger => Tile::ColourFloor(display::YELLOW_ORANGE),
-                            _ => state.map[&vis.0],
-                        }
-                    } else {
-                        state.map[&vis.0]
-                    }
-                };
+                //     // I wanted to make tochlight squares be coloured different so this is a slight
+                //     // kludge. Although perhaps later I might use it to differentiate between a player
+                //     // walking through the dungeon with a light vs relying on darkvision, etc
+                //     if state.aura_sqs.contains(&vis.0) && state.map[&vis.0] == Tile::StoneFloor {
+                //         Tile::ColourFloor(display::LIGHT_BLUE)
+                //     } else if state.lit_sqs.contains(&vis.0) {
+                //         match state.map[&vis.0] {
+                //             Tile::StoneFloor => Tile::ColourFloor(display::YELLOW),
+                //             Tile::Trigger => Tile::ColourFloor(display::YELLOW_ORANGE),
+                //             _ => state.map[&vis.0],
+                //         }
+                //     } else {
+                //         state.map[&vis.0]
+                //     }
+                // };
                 
+                // temp
+                let tile = state.map[&vis.0];
                 v_matrix[j] = (tile, true);
             } else if state.tile_memory.contains_key(&vis.0) {
                 v_matrix[j] = (state.tile_memory[&vis.0], false);            
@@ -1183,8 +1185,8 @@
             state.player_loc = player.location;
 
             if state.turn > start_turn {
-                game_objs.do_npc_turns(state);
-                game_objs.end_of_turn(state);            
+                // game_objs.do_npc_turns(state);
+                // game_objs.end_of_turn(state);            
             }
             
             // Are there any accumulated events we need to deal with?

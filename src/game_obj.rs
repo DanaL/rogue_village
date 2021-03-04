@@ -42,35 +42,90 @@ pub enum GameObjType {
     SpecialSquare,
 }
 
-pub trait GameObject {
-    fn blocks(&self) -> bool;
-    fn get_location(&self) -> (i32, i32, i8);
-    fn set_location(&mut self, loc: (i32, i32, i8));
-    fn receive_event(&mut self, event: EventType, state: &mut GameState) -> Option<EventResponse>;
-    fn get_fullname(&self) -> String;
-    fn get_object_id(&self) -> usize;
-    fn get_type(&self) -> GameObjType;
-    fn get_tile(&self) -> Tile;
-    fn take_turn(&mut self, state: &mut GameState, game_objs: &mut GameObjects);
-    fn is_npc(&self) -> bool;
-    fn talk_to(&mut self, state: &mut GameState, player: &Player, dialogue: &DialogueLibrary) -> String;
-    fn hidden(&self) -> bool;
-    fn reveal(&mut self);
-    fn hide(&mut self);
-    // I'm not sure if this is some terrible design sin but sometimes I need to get at the underlying
-    // object and didn't want to write a zillion accessor methods. I wonder if I should have gone whole
-    // hog down this around and given GameObjets a HashMap of attributes so that I didn't actually need
-    // Villager or Item or Zorkminds structs at alll..
-    fn as_item(&self) -> Option<Item>;
-    fn as_zorkmids(&self) -> Option<GoldPile>;
-    fn as_villager(&self) -> Option<NPC>;
-    fn as_special_sq(&self) -> Option<SpecialSquare>;
+#[derive(Debug)]
+pub struct GameObject {
+    pub object_id: usize,
+    pub location: (i32, i32, i8),
+    pub hidden: bool,
+    pub symbol: char,
+	pub lit_colour: (u8, u8, u8),
+    pub unlit_colour: (u8, u8, u8),
+    pub npc: Option<NPC>,
+    pub item: Option<Item>,
+    pub gold_pile: Option<GoldPile>,
+    pub special_sq: Option<SpecialSquare>,
+    blocks: bool,
+    pub name: String,
 }
+
+impl GameObject {
+    pub fn new(object_id: usize, name: &str, location: (i32, i32, i8), symbol: char, lit_colour: (u8, u8, u8), unlit_colour: (u8, u8, u8),
+        npc: Option<NPC>, item: Option<Item>, gold_pile: Option<GoldPile>, special_sq: Option<SpecialSquare>, blocks: bool) -> Self {
+            GameObject { object_id, name: String::from(name), location, hidden: false, symbol, lit_colour, unlit_colour, npc, item, gold_pile, special_sq, blocks, }
+        }
+
+    pub fn blocks(&self) -> bool {
+        self.blocks
+    }
+
+    pub fn get_loc(&self) -> (i32, i32, i8) {
+        self.location
+    }
+
+    pub fn set_loc(&mut self, loc: (i32, i32, i8)) {
+        self.location = loc;
+    }
+
+    pub fn get_fullname(&self) -> String {
+        self.name.clone()
+    }
+
+    pub fn get_object_id(&self) -> usize {
+        self.object_id
+    }
+
+    pub fn get_tile(&self) -> Tile {
+        Tile::Thing(self.lit_colour, self.unlit_colour, self.symbol)
+    }
+
+    pub fn hidden(&self) -> bool {
+        self.hidden
+    }
+
+    pub fn hide(&mut self) {
+        self.hidden = true
+    }
+
+    pub fn reveal(&mut self) {
+        self.hidden = false
+    }
+}
+
+// pub trait GameObject {
+//     fn receive_event(&mut self, event: EventType, state: &mut GameState) -> Option<EventResponse>;
+//     fn get_fullname(&self) -> String;    
+//     fn get_type(&self) -> GameObjType;
+
+//     fn take_turn(&mut self, state: &mut GameState, game_objs: &mut GameObjects);
+//     fn is_npc(&self) -> bool;
+//     fn talk_to(&mut self, state: &mut GameState, player: &Player, dialogue: &DialogueLibrary) -> String;
+//     fn hidden(&self) -> bool;
+//     fn reveal(&mut self);
+//     fn hide(&mut self);
+//     // I'm not sure if this is some terrible design sin but sometimes I need to get at the underlying
+//     // object and didn't want to write a zillion accessor methods. I wonder if I should have gone whole
+//     // hog down this around and given GameObjets a HashMap of attributes so that I didn't actually need
+//     // Villager or Item or Zorkminds structs at alll..
+//     fn as_item(&self) -> Option<Item>;
+//     fn as_zorkmids(&self) -> Option<GoldPile>;
+//     fn as_villager(&self) -> Option<NPC>;
+//     fn as_special_sq(&self) -> Option<SpecialSquare>;
+// }
 
 pub struct GameObjects {
     next_obj_id: usize,
     pub obj_locs: HashMap<(i32, i32, i8), VecDeque<usize>>,
-    pub objects: HashMap<usize, Box<dyn GameObject>>,
+    pub objects: HashMap<usize, GameObject>,
     pub listeners: HashSet<(usize, EventType)>,
     next_slot: char,
 }
@@ -82,50 +137,6 @@ impl GameObjects {
             listeners: HashSet::new(), next_slot: 'a' }
     }
 
-    pub fn add(&mut self, obj: Box<dyn GameObject>) {
-        let loc = obj.get_location();
-        let obj_id = obj.get_object_id();
-
-        // I want to merge stacks of gold so check the location to see if there 
-        // are any there before we insert. For items where there won't be too many of
-        // (like torches) that can stack, I don't bother. But storing gold as individual
-        // items might have meant 10s of thousands of objects
-        if obj.get_type() != GameObjType::Zorkmids || !self.check_for_stack(&obj, loc) {
-            self.set_to_loc(obj_id, loc);
-            self.objects.insert(obj_id, obj);
-        }            
-    }
-
-    fn check_for_stack(&mut self, obj: &Box<dyn GameObject>, loc: (i32, i32, i8)) -> bool {
-        if self.obj_locs.contains_key(&loc) && self.obj_locs[&loc].len() > 0 {
-            let mut pile_id = 0;
-            for obj_id in self.obj_locs[&loc].iter() {
-                if self.objects[&obj_id].get_type() == GameObjType::Zorkmids {
-                    pile_id = *obj_id;
-                    break;
-                }
-            }
-
-            if pile_id > 0 {
-                let mut pile = self.get(pile_id).as_zorkmids().unwrap();
-                let other = obj.as_zorkmids().unwrap();
-                pile.amount += other.amount;
-                self.add(Box::new(pile));
-                return true;
-            }
-        }
-
-        false
-    }
-
-    pub fn get(&mut self, obj_id: usize) -> Box<dyn GameObject> {
-        let obj = self.objects.remove(&obj_id).unwrap();
-        let loc = obj.get_location();
-        self.remove_from_loc(obj_id, loc);
-
-        obj
-    }
-
     pub fn next_id(&mut self) -> usize {
         let c = self.next_obj_id;
         self.next_obj_id += 1;
@@ -133,9 +144,20 @@ impl GameObjects {
         c
     }
 
-    pub fn remove_from_loc(&mut self, obj_id: usize, loc: (i32, i32, i8)) {
-        let q = self.obj_locs.get_mut(&loc).unwrap();
-        q.retain(|v| *v != obj_id);
+    pub fn add(&mut self, obj: GameObject) {
+        let loc = obj.get_loc();
+        let obj_id = obj.get_object_id();
+
+        // I want to merge stacks of gold so check the location to see if there 
+        // are any there before we insert. For items where there won't be too many of
+        // (like torches) that can stack, I don't bother. But storing gold as individual
+        // items might have meant 10s of thousands of objects
+        // if obj.get_type() != GameObjType::Zorkmids || !self.check_for_stack(&obj, loc) {
+        //     self.set_to_loc(obj_id, loc);
+        //     self.objects.insert(obj_id, obj);
+        // }
+        self.set_to_loc(obj_id, loc);
+        self.objects.insert(obj_id, obj);        
     }
 
     fn set_to_loc(&mut self, obj_id: usize, loc: (i32, i32, i8)) {
@@ -146,148 +168,185 @@ impl GameObjects {
         self.obj_locs.get_mut(&loc).unwrap().push_front(obj_id);
     }
 
-    pub fn blocking_obj_at(&self, loc: &(i32, i32, i8)) -> bool {
-        if self.obj_locs.contains_key(&loc) && self.obj_locs[&loc].len() > 0 {
-            for obj_id in self.obj_locs[&loc].iter() {
-                if self.objects[&obj_id].blocks() {
-                    return true;
-                }
-            }
-        }
+    // fn check_for_stack(&mut self, obj: &Box<dyn GameObject>, loc: (i32, i32, i8)) -> bool {
+    //     if self.obj_locs.contains_key(&loc) && self.obj_locs[&loc].len() > 0 {
+    //         let mut pile_id = 0;
+    //         for obj_id in self.obj_locs[&loc].iter() {
+    //             if self.objects[&obj_id].get_type() == GameObjType::Zorkmids {
+    //                 pile_id = *obj_id;
+    //                 break;
+    //             }
+    //         }
 
-        return false;
-    }
+    //         if pile_id > 0 {
+    //             let mut pile = self.get(pile_id).as_zorkmids().unwrap();
+    //             let other = obj.as_zorkmids().unwrap();
+    //             pile.amount += other.amount;
+    //             self.add(Box::new(pile));
+    //             return true;
+    //         }
+    //     }
 
-    pub fn tile_at(&self, loc: &(i32, i32, i8)) -> Option<(Tile, bool)> {
-        if self.obj_locs.contains_key(&loc) && self.obj_locs[&loc].len() > 0 {
-            for obj_id in self.obj_locs[&loc].iter() {
-                if self.objects[&obj_id].blocks() {
-                    return Some((self.objects[&obj_id].get_tile(), self.objects[&obj_id].is_npc()));
-                }
-            }
+    //     false
+    // }
 
-            let obj_id = self.obj_locs[&loc].front().unwrap();
-            if !self.objects[obj_id].hidden() {
-                return Some((self.objects[obj_id].get_tile(), false));
-            }
-        }
+    // pub fn get(&mut self, obj_id: usize) -> Box<dyn GameObject> {
+    //     let obj = self.objects.remove(&obj_id).unwrap();
+    //     let loc = obj.get_location();
+    //     self.remove_from_loc(obj_id, loc);
 
-        None
-    }
+    //     obj
+    // }
 
-    pub fn location_occupied(&self, loc: &(i32, i32, i8)) -> bool {
-        if !self.obj_locs.contains_key(loc) {
-            return false;
-        }
+    // pub fn remove_from_loc(&mut self, obj_id: usize, loc: (i32, i32, i8)) {
+    //     let q = self.obj_locs.get_mut(&loc).unwrap();
+    //     q.retain(|v| *v != obj_id);
+    // }
 
-        for id in self.obj_locs[loc].iter() {
-            if self.objects[&id].blocks() {
-                return true;
-            }
-        }
+    
 
-        false
-    }
+    // pub fn blocking_obj_at(&self, loc: &(i32, i32, i8)) -> bool {
+    //     if self.obj_locs.contains_key(&loc) && self.obj_locs[&loc].len() > 0 {
+    //         for obj_id in self.obj_locs[&loc].iter() {
+    //             if self.objects[&obj_id].blocks() {
+    //                 return true;
+    //             }
+    //         }
+    //     }
 
-    pub fn npc_at(&mut self, loc: &(i32, i32, i8)) -> Option<Box<dyn GameObject>> {
-        let mut npc_id = 0;
+    //     return false;
+    // }
 
-        if let Some(objs) = self.obj_locs.get(loc) {
-            for id in objs {
-                if self.objects[&id].is_npc() {
-                    npc_id = *id;
-                    break;                    
-                }
-            }
-        }
+    // pub fn tile_at(&self, loc: &(i32, i32, i8)) -> Option<(Tile, bool)> {
+    //     if self.obj_locs.contains_key(&loc) && self.obj_locs[&loc].len() > 0 {
+    //         for obj_id in self.obj_locs[&loc].iter() {
+    //             if self.objects[&obj_id].blocks() {
+    //                 return Some((self.objects[&obj_id].get_tile(), self.objects[&obj_id].is_npc()));
+    //             }
+    //         }
 
-        if npc_id > 0 {
-            Some(self.get(npc_id))
-        } else {
-            None
-        }        
-    }
+    //         let obj_id = self.obj_locs[&loc].front().unwrap();
+    //         if !self.objects[obj_id].hidden() {
+    //             return Some((self.objects[obj_id].get_tile(), false));
+    //         }
+    //     }
 
-    pub fn do_npc_turns(&mut self, state: &mut GameState) {
-        let actors = self.listeners.iter()
-                                   .filter(|i| i.1 == EventType::TakeTurn)
-                                   .map(|i| i.0).collect::<Vec<usize>>();
+    //     None
+    // }
 
-        for actor_id in actors {
-            let mut obj = self.get(actor_id);
+    // pub fn location_occupied(&self, loc: &(i32, i32, i8)) -> bool {
+    //     if !self.obj_locs.contains_key(loc) {
+    //         return false;
+    //     }
+
+    //     for id in self.obj_locs[loc].iter() {
+    //         if self.objects[&id].blocks() {
+    //             return true;
+    //         }
+    //     }
+
+    //     false
+    // }
+
+    // pub fn npc_at(&mut self, loc: &(i32, i32, i8)) -> Option<Box<dyn GameObject>> {
+    //     let mut npc_id = 0;
+
+    //     if let Some(objs) = self.obj_locs.get(loc) {
+    //         for id in objs {
+    //             if self.objects[&id].is_npc() {
+    //                 npc_id = *id;
+    //                 break;                    
+    //             }
+    //         }
+    //     }
+
+    //     if npc_id > 0 {
+    //         Some(self.get(npc_id))
+    //     } else {
+    //         None
+    //     }        
+    // }
+
+    // pub fn do_npc_turns(&mut self, state: &mut GameState) {
+    //     let actors = self.listeners.iter()
+    //                                .filter(|i| i.1 == EventType::TakeTurn)
+    //                                .map(|i| i.0).collect::<Vec<usize>>();
+
+    //     for actor_id in actors {
+    //         let mut obj = self.get(actor_id);
             
-            // I don't want to have every single monster in the game taking a turn every round, so
-            // only update monsters on the surface or on the same level as the player. (Who knows, in
-            // the end maybe it'll be fast enough to always update 100s of monsters..)
-            let loc = obj.get_location();
-            if loc.2 == 0 || loc.2 == state.player_loc.2 {
-                obj.take_turn(state, self);
-            }
+    //         // I don't want to have every single monster in the game taking a turn every round, so
+    //         // only update monsters on the surface or on the same level as the player. (Who knows, in
+    //         // the end maybe it'll be fast enough to always update 100s of monsters..)
+    //         let loc = obj.get_location();
+    //         if loc.2 == 0 || loc.2 == state.player_loc.2 {
+    //             obj.take_turn(state, self);
+    //         }
 
-            // There will stuff here that may happen, like if a monster dies while taking
-            // its turn, etc
-            self.add(obj);
-        }
-    }
+    //         // There will stuff here that may happen, like if a monster dies while taking
+    //         // its turn, etc
+    //         self.add(obj);
+    //     }
+    // }
 
-    pub fn end_of_turn(&mut self, state: &mut GameState) {
-        let listeners: Vec<usize> = self.listeners.iter()
-            .filter(|l| l.1 == EventType::EndOfTurn)
-            .map(|l| l.0).collect();
+    // pub fn end_of_turn(&mut self, state: &mut GameState) {
+    //     let listeners: Vec<usize> = self.listeners.iter()
+    //         .filter(|l| l.1 == EventType::EndOfTurn)
+    //         .map(|l| l.0).collect();
 
-        state.lit_sqs.clear();
-        state.aura_sqs.clear();
-        for obj_id in listeners {
-            let mut obj = self.get(obj_id);
+    //     state.lit_sqs.clear();
+    //     state.aura_sqs.clear();
+    //     for obj_id in listeners {
+    //         let mut obj = self.get(obj_id);
 
-            match obj.receive_event(EventType::EndOfTurn, state) {
-                Some(response) => {
-                    if response.event_type == EventType::LightExpired {
-                        self.listeners.remove(&(obj.get_object_id(), EventType::EndOfTurn));
-                    }
-                },
-                _ => self.add(obj),
-            }
-        }
+    //         match obj.receive_event(EventType::EndOfTurn, state) {
+    //             Some(response) => {
+    //                 if response.event_type == EventType::LightExpired {
+    //                     self.listeners.remove(&(obj.get_object_id(), EventType::EndOfTurn));
+    //                 }
+    //             },
+    //             _ => self.add(obj),
+    //         }
+    //     }
 
-        // Now that we've updated which squares are lit, let any listeners know
-        let listeners: Vec<usize> = self.listeners.iter()
-            .filter(|l| l.1 == EventType::LitUp)
-            .map(|l| l.0).collect();
+    //     // Now that we've updated which squares are lit, let any listeners know
+    //     let listeners: Vec<usize> = self.listeners.iter()
+    //         .filter(|l| l.1 == EventType::LitUp)
+    //         .map(|l| l.0).collect();
 
-        for obj_id in listeners {
-            let mut obj = self.get(obj_id);
-            obj.receive_event(EventType::LitUp, state);
-            self.add(obj);
-        }
-    }
+    //     for obj_id in listeners {
+    //         let mut obj = self.get(obj_id);
+    //         obj.receive_event(EventType::LitUp, state);
+    //         self.add(obj);
+    //     }
+    // }
 
-    pub fn stepped_on_event(&mut self, state: &mut GameState, loc: (i32, i32, i8)) {
-        let listeners: Vec<usize> = self.listeners.iter()
-            .filter(|l| l.1 == EventType::SteppedOn)
-            .map(|l| l.0).collect();
+    // pub fn stepped_on_event(&mut self, state: &mut GameState, loc: (i32, i32, i8)) {
+    //     let listeners: Vec<usize> = self.listeners.iter()
+    //         .filter(|l| l.1 == EventType::SteppedOn)
+    //         .map(|l| l.0).collect();
 
-        for obj_id in listeners {
-            let mut obj = self.get(obj_id);
-            if obj.get_location() == loc {
-                if let Some(result) = obj.receive_event(EventType::SteppedOn, state) {
-                    let target = self.objects.get_mut(&result.object_id).unwrap();
-                    target.receive_event(EventType::Triggered, state);
-                }
-            }
-            self.add(obj);
-        }
-    }
+    //     for obj_id in listeners {
+    //         let mut obj = self.get(obj_id);
+    //         if obj.get_location() == loc {
+    //             if let Some(result) = obj.receive_event(EventType::SteppedOn, state) {
+    //                 let target = self.objects.get_mut(&result.object_id).unwrap();
+    //                 target.receive_event(EventType::Triggered, state);
+    //             }
+    //         }
+    //         self.add(obj);
+    //     }
+    // }
 
-    pub fn inv_slots_used(&self) -> Vec<(char, Item)> {
+    pub fn inv_slots_used(&self) -> Vec<char> {
         let mut slots = Vec::new();
 
         if self.obj_locs.contains_key(&PLAYER_INV) && self.obj_locs[&PLAYER_INV].len() > 0 {
             let obj_ids: Vec<usize> = self.obj_locs[&PLAYER_INV].iter().map(|i| *i).collect();
 
             for id in obj_ids {
-                if let Some(item) = self.objects[&id].as_item() {
-                    slots.push((item.slot, item));
+                if let Some(item) = &self.objects[&id].item {
+                    slots.push(item.slot);
                 }
             }            
         }
@@ -295,121 +354,130 @@ impl GameObjects {
         slots
     }
 
-    pub fn inv_count_at_slot(&self, slot: char) -> u8 {
-        if !self.obj_locs.contains_key(&PLAYER_INV) || self.obj_locs[&PLAYER_INV].len() == 0 {
-            return 0;
-        }
+    // pub fn inv_count_at_slot(&self, slot: char) -> u8 {
+    //     if !self.obj_locs.contains_key(&PLAYER_INV) || self.obj_locs[&PLAYER_INV].len() == 0 {
+    //         return 0;
+    //     }
 
-        let items: Vec<usize> = self.obj_locs[&PLAYER_INV].iter().map(|i| *i).collect();        
-        let mut sum = 0;
-        for id in items {
-            if let Some(item) = self.objects[&id].as_item() {
-                if item.slot == slot {
-                    sum += 1;
-                }
-            }
-        }     
+    //     let items: Vec<usize> = self.obj_locs[&PLAYER_INV].iter().map(|i| *i).collect();        
+    //     let mut sum = 0;
+    //     for id in items {
+    //         if let Some(item) = self.objects[&id].as_item() {
+    //             if item.slot == slot {
+    //                 sum += 1;
+    //             }
+    //         }
+    //     }     
 
-        sum
-    }
+    //     sum
+    // }
 
-    // Caller should check if the slot exists before calling this...
-    pub fn inv_remove_from_slot(&mut self, slot: char, amt: u32) -> Result<Vec<Item>, String>  {
-        let mut removed = Vec::new();
+    // // Caller should check if the slot exists before calling this...
+    // pub fn inv_remove_from_slot(&mut self, slot: char, amt: u32) -> Result<Vec<Item>, String>  {
+    //     let mut removed = Vec::new();
 
-        let items: Vec<usize> = self.obj_locs[&PLAYER_INV].iter().map(|i| *i).collect();        
+    //     let items: Vec<usize> = self.obj_locs[&PLAYER_INV].iter().map(|i| *i).collect();        
         
-        let mut count = 0;
-        for id in items {
-            if count >= amt {
-                break;
-            }
+    //     let mut count = 0;
+    //     for id in items {
+    //         if count >= amt {
+    //             break;
+    //         }
 
-            if let Some(item) = self.objects[&id].as_item() {
-                if item.slot == slot {
-                    if item.equiped && item.item_type == ItemType::Armour {
-                        return Err("You're wearing that!".to_string());
-                    } else {
-                        removed.push(item);
-                        self.remove_from_loc(id, PLAYER_INV);
-                        count += 1;
-                    }
-                }
-            }
-        }     
+    //         if let Some(item) = self.objects[&id].as_item() {
+    //             if item.slot == slot {
+    //                 if item.equiped && item.item_type == ItemType::Armour {
+    //                     return Err("You're wearing that!".to_string());
+    //                 } else {
+    //                     removed.push(item);
+    //                     self.remove_from_loc(id, PLAYER_INV);
+    //                     count += 1;
+    //                 }
+    //             }
+    //         }
+    //     }     
 
-        Ok(removed)
-    }
+    //     Ok(removed)
+    // }
 
-    pub fn add_to_inventory(&mut self, item: Item) {
+    pub fn add_to_inventory(&mut self, mut obj: GameObject) {
         // to add a new item, we
         // check its existing slot. If it's free, great. 
         // If not, if the current item is stackable and can stack with the
         // item there, great!
         // otherwise we find the next available slot and set item's slot to it
         let slots = self.inv_slots_used();
-        let used_slots : HashSet<char> = slots.iter()
-                                              .map(|s| s.0)
-                                              .collect();
-                
-        if item.stackable() {
-            for (_, existing_item) in slots {
-                if item == existing_item {
-                    let mut i = item.clone();
-                    i.set_location(PLAYER_INV);
-                    i.slot = existing_item.slot;
-                    self.add(Box::new(i));
-                    return;                    
+        let obj_id = obj.object_id;
+
+        if obj.item.as_ref().unwrap().stackable() {
+            for id in self.obj_locs[&PLAYER_INV].iter() {
+                let o = &self.objects[&id];
+                let other_item = &o.item.as_ref().unwrap();
+                if obj.name == o.name && other_item.stackable {
+                    obj.item.as_mut().unwrap().slot = other_item.slot;                    
+                    self.add(obj);
+                    self.set_to_loc(obj_id, PLAYER_INV);
+                    self.objects.get_mut(&obj_id).unwrap().set_loc(PLAYER_INV);
+                    return;
                 }
             }            
-        } 
+        }
 
-        let mut i = item.clone();
-        i.set_location(PLAYER_INV);
+        self.add(obj);
+        self.set_to_loc(obj_id, PLAYER_INV);
+        self.objects.get_mut(&obj_id).unwrap().set_loc(PLAYER_INV);
 
-        if item.slot == '\0' || used_slots.contains(&i.slot) {
-            i.slot = self.next_slot;
+        let curr_slot = self.objects[&obj_id].item.as_ref().unwrap().slot;     
+        if curr_slot == '\0' || slots.contains(&curr_slot) {
+            self.objects.get_mut(&obj_id).unwrap()
+                        .item.as_mut().unwrap().slot = self.next_slot;
             
             // Increment the next slot
-            let mut slot = self.next_slot;		
+            let mut nslot = self.next_slot;		
             loop {
-                slot = (slot as u8 + 1) as char;
-                if slot > 'z' {
-                    slot = 'a';
+                nslot = (nslot as u8 + 1) as char;
+                if nslot > 'z' {
+                    nslot = 'a';
                 }
 
-                if !used_slots.contains(&slot) {
-                    self.next_slot = slot;
+                if !slots.contains(&nslot) {
+                    self.next_slot = nslot;
                     break;
                 }
 
-                if slot == self.next_slot {
+                if nslot == self.next_slot {
                     // No free spaces left in the invetory!
                     self.next_slot = '\0';
                     break;
                 }
             }
-        }
-
-        self.add(Box::new(i));
+        }        
     }
     
     pub fn get_inventory_menu(&self) -> Vec<String> {
-        let mut menu = Vec::new();
-        let slots = self.inv_slots_used();
-        let mut used_slots : Vec<char> = slots.iter()
-                                              .map(|s| s.0)
-                                              .collect();
-        used_slots.sort();
-        used_slots.dedup();
+        let mut items = Vec::new();
+        if self.obj_locs.contains_key(&PLAYER_INV) && self.obj_locs[&PLAYER_INV].len() > 0 {
+            let obj_ids: Vec<usize> = self.obj_locs[&PLAYER_INV].iter().map(|i| *i).collect();
 
+            for id in obj_ids {
+                if let Some(item) = &self.objects[&id].item {
+                    let name = self.objects[&id].get_fullname();
+                    items.push((item.slot, name));
+                }
+            }            
+        }
+        
+        let mut menu = Vec::new();
+        let mut slots: Vec<char> = items.iter().map(|i| i.0).collect();
+        slots.sort();
+        slots.dedup();
         let mut menu_items = HashMap::new();
-        for s in slots {
-            let counter = menu_items.entry(s.0).or_insert((s.1.get_fullname(), 0));
+        for s in items {
+            let counter = menu_items.entry(s.0).or_insert((s.1, 0));
             counter.1 += 1;
         }
         
-        for slot in used_slots {
+        for slot in slots {
             let mut s = String::from(slot);
             s.push_str(") ");
 
@@ -425,130 +493,130 @@ impl GameObjects {
         menu
     }
 
-    pub fn gear_with_ac_mods(&self) -> Vec<Item> {
-        let mut items = Vec::new();
+    // pub fn gear_with_ac_mods(&self) -> Vec<Item> {
+    //     let mut items = Vec::new();
 
-        if self.obj_locs.contains_key(&PLAYER_INV) {
-            let ids: Vec<usize> = self.obj_locs[&PLAYER_INV]
-                          .iter()
-                          .map(|id| *id)
-                          .collect();
-            for id in ids {
-                if let Some(item) = self.objects[&id].as_item() {
-                    if item.equiped && item.ac_bonus > 0 {
-                        items.push(item);
-                    }
-                }
-            }
-        }
+    //     if self.obj_locs.contains_key(&PLAYER_INV) {
+    //         let ids: Vec<usize> = self.obj_locs[&PLAYER_INV]
+    //                       .iter()
+    //                       .map(|id| *id)
+    //                       .collect();
+    //         for id in ids {
+    //             if let Some(item) = self.objects[&id].as_item() {
+    //                 if item.equiped && item.ac_bonus > 0 {
+    //                     items.push(item);
+    //                 }
+    //             }
+    //         }
+    //     }
 
-        items
-    }
+    //     items
+    // }
        
-    pub fn readied_armour(&self) -> Option<Item> {
-        if self.obj_locs.contains_key(&PLAYER_INV) {
-            let ids: Vec<usize> = self.obj_locs[&PLAYER_INV]
-                          .iter()
-                          .map(|id| *id)
-                          .collect();
-            for id in ids {
-                if let Some(item) = self.objects[&id].as_item() {
-                    if item.equiped && item.item_type == ItemType::Armour {
-                        return Some(item)
-                    }
-                }
-            }
-        }
+    // pub fn readied_armour(&self) -> Option<Item> {
+    //     if self.obj_locs.contains_key(&PLAYER_INV) {
+    //         let ids: Vec<usize> = self.obj_locs[&PLAYER_INV]
+    //                       .iter()
+    //                       .map(|id| *id)
+    //                       .collect();
+    //         for id in ids {
+    //             if let Some(item) = self.objects[&id].as_item() {
+    //                 if item.equiped && item.item_type == ItemType::Armour {
+    //                     return Some(item)
+    //                 }
+    //             }
+    //         }
+    //     }
 
-        None
-    }
+    //     None
+    // }
 
-    pub fn readied_weapon(&self) -> Option<Item> {
-        if self.obj_locs.contains_key(&PLAYER_INV) {
-            let ids: Vec<usize> = self.obj_locs[&PLAYER_INV]
-                          .iter()
-                          .map(|id| *id)
-                          .collect();
-            for id in ids {
-                if let Some(item) = self.objects[&id].as_item() {
-                    if item.equiped && item.item_type == ItemType::Weapon {
-                        return Some(item)
-                    }
-                }
-            }
-        }
+    // pub fn readied_weapon(&self) -> Option<Item> {
+    //     if self.obj_locs.contains_key(&PLAYER_INV) {
+    //         let ids: Vec<usize> = self.obj_locs[&PLAYER_INV]
+    //                       .iter()
+    //                       .map(|id| *id)
+    //                       .collect();
+    //         for id in ids {
+    //             if let Some(item) = self.objects[&id].as_item() {
+    //                 if item.equiped && item.item_type == ItemType::Weapon {
+    //                     return Some(item)
+    //                 }
+    //             }
+    //         }
+    //     }
 
-        None
-    }
+    //     None
+    // }
 
-    pub fn get_pickup_menu(&self, loc: (i32, i32, i8)) -> Vec<(String, usize)> {
-        let mut menu = Vec::new();
+    // pub fn get_pickup_menu(&self, loc: (i32, i32, i8)) -> Vec<(String, usize)> {
+    //     let mut menu = Vec::new();
 
-        if self.obj_locs.contains_key(&loc) {
-            let obj_ids: Vec<usize> = self.obj_locs[&loc].iter().map(|i| *i).collect();
+    //     if self.obj_locs.contains_key(&loc) {
+    //         let obj_ids: Vec<usize> = self.obj_locs[&loc].iter().map(|i| *i).collect();
 
-            for id in obj_ids {
-                if let Some(pile) = self.objects[&id].as_zorkmids() {
-                    let s = format!("{} gold pieces", pile.amount);
-                    menu.push((s, id));
-                } else {
-                    menu.push((self.objects[&id].get_fullname().with_indef_article(), id));
-                }
-            }            
-        }
+    //         for id in obj_ids {
+    //             if let Some(pile) = self.objects[&id].as_zorkmids() {
+    //                 let s = format!("{} gold pieces", pile.amount);
+    //                 menu.push((s, id));
+    //             } else {
+    //                 menu.push((self.objects[&id].get_fullname().with_indef_article(), id));
+    //             }
+    //         }            
+    //     }
 
-        menu
-    }
+    //     menu
+    // }
 
-    pub fn things_at_loc(&self, loc: (i32, i32, i8)) -> Vec<&Box<dyn GameObject>> {
-        let mut items = Vec::new();
+    // pub fn things_at_loc(&self, loc: (i32, i32, i8)) -> Vec<&Box<dyn GameObject>> {
+    //     let mut items = Vec::new();
 
-        if self.obj_locs.contains_key(&loc) {
-            let ids: Vec<usize> = self.obj_locs[&loc]
-                          .iter()
-                          .map(|id| *id)
-                          .collect();
-            for id in ids {
-                match self.objects[&id].get_type() {
-                    GameObjType::Item | GameObjType::Zorkmids => items.push(&self.objects[&id]),
-                    _ => { },
-                }                
-            }
-        }
+    //     if self.obj_locs.contains_key(&loc) {
+    //         let ids: Vec<usize> = self.obj_locs[&loc]
+    //                       .iter()
+    //                       .map(|id| *id)
+    //                       .collect();
+    //         for id in ids {
+    //             match self.objects[&id].get_type() {
+    //                 GameObjType::Item | GameObjType::Zorkmids => items.push(&self.objects[&id]),
+    //                 _ => { },
+    //             }                
+    //         }
+    //     }
 
-        items
-    }
+    //     items
+    // }
 
-    // Okay to make life difficult I want to return stackable items described as
-    // "X things" instead of having 4 of them in the list
-    pub fn descs_at_loc(&self, loc: (i32, i32, i8)) -> Vec<String> {
-        let mut v = Vec::new();
+    // // Okay to make life difficult I want to return stackable items described as
+    // // "X things" instead of having 4 of them in the list
+    // pub fn descs_at_loc(&self, loc: (i32, i32, i8)) -> Vec<String> {
+    //     let mut v = Vec::new();
         
-        let mut items = HashMap::new();
-        if self.obj_locs.contains_key(&loc) {
-            for j in 0..self.obj_locs[&loc].len() {                
-                let obj_id = self.obj_locs[&loc][j];
-                if self.objects[&obj_id].hidden() {
-                    continue;
-                }
-                let name = self.objects[&obj_id].get_fullname();
-                let i = items.entry(name).or_insert(0);
-                *i += 1;                
-            }
-        }
+    //     let mut items = HashMap::new();
+    //     if self.obj_locs.contains_key(&loc) {
+    //         for j in 0..self.obj_locs[&loc].len() {                
+    //             let obj_id = self.obj_locs[&loc][j];
+    //             if self.objects[&obj_id].hidden() {
+    //                 continue;
+    //             }
+    //             let name = self.objects[&obj_id].get_fullname();
+    //             let i = items.entry(name).or_insert(0);
+    //             *i += 1;                
+    //         }
+    //     }
 
-        for (key, value) in items {
-            if value == 1 {
-                let s = format!("{}", key.with_indef_article());
-                v.push(s);
-            } else {
-                let s = format!("{} {}", value, key.pluralize());
-                v.push(s);
-            }            
-        }
+    //     for (key, value) in items {
+    //         if value == 1 {
+    //             let s = format!("{}", key.with_indef_article());
+    //             v.push(s);
+    //         } else {
+    //             let s = format!("{} {}", value, key.pluralize());
+    //             v.push(s);
+    //         }            
+    //     }
         
-        v
-    }
+    //     v
+    // }
 }
 
 #[derive(Serialize, Deserialize)]
@@ -574,18 +642,18 @@ impl GOForSerde {
             for_serde.listeners.insert(*l);
         }
 
-        for id in game_objs.objects.keys() {
-            let obj = game_objs.objects.get(id).unwrap();
-            if let Some(item) = obj.as_item() {
-                for_serde.items.push(item);
-            } else if let Some(pile) = obj.as_zorkmids() {
-                for_serde.gold_piles.push(pile);
-            } else if let Some(villager) = obj.as_villager() {
-                for_serde.villagers.push(villager);
-            } else if let Some(special_sq) = obj.as_special_sq() {
-                for_serde.special_sqs.push(special_sq);
-            }
-        }
+        // for id in game_objs.objects.keys() {
+        //     let obj = game_objs.objects.get(id).unwrap();
+        //     if let Some(item) = obj.as_item() {
+        //         for_serde.items.push(item);
+        //     } else if let Some(pile) = obj.as_zorkmids() {
+        //         for_serde.gold_piles.push(pile);
+        //     } else if let Some(villager) = obj.as_villager() {
+        //         for_serde.villagers.push(villager);
+        //     } else if let Some(special_sq) = obj.as_special_sq() {
+        //         for_serde.special_sqs.push(special_sq);
+        //     }
+        // }
 
         for_serde
     }
@@ -598,18 +666,18 @@ impl GOForSerde {
         for l in go.listeners.iter() {
             game_objects.listeners.insert(*l);
         }
-        for v in go.villagers {
-            game_objects.add(Box::new(v));
-        }
-        for i in go.items {
-            game_objects.add(Box::new(i));
-        }
-        for g in go.gold_piles {
-            game_objects.add(Box::new(g));
-        }
-        for sq in go.special_sqs {
-            game_objects.add(Box::new(sq));
-        }
+        // for v in go.villagers {
+        //     game_objects.add(Box::new(v));
+        // }
+        // for i in go.items {
+        //     game_objects.add(Box::new(i));
+        // }
+        // for g in go.gold_piles {
+        //     game_objects.add(Box::new(g));
+        // }
+        // for sq in go.special_sqs {
+        //     game_objects.add(Box::new(sq));
+        // }
 
         game_objects
     }

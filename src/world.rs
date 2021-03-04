@@ -271,37 +271,37 @@ fn random_open_adj(open: &HashSet<(i32, i32, i8)>, loc: (i32, i32, i8)) -> Optio
 }
 
 fn add_fire_pit(level: usize, map: &mut Map, floor_sqs: &mut HashMap<usize, HashSet<(i32, i32, i8)>>, game_objs: &mut GameObjects) {
-    let mut rng = rand::thread_rng();
-    let loc = random_sq(&floor_sqs[&(level - 1)]);
-    map.insert(loc, Tile::OldFirePit(rng.gen_range(0, 5)));
-    floor_sqs.get_mut(&(level -1))
-             .unwrap()
-             .remove(&loc);
-    if let Some(adj) = random_open_adj(&floor_sqs[&(level - 1)], loc) {
-        let mut note = Item::get_item(game_objs, "note").unwrap();
-        note.text = Some(("burnt scrap".to_string(), "Is there no end to the swarms of kobolds?".to_string()));
-        note.location = adj;
-        game_objs.add(Box::new(note));
-    }
-    let amt = rng.gen_range(4, 11);
-    let mut pile = GoldPile::new(game_objs.next_id(), amt, loc);
-    pile.hide();
-    game_objs.add(Box::new(pile));
+    // let mut rng = rand::thread_rng();
+    // let loc = random_sq(&floor_sqs[&(level - 1)]);
+    // map.insert(loc, Tile::OldFirePit(rng.gen_range(0, 5)));
+    // floor_sqs.get_mut(&(level -1))
+    //          .unwrap()
+    //          .remove(&loc);
+    // if let Some(adj) = random_open_adj(&floor_sqs[&(level - 1)], loc) {
+    //     let mut note = Item::get_item(game_objs, "note").unwrap();
+    //     note.text = Some(("burnt scrap".to_string(), "Is there no end to the swarms of kobolds?".to_string()));
+    //     note.location = adj;
+    //     game_objs.add(Box::new(note));
+    // }
+    // let amt = rng.gen_range(4, 11);
+    // let mut pile = GoldPile::new(game_objs.next_id(), amt, loc);
+    // pile.hide();
+    // game_objs.add(Box::new(pile));
 }
 
 fn add_shrine(world_info: &mut WorldInfo, level: usize, map: &mut Map, floor_sqs: &mut HashMap<usize, HashSet<(i32, i32, i8)>>, game_objs: &mut GameObjects) {
     //let mut rng = rand::thread_rng();
-    let loc = random_sq(&floor_sqs[&(level - 1)]);
-    let special_sq = SpecialSquare::new(game_objs.next_id(), Tile::Shrine(ShrineType::Woden), loc, true, 3);
-    game_objs.listeners.insert((special_sq.get_object_id(), EventType::EndOfTurn));
-    game_objs.add(Box::new(special_sq));
+    // let loc = random_sq(&floor_sqs[&(level - 1)]);
+    // let special_sq = SpecialSquare::new(game_objs.next_id(), Tile::Shrine(ShrineType::Woden), loc, true, 3);
+    // game_objs.listeners.insert((special_sq.get_object_id(), EventType::EndOfTurn));
+    // game_objs.add(Box::new(special_sq));
 
-    map.insert(loc, Tile::Shrine(ShrineType::Woden));
-    floor_sqs.get_mut(&(level - 1))
-            .unwrap()
-            .remove(&loc);
-    let fact = Fact::new(String::from("shrine to woden"), 0, loc);
-    world_info.facts.push(fact);
+    // map.insert(loc, Tile::Shrine(ShrineType::Woden));
+    // floor_sqs.get_mut(&(level - 1))
+    //         .unwrap()
+    //         .remove(&loc);
+    // let fact = Fact::new(String::from("shrine to woden"), 0, loc);
+    // world_info.facts.push(fact);
 }
 
 fn loc_in_vault(vault: &Vault, loc: (i32, i32, i8)) -> bool {
@@ -314,19 +314,19 @@ fn loc_in_vault(vault: &Vault, loc: (i32, i32, i8)) -> bool {
 
 fn place_simple_triggered_gate(_world_info: &mut WorldInfo, map: &mut Map, game_objs: &mut GameObjects, trigger_loc: (i32, i32, i8),
         vault_loc: (i32, i32, i8)) {
-    map.insert(trigger_loc, Tile::Trigger);
-    map.insert(vault_loc, Tile::Gate(DoorState::Closed));
-    let gate_sq = SpecialSquare::new(game_objs.next_id(), Tile::Gate(DoorState::Closed), vault_loc, true, 0);
-    let gate_id = gate_sq.get_object_id();
-    game_objs.add(Box::new(gate_sq));
+    // map.insert(trigger_loc, Tile::Trigger);
+    // map.insert(vault_loc, Tile::Gate(DoorState::Closed));
+    // let gate_sq = SpecialSquare::new(game_objs.next_id(), Tile::Gate(DoorState::Closed), vault_loc, true, 0);
+    // let gate_id = gate_sq.get_object_id();
+    // game_objs.add(Box::new(gate_sq));
 
-    let mut trigger_sq = SpecialSquare::new(game_objs.next_id(), Tile::Trigger, trigger_loc, 
-        false, 0);
-    trigger_sq.target = Some(gate_id);
-    let obj_id = trigger_sq.get_object_id();
+    // let mut trigger_sq = SpecialSquare::new(game_objs.next_id(), Tile::Trigger, trigger_loc, 
+    //     false, 0);
+    // trigger_sq.target = Some(gate_id);
+    // let obj_id = trigger_sq.get_object_id();
     
-    game_objs.add(Box::new(trigger_sq));
-    game_objs.listeners.insert((obj_id, EventType::SteppedOn));
+    // game_objs.add(Box::new(trigger_sq));
+    // game_objs.listeners.insert((obj_id, EventType::SteppedOn));
 }
 
 fn simple_triggered_gate(world_info: &mut WorldInfo, map: &mut Map, floors: &mut HashSet<(i32, i32, i8)>,
@@ -370,13 +370,13 @@ fn simple_triggered_gate(world_info: &mut WorldInfo, map: &mut Map, floors: &mut
 
 fn light_triggered_gate(_world_info: &mut WorldInfo, map: &mut Map, floors: &mut HashSet<(i32, i32, i8)>,
         game_objs: &mut GameObjects, vault: &Vault, level: i8) {
-    let vault_loc = (vault.entrance.0, vault.entrance.1, level);
-    map.insert(vault_loc, Tile::Gate(DoorState::Closed));
-    let gate_sq = SpecialSquare::new(game_objs.next_id(), Tile::Gate(DoorState::Closed), vault_loc, true, 0);
-    let gate_id = gate_sq.get_object_id();
-    game_objs.add(Box::new(gate_sq));
-    game_objs.listeners.insert((gate_id, EventType::LitUp));
-    floors.remove(&vault_loc);
+    // let vault_loc = (vault.entrance.0, vault.entrance.1, level);
+    // map.insert(vault_loc, Tile::Gate(DoorState::Closed));
+    // let gate_sq = SpecialSquare::new(game_objs.next_id(), Tile::Gate(DoorState::Closed), vault_loc, true, 0);
+    // let gate_id = gate_sq.get_object_id();
+    // game_objs.add(Box::new(gate_sq));
+    // game_objs.listeners.insert((gate_id, EventType::LitUp));
+    // floors.remove(&vault_loc);
 }
 
 fn add_vault(world_info: &mut WorldInfo, map: &mut Map, floors: &mut HashSet<(i32, i32, i8)>,

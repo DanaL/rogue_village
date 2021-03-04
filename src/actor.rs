@@ -157,46 +157,46 @@ impl NPC {
     }
 
     fn try_to_move_to_loc(&mut self, loc: (i32, i32, i8), state: &mut GameState, game_objs: &mut GameObjects) {        
-        if game_objs.blocking_obj_at(&loc) || state.player_loc == loc {
-            state.write_msg_buff("\"Excuse me.\"");
-            self.plan.push_front(Action::Move(loc));
-        } else if state.map[&loc] == Tile::Door(DoorState::Closed) {
-            self.plan.push_front(Action::Move(loc));
-            self.open_door(loc, state);
-        } else {
-            // Villagers will close doors after they pass through them, although monsters in the dungeon 
-            // shouldn't for the most part.
-            if !(self.attitude == Attitude::Hostile || self.attitude == Attitude::Fleeing) {
-                if let Tile::Door(DoorState::Open) = state.map[&self.get_location()] {
-                    self.plan.push_front(Action::CloseDoor(self.get_location()));                
-                }
-            }
-            self.location = loc;
-            land_on_location(state, game_objs, loc, self.get_object_id());
-        }
+        // if game_objs.blocking_obj_at(&loc) || state.player_loc == loc {
+        //     state.write_msg_buff("\"Excuse me.\"");
+        //     self.plan.push_front(Action::Move(loc));
+        // } else if state.map[&loc] == Tile::Door(DoorState::Closed) {
+        //     self.plan.push_front(Action::Move(loc));
+        //     self.open_door(loc, state);
+        // } else {
+        //     // Villagers will close doors after they pass through them, although monsters in the dungeon 
+        //     // shouldn't for the most part.
+        //     if !(self.attitude == Attitude::Hostile || self.attitude == Attitude::Fleeing) {
+        //         if let Tile::Door(DoorState::Open) = state.map[&self.get_location()] {
+        //             self.plan.push_front(Action::CloseDoor(self.get_location()));                
+        //         }
+        //     }
+        //     self.location = loc;
+        //     land_on_location(state, game_objs, loc, self.get_object_id());
+        // }
     }
 
     fn open_door(&mut self, loc: (i32, i32, i8), state: &mut GameState) {
-        let s = format!("{} opens the door.", self.get_fullname().with_def_article().capitalize());
-        state.write_msg_buff(&s);
-        state.map.insert(loc, Tile::Door(DoorState::Open));
+        // let s = format!("{} opens the door.", self.get_fullname().with_def_article().capitalize());
+        // state.write_msg_buff(&s);
+        // state.map.insert(loc, Tile::Door(DoorState::Open));
     }
 
     fn close_door(&mut self, loc: (i32, i32, i8), state: &mut GameState, game_objs: &mut GameObjects) {
-        if game_objs.blocking_obj_at(&loc) || loc == state.player_loc {
-            state.write_msg_buff("Please don't stand in the doorway.");
-            self.plan.push_front(Action::CloseDoor(loc));
-        } else {
-            if let Tile::Door(DoorState::Open) = state.map[&loc] {
-                if self.attitude == Attitude::Stranger {
-                    state.write_msg_buff("The villager closes the door.");
-                } else {
-                    let s = format!("{} closes the door.", self.get_fullname());
-                    state.write_msg_buff(&s);
-                }
-                state.map.insert(loc, Tile::Door(DoorState::Closed));
-            }
-        }
+        // if game_objs.blocking_obj_at(&loc) || loc == state.player_loc {
+        //     state.write_msg_buff("Please don't stand in the doorway.");
+        //     self.plan.push_front(Action::CloseDoor(loc));
+        // } else {
+        //     if let Tile::Door(DoorState::Open) = state.map[&loc] {
+        //         if self.attitude == Attitude::Stranger {
+        //             state.write_msg_buff("The villager closes the door.");
+        //         } else {
+        //             let s = format!("{} closes the door.", self.get_fullname());
+        //             state.write_msg_buff(&s);
+        //         }
+        //         state.map.insert(loc, Tile::Door(DoorState::Closed));
+        //     }
+        // }
     }
 
     fn follow_plan(&mut self, state: &mut GameState, game_objs: &mut GameObjects) {
@@ -239,27 +239,27 @@ impl NPC {
     }
 
     fn check_agenda_item(&mut self, state: &GameState, item: &AgendaItem) {        
-        match item.place {
-            Venue::Tavern => {
-                let tavern = &state.world_info.town_buildings.as_ref().unwrap().tavern;
-                if !in_location(state, self.get_location(), &tavern, true) {
-                    self.go_to_place(state, tavern);
-                } else {
-                    self.idle_behaviour(state);
-                }
-            },
-            Venue::TownSquare => {
-                let ts = &state.world_info.town_square;
-                if !in_location(state, self.get_location(), ts, false) {
-                    self.go_to_place(state, ts);
-                } else {
-                    self.idle_behaviour(state);
-                }
-            },
-            _ => {
-                // Eventually I'll implement the other venues...
-            },
-        }
+        // match item.place {
+        //     Venue::Tavern => {
+        //         let tavern = &state.world_info.town_buildings.as_ref().unwrap().tavern;
+        //         if !in_location(state, self.get_location(), &tavern, true) {
+        //             self.go_to_place(state, tavern);
+        //         } else {
+        //             self.idle_behaviour(state);
+        //         }
+        //     },
+        //     Venue::TownSquare => {
+        //         let ts = &state.world_info.town_square;
+        //         if !in_location(state, self.get_location(), ts, false) {
+        //             self.go_to_place(state, ts);
+        //         } else {
+        //             self.idle_behaviour(state);
+        //         }
+        //     },
+        //     _ => {
+        //         // Eventually I'll implement the other venues...
+        //     },
+        // }
     }
 
     fn villager_schedule(&mut self, state: &GameState) {
@@ -275,11 +275,11 @@ impl NPC {
         if items.len() == 0 {
             // The default behaviour is to go home if nothing on the agenda.
             let b = &state.world_info.town_buildings.as_ref().unwrap();
-            if !in_location(state, self.get_location(), &b.homes[self.home_id], true) {
-                self.go_to_place(state, &b.homes[self.home_id]);
-            } else {
-                self.idle_behaviour(state);
-            }            
+            // if !in_location(state, self.get_location(), &b.homes[self.home_id], true) {
+            //     self.go_to_place(state, &b.homes[self.home_id]);
+            // } else {
+            //     self.idle_behaviour(state);
+            // }            
         } else {
             let item = &items[0].clone();
             self.check_agenda_item(state, item);
@@ -364,90 +364,90 @@ pub fn pick_villager_name(used_names: &HashSet<String>) -> String {
     }
 }
 
-impl GameObject for NPC {
-    fn blocks(&self) -> bool {
-        true
-    }
+// impl GameObject for NPC {
+//     fn blocks(&self) -> bool {
+//         true
+//     }
 
-    fn is_npc(&self) -> bool {
-        true
-    }
+//     fn is_npc(&self) -> bool {
+//         true
+//     }
 
-    fn get_location(&self) -> (i32, i32, i8) {
-        self.location
-    }
+//     fn get_location(&self) -> (i32, i32, i8) {
+//         self.location
+//     }
 
-    fn set_location(&mut self, loc: (i32, i32, i8)) {
-        self.location = loc;
-    }
+//     fn set_location(&mut self, loc: (i32, i32, i8)) {
+//         self.location = loc;
+//     }
 
-    fn receive_event(&mut self, _event: EventType, _state: &mut GameState) -> Option<EventResponse> {
-        None
-    }
+//     fn receive_event(&mut self, _event: EventType, _state: &mut GameState) -> Option<EventResponse> {
+//         None
+//     }
 
-    fn get_fullname(&self) -> String {
-        self.name.clone()
-    }
+//     fn get_fullname(&self) -> String {
+//         self.name.clone()
+//     }
 
-    fn get_object_id(&self) -> usize {
-        self.object_id
-    }
+//     fn get_object_id(&self) -> usize {
+//         self.object_id
+//     }
 
-    fn get_tile(&self) -> Tile {
-        Tile::Creature(self.color, self.ch)
-    }
+//     fn get_tile(&self) -> Tile {
+//         Tile::Creature(self.color, self.ch)
+//     }
 
-    fn get_type(&self) -> GameObjType {
-        GameObjType::NPC
-    }
+//     fn get_type(&self) -> GameObjType {
+//         GameObjType::NPC
+//     }
     
-    fn as_item(&self) -> Option<Item> {
-        None
-    }
+//     fn as_item(&self) -> Option<Item> {
+//         None
+//     }
 
-    fn as_zorkmids(&self) -> Option<GoldPile> {
-        None
-    }
+//     fn as_zorkmids(&self) -> Option<GoldPile> {
+//         None
+//     }
     
-    fn as_villager(&self) -> Option<NPC> {
-        Some(self.clone())
-    }
+//     fn as_villager(&self) -> Option<NPC> {
+//         Some(self.clone())
+//     }
     
-    fn as_special_sq(&self) -> Option<SpecialSquare> {
-        None
-    }
+//     fn as_special_sq(&self) -> Option<SpecialSquare> {
+//         None
+//     }
 
-    fn take_turn(&mut self, state: &mut GameState, game_objs: &mut GameObjects) {
-        if self.plan.len() == 0 {
-            self.check_schedule(state);
-        }
+//     fn take_turn(&mut self, state: &mut GameState, game_objs: &mut GameObjects) {
+//         if self.plan.len() == 0 {
+//             self.check_schedule(state);
+//         }
         
-        self.follow_plan(state, game_objs);
-    }
+//         self.follow_plan(state, game_objs);
+//     }
 
-    fn talk_to(&mut self, state: &mut GameState, player: &Player, dialogue: &DialogueLibrary) -> String {
-        if self.voice == "monster" {
-            let s = format!("{} growls.", self.name.with_def_article().capitalize());
-            return s;
-        }
+//     fn talk_to(&mut self, state: &mut GameState, player: &Player, dialogue: &DialogueLibrary) -> String {
+//         if self.voice == "monster" {
+//             let s = format!("{} growls.", self.name.with_def_article().capitalize());
+//             return s;
+//         }
 
-        let line = dialogue::parse_voice_line(&dialogue::pick_voice_line(dialogue, &self.voice, self.attitude), &state.world_info, player,
-            &self.name, self.location);
-        if self.attitude == Attitude::Stranger {
-            // Perhaps a charisma check to possibly jump straight to friendly?
-            self.attitude = Attitude::Indifferent;
-        }
+//         let line = dialogue::parse_voice_line(&dialogue::pick_voice_line(dialogue, &self.voice, self.attitude), &state.world_info, player,
+//             &self.name, self.location);
+//         if self.attitude == Attitude::Stranger {
+//             // Perhaps a charisma check to possibly jump straight to friendly?
+//             self.attitude = Attitude::Indifferent;
+//         }
 
-        line
-    }
+//         line
+//     }
 
-    fn hidden(&self) -> bool {
-        false
-    }
+//     fn hidden(&self) -> bool {
+//         false
+//     }
 
-    fn reveal(&mut self) { }
-    fn hide(&mut self) { }
-}
+//     fn reveal(&mut self) { }
+//     fn hide(&mut self) { }
+// }
 
 // This could be in a data file and maybe one day will be but for now the compiler will help me avoid stupid typos
 // in basic monster definitions!
@@ -486,20 +486,20 @@ impl MonsterFactory {
     }
 
     pub fn add_monster(&self, name: &str, loc: (i32, i32, i8), game_objs: &mut GameObjects) {
-        if !self.table.contains_key(name) {
-            let s = format!("Unknown monster: {}!!", name);
-            panic!(s);
-        }
+        // if !self.table.contains_key(name) {
+        //     let s = format!("Unknown monster: {}!!", name);
+        //     panic!(s);
+        // }
 
-        let stats = self.table.get(name).unwrap();
-        let obj_id = game_objs.next_id();
-        let npc = NPC { name: String::from(name), ac: stats.0, curr_hp: stats.1, max_hp: stats.1, location: loc, ch: stats.2, 
-            color: stats.3, attitude: Attitude::Indifferent, facts_known: Vec::new(), home_id: 0, plan: VecDeque::new(), 
-            voice: String::from("monster"), schedule: Vec::new(), object_id: obj_id, mode: stats.4, attack_mod: stats.5, 
-            dmg_dice: stats.6, dmg_die: stats.7, dmg_bonus: stats.8, edc: self.calc_dc(stats.9), attributes: stats.10,
-        };
+        // let stats = self.table.get(name).unwrap();
+        // let obj_id = game_objs.next_id();
+        // let npc = NPC { name: String::from(name), ac: stats.0, curr_hp: stats.1, max_hp: stats.1, location: loc, ch: stats.2, 
+        //     color: stats.3, attitude: Attitude::Indifferent, facts_known: Vec::new(), home_id: 0, plan: VecDeque::new(), 
+        //     voice: String::from("monster"), schedule: Vec::new(), object_id: obj_id, mode: stats.4, attack_mod: stats.5, 
+        //     dmg_dice: stats.6, dmg_die: stats.7, dmg_bonus: stats.8, edc: self.calc_dc(stats.9), attributes: stats.10,
+        // };
 
-        game_objs.add(Box::new(npc));
-        game_objs.listeners.insert((obj_id, EventType::TakeTurn));
+        // game_objs.add(Box::new(npc));
+        // game_objs.listeners.insert((obj_id, EventType::TakeTurn));
     }
 }

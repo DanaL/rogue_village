@@ -147,135 +147,135 @@ impl SpecialSquare {
 	}
 
 	fn handle_triggered_event(&mut self, state: &mut GameState) {
-		match self.get_tile() {
-			Tile::Gate(_) => {
-				self.active = !self.active;
-				state.write_msg_buff("You here a metallic grinding.");
-				if self.active {
-					state.queued_events.push_back((EventType::GateClosed, self.location, self.object_id));
-					state.map.insert(self.get_location(), Tile::Gate(DoorState::Closed));
-				} else {
-					state.map.insert(self.get_location(), Tile::Gate(DoorState::Open));
-					state.queued_events.push_back((EventType::GateOpened, self.location, self.object_id));
-				}
-			},
-			_ => { },
-		}
+		// match self.get_tile() {
+		// 	Tile::Gate(_) => {
+		// 		self.active = !self.active;
+		// 		state.write_msg_buff("You here a metallic grinding.");
+		// 		if self.active {
+		// 			state.queued_events.push_back((EventType::GateClosed, self.location, self.object_id));
+		// 			state.map.insert(self.get_location(), Tile::Gate(DoorState::Closed));
+		// 		} else {
+		// 			state.map.insert(self.get_location(), Tile::Gate(DoorState::Open));
+		// 			state.queued_events.push_back((EventType::GateOpened, self.location, self.object_id));
+		// 		}
+		// 	},
+		// 	_ => { },
+		// }
 	}
 
 	// This is assuming a special square will only have this function called when it's signed up to be
 	// alerted about being lit/unlit.
 	fn handle_litup(&mut self, state: &mut GameState, lit: bool) {
-		match self.get_tile() {
-			Tile::Gate(_) => {
-				// An active Gate is a closed gate
-				if lit && self.active {
-					self.handle_triggered_event(state);					
-				} else if !lit && !self.active {
-					self.handle_triggered_event(state);
-				}				
-			},
-			_ => { },
-		}
+		// match self.get_tile() {
+		// 	Tile::Gate(_) => {
+		// 		// An active Gate is a closed gate
+		// 		if lit && self.active {
+		// 			self.handle_triggered_event(state);					
+		// 		} else if !lit && !self.active {
+		// 			self.handle_triggered_event(state);
+		// 		}				
+		// 	},
+		// 	_ => { },
+		// }
 	}
 }
 
-impl GameObject for SpecialSquare {
-	fn blocks(&self) -> bool {
-		false
-	}
+// impl GameObject for SpecialSquare {
+// 	fn blocks(&self) -> bool {
+// 		false
+// 	}
 
-    fn get_location(&self) -> (i32, i32, i8) {
-		self.location
-	}
+//     fn get_location(&self) -> (i32, i32, i8) {
+// 		self.location
+// 	}
 
-    fn set_location(&mut self, _loc: (i32, i32, i8)) {
-		panic!("Shouldn't be called for tiles!")
-	}
+//     fn set_location(&mut self, _loc: (i32, i32, i8)) {
+// 		panic!("Shouldn't be called for tiles!")
+// 	}
 	
-    fn receive_event(&mut self, event: EventType, state: &mut GameState) -> Option<EventResponse> {
-		match event {
-			EventType::EndOfTurn => {
-				self.mark_aura(state);
-			},
-			EventType::SteppedOn => {
-				state.write_msg_buff("Click.");
-				self.active = !self.active;
+//     fn receive_event(&mut self, event: EventType, state: &mut GameState) -> Option<EventResponse> {
+// 		match event {
+// 			EventType::EndOfTurn => {
+// 				self.mark_aura(state);
+// 			},
+// 			EventType::SteppedOn => {
+// 				state.write_msg_buff("Click.");
+// 				self.active = !self.active;
 
-				if let Some(target) = self.target {
-					return Some(EventResponse::new(target, EventType::Triggered));
-				}
-			},
-			EventType::LitUp => {
-				let lit = state.lit_sqs.contains(&self.location);
-				self.handle_litup(state, lit);
-			},
-			EventType::Triggered => {
-				self.handle_triggered_event(state);
-			}
-			_ => { 
-				panic!("This event isn't implemented for special squares!");
-			}
-		}
+// 				if let Some(target) = self.target {
+// 					return Some(EventResponse::new(target, EventType::Triggered));
+// 				}
+// 			},
+// 			EventType::LitUp => {
+// 				let lit = state.lit_sqs.contains(&self.location);
+// 				self.handle_litup(state, lit);
+// 			},
+// 			EventType::Triggered => {
+// 				self.handle_triggered_event(state);
+// 			}
+// 			_ => { 
+// 				panic!("This event isn't implemented for special squares!");
+// 			}
+// 		}
 
-		None
-	}
+// 		None
+// 	}
 
-    fn get_fullname(&self) -> String {
-		panic!("Shouldn't be called for tiles!")
-	}
+//     fn get_fullname(&self) -> String {
+// 		panic!("Shouldn't be called for tiles!")
+// 	}
 
-    fn get_object_id(&self) -> usize {
-		self.object_id
-	}
+//     fn get_object_id(&self) -> usize {
+// 		self.object_id
+// 	}
 
-    fn get_type(&self) -> GameObjType {
-		GameObjType::SpecialSquare
-	}
-    fn get_tile(&self) -> Tile {
-		self.tile.clone()
-	}
+//     fn get_type(&self) -> GameObjType {
+// 		GameObjType::SpecialSquare
+// 	}
+//     fn get_tile(&self) -> Tile {
+// 		self.tile.clone()
+// 	}
 
-    fn take_turn(&mut self, _state: &mut GameState, _game_objs: &mut GameObjects) {
+//     fn take_turn(&mut self, _state: &mut GameState, _game_objs: &mut GameObjects) {
 
-	}
+// 	}
 
-    fn is_npc(&self) -> bool {
-		false
-	}
+//     fn is_npc(&self) -> bool {
+// 		false
+// 	}
 
-    fn talk_to(&mut self, _state: &mut GameState, _player: &Player, _dialogue: &DialogueLibrary) -> String {
-		panic!("Shouldn't be called for tiles!")
-	}
+//     fn talk_to(&mut self, _state: &mut GameState, _player: &Player, _dialogue: &DialogueLibrary) -> String {
+// 		panic!("Shouldn't be called for tiles!")
+// 	}
 
-    fn hidden(&self) -> bool {
-		true
-	}
+//     fn hidden(&self) -> bool {
+// 		true
+// 	}
 
-    fn reveal(&mut self) {
+//     fn reveal(&mut self) {
 
-	}
+// 	}
 
-    fn hide(&mut self) {
+//     fn hide(&mut self) {
 
-	}
+// 	}
 
-    fn as_item(&self) -> Option<Item> {
-		None
-	}
+//     fn as_item(&self) -> Option<Item> {
+// 		None
+// 	}
 
-    fn as_zorkmids(&self) -> Option<GoldPile> {
-		None
-	}
+//     fn as_zorkmids(&self) -> Option<GoldPile> {
+// 		None
+// 	}
 
-    fn as_villager(&self) -> Option<NPC> {
-		None
-	}
+//     fn as_villager(&self) -> Option<NPC> {
+// 		None
+// 	}
 
-	fn as_special_sq(&self) -> Option<SpecialSquare> {
-        Some(self.clone())
-    }
-}
+// 	fn as_special_sq(&self) -> Option<SpecialSquare> {
+//         Some(self.clone())
+//     }
+// }
 
 pub fn adjacent_door(map: &Map, loc: (i32, i32, i8), door_state: DoorState) -> Option<(i32, i32, i8)> {
 	let mut doors = 0;

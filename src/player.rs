@@ -116,12 +116,12 @@ impl Player {
         };
         
         // Warrior starting equipment
-        let mut sword = Item::get_item(game_objs, "longsword").unwrap();
-        sword.equiped = true;
+        let mut sword = Item::get_item(game_objs, "longsword").unwrap();        
+        //sword.item.as_mut().unwrap().equiped = true;
         game_objs.add_to_inventory(sword);
         
         let mut armour = Item::get_item(game_objs, "ringmail").unwrap();
-        armour.equiped = true;
+        //armour.item.as_mut().unwrap().equiped = true;
         game_objs.add_to_inventory(armour);
 
         let dagger = Item::get_item(game_objs, "dagger").unwrap();
@@ -163,20 +163,20 @@ impl Player {
     pub fn calc_ac(&mut self, game_objs: &GameObjects) {
         let mut ac: i8 = 10;
         let mut attributes = 0;
-        let items = game_objs.gear_with_ac_mods();
+        // let items = game_objs.gear_with_ac_mods();
 
-        for i in items {
-            ac += i.ac_bonus;
-            attributes |= i.attributes;            
-        }
+        // for i in items {
+        //     ac += i.ac_bonus;
+        //     attributes |= i.attributes;            
+        // }
 
-        // Heavier armour types reduce the benefit you get from a higher dex
+        // // Heavier armour types reduce the benefit you get from a higher dex
         let mut dex_mod = stat_to_mod(self.dex);
-        if attributes & items::IA_MED_ARMOUR > 0 && dex_mod > 2 {
-            dex_mod = 2;
-        } else if attributes & items::IA_HEAVY_ARMOUR > 0 {
-            dex_mod = 0;
-        }
+        // if attributes & items::IA_MED_ARMOUR > 0 && dex_mod > 2 {
+        //     dex_mod = 2;
+        // } else if attributes & items::IA_HEAVY_ARMOUR > 0 {
+        //     dex_mod = 0;
+        // }
 
         ac += dex_mod;
 
@@ -198,7 +198,7 @@ impl Player {
     }
 
     pub fn set_readied_weapon(&mut self, game_objs: &GameObjects) {
-        self.readied_weapon = game_objs.readied_weapon();
+        //self.readied_weapon = game_objs.readied_weapon();
     }
 }
 

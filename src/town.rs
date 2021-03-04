@@ -432,18 +432,18 @@ pub fn create_town(map: &mut Map, game_objs: &mut GameObjects) -> WorldInfo {
 
     draw_paths_in_town(map, &world_info);
 
-    let mut used_names = HashSet::new();
-    let v = create_villager("mayor1", &mut tb, &used_names, game_objs.next_id());
-    used_names.insert(v.get_fullname());
-    let obj_id = v.get_object_id();    
-    game_objs.add(Box::new(v));
-    game_objs.listeners.insert((obj_id, EventType::TakeTurn));
+    //let mut used_names = HashSet::new();
+    // let v = create_villager("mayor1", &mut tb, &used_names, game_objs.next_id());
+    // used_names.insert(v.get_fullname());
+    // let obj_id = v.get_object_id();    
+    // game_objs.add(Box::new(v));
+    // game_objs.listeners.insert((obj_id, EventType::TakeTurn));
 
-    let v = create_villager("villager1", &mut tb, &used_names, game_objs.next_id());
-    used_names.insert(v.get_fullname());
-    let obj_id = v.get_object_id();
-    game_objs.add(Box::new(v));
-    game_objs.listeners.insert((obj_id, EventType::TakeTurn));
+    // let v = create_villager("villager1", &mut tb, &used_names, game_objs.next_id());
+    // used_names.insert(v.get_fullname());
+    // let obj_id = v.get_object_id();
+    // game_objs.add(Box::new(v));
+    // game_objs.listeners.insert((obj_id, EventType::TakeTurn));
 
     world_info.town_buildings = Some(tb);
 

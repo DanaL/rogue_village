@@ -121,9 +121,9 @@ fn mark_visible(r1: i32, c1: i32, r2: i32, c2: i32, sq_radius: i32,
 		let criterion = delta_r / 2;
 		loop {
 			if r_step > 0 && r >= r_end + r_step {
-				break;
+				return;
 			} else if r_step < 0 && r <= r_end + r_step {
-				break;
+				return;
 			}
 
 			if !state.map.contains_key(&(r, c, depth)) {
@@ -161,9 +161,9 @@ fn mark_visible(r1: i32, c1: i32, r2: i32, c2: i32, sq_radius: i32,
 		let criterion = delta_c / 2;
 		loop {
 			if c_step > 0 && c >= c_end + c_step {
-				break;
+				return;
 			} else if c_step < 0 && c <= c_end + c_step {
-				break;
+				return;
 			}
 
 			if !state.map.contains_key(&(r, c, depth)) {
