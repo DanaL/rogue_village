@@ -356,19 +356,19 @@ impl GameObjects {
         }
     }
 
-    // pub fn location_occupied(&self, loc: &(i32, i32, i8)) -> bool {
-    //     if !self.obj_locs.contains_key(loc) {
-    //         return false;
-    //     }
+    pub fn location_occupied(&self, loc: &(i32, i32, i8)) -> bool {
+        if !self.obj_locs.contains_key(loc) {
+            return false;
+        }
 
-    //     for id in self.obj_locs[loc].iter() {
-    //         if self.objects[&id].blocks() {
-    //             return true;
-    //         }
-    //     }
+        for id in self.obj_locs[loc].iter() {
+            if self.objects[&id].blocks() {
+                return true;
+            }
+        }
 
-    //     false
-    // }
+        false
+    }
 
     pub fn npc_at(&mut self, loc: &(i32, i32, i8)) -> Option<usize> {        
         if let Some(objs) = self.obj_locs.get(loc) {
