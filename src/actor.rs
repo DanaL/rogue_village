@@ -283,11 +283,10 @@ impl NPC {
         if self.attitude != Attitude::Hostile {
             // Can I see the player? if so, become hostile
             let m_fov_time = Instant::now();
-            let sqs = fov::calc_fov(state, self.location, 10, true);
+            let visible = fov::calc_fov(state, self.location, 10, true);
             let m_fov_elapsed = m_fov_time.elapsed();
             println!("Monster fov: {:?}", m_fov_elapsed);
 
-            let visible: HashSet<(i32, i32, i8)> = sqs.iter().filter(|sq| sq.1).map(|sq| sq.0).collect();
             if visible.contains(&state.player_loc) {
                 self.attitude = Attitude::Hostile;
             }

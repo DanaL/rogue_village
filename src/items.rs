@@ -157,10 +157,8 @@ impl Item {
 		};
 
 		let lit = fov::calc_fov(state, loc, self.aura, true);
-		for sq in lit {
-			if sq.1 {
-				state.lit_sqs.insert(sq.0);
-			}
+		for sq in lit {			
+			state.lit_sqs.insert(sq);			
 		}		
 	}
 }

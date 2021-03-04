@@ -14,9 +14,9 @@
 // along with RogueVillage.  If not, see <https://www.gnu.org/licenses/>.
 
 use super::{FOV_WIDTH, FOV_HEIGHT, GameState};
+use std::collections::HashSet;
 
 use crate::map;
-use crate::util;
 
 // Kind of ugly by why recalculate these everytime?
 #[inline]
@@ -94,8 +94,9 @@ fn radius_full() -> Vec<(i32, i32)> {
 // As well, I wanted to have the trees obscure/reduce the FOV instead of outright
 // blocking vision and I couldn't think of a simple way to do that with 
 // shadowcasting.
-fn mark_visible(r1: i32, c1: i32, r2: i32, c2: i32, radius: f64,
-		depth: i8, v_matrix: &mut Vec<bool>, state: &GameState, width: usize) {
+#[inline]
+fn mark_visible(r1: i32, c1: i32, r2: i32, c2: i32, sq_radius: i32,
+		depth: i8, visible: &mut HashSet<(i32, i32, i8)>, state: &GameState) {
     let mut r = r1;
 	let mut c = c1;
 	let mut error = 0;
@@ -129,13 +130,12 @@ fn mark_visible(r1: i32, c1: i32, r2: i32, c2: i32, radius: f64,
 				return;
 			}
 
-			if util::distance(r1, c1, r, c).round() <= radius || state.lit_sqs.contains(&(r, c, depth)) {
-				let vm_r = r - r1 + 10;
-				let vm_c = c - c1 + 20;
-				let vmi = (vm_r * width as i32 + vm_c) as usize;
-				v_matrix[vmi] = true;
+			let dr = r - r1;
+			let dc = c - c1;
+			if dr * dr + dc * dc <= sq_radius || state.lit_sqs.contains(&(r, c, depth)) {
+				visible.insert((r, c, depth));
 			}
-
+			
 			if !state.map[&(r, c, depth)].clear() {
 				return;
 			}
@@ -170,11 +170,10 @@ fn mark_visible(r1: i32, c1: i32, r2: i32, c2: i32, radius: f64,
 				return;
 			}
 
-			if util::distance(r1, c1, r, c).round() <= radius || state.lit_sqs.contains(&(r, c, depth)) {
-				let vm_r = r - r1 + 10;
-				let vm_c = c - c1 + 20;
-				let vmi = (vm_r * width as i32 + vm_c) as usize;
-				v_matrix[vmi] = true;
+			let dr = r - r1;
+			let dc = c - c1;
+			if dr * dr + dc * dc <= sq_radius || state.lit_sqs.contains(&(r, c, depth)) {
+				visible.insert((r, c, depth));
 			}
 
 			if !state.map[&(r, c, depth)].clear() {
@@ -204,13 +203,7 @@ fn mark_visible(r1: i32, c1: i32, r2: i32, c2: i32, radius: f64,
 // fov_only option is for when I want to check only what squares are visible from centre inside vision radius. When it's false, I also look
 // for squares that are lit according to the list of lit sqs in GameState. (Ie., so the player may have no torch burning underground but can
 // see the light from an independent light source)
-pub fn calc_fov(state: &GameState, centre: (i32, i32, i8), radius: u8, fov_only: bool) -> Vec<((i32, i32, i8), bool)> {
-    let size = FOV_HEIGHT * FOV_WIDTH;
-    let mut visible = vec![false; size];
-	let fov_center_r = FOV_HEIGHT / 2;
-	let fov_center_c = FOV_WIDTH / 2;
-	visible[fov_center_r * FOV_WIDTH + fov_center_c] = true;
-
+pub fn calc_fov(state: &GameState, centre: (i32, i32, i8), radius: u8, fov_only: bool) -> HashSet<(i32, i32, i8)> {    
 	// Even if the player's vision radius is only, say, 3 we still need to scan to the 
 	// perimiter of the FOV area in case there are independently lit squares for which
 	// the player has line-of-sight
@@ -229,30 +222,35 @@ pub fn calc_fov(state: &GameState, centre: (i32, i32, i8), radius: u8, fov_only:
 		radius_full()
 	};
 	
-    let pr = centre.0;
-    let pc = centre.1;
-	// Beamcast to all the points around the perimiter of the viewing
+    // Beamcast to all the points around the perimiter of the viewing
 	// area. For RogueVillage's fixed size FOV this seems to work just fine in
 	// terms of performance.
+	let mut visible = HashSet::new();
+	let sq_radius = radius as i32 * radius as i32 + 1;
 	for loc in perimeter {
-		let actual_r = pr + loc.0;
-		let actual_c = pc + loc.1;
+		let outer_r = centre.0 + loc.0;
+		let outer_c = centre.1 + loc.1;
 
-		mark_visible(pr, pc, actual_r as i32, actual_c as i32, radius as f64, centre.2, &mut visible, state, FOV_WIDTH);
+		mark_visible(centre.0, centre.1, outer_r as i32, outer_c as i32, sq_radius, centre.2, &mut visible, state);
 	}
+
+	visible
+}
+
+// Translates the set of visible squares into the grid used to select which tiles to show to the player
+pub fn visible_sqs(state: &GameState, centre: (i32, i32, i8), radius: u8, fov_only: bool) -> Vec<((i32, i32, i8), bool)> {
+	let visible = calc_fov(state, centre, radius, fov_only);
 
     // Now we know which locations are actually visible from the player's loc, 
     // copy the tiles into the v_matrix
-    let mut v_matrix = Vec::with_capacity(size);
-    for r in 0..FOV_HEIGHT {
-        for c in 0..FOV_WIDTH {
-            let j = r * FOV_WIDTH + c;
-			let row = pr - fov_center_r as i32 + r as i32;
-            let col = pc - fov_center_c as i32 + c as i32;
-			let loc = (row, col, centre.2);
-			v_matrix.push((loc, visible[j]));
-        }
-    }
+    let mut v_matrix = Vec::with_capacity(FOV_HEIGHT * FOV_WIDTH);
+	for r in centre.0 - 10..centre.0 + 11 {
+		for c in centre.1 - 20..centre.1 + 21 {
+			let loc = (r, c, centre.2);
+			let visible = visible.contains(&loc);
+			v_matrix.push((loc, visible));
+		}
+	}
 
 	v_matrix
 }

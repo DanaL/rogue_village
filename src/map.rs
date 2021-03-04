@@ -139,11 +139,9 @@ impl SpecialSquare {
 	fn mark_aura(&self, state: &mut GameState) {
 		if self.active {
 			let in_aura = fov::calc_fov(state, self.location, self.radius, true);
-			for sq in in_aura {
-				if sq.1 {
-					state.aura_sqs.insert(sq.0);
-					state.lit_sqs.insert(sq.0);
-				}
+			for sq in in_aura {				
+				state.aura_sqs.insert(sq);
+				state.lit_sqs.insert(sq);				
 			}
 		}
 	}
