@@ -68,10 +68,6 @@ impl GameObject {
         self.blocks
     }
 
-    pub fn get_loc(&self) -> (i32, i32, i8) {
-        self.location
-    }
-
     pub fn set_loc(&mut self, loc: (i32, i32, i8)) {
         self.location = loc;
     }
@@ -110,6 +106,8 @@ impl GameObject {
     fn receive_event(&mut self, event: EventType, state: &mut GameState) -> Option<EventResponse> {
         if self.item.is_some() {
             self.item.as_mut().unwrap().receive_event(event, state, self.location, self.name.clone(), self.object_id)
+        } else if self.special_sq.is_some() {
+            self.special_sq.as_mut().unwrap().receive_event(event, state, self.location, self.object_id)
         } else {
             None
         }
@@ -139,7 +137,7 @@ impl GameObjects {
     }
 
     pub fn add(&mut self, obj: GameObject) {
-        let loc = obj.get_loc();
+        let loc = obj.location;
         let obj_id = obj.get_object_id();
 
         // I want to merge stacks of gold so check the location to see if there 
@@ -271,6 +269,32 @@ impl GameObjects {
         for obj_id in to_remove {
             self.remove(obj_id);
         }
+
+        // Now that we've updated which squares are lit, let any listeners know
+        let listeners: Vec<usize> = self.listeners.iter()
+            .filter(|l| l.1 == EventType::LitUp)
+            .map(|l| l.0).collect();
+
+        for obj_id in listeners {
+            let obj = self.get_mut(obj_id).unwrap();
+            obj.receive_event(EventType::LitUp, state);            
+        }
+    }
+
+    pub fn stepped_on_event(&mut self, state: &mut GameState, loc: (i32, i32, i8)) {
+        let listeners: Vec<usize> = self.listeners.iter()
+            .filter(|l| l.1 == EventType::SteppedOn)
+            .map(|l| l.0).collect();
+
+        for obj_id in listeners {
+            let obj = self.get_mut(obj_id).unwrap();
+            if obj.location == loc {
+                if let Some(result) = obj.receive_event(EventType::SteppedOn, state) {
+                    let target = self.objects.get_mut(&result.object_id).unwrap();
+                    target.receive_event(EventType::Triggered, state);
+                }
+            }            
+        }
     }
 
     pub fn tile_at(&self, loc: &(i32, i32, i8)) -> Option<(Tile, bool)> {
@@ -346,33 +370,7 @@ impl GameObjects {
     //     }
     // }
 
-    //     // Now that we've updated which squares are lit, let any listeners know
-    //     let listeners: Vec<usize> = self.listeners.iter()
-    //         .filter(|l| l.1 == EventType::LitUp)
-    //         .map(|l| l.0).collect();
 
-    //     for obj_id in listeners {
-    //         let mut obj = self.get(obj_id);
-    //         obj.receive_event(EventType::LitUp, state);
-    //         self.add(obj);
-    //     }
-    // }
-
-    // pub fn stepped_on_event(&mut self, state: &mut GameState, loc: (i32, i32, i8)) {
-    //     let listeners: Vec<usize> = self.listeners.iter()
-    //         .filter(|l| l.1 == EventType::SteppedOn)
-    //         .map(|l| l.0).collect();
-
-    //     for obj_id in listeners {
-    //         let mut obj = self.get(obj_id);
-    //         if obj.get_location() == loc {
-    //             if let Some(result) = obj.receive_event(EventType::SteppedOn, state) {
-    //                 let target = self.objects.get_mut(&result.object_id).unwrap();
-    //                 target.receive_event(EventType::Triggered, state);
-    //             }
-    //         }
-    //         self.add(obj);
-    //     }
     // }
 
     pub fn inv_slots_used(&self) -> Vec<char> {

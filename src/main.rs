@@ -659,6 +659,7 @@
                 }
             }
             
+            state.turn += 1;
         } else {
             state.write_msg_buff("Nevermind.");
         }
@@ -866,7 +867,7 @@
     // just pass a reference in, but if I eventually need to, I can sort out who exactly stepped on the square via
     // the obj_id (0 is always the player)
     fn land_on_location(state: &mut GameState, game_objs: &mut GameObjects, loc: (i32, i32, i8), _obj_id: usize) {
-        //game_objs.stepped_on_event(state, loc);
+        game_objs.stepped_on_event(state, loc);
     }
 
     fn do_move(state: &mut GameState, player: &mut Player, game_objs: &mut GameObjects, dir: &str) {
@@ -1203,11 +1204,11 @@
 
             player.calc_vision_radius(state, game_objs);
             
-            let fov_start = Instant::now();
+            let _fov_start = Instant::now();
             let visible = fov::visible_sqs(state, player.location, player.vision_radius, false);
             gui.v_matrix = fov_to_tiles(state, game_objs, &visible);        
-            let fov_duration = fov_start.elapsed();
-            println!("Player fov: {:?}", fov_duration);
+            let _fov_duration = _fov_start.elapsed();
+            //println!("Player fov: {:?}", fov_duration);
             
             //let write_screen_start = Instant::now();
             let sbi = state.curr_sidebar_info(player);
