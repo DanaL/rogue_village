@@ -717,6 +717,8 @@
                 if was_in_stack {
                     game_objs.inc_slot();
                 }
+
+                state.turn += 1;
             } else {
                 state.write_msg_buff("You don't know how to use that.");
                 return;
