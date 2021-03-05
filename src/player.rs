@@ -252,7 +252,7 @@ impl Player {
         if self.level < 20 {
             let next_level_xp = XP_CHART[self.level as usize - 1];
             if self.xp >= next_level_xp {
-                state.queued_events.push_back((EventType::LevelUp, self.location, 0));
+                state.queued_events.push_back((EventType::LevelUp, self.location, 0, None));
             }
 
             if self.level < 19 && self.xp >= XP_CHART[self.level as usize] {
@@ -266,7 +266,7 @@ impl Player {
         let s = format!("Welcome to level {}!", self.level);
 
         // Other stuff needs to happen like more hit points, etc
-        
+
         state.write_msg_buff(&s);
     }
 }

@@ -133,7 +133,7 @@
         tile_memory: HashMap<(i32, i32, i8), Tile>,
         lit_sqs: HashSet<(i32, i32, i8)>, // by light sources independent of player
         aura_sqs: HashSet<(i32, i32, i8)>, // areas of special effects
-        queued_events: VecDeque<(EventType, (i32, i32, i8), usize)>, // events queue during a turn that should be resolved at the end of turn
+        queued_events: VecDeque<(EventType, (i32, i32, i8), usize, Option<String>)>, // events queue during a turn that should be resolved at the end of turn
     }
 
     impl GameState {
@@ -1196,8 +1196,13 @@
         v_matrix
     }
 
-    fn kill_screen(state: &mut GameState, gui: &mut GameUI, player: &Player) {
-        state.write_msg_buff("Oh no! You have died!");
+    fn kill_screen(state: &mut GameState, gui: &mut GameUI, player: &Player, msg: &str) {
+        if msg == "" {
+            state.write_msg_buff("Oh no! You have died!");
+        } else {
+            let s = format!("Oh no! You have been killed by {}!", msg);
+            state.write_msg_buff(&s);
+        }
         let s = format!("Farewell, {}.", player.name);
         state.write_msg_buff(&s);
         let sbi = state.curr_sidebar_info(player);
@@ -1250,14 +1255,14 @@
             // Are there any accumulated events we need to deal with?
             while state.queued_events.len() > 0 {
                 match state.queued_events.pop_front().unwrap() {
-                    (EventType::GateClosed, loc, _) => {
+                    (EventType::GateClosed, loc, _, _) => {
                         check_closed_gate(state, game_objs, player, loc);
                     },
-                    (EventType::PlayerKilled, _, _) => {
-                        kill_screen(state, gui, player);
+                    (EventType::PlayerKilled, _, _, Some(msg)) => {
+                        kill_screen(state, gui, player, &msg);
                         return Err(ExitReason::Death(String::from("Player killed")));
                     },
-                    (EventType::LevelUp, _, _) => {
+                    (EventType::LevelUp, _, _, _) => {
                         player.level_up(state);
                     }
                     _ => { },

@@ -104,11 +104,11 @@ pub fn player_attacks(state: &mut GameState, player: &mut Player, opponent_id: u
     }
 }
 
-pub fn player_damaged(state: &mut GameState, player: &mut Player, dmg_total: u8, assailant_id: usize) {
+pub fn player_damaged(state: &mut GameState, player: &mut Player, dmg_total: u8, assailant_name: &str) {
     if dmg_total >= player.curr_hp {
         // Oh no the player has been killed :O
         player.curr_hp = 0;
-        state.queued_events.push_front((EventType::PlayerKilled, player.location, 0));
+        state.queued_events.push_front((EventType::PlayerKilled, player.location, 0, Some(String::from(assailant_name))));
     } else {
         player.curr_hp -= dmg_total;
     }
@@ -125,7 +125,7 @@ pub fn monster_attacks(state: &mut GameState, monster: &mut NPC, monster_id: usi
         let dmg_roll: u8 = (0..monster.dmg_dice).map(|_| rng.gen_range(1, monster.dmg_die + 1)).sum();
         let dmg_total = (dmg_roll + monster.dmg_bonus) as i8;
         if dmg_total > 0 {
-            player_damaged(state, player, dmg_total as u8, monster_id);
+            player_damaged(state, player, dmg_total as u8, &monster.npc_name(true));
         }
     } else {
         let s = format!("{} misses you!", monster.npc_name(false).capitalize());
