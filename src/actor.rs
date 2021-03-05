@@ -406,7 +406,7 @@ pub fn pick_villager_name(used_names: &HashSet<String>) -> String {
 // in basic monster definitions!
 pub struct MonsterFactory {
     // AC, HP, ch, colour, mode, attack_mod, dmg_dice, dmg_die, dmg_bonus, level, attributes, xp_value
-    table: HashMap<String, (u8, u8, char, (u8, u8, u8), NPCMode, u8, u8, u8, u8, u8, u128, u16)>, 
+    table: HashMap<String, (u8, u8, char, (u8, u8, u8), NPCMode, u8, u8, u8, u8, u8, u128, u32)>, 
 }
 
 impl MonsterFactory {

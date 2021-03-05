@@ -92,6 +92,7 @@
         GateOpened,
         GateClosed,
         PlayerKilled,
+        LevelUp,
     }
 
     pub enum Cmd {
@@ -1013,6 +1014,8 @@
         lines.push("");
         let s = format!("AC: {}    Hit Points: {}({})", player.ac, player.curr_hp, player.max_hp);
         lines.push(&s);
+        let s = format!("XP: {}", player.xp);
+        lines.push(&s);
         lines.push("");
 
         let dungeon_depth = if player.max_depth == 0 {
@@ -1253,6 +1256,9 @@
                     (EventType::PlayerKilled, _, _) => {
                         kill_screen(state, gui, player);
                         return Err(ExitReason::Death(String::from("Player killed")));
+                    },
+                    (EventType::LevelUp, _, _) => {
+                        player.level_up(state);
                     }
                     _ => { },
                 }                

@@ -19,9 +19,11 @@ use rand::Rng;
 use serde::{Serialize, Deserialize};
 
 use super::{GameObjects, GameState};
-use crate::items;
+use crate::{EventType, items};
 use crate::items::Item;
 use crate::util::StringUtils;
+
+const XP_CHART: [u32; 19] = [20, 40, 80, 160, 320, 640, 1280, 2560, 5210, 10_000, 15_000, 21_000, 28_000, 36_000, 44_000, 52_000, 60_000, 68_000, 76_000];
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum Role {
@@ -52,7 +54,7 @@ pub struct Player {
     pub chr: u8,
     pub apt: u8,
     pub role: Role,
-    xp: u32,
+    pub xp: u32,
     pub level: u8,
     pub max_depth: u8,
     pub ac: u8,
@@ -237,6 +239,35 @@ impl Player {
         
         // Need to differentiate between dex and str based weapons but for now...
         roll + stat_to_mod(self.str)    
+    }
+
+    pub fn add_xp(&mut self, xp: u32, state: &mut GameState) {
+        self.xp += xp;
+
+        // If the player is less than max level, check to see if they've leveled up.
+        // Also, regardless of XP gained, the player won't gain two levels at once and
+        // if they somehow did, put their XP total to 1 below the next level. Ie., if 
+        // a 2nd level character gets 100 xp, set them to 79, which is one below the threshold
+        // for level 4.
+        if self.level < 20 {
+            let next_level_xp = XP_CHART[self.level as usize - 1];
+            if self.xp >= next_level_xp {
+                state.queued_events.push_back((EventType::LevelUp, self.location, 0));
+            }
+
+            if self.level < 19 && self.xp >= XP_CHART[self.level as usize] {
+                self.xp = XP_CHART[self.level as usize] - 1;
+            }
+        }
+    }
+
+    pub fn level_up(&mut self, state: &mut GameState) {
+        self.level += 1;
+        let s = format!("Welcome to level {}!", self.level);
+
+        // Other stuff needs to happen like more hit points, etc
+        
+        state.write_msg_buff(&s);
     }
 }
 
