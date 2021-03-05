@@ -48,7 +48,7 @@
     use actor::MonsterFactory;
     use dialogue::DialogueLibrary;
     use display::{GameUI, SidebarInfo, WHITE};
-    use game_obj::{GameObjects, GOForSerde};
+    use game_obj::GameObjects;
     use items::{GoldPile, ItemType};
     use map::{DoorState, ShrineType, Tile};
     use player::Player;
@@ -253,8 +253,7 @@
     }
 
     fn serialize_game_data(state: &GameState, game_objs: &GameObjects, player: &Player) {
-        let go = GOForSerde::convert(game_objs);
-        let game_data = (state, go, player);
+        let game_data = (state, game_objs, player);
         let serialized = serde_yaml::to_string(&game_data).unwrap();
 
         let filename = calc_save_filename(&player.name);
@@ -286,10 +285,9 @@
     fn load_save_game(player_name: &str) -> Result<(GameState, GameObjects, Player), serde_yaml::Error> {
         let filename = calc_save_filename(player_name);
         let blob = fs::read_to_string(filename).expect("Error reading save file");
-        let game_data: (GameState, GOForSerde, Player) = serde_yaml::from_str(&blob)?;
+        let game_data: (GameState, GameObjects, Player) = serde_yaml::from_str(&blob)?;
 
-        let game_objs = GOForSerde::revert(game_data.1);
-        Ok((game_data.0, game_objs, game_data.2))
+        Ok((game_data.0, game_data.1, game_data.2))
     }
 
     fn fetch_saved_data(player_name: &str) -> Option<(GameState, GameObjects, Player)> {    

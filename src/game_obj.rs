@@ -96,6 +96,7 @@ impl GameObject {
     }
 }
 
+#[derive(Debug, Serialize, Deserialize)]
 pub struct GameObjects {
     next_obj_id: usize,
     pub obj_locs: HashMap<(i32, i32, i8), VecDeque<usize>>,
@@ -657,68 +658,3 @@ impl GameObjects {
         v
     }
 }
-
-#[derive(Serialize, Deserialize)]
-pub struct GOForSerde {
-    pub next_obj_id: usize,
-    pub villagers: Vec<NPC>,
-    pub items: Vec<Item>,
-    pub gold_piles: Vec<GoldPile>,
-    pub special_sqs: Vec<SpecialSquare>,
-    pub listeners: HashSet<(usize, EventType)>,
-    pub next_slot: char,
-}
-
-impl GOForSerde {
-    pub fn convert(game_objs: &GameObjects) -> GOForSerde {
-        let mut for_serde = GOForSerde {
-            next_obj_id: game_objs.next_obj_id, next_slot: game_objs.next_slot,
-            villagers: Vec::new(), items: Vec::new(), gold_piles: Vec::new(),
-            listeners: HashSet::new(), special_sqs: Vec::new(),
-        };
-
-        for l in game_objs.listeners.iter() {
-            for_serde.listeners.insert(*l);
-        }
-
-        // for id in game_objs.objects.keys() {
-        //     let obj = game_objs.objects.get(id).unwrap();
-        //     if let Some(item) = obj.as_item() {
-        //         for_serde.items.push(item);
-        //     } else if let Some(pile) = obj.as_zorkmids() {
-        //         for_serde.gold_piles.push(pile);
-        //     } else if let Some(villager) = obj.as_villager() {
-        //         for_serde.villagers.push(villager);
-        //     } else if let Some(special_sq) = obj.as_special_sq() {
-        //         for_serde.special_sqs.push(special_sq);
-        //     }
-        // }
-
-        for_serde
-    }
-
-    pub fn revert(go: GOForSerde) -> GameObjects {
-        let mut game_objects = GameObjects::new();
-        game_objects.next_slot = go.next_slot;
-        game_objects.next_obj_id = go.next_obj_id;
-
-        for l in go.listeners.iter() {
-            game_objects.listeners.insert(*l);
-        }
-        // for v in go.villagers {
-        //     game_objects.add(Box::new(v));
-        // }
-        // for i in go.items {
-        //     game_objects.add(Box::new(i));
-        // }
-        // for g in go.gold_piles {
-        //     game_objects.add(Box::new(g));
-        // }
-        // for sq in go.special_sqs {
-        //     game_objects.add(Box::new(sq));
-        // }
-
-        game_objects
-    }
-}
-
