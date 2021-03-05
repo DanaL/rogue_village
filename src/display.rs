@@ -64,8 +64,8 @@ const LG_FONT_PT: u16 = 24;
 pub struct SidebarInfo {
 	name: String,
 	ac: u8,
-	curr_hp: i8,
-	max_hp: i8,
+	curr_hp: u8,
+	max_hp: u8,
 	turn: u32,
 	zorkmids: u32,
 	weapon: String,
@@ -73,7 +73,7 @@ pub struct SidebarInfo {
 }
 
 impl SidebarInfo {
-	pub fn new(name: String, curr_hp: i8, max_hp: i8, turn: u32, ac: u8, zorkmids: u32, weapon: String, curr_level: u8) -> SidebarInfo {
+	pub fn new(name: String, curr_hp: u8, max_hp: u8, turn: u32, ac: u8, zorkmids: u32, weapon: String, curr_level: u8) -> SidebarInfo {
 		SidebarInfo { name, curr_hp, max_hp, turn, ac, zorkmids, weapon, curr_level }
 	}
 }

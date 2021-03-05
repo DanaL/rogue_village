@@ -20,6 +20,7 @@
     extern crate serde;
 
     mod actor;
+    mod battle;
     mod dialogue;
     mod display;
     mod dungeon;
@@ -45,7 +46,7 @@
     use rand::{Rng, prelude::SliceRandom, thread_rng};
     use serde::{Serialize, Deserialize};
 
-    use actor::MonsterFactory;
+    use actor::{Attitude, MonsterFactory};
     use dialogue::DialogueLibrary;
     use display::{GameUI, SidebarInfo, WHITE};
     use game_obj::GameObjects;
@@ -90,6 +91,7 @@
         LitUp,
         GateOpened,
         GateClosed,
+        PlayerKilled,
     }
 
     pub enum Cmd {
@@ -875,6 +877,34 @@
         }
     }
 
+    fn maybe_fight(state: &mut GameState, game_objs: &mut GameObjects, player: &mut Player, loc: (i32, i32, i8), gui: &mut GameUI) {
+        if let Some(npc_id) = game_objs.npc_at(&loc) {
+            let npc = game_objs.get_mut(npc_id).unwrap();
+            match npc.npc.as_ref().unwrap().attitude {
+                Attitude::Hostile => {
+                    battle::player_attacks(state, player, npc_id, game_objs);
+                    state.turn += 1;
+                },
+                Attitude::Indifferent | Attitude::Stranger => {
+                    let sbi = state.curr_sidebar_info(player);
+                    let s = format!("Really attack {}? (y/n)", npc.get_npc_name(false));
+                    match gui.query_yes_no(&s, Some(&sbi)) {
+                        'y' => {
+                            battle::player_attacks(state, player, npc_id, game_objs);
+                            state.turn += 1;
+                        },
+                        _ => { },
+                    }                    
+                },
+                _ => {
+                    let s = format!("{} is in your way!", npc.get_npc_name(false).capitalize());
+                    state.write_msg_buff(&s);
+                    state.turn += 1;
+                }
+            }            
+        }        
+    }
+
     // Stuff that happens after someone steps on a square. I could probably move a bunch of the code here for
     // stepping on lava, etc. It's a bit awkward right now because Player and NPC are separate types and I can't
     // just pass a reference in, but if I eventually need to, I can sort out who exactly stepped on the square via
@@ -883,7 +913,7 @@
         game_objs.stepped_on_event(state, loc);
     }
 
-    fn do_move(state: &mut GameState, player: &mut Player, game_objs: &mut GameObjects, dir: &str) {
+    fn do_move(state: &mut GameState, player: &mut Player, game_objs: &mut GameObjects, dir: &str, gui: &mut GameUI) {
         let mv = get_move_tuple(dir);
 
         let start_loc = player.location;
@@ -894,8 +924,7 @@
         let tile = &state.map[&next_loc].clone();
         
         if game_objs.blocking_obj_at(&next_loc) {
-            // Not quite ready to implement combat yet...
-            state.write_msg_buff("There's someone in your way!");
+            maybe_fight(state, game_objs, player, next_loc, gui);            
         } else if tile.passable() {
             player.location = next_loc;
 
@@ -1164,6 +1193,15 @@
         v_matrix
     }
 
+    fn kill_screen(state: &mut GameState, gui: &mut GameUI, player: &Player) {
+        state.write_msg_buff("Oh no! You have died!");
+        let s = format!("Farewell, {}.", player.name);
+        state.write_msg_buff(&s);
+        let sbi = state.curr_sidebar_info(player);
+        gui.write_screen(&mut state.msg_buff, Some(&sbi));
+        gui.pause_for_more();
+    }
+
     fn run(gui: &mut GameUI, state: &mut GameState, player: &mut Player, game_objs: &mut GameObjects, dialogue: &DialogueLibrary) -> Result<(), ExitReason> {    
         let visible = fov::visible_sqs(state, player.location, player.vision_radius, false);
         gui.v_matrix = fov_to_tiles(state, game_objs, &visible);
@@ -1178,7 +1216,7 @@
                 Cmd::Close(loc) => do_close(state, loc),
                 Cmd::Down => take_stairs(state, player, true),
                 Cmd::DropItem => drop_item(state, player, game_objs, gui),  
-                Cmd::Move(dir) => do_move(state, player, game_objs, &dir),
+                Cmd::Move(dir) => do_move(state, player, game_objs, &dir, gui),
                 Cmd::MsgHistory => show_message_history(state, gui),
                 Cmd::Open(loc) => do_open(state, loc),
                 Cmd::Pass => {
@@ -1202,7 +1240,7 @@
             state.player_loc = player.location;
 
             if state.turn > start_turn {
-                 game_objs.do_npc_turns(state);
+                 game_objs.do_npc_turns(state, player);
                  game_objs.end_of_turn(state);
             }
             
@@ -1212,6 +1250,10 @@
                     (EventType::GateClosed, loc, _) => {
                         check_closed_gate(state, game_objs, player, loc);
                     },
+                    (EventType::PlayerKilled, _, _) => {
+                        kill_screen(state, gui, player);
+                        return Err(ExitReason::Death(String::from("Player killed")));
+                    }
                     _ => { },
                 }                
             }

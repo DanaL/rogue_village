@@ -42,8 +42,8 @@ impl Role {
 pub struct Player {
     pub object_id: usize,
 	pub name: String,
-	pub max_hp: i8,
-	pub curr_hp: i8,
+	pub max_hp: u8,
+	pub curr_hp: u8,
 	pub location: (i32, i32, i8),
     pub vision_radius: u8,
     pub str: u8,
@@ -113,8 +113,9 @@ impl Player {
         };
 
         let mut p = Player {            
-            object_id: 0, name, max_hp: 15 + stat_to_mod(stats[1]), curr_hp: 15 + stat_to_mod(stats[1]), location: (0, 0, 0), vision_radius: default_vision_radius,
-                str: stats[0], con: stats[1], dex: stats[2], chr, apt, role: Role::Warrior, xp: 0, level: 1, max_depth: 0, ac: 10, purse: 20, readied_weapon: "".to_string(),
+            object_id: 0, name, max_hp: (15 + stat_to_mod(stats[1])) as u8, curr_hp: (15 + stat_to_mod(stats[1])) as u8, location: (0, 0, 0), 
+                vision_radius: default_vision_radius, str: stats[0], con: stats[1], dex: stats[2], chr, apt, role: Role::Warrior, xp: 0, level: 1, max_depth: 0, 
+                ac: 10, purse: 20, readied_weapon: "".to_string(),
         };
         
         // Warrior starting equipment
@@ -152,8 +153,9 @@ impl Player {
         };
 
         let mut p = Player {            
-            object_id: 0, name, max_hp: 12 + stat_to_mod(stats[2]), curr_hp: 12 + stat_to_mod(stats[2]), location: (0, 0, 0), vision_radius: default_vision_radius,
-                str, con: stats[2], dex: stats[0], chr, apt: stats[1], role: Role::Rogue, xp: 0, level: 1, max_depth: 0, ac: 10, purse: 20, readied_weapon: "".to_string(),
+            object_id: 0, name, max_hp: (12 + stat_to_mod(stats[2])) as u8, curr_hp: (12 + stat_to_mod(stats[2])) as u8, location: (0, 0, 0), 
+                vision_radius: default_vision_radius, str, con: stats[2], dex: stats[0], chr, apt: stats[1], role: Role::Rogue, xp: 0, level: 1, max_depth: 0, ac: 10, 
+                purse: 20, readied_weapon: "".to_string(),
         };
 
         p.calc_ac(game_objs);
@@ -194,11 +196,51 @@ impl Player {
     }
 
     pub fn set_readied_weapon(&mut self, game_objs: &GameObjects) {
-        self.readied_weapon = game_objs.readied_weapon().capitalize();
+        if let Some(weapon) = game_objs.readied_weapon() {
+            self.readied_weapon = weapon.1.capitalize();    
+        } else {
+            self.readied_weapon = "".to_string();
+        }        
+    }
+
+    // My idea is that the roles will have differing bonuses to attack rolls. Ie.,
+    // a warrior might get an extra 1d6, a rogue an extra 1d4, wizard-types no 
+    // extra dice, and they get more dice as they level up.
+    pub fn attack_bonus(&mut self) -> i8 {
+        let mut rng = rand::thread_rng();
+        let die;
+        let mut num_of_dice = 1;
+        match self.role {
+            Role::Warrior => {
+                die = 6;
+                if self.level >= 5 && self.level < 10 {
+                    num_of_dice = 2;
+                } else if self.level >= 10 && self.level < 15 {
+                    num_of_dice = 3;                
+                } else if self.level >= 5 {
+                    num_of_dice = 4;
+                }
+            },
+            Role::Rogue => {
+                die = 4;
+                if self.level >= 5 && self.level < 10 {
+                    num_of_dice = 2;
+                } else if self.level >= 10 && self.level < 15 {
+                    num_of_dice = 3;                
+                } else if self.level >= 5 {
+                    num_of_dice = 4;
+                }
+            },
+        }
+
+        let roll: i8 = (0..num_of_dice).map(|_| rng.gen_range(1, die + 1)).sum();
+        
+        // Need to differentiate between dex and str based weapons but for now...
+        roll + stat_to_mod(self.str)    
     }
 }
 
-fn stat_to_mod(stat: u8) -> i8 {
+pub fn stat_to_mod(stat: u8) -> i8 {
     if stat >= 10 {
         (stat as i8 - 10) / 2
     } else {

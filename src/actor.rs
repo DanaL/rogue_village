@@ -24,6 +24,7 @@ use serde::{Serialize, Deserialize};
 
 use super::{EventType, GameObjects, GameState};
 
+use crate::battle;
 use crate::dialogue;
 use crate::dialogue::DialogueLibrary;
 use crate::display;
@@ -107,6 +108,7 @@ pub struct NPC {
     pub edc: u8,
     pub attributes: u128,
     pub curr_loc: (i32, i32, i8),
+    pub alive: bool, // as in function, HPs > 0, not indication of undead status
 }
 
 impl NPC {
@@ -114,7 +116,7 @@ impl NPC {
         let npc_name = name.clone();  
         let npc = NPC { name, ac: 10, curr_hp: 8, max_hp: 8, attitude: Attitude::Stranger, facts_known: Vec::new(), home_id, plan: VecDeque::new(), 
             voice: String::from(voice), schedule: Vec::new(), mode: NPCMode::Villager, attack_mod: 2, dmg_dice: 1, dmg_die: 3, dmg_bonus: 0, edc: 12,
-            attributes: MA_OPEN_DOORS | MA_UNLOCK_DOORS, curr_loc: (-1, -1, -1),
+            attributes: MA_OPEN_DOORS | MA_UNLOCK_DOORS, curr_loc: (-1, -1, -1), alive: true
         };
 
         let obj = GameObject::new(game_objs.next_id(), &npc_name, location, '@', display::LIGHT_GREY, display::LIGHT_GREY, 
@@ -199,15 +201,14 @@ impl NPC {
         }
     }
 
-    fn follow_plan(&mut self, state: &mut GameState, game_objs: &mut GameObjects, my_loc: (i32, i32, i8),) {
+    fn follow_plan(&mut self, my_id: usize, state: &mut GameState, game_objs: &mut GameObjects, my_loc: (i32, i32, i8), player: &mut Player) {
         if let Some(action) = self.plan.pop_front() {
             match action {
                 Action::Move(loc) => self.try_to_move_to_loc(loc, state, game_objs, my_loc),
                 Action::OpenDoor(loc) => self.open_door(loc, state),
                 Action::CloseDoor(loc) => self.close_door(loc, state, game_objs),
                 Action::Attack(_loc) => {
-                    let s = format!("Grr! Argh! {} attacks you.", self.name.with_def_article());
-                    state.write_msg_buff(&s);
+                    battle::monster_attacks(state, self, my_id, player);
                 },
             }
         }
@@ -340,12 +341,12 @@ impl NPC {
         self.calc_plan_to_move(state, *goal_loc, false, my_loc);
     }
 
-    pub fn take_turn(&mut self, state: &mut GameState, game_objs: &mut GameObjects, loc: (i32, i32, i8)) {
+    pub fn take_turn(&mut self, my_id: usize, state: &mut GameState, game_objs: &mut GameObjects, loc: (i32, i32, i8), player: &mut Player) {
         if self.plan.len() == 0 {
             self.check_schedule(state, loc);
         }
         
-        self.follow_plan(state, game_objs, loc);
+        self.follow_plan(my_id, state, game_objs, loc, player);
     }
 
     pub fn talk_to(&mut self, state: &mut GameState, player: &Player, dialogue: &DialogueLibrary, my_loc: (i32, i32, i8)) -> String {
@@ -362,6 +363,18 @@ impl NPC {
         }
 
         line
+    }
+
+    // At the moment, just using the voice to determine the name, although maybe
+    // I'll later need a bit for anonymous vs named
+    pub fn npc_name(&self, indef: bool) -> String {
+        if self.voice != "monster" {
+            self.name.clone()
+        } else if indef {
+            self.name.with_indef_article()
+        } else {
+            self.name.with_def_article()
+        }
     }
 }
 
@@ -436,7 +449,7 @@ impl MonsterFactory {
         let sym = stats.2;
         let npc = NPC { name: String::from(name), ac: stats.0, curr_hp: stats.1, max_hp: stats.1, attitude: Attitude::Indifferent, facts_known: Vec::new(), home_id: 0, 
             plan: VecDeque::new(), voice: String::from("monster"), schedule: Vec::new(), mode: stats.4, attack_mod: stats.5, dmg_dice: stats.6, dmg_die: stats.7, 
-            dmg_bonus: stats.8, edc: self.calc_dc(stats.9), attributes: stats.10, curr_loc: loc,
+            dmg_bonus: stats.8, edc: self.calc_dc(stats.9), attributes: stats.10, curr_loc: loc, alive: true,
         };
 
         let monster = GameObject::new(game_objs.next_id(), &monster_name, loc, sym, stats.3, stats.3, 

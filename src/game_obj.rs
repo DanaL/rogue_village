@@ -22,6 +22,7 @@ use super::{EventResponse, EventType, GameState, PLAYER_INV};
 use crate::actor::NPC;
 use crate::items::{Item, ItemType, GoldPile};
 use crate::map::{SpecialSquare, Tile};
+use crate::player::Player;
 use crate::util::StringUtils;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -63,6 +64,12 @@ impl GameObject {
         } else {
             self.name.clone()
         }
+    }
+
+    // NPCs are slightly more complicated because I want to say in places sometimes
+    // "Ed the Innkeeper stabs you." vs "The goblin stabs you."
+    pub fn get_npc_name(&self, indef: bool) -> String {
+        self.npc.as_ref().unwrap().npc_name(indef)
     }
 
     pub fn get_object_id(&self) -> usize {
@@ -298,12 +305,12 @@ impl GameObjects {
         None
     }
 
-    pub fn do_npc_turns(&mut self, state: &mut GameState) {
+    pub fn do_npc_turns(&mut self, state: &mut GameState, player: &mut Player) {
         let actors = self.listeners.iter()
                                    .filter(|i| i.1 == EventType::TakeTurn)
                                    .map(|i| i.0).collect::<Vec<usize>>();
         
-        for actor_id in actors {
+        for actor_id in actors {            
             // Okay, so I need (or at any rate it's *super* convenient) to pass game_objs int othe take_turns()
             // function for the NPC. (For things like check if squares they want to move to are occupied, etc).
             // But the simplest way to do that I could think of is to remove the NPC GameObject from objects
@@ -313,17 +320,32 @@ impl GameObjects {
             // position changed after their turn.
             let mut actor = self.objects.remove(&actor_id).unwrap();
             let actor_loc = actor.location;
+
+            // Has the npc died since their last turn?
+            let still_alive = actor.npc.as_ref().unwrap().alive;
+            if !still_alive {
+                self.listeners.retain(|l| l.0 != actor_id);
+                self.remove_from_loc(actor_id, actor_loc);
+                continue;    
+            }
+            
             actor.npc.as_mut().unwrap().curr_loc = actor_loc;
             
             // I don't want to have every single monster in the game taking a turn every round, so
             // only update monsters on the surface or on the same level as the player. (Who knows, in
             // the end maybe it'll be fast enough to always update 100s of monsters..)            
             if actor_loc.2 == 0 || actor_loc.2 == state.player_loc.2 {
-                actor.npc.as_mut().unwrap().take_turn(state, self, actor_loc);
+                actor.npc.as_mut().unwrap().take_turn(actor_id, state, self, actor_loc, player);
             }
 
-            // There will stuff here that may happen, like if a monster dies while taking
-            // its turn, etc
+            // Was the npc killed during their turn?
+            let still_alive = actor.npc.as_ref().unwrap().alive;
+            if !still_alive {
+                self.listeners.retain(|l| l.0 != actor_id);
+                self.remove_from_loc(actor_id, actor_loc);
+                continue;    
+            }
+
             if actor.npc.as_ref().unwrap().curr_loc != actor_loc {
                 let new_loc = actor.npc.as_ref().unwrap().curr_loc;
                 // the NPC moved on their turn, so we need to update them in the obj_locs table and
@@ -560,7 +582,7 @@ impl GameObjects {
         ids
     }
 
-    pub fn readied_weapon(&self) -> String {
+    pub fn readied_weapon(&self) -> Option<(&Item, String)> {
         if self.obj_locs.contains_key(&PLAYER_INV) {
             let ids: Vec<usize> = self.obj_locs[&PLAYER_INV]
                           .iter()
@@ -569,13 +591,13 @@ impl GameObjects {
             for id in ids {
                 if let Some(item) = &self.objects[&id].item {
                     if item.equiped && item.item_type == ItemType::Weapon {
-                        return self.objects[&id].name.clone()
+                        return Some((item, self.objects[&id].get_fullname()))
                     }
                 }
             }
         }
 
-        "".to_string()
+        None
     }
 
     pub fn get_pickup_menu(&self, loc: (i32, i32, i8)) -> Vec<(String, usize)> {
