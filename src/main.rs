@@ -817,6 +817,9 @@
             while options.len() > 0 {
                 let id = options.pop().unwrap();
                 let landing_spot = (loc.0 + util::ADJ[id].0, loc.1 + util::ADJ[id].1, loc.2);
+                if !state.map[&landing_spot].passable() {
+                    continue;
+                }
                 if !game_objs.location_occupied(&landing_spot) {
                     state.write_msg_buff("You are shoved out of the way by the falling gate!");
                     state.player_loc = landing_spot;
@@ -833,8 +836,11 @@
             let mut options: Vec<usize> = (0..util::ADJ.len()).collect();            
             options.shuffle(&mut rng);
             while options.len() > 0 {
-                let id = options.pop().unwrap();
+                let id = options.pop().unwrap();                
                 let landing_spot = (loc.0 + util::ADJ[id].0, loc.1 + util::ADJ[id].1, loc.2);
+                if !state.map[&landing_spot].passable() {
+                    continue;
+                }
                 if landing_spot != player.location && !game_objs.location_occupied(&landing_spot) {
                     let npc = game_objs.get(obj_id).unwrap();
                     let npc_name = npc.get_fullname();

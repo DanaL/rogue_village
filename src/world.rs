@@ -383,8 +383,8 @@ fn add_vault(world_info: &mut WorldInfo, map: &mut Map, floors: &mut HashSet<(i3
     let vault_num = rng.gen_range(0, vaults.len());
     let vault = &vaults[vault_num];
     
-    simple_triggered_gate(world_info, map, floors, game_objs, vault, level);
-    //light_triggered_gate(world_info, map, floors, game_objs, vault, level);
+    //simple_triggered_gate(world_info, map, floors, game_objs, vault, level);
+    light_triggered_gate(world_info, map, floors, game_objs, vault, level);
 }
 
 fn decorate_levels(world_info: &mut WorldInfo, map: &mut Map, deepest_level: i8, floor_sqs: &mut HashMap<usize, HashSet<(i32, i32, i8)>>,
