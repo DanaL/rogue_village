@@ -109,6 +109,7 @@ pub struct NPC {
     pub attributes: u128,
     pub curr_loc: (i32, i32, i8),
     pub alive: bool, // as in function, HPs > 0, not indication of undead status
+    pub xp_value: u32,
 }
 
 impl NPC {
@@ -116,7 +117,7 @@ impl NPC {
         let npc_name = name.clone();  
         let npc = NPC { name, ac: 10, curr_hp: 8, max_hp: 8, attitude: Attitude::Stranger, facts_known: Vec::new(), home_id, plan: VecDeque::new(), 
             voice: String::from(voice), schedule: Vec::new(), mode: NPCMode::Villager, attack_mod: 2, dmg_dice: 1, dmg_die: 3, dmg_bonus: 0, edc: 12,
-            attributes: MA_OPEN_DOORS | MA_UNLOCK_DOORS, curr_loc: (-1, -1, -1), alive: true
+            attributes: MA_OPEN_DOORS | MA_UNLOCK_DOORS, curr_loc: (-1, -1, -1), alive: true, xp_value: 0,
         };
 
         let obj = GameObject::new(game_objs.next_id(), &npc_name, location, '@', display::LIGHT_GREY, display::LIGHT_GREY, 
@@ -404,8 +405,8 @@ pub fn pick_villager_name(used_names: &HashSet<String>) -> String {
 // This could be in a data file and maybe one day will be but for now the compiler will help me avoid stupid typos
 // in basic monster definitions!
 pub struct MonsterFactory {
-    // AC, HP, ch, colour, mode, attack_mod, dmg_dice, dmg_die, dmg_bonus, level, attributes
-    table: HashMap<String, (u8, u8, char, (u8, u8, u8), NPCMode, u8, u8, u8, u8, u8, u128)>, 
+    // AC, HP, ch, colour, mode, attack_mod, dmg_dice, dmg_die, dmg_bonus, level, attributes, xp_value
+    table: HashMap<String, (u8, u8, char, (u8, u8, u8), NPCMode, u8, u8, u8, u8, u8, u128, u16)>, 
 }
 
 impl MonsterFactory {
@@ -413,11 +414,11 @@ impl MonsterFactory {
         let mut mf = MonsterFactory { table: HashMap::new() };
 
         mf.table.insert(String::from("kobold"), (13, 7, 'k', display::DULL_RED, NPCMode::SimpleMonster, 4, 1, 4, 2, 1,
-            MA_OPEN_DOORS | MA_UNLOCK_DOORS | MA_PACK_TACTICS));
+            MA_OPEN_DOORS | MA_UNLOCK_DOORS | MA_PACK_TACTICS, 4));
         mf.table.insert(String::from("goblin"), (15, 7, 'o', display::GREEN, NPCMode::SimpleMonster, 4, 1, 6, 2, 1,
-            MA_OPEN_DOORS | MA_UNLOCK_DOORS));
+            MA_OPEN_DOORS | MA_UNLOCK_DOORS, 4));
         mf.table.insert(String::from("zombie"), (11, 8, 'z', display::GREY, NPCMode::SimpleMonster, 4, 1, 6, 2, 1,
-            MA_OPEN_DOORS | MA_UNLOCK_DOORS | MA_FEARLESS));
+            MA_OPEN_DOORS | MA_UNLOCK_DOORS | MA_FEARLESS, 5));
         mf
     }
 
@@ -449,7 +450,7 @@ impl MonsterFactory {
         let sym = stats.2;
         let npc = NPC { name: String::from(name), ac: stats.0, curr_hp: stats.1, max_hp: stats.1, attitude: Attitude::Indifferent, facts_known: Vec::new(), home_id: 0, 
             plan: VecDeque::new(), voice: String::from("monster"), schedule: Vec::new(), mode: stats.4, attack_mod: stats.5, dmg_dice: stats.6, dmg_die: stats.7, 
-            dmg_bonus: stats.8, edc: self.calc_dc(stats.9), attributes: stats.10, curr_loc: loc, alive: true,
+            dmg_bonus: stats.8, edc: self.calc_dc(stats.9), attributes: stats.10, curr_loc: loc, alive: true, xp_value: stats.11,
         };
 
         let monster = GameObject::new(game_objs.next_id(), &monster_name, loc, sym, stats.3, stats.3, 

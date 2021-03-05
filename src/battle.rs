@@ -14,8 +14,10 @@
 // along with RogueVillage.  If not, see <https://www.gnu.org/licenses/>.
 
 extern crate rand;
+extern crate serde;
 
 use rand::Rng;
+use serde::{Serialize, Deserialize};
 
 use super::{EventType, GameState};
 use crate::actor::NPC;
@@ -23,6 +25,18 @@ use crate::player;
 use crate::player::Player;
 use crate::game_obj::{GameObject, GameObjects};
 use crate::util::StringUtils;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum DamageType {
+    Slashing,
+    Piercing,
+    Bludgeoning,
+    Fire,
+    Cold,
+    Electricity,
+    Acid,
+    Poison,
+}
 
 fn monster_death_msg(monster: &GameObject, assailant_id: usize) -> String {
     if assailant_id == 0 {

@@ -19,6 +19,7 @@ use serde::{Serialize, Deserialize};
 
 use super::{EventResponse, EventType, GameState, GameObjects, PLAYER_INV};
 
+use crate::battle::DamageType;
 use crate::display;
 use crate::fov;
 use crate::game_obj::{GameObject};
@@ -55,13 +56,14 @@ pub struct Item {
     pub active: bool,
     pub charges: u16,
     pub aura: u8,
-    pub text: Option<(String, String)>,    
+    pub text: Option<(String, String)>,
+    pub dmg_type: DamageType, 
 }
 
 impl Item {    
     fn new(item_type: ItemType, weight: u8, stackable: bool) -> Item {
 		Item { item_type, weight, stackable, slot: '\0', dmg_die: 1, dmg_dice: 1, attack_bonus: 0, ac_bonus: 0, range: 0, equiped: false, 
-                attributes: 0, active: false, charges: 0, aura: 0, text: None, }								
+                attributes: 0, active: false, charges: 0, aura: 0, text: None, dmg_type: DamageType::Bludgeoning }								
 	}
     
     pub fn get_item(game_objs: &mut GameObjects, name: &str) -> Option<GameObject> {
@@ -69,6 +71,7 @@ impl Item {
             "longsword" => {
                 let mut i = Item::new(ItemType::Weapon, 3, false);
                 i.dmg_die = 8;
+                i.dmg_type = DamageType::Slashing;
                 let obj = GameObject::new(game_objs.next_id(), name, (0, 0, 0), ')', display::WHITE, display::GREY, None, Some(i) , None, None, false);
 
                 Some(obj)
@@ -76,6 +79,7 @@ impl Item {
             "dagger" => {
                 let mut i = Item::new(ItemType::Weapon, 1, false);
                 i.dmg_die = 4;
+                i.dmg_type = DamageType::Slashing;
                 let obj = GameObject::new(game_objs.next_id(), name, (0, 0, 0), ')', display::WHITE, display::GREY, None, Some(i) , None, None, false);
 
                 Some(obj)
@@ -83,6 +87,7 @@ impl Item {
             "spear" => {
                 let mut i = Item::new(ItemType::Weapon, 2, false);
                 i.dmg_die = 6;
+                i.dmg_type = DamageType::Piercing;
                 let obj = GameObject::new(game_objs.next_id(), name, (0, 0, 0), ')', display::WHITE, display::GREY, None, Some(i) , None, None, false);
 
                 Some(obj)
@@ -90,6 +95,7 @@ impl Item {
             "staff" => {
                 let mut i = Item::new(ItemType::Weapon, 1, false);
                 i.dmg_die = 6;
+                i.dmg_type = DamageType::Bludgeoning;
                 let obj = GameObject::new(game_objs.next_id(), name, (0, 0, 0), ')', display::LIGHT_BROWN, display::BROWN, None, Some(i) , None, None, false);
 
                 Some(obj)
