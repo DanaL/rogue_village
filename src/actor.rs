@@ -22,7 +22,7 @@ use rand::thread_rng;
 use rand::Rng;
 use serde::{Serialize, Deserialize};
 
-use super::{GameObjects, GameState};
+use super::{EventType, GameObjects, GameState};
 
 use crate::dialogue;
 use crate::dialogue::DialogueLibrary;
@@ -425,20 +425,24 @@ impl MonsterFactory {
     }
 
     pub fn add_monster(&self, name: &str, loc: (i32, i32, i8), game_objs: &mut GameObjects) {
-        // if !self.table.contains_key(name) {
-        //     let s = format!("Unknown monster: {}!!", name);
-        //     panic!(s);
-        // }
+        if !self.table.contains_key(name) {
+            let s = format!("Unknown monster: {}!!", name);
+            panic!(s);
+        }
 
-        // let stats = self.table.get(name).unwrap();
-        // let obj_id = game_objs.next_id();
-        // let npc = NPC { name: String::from(name), ac: stats.0, curr_hp: stats.1, max_hp: stats.1, location: loc, ch: stats.2, 
-        //     color: stats.3, attitude: Attitude::Indifferent, facts_known: Vec::new(), home_id: 0, plan: VecDeque::new(), 
-        //     voice: String::from("monster"), schedule: Vec::new(), object_id: obj_id, mode: stats.4, attack_mod: stats.5, 
-        //     dmg_dice: stats.6, dmg_die: stats.7, dmg_bonus: stats.8, edc: self.calc_dc(stats.9), attributes: stats.10,
-        // };
+        let stats = self.table.get(name).unwrap();
 
-        // game_objs.add(Box::new(npc));
-        // game_objs.listeners.insert((obj_id, EventType::TakeTurn));
+        let monster_name = name.clone();
+        let sym = stats.2;
+        let npc = NPC { name: String::from(name), ac: stats.0, curr_hp: stats.1, max_hp: stats.1, attitude: Attitude::Indifferent, facts_known: Vec::new(), home_id: 0, 
+            plan: VecDeque::new(), voice: String::from("monster"), schedule: Vec::new(), mode: stats.4, attack_mod: stats.5, dmg_dice: stats.6, dmg_die: stats.7, 
+            dmg_bonus: stats.8, edc: self.calc_dc(stats.9), attributes: stats.10, curr_loc: loc,
+        };
+
+        let monster = GameObject::new(game_objs.next_id(), &monster_name, loc, sym, stats.3, stats.3, 
+            Some(npc), None , None, None, true);
+		let obj_id = monster.object_id;
+        game_objs.add(monster);
+        game_objs.listeners.insert((obj_id, EventType::TakeTurn));
     }
 }

@@ -26,7 +26,6 @@ use super::{EventType, GameObjects, Map};
 use crate::actor::MonsterFactory;
 use crate::dungeon;
 use crate::dungeon::Vault;
-use crate::game_obj::GameObject;
 use crate::items::{GoldPile, Item};
 use crate::map::{DoorState, ShrineType, SpecialSquare, Tile};
 use crate::town;
