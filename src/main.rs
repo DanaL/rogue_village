@@ -1234,7 +1234,10 @@
                     },
                     Cmd::Down => take_stairs(state, player, true),
                     Cmd::DropItem => drop_item(state, player, game_objs, gui),  
-                    Cmd::Move(dir) => do_move(state, player, game_objs, &dir, gui),
+                    Cmd::Move(dir) => {
+                        gui.clear_msg_line();
+                        do_move(state, player, game_objs, &dir, gui)
+                    },
                     Cmd::MsgHistory => show_message_history(state, gui),
                     Cmd::Open(loc) => { 
                         do_open(state, loc);

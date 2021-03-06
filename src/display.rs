@@ -96,6 +96,7 @@ pub struct GameUI<'a, 'b> {
 	event_pump: EventPump,
 	pub v_matrix: Vec<(map::Tile, bool)>,
 	surface_cache: HashMap<(char, Color), Surface<'a>>,
+	last_msg: String,
 }
 
 impl<'a, 'b> GameUI<'a, 'b> {
@@ -124,6 +125,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 			sm_font, sm_font_width, sm_font_height,
 			v_matrix,
 			surface_cache: HashMap::new(),
+			last_msg: "".to_string(),
 		};
 
 		Ok(gui)
@@ -605,11 +607,22 @@ impl<'a, 'b> GameUI<'a, 'b> {
 		self.write_sidebar_line(&s, fov_w, 21, white, 0);		
 	}
 
+	pub fn clear_msg_line(&mut self) {
+		self.last_msg = "".to_string();
+		self.write_line(0, "", false);
+	}
+
 	fn draw_frame(&mut self, msg: &str, sbi: Option<&SidebarInfo>) {
 		self.canvas.set_draw_color(BLACK);
 		self.canvas.clear();
 
-		self.write_line(0, msg, false);
+		if msg.len() == 0 && self.last_msg.len() > 0 {
+			let s = self.last_msg.clone();
+			self.write_line(0, &s, false);
+		} else {
+			self.write_line(0, msg, false);
+			self.last_msg = String::from(msg);
+		}
 
 		// I wonder if, since I've got rid of write_sq() and am generating a bunch of textures here,
 		// if I can keep a texture_creator instance in the GUI struct and thereby placate Rust and 
@@ -662,9 +675,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 	}
 
 	pub fn write_screen(&mut self, msgs: &mut VecDeque<String>, sbi: Option<&SidebarInfo>) {
-		if msgs.len() == 0 {
-			self.draw_frame("", sbi);
-		} else {
+		if msgs.len() > 0 {
 			let mut words = VecDeque::new();
 			while msgs.len() > 0 {
 				let line = msgs.pop_front().unwrap();
@@ -693,9 +704,11 @@ impl<'a, 'b> GameUI<'a, 'b> {
 			}
 
 			if s.len() > 0 {
-				self.draw_frame(&s, sbi);
+				self.last_msg = s;
 			}
 		}
+
+		self.draw_frame("", sbi);
 	}
 
 	// Currently not handling a menu with more options than there are are lines on the screen...
