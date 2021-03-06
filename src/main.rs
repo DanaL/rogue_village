@@ -1259,11 +1259,12 @@
                 }
                 
                 state.player_loc = player.location;
+                game_objs.update_listeners(state);
                 update_view(state, player, game_objs, gui);
             }
             
             game_objs.do_npc_turns(state, player);
-            game_objs.end_of_turn(state);
+            game_objs.update_listeners(state);
             
             // Are there any accumulated events we need to deal with?
             while state.queued_events.len() > 0 {

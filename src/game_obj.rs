@@ -235,7 +235,7 @@ impl GameObjects {
         return false;
     }
 
-    pub fn end_of_turn(&mut self, state: &mut GameState) {
+    pub fn update_listeners(&mut self, state: &mut GameState) {
         let listeners: Vec<usize> = self.listeners.iter()
             .filter(|l| l.1 == EventType::EndOfTurn)
             .map(|l| l.0).collect();
