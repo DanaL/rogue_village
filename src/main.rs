@@ -1239,7 +1239,10 @@
                     Cmd::PickUp => pick_up(state, player, game_objs, gui),
                     Cmd::Read => read_item(state, player, game_objs, gui),
                     Cmd::Save => save_and_exit(state, game_objs, player, gui)?,
-                    Cmd::Search => search(state, player, game_objs),
+                    Cmd::Search => {
+                        search(state, player, game_objs);
+                        player.energy -= 1.0;
+                    },
                     Cmd::ShowCharacterSheet => show_character_sheet(gui, player),
                     Cmd::ShowInventory => show_inventory(gui, state, player, game_objs),
                     Cmd::ToggleEquipment => toggle_equipment(state, player, game_objs, gui),
