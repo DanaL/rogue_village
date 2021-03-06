@@ -712,7 +712,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 	}
 
 	// Currently not handling a menu with more options than there are are lines on the screen...
-	pub fn menu_picker2(&mut self, preamble: String, menu: &Vec<(String, char)>, single_choice: bool, small_font: bool) -> Option<HashSet<char>> {
+	pub fn menu_picker(&mut self, preamble: String, menu: &Vec<(String, char)>, single_choice: bool, small_font: bool) -> Option<HashSet<char>> {
 		let mut answers: HashSet<char> = HashSet::new();
 		let possible_answers: HashSet<char> = menu.iter().map(|m| m.1).collect();
 
@@ -777,74 +777,27 @@ impl<'a, 'b> GameUI<'a, 'b> {
 		Some(answers)
 	}
 
-	// Making the assumption I'll never display a menu with more options than there are 
-	// lines on the screen...
-	pub fn menu_picker(&mut self, menu: &Vec<&str>, answer_count: u8,
-				single_choice: bool, small_font: bool) -> Option<HashSet<u8>> {
-		let mut answers: HashSet<u8> = HashSet::new();
-
+	// A little different than menu_picker(), this is a screen with a lot of text that asks for 
+	// the player to select options, but more free form (as opposed to just presenting a list of options)
+	// This isn't yet handling someone hitting Esc, quitting the program, or just otherwise wanting to
+	// bail out of the menu
+	pub fn menu_wordy_picker(&mut self, menu: &Vec<&str>, answers: &HashSet<&char>) -> Option<char> {
 		loop {
 			self.canvas.clear();
 			for line in 0..menu.len() {
-				if line > 0 && answers.contains(&(line as u8 - 1)) {
-					let mut s = String::from("\u{2713} ");
-					s.push_str(&menu[line]);
-					self.write_line(line as i32, &s, small_font);
-				} else {
-					self.write_line(line as i32, &menu[line], small_font);
-				}
+				self.write_line(line as i32, &menu[line], true);				
 			}
 	
-			self.write_line(menu.len() as i32 + 1, "", small_font);	
-			if !single_choice {
-				self.write_line(menu.len() as i32 + 2, "Select one or more options, then hit Return.", small_font);	
-			}
-
+			self.write_line(menu.len() as i32 + 1, "", true);	
+			
 			self.canvas.present();
 
-			let a_val = 'a' as u8;
-			let answer = self.wait_for_key_input();
-			if single_choice {
-				match answer {
-					None => return None, 	// Esc was pressed, propagate it. 
-											// Not sure if thers's a more Rustic way to do this
-					Some(v) => {
-						if (v as u8) >= a_val && (v as u8) - a_val < answer_count {
-							let a = v as u8 - a_val;
-							answers.insert(a);
-							return Some(answers);
-						}	
-					}
-				}
-			} else {
-				match answer {
-					None => return None, 	// Esc was pressed, propagate it. 
-											// Not sure if thers's a more Rustic way to do this
-					Some(v) => {
-						// * means select everything
-						if v == '*' {
-							for j in 0..answer_count - 1 {
-								answers.insert(j);
-							}
-							break;
-						}
-						if (v as u8) >= a_val && (v as u8) - a_val < answer_count {
-							let a = v as u8 - a_val;
-							
-							if answers.contains(&a) {
-								answers.remove(&a);
-							} else {
-								answers.insert(a);
-							}
-						} else if v == '\n' || v == ' ' {
-							break;
-						}	
-					}
+			if let Some(choice) = self.wait_for_key_input() {
+				if answers.contains(&choice) {
+					return Some(choice);
 				}
 			}
 		}
-
-		Some(answers)
 	}
 }
 

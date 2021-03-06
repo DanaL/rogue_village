@@ -326,8 +326,9 @@
         menu.push("  (b) Human Rogue - a quick, sly adventurer who gets by on their light step");
         menu.push("                    and fast blade.");
         
-        if let Some(answer) = gui.menu_picker(&menu, 2, true, true) {
-            if answer.contains(&0) {
+        let answers: HashSet<&char> = ['a', 'b'].iter().collect();
+        if let Some(answer) = gui.menu_wordy_picker(&menu, &answers) {
+            if answer == 'a' {
                 let mut player = Player::new_warrior(game_objs, player_name);
                 player.location = pick_player_start_loc(&state);
                 return Some(player);
@@ -526,7 +527,7 @@
                 answer_key.insert(ch, item.1);
             }
             
-            if let Some(answers) = gui.menu_picker2("Pick up what: (* to get everything)".to_string(), &menu, false, true) {
+            if let Some(answers) = gui.menu_picker("Pick up what: (* to get everything)".to_string(), &menu, false, true) {
                 let picks: Vec<usize> = answers.iter().map(|a| answer_key[a]).collect();
                 for id in picks {
                     let obj = game_objs.get(id).unwrap();
@@ -919,6 +920,7 @@
         if game_objs.blocking_obj_at(&next_loc) {
             maybe_fight(state, game_objs, player, next_loc, gui);            
         } else if tile.passable() {
+            gui.clear_msg_line();
             player.location = next_loc;
 
             match tile {
@@ -949,19 +951,20 @@
                 },            
             }
 
-            let items = game_objs.descs_at_loc(&next_loc);                             
-            if items.len() == 1 {
+            let items = game_objs.descs_at_loc(&next_loc);
+            let item_count = items.len();                        
+            if item_count == 1 {
                 let s = format!("You see {} here.", items[0]);
                 state.write_msg_buff(&s);
-            } else if items.len() == 2 {
+            } else if item_count == 2 {
                 let s = format!("You see {} and {} here.", items[0], items[1]);
                 state.write_msg_buff(&s);
-            } else if items.len() > 2 {
+            } else if item_count > 2 {
                 state.write_msg_buff("There are several items here.");
             }
             
             land_on_location(state, game_objs, next_loc, 0);
-
+            
             player.energy -= 1.0;
         } else if *tile == Tile::Door(DoorState::Closed) {
             // Bump to open doors. I might make this an option later
@@ -1220,10 +1223,7 @@
                     },
                     Cmd::Down => take_stairs(state, player, true),
                     Cmd::DropItem => drop_item(state, player, game_objs, gui),  
-                    Cmd::Move(dir) => {
-                        gui.clear_msg_line();
-                        do_move(state, player, game_objs, &dir, gui)
-                    },
+                    Cmd::Move(dir) => do_move(state, player, game_objs, &dir, gui),
                     Cmd::MsgHistory => show_message_history(state, gui),
                     Cmd::Open(loc) => { 
                         do_open(state, loc);
@@ -1244,10 +1244,16 @@
                     _ => continue,
                 }
                 
-                state.player_loc = player.location;
-                game_objs.update_listeners(state);
-                update_view(state, player, game_objs, gui);
+                if player.energy >= 1.0 {                    
+                    state.player_loc = player.location;
+                    game_objs.update_listeners(state);
+                    update_view(state, player, game_objs, gui);
+                }
             }
+            
+            state.player_loc = player.location;
+            game_objs.update_listeners(state);
+            update_view(state, player, game_objs, gui);
             
             game_objs.do_npc_turns(state, player);
             game_objs.update_listeners(state);
@@ -1282,10 +1288,10 @@
     fn update_view(state: &mut GameState, player: &mut Player, game_objs: &GameObjects, gui: &mut GameUI) {
         player.calc_vision_radius(state, game_objs);
             
-        let _fov_start = Instant::now();
+        //let _fov_start = Instant::now();
         let visible = fov::visible_sqs(state, player.location, player.vision_radius, false);
         gui.v_matrix = fov_to_tiles(state, game_objs, &visible);        
-        let _fov_duration = _fov_start.elapsed();
+        //let _fov_duration = _fov_start.elapsed();
         //println!("Player fov: {:?}", fov_duration);
         
         //let write_screen_start = Instant::now();
