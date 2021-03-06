@@ -296,10 +296,10 @@ impl NPC {
         if self.attitude != Attitude::Hostile {
             // Can I see the player? if so, become hostile            
             if d < 100 {
-                let m_fov_time = Instant::now();
+                //let m_fov_time = Instant::now();
                 let visible = fov::calc_fov(state, loc, 10, true);
-                let m_fov_elapsed = m_fov_time.elapsed();
-                println!("Monster fov: {:?}", m_fov_elapsed);
+                //let m_fov_elapsed = m_fov_time.elapsed();
+                //println!("Monster fov: {:?}", m_fov_elapsed);
             
                 if visible.contains(&state.player_loc) {
                     self.attitude = Attitude::Hostile;
@@ -311,15 +311,15 @@ impl NPC {
             if d <= 2 {
                 self.plan.push_front(Action::Attack(state.player_loc));
             } else {
-                let m_pf_time = Instant::now();
+                //let m_pf_time = Instant::now();
                 self.calc_plan_to_move(state, state.player_loc, true, loc);
                 // Since the player is probably moving, only keep the first 2 or 3 
                 // steps of the move plan
                 while self.plan.len() > 1 {
                     self.plan.pop_back();
                 }
-                let m_pf_elapsed = m_pf_time.elapsed();
-                println!("Monster pf time: {:?}", m_pf_elapsed);
+                //let m_pf_elapsed = m_pf_time.elapsed();
+                //println!("Monster pf time: {:?}", m_pf_elapsed);
             }
         }        
     }

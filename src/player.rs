@@ -243,6 +243,14 @@ impl Player {
         roll + stat_to_mod(self.str)    
     }
 
+    pub fn add_hp(&mut self, amt: u8) {
+        self.curr_hp += amt;
+
+        if self.curr_hp > self.max_hp {
+            self.curr_hp = self.max_hp;
+        }
+    }
+
     pub fn add_xp(&mut self, xp: u32, state: &mut GameState) {
         self.xp += xp;
 

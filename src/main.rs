@@ -1269,6 +1269,10 @@
                 }                
             }
 
+            if state.turn % 25 == 0 {
+                player.add_hp(1);
+            }
+
             update_view(state, player, game_objs, gui);
 
             player.energy += player.energy_restore;
