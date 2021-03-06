@@ -312,7 +312,9 @@
     fn who_are_you(gui: &mut GameUI) -> String {
         loop {
             if let Some(name) = gui.query_user("Who are you?", 15, None) {
-                return name;
+                if !name.trim().is_empty() {
+                    return name.trim().to_string();
+                }
             }
         }
     }
