@@ -16,6 +16,7 @@
 extern crate sdl2;
 
 use std::collections::{HashMap, HashSet, VecDeque};
+use std::time::Duration;
 
 use crate::map;
 use crate::map::{Tile, DoorState};
@@ -143,6 +144,8 @@ impl<'a, 'b> GameUI<'a, 'b> {
 					_ => { continue; }
 				}
 			}
+
+			::std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 60));
 		}
 	}
 
@@ -363,6 +366,8 @@ impl<'a, 'b> GameUI<'a, 'b> {
 					_ => { continue },
 				}
 			}
+
+			::std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 60));
     	}
 	}
 
@@ -381,6 +386,8 @@ impl<'a, 'b> GameUI<'a, 'b> {
 					_ => continue,
 				}
 			}
+
+			::std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 60));
 		}
 	}
 
