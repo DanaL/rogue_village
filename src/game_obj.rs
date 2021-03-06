@@ -305,6 +305,16 @@ impl GameObjects {
         None
     }
 
+    pub fn check_for_dead_npcs(&mut self) {
+        let ids: Vec<usize> = self.objects.keys().map(|k| *k).collect();
+
+        for id in ids {
+            if self.objects[&id].npc.is_some() && !self.objects[&id].npc.as_ref().unwrap().alive {
+                self.remove(id);
+            }
+        }
+    }
+
     pub fn do_npc_turns(&mut self, state: &mut GameState, player: &mut Player) {
         let actors = self.listeners.iter()
                                    .filter(|i| i.1 == EventType::TakeTurn)

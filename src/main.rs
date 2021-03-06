@@ -1235,7 +1235,7 @@
                         do_open(state, loc);
                         player.energy -= 1.0;
                     },
-                    Cmd::Pass => { player.energy -= 1.0; },
+                    Cmd::Pass => { player.energy = 0.0; },
                     Cmd::PickUp => pick_up(state, player, game_objs, gui),
                     Cmd::Read => read_item(state, player, game_objs, gui),
                     Cmd::Save => save_and_exit(state, game_objs, player, gui)?,
@@ -1253,8 +1253,14 @@
                     _ => continue,
                 }
                 
-                if player.energy >= 1.0 {         
+                if player.energy >= 1.0 {
                     state.player_loc = player.location;
+                    // We need to do this here in case a player has enough energy to take multiple actions
+                    // and kills a monster on their first aciton.
+                    // I should queue an event "Monster killed" and then check the event queue. That way I don't
+                    // have to loop over the entire structure of GameObjects looking to see if there are any
+                    // dead ones.
+                    game_objs.check_for_dead_npcs();
                     game_objs.update_listeners(state);
                     update_view(state, player, game_objs, gui);
                 }
