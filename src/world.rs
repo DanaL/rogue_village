@@ -17,7 +17,7 @@ extern crate serde;
 
 use std::collections::{HashMap, HashSet};
 use std::time::Instant;
-use rand::{prelude::{IteratorRandom, SliceRandom}, thread_rng};
+use rand::{prelude::{IteratorRandom}, thread_rng};
 use rand::Rng;
 use serde::{Serialize, Deserialize};
 
@@ -209,10 +209,8 @@ fn random_sq<T: Copy>(sqs: &HashSet<T>) -> T {
     //
     // In C# you can just access HashSets by index :/
     let mut rng = rand::thread_rng();
-    let items = sqs.iter()
-                 .map(|i| *i)
-                 .collect::<Vec<T>>();
-    
+    let items = sqs.iter().copied();
+                
     let item = items.choose(&mut rng).unwrap();
 
     item.clone()
@@ -221,11 +219,11 @@ fn random_sq<T: Copy>(sqs: &HashSet<T>) -> T {
 fn set_stairs(dungeon: &mut Vec<Vec<Tile>>, width: usize, height: usize) -> (usize, usize) {
     let mut rng = rand::thread_rng();
     let mut open_sqs = Vec::new();
-    for level_id in 0..dungeon.len() {
+    for (_, level) in dungeon.iter().enumerate() {
         let mut open = HashSet::new();
         for r in 0..height {
             for c in 0..width {
-                if dungeon[level_id][r * width + c] == Tile::StoneFloor {
+                if level[r * width + c] == Tile::StoneFloor {
                     open.insert((r, c));
                 }
             }
@@ -235,7 +233,7 @@ fn set_stairs(dungeon: &mut Vec<Vec<Tile>>, width: usize, height: usize) -> (usi
 
     // First find the up stairs on level 1 of the dungeon, which is the entrance. Just grab
     // any ol' open square 
-    let entrance = random_sq(&open_sqs[0]).clone();
+    let entrance = random_sq(&open_sqs[0]);
     dungeon[0][entrance.0 * width + entrance.1] = Tile::StairsUp;
     open_sqs[0].remove(&entrance);
 
@@ -255,8 +253,6 @@ fn set_stairs(dungeon: &mut Vec<Vec<Tile>>, width: usize, height: usize) -> (usi
 
 fn random_open_adj(open: &HashSet<(i32, i32, i8)>, loc: (i32, i32, i8)) -> Option<(i32, i32, i8)> {
     let mut rng = rand::thread_rng();
-    //let mut options = Vec::new();
-
     let options = util::ADJ.iter()
                            .map(|d| (loc.0 + d.0, loc.1 + d.1, loc.2))
                            .filter(|adj| open.contains(&adj))
@@ -303,11 +299,7 @@ fn add_shrine(world_info: &mut WorldInfo, level: usize, map: &mut Map, floor_sqs
 }
 
 fn loc_in_vault(vault: &Vault, loc: (i32, i32, i8)) -> bool {
-    if loc.0 >= vault.r1 && loc.0 <= vault.r2 && loc.1 >= vault.c1 && loc.1 <= vault.c2 {
-        true
-    } else {
-        false
-    }
+    loc.0 >= vault.r1 && loc.0 <= vault.r2 && loc.1 >= vault.c1 && loc.1 <= vault.c2
 }
 
 fn place_simple_triggered_gate(_world_info: &mut WorldInfo, map: &mut Map, game_objs: &mut GameObjects, trigger_loc: (i32, i32, i8),
@@ -400,7 +392,7 @@ fn decorate_levels(world_info: &mut WorldInfo, map: &mut Map, deepest_level: i8,
             add_shrine(world_info, curr_level as usize, map, floor_sqs, game_objs)
         }
 
-        if vaults[&(curr_level as usize - 1)].len() > 0 {
+        if !vaults[&(curr_level as usize - 1)].is_empty() {
             let floors = floor_sqs.get_mut(&(curr_level as usize - 1)).unwrap();
             add_vault(world_info, map, floors, game_objs, &vaults[&(curr_level as usize - 1)], curr_level);
         }
@@ -492,10 +484,10 @@ pub fn generate_world(game_objs: &mut GameObjects, monster_fac: &MonsterFactory)
     // tbh, I start searching for valleys at 0, 0 so valley[0] will always be the main one
     let mut max = 0;
     let mut max_id = 0;
-    for v in 0..valleys.len() {
-        if valleys[v].len() > max {
-            max = valleys[v].len();
-            max_id = v;
+    for (n, valley) in valleys.iter().enumerate() {
+        if valley.len() > max {
+            max = valley.len();
+            max_id = n;
         }
     }
 

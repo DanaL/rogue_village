@@ -150,19 +150,11 @@ impl Item {
     }
 
     pub fn equipable(&self) -> bool {
-        match self.item_type {
-            ItemType::Weapon => true,
-            ItemType::Armour => true,
-            _ => false,
-        }
+        matches!(self.item_type, ItemType::Armour | ItemType::Weapon)
     }
 
     pub fn useable(&self) -> bool {
-        if self.item_type == ItemType::Light {
-            true
-        } else {
-            false
-        }
+        self.item_type == ItemType::Light
     }
 
     pub fn stackable(&self) -> bool {
@@ -242,19 +234,15 @@ pub struct GoldPile {
 impl GoldPile {
     pub fn make(game_objs: &mut GameObjects, amount: u32, loc: (i32, i32, i8)) -> GameObject {
         let g = GoldPile { amount };
-        let obj = GameObject::new(game_objs.next_id(), "zorkmids", loc, '$', display::GOLD, display::YELLOW_ORANGE, None, None , Some(g), None, false);            
-
-        obj
+        GameObject::new(game_objs.next_id(), "zorkmids", loc, '$', display::GOLD, display::YELLOW_ORANGE, None, None , Some(g), None, false)
     }
 
     pub fn get_fullname(&self) -> String {
-        let name  = if self.amount == 1 {
+        if self.amount == 1 {
             String::from("1 gold piece")
         } else {
             let s = format!("{} gold pieces", self.amount);
             s
-        };
-
-        name
+        }
     }
 }

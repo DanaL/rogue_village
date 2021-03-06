@@ -224,7 +224,7 @@ impl GameObjects {
     }
 
     pub fn blocking_obj_at(&self, loc: &(i32, i32, i8)) -> bool {
-        if self.obj_locs.contains_key(&loc) && self.obj_locs[&loc].len() > 0 {
+        if self.obj_locs.contains_key(&loc) && !self.obj_locs[&loc].is_empty() {
             for obj_id in self.obj_locs[&loc].iter() {
                 if self.objects[&obj_id].blocks() {
                     return true;
@@ -288,7 +288,7 @@ impl GameObjects {
     }
 
     pub fn tile_at(&self, loc: &(i32, i32, i8)) -> Option<(Tile, bool)> {
-        if self.obj_locs.contains_key(&loc) && self.obj_locs[&loc].len() > 0 {
+        if self.obj_locs.contains_key(&loc) && !self.obj_locs[&loc].is_empty() {
             for obj_id in self.obj_locs[&loc].iter() {
                 if self.objects[&obj_id].blocks() {
                     return Some((self.objects[&obj_id].get_tile(), self.objects[&obj_id].npc.is_some()));
@@ -390,7 +390,7 @@ impl GameObjects {
     pub fn inv_slots_used(&self) -> Vec<char> {
         let mut slots = Vec::new();
 
-        if self.obj_locs.contains_key(&PLAYER_INV) && self.obj_locs[&PLAYER_INV].len() > 0 {
+        if self.obj_locs.contains_key(&PLAYER_INV) && !self.obj_locs[&PLAYER_INV].is_empty() {
             let obj_ids: Vec<usize> = self.obj_locs[&PLAYER_INV].iter().map(|i| *i).collect();
 
             for id in obj_ids {
@@ -404,7 +404,7 @@ impl GameObjects {
     }
 
     pub fn inv_count_at_slot(&self, slot: char) -> u8 {
-        if !self.obj_locs.contains_key(&PLAYER_INV) || self.obj_locs[&PLAYER_INV].len() == 0 {
+        if !self.obj_locs.contains_key(&PLAYER_INV) || self.obj_locs[&PLAYER_INV].is_empty() {
             return 0;
         }
 
@@ -510,7 +510,7 @@ impl GameObjects {
 
     pub fn get_inventory_menu(&self) -> Vec<String> {
         let mut items = Vec::new();
-        if self.obj_locs.contains_key(&PLAYER_INV) && self.obj_locs[&PLAYER_INV].len() > 0 {
+        if !self.obj_locs.contains_key(&PLAYER_INV) && self.obj_locs[&PLAYER_INV].is_empty() {
             let obj_ids: Vec<usize> = self.obj_locs[&PLAYER_INV].iter().map(|i| *i).collect();
 
             for id in obj_ids {
@@ -551,12 +551,7 @@ impl GameObjects {
         let mut sum = 0;
         let mut attributes = 0;
         if self.obj_locs.contains_key(&PLAYER_INV) {
-            let ids: Vec<usize> = self.obj_locs[&PLAYER_INV]
-                          .iter()
-                          .map(|id| *id)
-                          .collect();
-                      
-            for id in ids {
+            for id in self.obj_locs[&PLAYER_INV].iter().copied() {
                 if let Some(item) = &self.objects[&id].item {
                     if item.equiped && item.ac_bonus > 0 {
                         sum += item.ac_bonus;
@@ -584,11 +579,7 @@ impl GameObjects {
 
     pub fn readied_weapon(&self) -> Option<(&Item, String)> {
         if self.obj_locs.contains_key(&PLAYER_INV) {
-            let ids: Vec<usize> = self.obj_locs[&PLAYER_INV]
-                          .iter()
-                          .map(|id| *id)
-                          .collect();
-            for id in ids {
+            for id in self.obj_locs[&PLAYER_INV].iter().copied() {
                 if let Some(item) = &self.objects[&id].item {
                     if item.equiped && item.item_type == ItemType::Weapon {
                         return Some((item, self.objects[&id].get_fullname()))
@@ -604,7 +595,7 @@ impl GameObjects {
         let mut menu = Vec::new();
 
         if self.obj_locs.contains_key(&loc) {
-            let obj_ids: Vec<usize> = self.obj_locs[&loc].iter().map(|i| *i).collect();
+            let obj_ids = self.obj_locs[&loc].iter().copied();
 
             for id in obj_ids {
                 if self.objects[&id].hidden {
@@ -625,12 +616,10 @@ impl GameObjects {
 
     pub fn things_at_loc(&self, loc: (i32, i32, i8)) -> Vec<usize> {
         if self.obj_locs.contains_key(&loc) {
-            let ids: Vec<usize> = self.obj_locs[&loc]
-                          .iter()
-                          .map(|id| *id)
-                          .collect();
+            let ids = self.obj_locs[&loc]
+                          .iter().copied();
             
-            ids.iter().filter(|id| !self.objects[*id].hidden).map(|k| *k).collect()
+            ids.filter(|id| !self.objects[&id].hidden).map(|k| k).collect()
         } else {
             Vec::new()
         }
@@ -638,12 +627,11 @@ impl GameObjects {
 
     pub fn hidden_at_loc(&self, loc: (i32, i32, i8)) -> Vec<usize> {
         if self.obj_locs.contains_key(&loc) {
-            let ids: Vec<usize> = self.obj_locs[&loc]
+            let ids = self.obj_locs[&loc]
                           .iter()
-                          .map(|id| *id)
-                          .collect();
+                          .copied();
             
-            ids.iter().filter(|id| self.objects[*id].hidden).map(|k| *k).collect()
+            ids.filter(|id| self.objects[&id].hidden).map(|k| k).collect()
         } else {
             Vec::new()
         }
@@ -669,8 +657,7 @@ impl GameObjects {
 
         for (key, value) in items {
             if value == 1 {
-                let s = format!("{}", key.with_indef_article());
-                v.push(s);
+                v.push(key.with_indef_article());
             } else {
                 let s = format!("{} {}", value, key.pluralize());
                 v.push(s);

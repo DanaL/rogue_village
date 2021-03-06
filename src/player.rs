@@ -286,14 +286,14 @@ pub fn stat_to_mod(stat: u8) -> i8 {
 fn four_d6_drop_one() -> u8 {
     let mut rng = rand::thread_rng();
     let mut rolls = vec![rng.gen_range(1, 7), rng.gen_range(1, 7), rng.gen_range(1, 7), rng.gen_range(1, 7)];
-    rolls.sort();
+    rolls.sort_unstable();
 
     rolls[1..].iter().sum()
 }
 
 fn roll_stats() -> Vec<u8> {
     let mut stats = vec![four_d6_drop_one(), four_d6_drop_one(), four_d6_drop_one(), four_d6_drop_one(), four_d6_drop_one()];
-    stats.sort();
+    stats.sort_unstable();
     stats.reverse();
 
     stats

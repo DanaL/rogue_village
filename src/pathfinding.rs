@@ -39,7 +39,7 @@ impl Eq for ASQueueItem { }
 impl Ord for ASQueueItem {
 	#[inline]
 	fn cmp(&self, other: &Self) -> Ordering {
-		return if f64::abs(self.f - other.f) < 0.00001 {
+		if f64::abs(self.f - other.f) < 0.00001 {
 			Ordering::Equal
 		} else if self.f > other.f {
 			Ordering::Greater
@@ -142,7 +142,7 @@ fn astar(
 	queue.push(ASQueueItem::new((start_r, start_c), 0.0)); 
 	in_queue.insert((start_r, start_c));
 
-	while queue.len() > 0 {
+	while !queue.is_empty() {
 		let node = queue.pop().unwrap();
 		let curr = node.loc;
 		if stop_before && util::distance(curr.0, curr.1, end_r, end_c) < 1.5 {

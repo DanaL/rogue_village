@@ -124,10 +124,10 @@ impl StringUtils for String {
 	fn pluralize(&self) -> String {
 		let mut result = String::from("");
 		result.push_str(self);	
-		if self.ends_with("s") || self.ends_with("x") || self.ends_with("ch") {
+		if self.ends_with('s') || self.ends_with('x') || self.ends_with("ch") {
 			result.push_str("es");
 		} else {
-			result.push_str("s");
+			result.push('s');
 		}
 		
 		result

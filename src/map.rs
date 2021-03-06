@@ -84,37 +84,28 @@ pub enum Tile {
 
 impl Tile {
 	pub fn clear(&self) -> bool {
-		match self {
+		!matches!(self,
 			Tile::Wall | Tile::Blank | Tile::Mountain | Tile::SnowPeak |
-			Tile::Door(DoorState::Closed) | Tile::Door(DoorState::Locked) | Tile::WoodWall => false,
-			_ => true,
-		}
+			Tile::Door(DoorState::Closed) | Tile::Door(DoorState::Locked) | Tile::WoodWall)
 	}
 
 	pub fn passable(&self) -> bool {
-		match self {
+		!matches!(self,
 			Tile::Wall | Tile::Blank | Tile::WorldEdge |
 			Tile::Mountain | Tile::SnowPeak | Tile::Gate(DoorState::Closed) | Tile::Gate(DoorState::Locked) |
-			Tile::Door(DoorState::Closed) | Tile::Door(DoorState::Locked) | Tile::WoodWall | Tile::Window(_) => false,		
-			_ => true,
-		}
+			Tile::Door(DoorState::Closed) | Tile::Door(DoorState::Locked) | Tile::WoodWall | Tile::Window(_))
 	}
 
 	pub fn passable_dry_land(&self) -> bool {
-		match self {
+		!matches!(self,
 			Tile::Wall | Tile::Blank | Tile::WorldEdge |
 			Tile::Mountain | Tile::SnowPeak | Tile::Gate(DoorState::Closed) | Tile::Gate(DoorState::Locked) | 
 			Tile::Door(DoorState::Closed) | Tile::Door(DoorState::Locked) | Tile::WoodWall | Tile::Window(_) | 
-			Tile::DeepWater => false,		
-			_ => true,
-		}
+			Tile::DeepWater)
 	}
 
 	pub fn indoors(&self) -> bool {
-		match self {
-			Tile::Floor | Tile::StoneFloor | Tile::StairsUp | Tile::StairsDown => true,
-			_ => false,
-		}
+		matches!(self, Tile::Floor | Tile::StoneFloor | Tile::StairsUp | Tile::StairsDown)
 	}
 }
 
@@ -147,35 +138,26 @@ impl SpecialSquare {
 	}
 
 	fn handle_triggered_event(&mut self, state: &mut GameState, loc: (i32, i32, i8), obj_id: usize) {
-		match self.tile {
-			Tile::Gate(_) => {
-				self.active = !self.active;
-				state.write_msg_buff("You here a metallic grinding.");
-				if self.active {
-					state.queued_events.push_back((EventType::GateClosed, loc, obj_id, None));
-					state.map.insert(loc, Tile::Gate(DoorState::Closed));
-				} else {
-					state.map.insert(loc, Tile::Gate(DoorState::Open));
-					state.queued_events.push_back((EventType::GateOpened, loc, obj_id, None));
-				}
-			},
-			_ => { },
+		if let Tile::Gate(_) = self.tile {
+			self.active = !self.active;
+			state.write_msg_buff("You here a metallic grinding.");
+			if self.active {
+				state.queued_events.push_back((EventType::GateClosed, loc, obj_id, None));
+				state.map.insert(loc, Tile::Gate(DoorState::Closed));
+			} else {
+				state.map.insert(loc, Tile::Gate(DoorState::Open));
+				state.queued_events.push_back((EventType::GateOpened, loc, obj_id, None));
+			}
 		}
 	}
 
 	// This is assuming a special square will only have this function called when it's signed up to be
 	// alerted about being lit/unlit.
 	fn handle_litup(&mut self, state: &mut GameState, lit: bool, loc: (i32, i32, i8), obj_id: usize) {
-		match self.tile {
-			Tile::Gate(_) => {
-				// An active Gate is a closed gate
-				if lit && self.active {
-					self.handle_triggered_event(state, loc, obj_id);					
-				} else if !lit && !self.active {
-					self.handle_triggered_event(state, loc, obj_id);
-				}				
-			},
-			_ => { },
+		if let Tile::Gate(_) = self.tile {
+			if (lit && self.active) || (!lit && !self.active)  {
+				self.handle_triggered_event(state, loc, obj_id);
+			}
 		}
 	}
 
@@ -220,14 +202,11 @@ pub fn adjacent_door(map: &Map, loc: (i32, i32, i8), door_state: DoorState) -> O
 			let dr = loc.0 as i32 + r;
 			let dc = loc.1 as i32 + c;
 			let loc = (dr, dc, loc.2);
-			match map[&loc] {
-				Tile::Door(state) => {
-					if state == door_state {
-						doors += 1;
-						door = loc;
-					}
-				},
-				_ => { }
+			if let Tile::Door(state) = map[&loc] {
+				if state == door_state {
+					doors += 1;
+					door = loc;
+				}
 			}
 		}
 	}

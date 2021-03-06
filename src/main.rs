@@ -138,10 +138,10 @@
 
     impl GameState {
         pub fn init(map: Map, world_info: WorldInfo) -> GameState {
-            let state = GameState {
+            GameState {
                 msg_buff: VecDeque::new(),
                 msg_history: VecDeque::new(),
-                map: map,
+                map,
                 turn: 0,
                 player_loc: (-1, -1, -1),
                 world_info: world_info,
@@ -149,13 +149,11 @@
                 lit_sqs: HashSet::new(),
                 aura_sqs: HashSet::new(),
                 queued_events: VecDeque::new(),
-            };
-
-            state
+            }
         }
 
         pub fn add_to_msg_history(&mut self, msg: &str) {
-            if self.msg_history.len() == 0 || msg != self.msg_history[0].0 {
+            if self.msg_history.is_empty() || msg != self.msg_history[0].0 {
                 self.msg_history.push_front((String::from(msg), 1));
             } else {
                 self.msg_history[0].1 += 1;
@@ -170,13 +168,13 @@
             let s = String::from(msg);
             self.msg_buff.push_back(s);
 
-            if msg.len() > 0 {
+            if !msg.is_empty() {
                 self.add_to_msg_history(msg);
             }
         }
 
         pub fn curr_sidebar_info(&self, player: &Player) -> SidebarInfo {
-            let weapon = if player.readied_weapon != "" {
+            let weapon = if !player.readied_weapon.is_empty() {
                 String::from(&player.readied_weapon)
             } else {
                 String::from("Empty handed")
@@ -208,7 +206,7 @@
             if state.msg_history[j].1 > 1 {
                 s.push_str(" (x");
                 s.push_str(&state.msg_history[j].1.to_string());
-                s.push_str(")");
+                s.push(')');
             }
             lines.push(s);
         }
@@ -313,11 +311,8 @@
 
     fn who_are_you(gui: &mut GameUI) -> String {
         loop {
-            match gui.query_user("Who are you?", 15, None) {
-                Some(name) => {
-                    return name;
-                },
-                None => { },
+            if let Some(name) = gui.query_user("Who are you?", 15, None) {
+                return name;
             }
         }
     }
@@ -379,7 +374,7 @@
     }
 
     // Pretty similar to item_hits_grounds() but this keeps calculating the message to display simpler
-    fn stack_hits_ground(state: &mut GameState, stack: &Vec<usize>, loc: (i32, i32, i8), game_objs: &mut GameObjects) {
+    fn stack_hits_ground(state: &mut GameState, stack: &[usize], loc: (i32, i32, i8), game_objs: &mut GameObjects) {
         let stack_name = game_objs.objects.get(&stack[0]).unwrap().get_fullname().with_def_article().pluralize();
         let s = format!("You drop {}", stack_name);
         for id in stack {
@@ -420,7 +415,7 @@
     }
 
     fn drop_item(state: &mut GameState, player: &mut Player, game_objs: &mut GameObjects, gui: &mut GameUI) {    
-        if player.purse == 0 && game_objs.descs_at_loc(&PLAYER_INV).len() == 0 {
+        if player.purse == 0 && game_objs.descs_at_loc(&PLAYER_INV).is_empty() {
             state.write_msg_buff("You are empty handed.");
             return;
         }
@@ -488,9 +483,8 @@
     fn pick_up(state: &mut GameState, player: &mut Player, game_objs: &mut GameObjects, gui: &mut GameUI) {
         let things = game_objs.things_at_loc(player.location);
 
-        if things.len() == 0 {
+        if things.is_empty() {
             state.write_msg_buff("There is nothing here.");
-            return;
         } else if things.len() == 1 {
             let obj = game_objs.get(things[0]).unwrap();
             let is_zorkmids = obj.gold_pile.is_some();
@@ -518,18 +512,18 @@
             let mut m = game_objs.get_pickup_menu(player.location);
             let mut answer_key = HashMap::new();
             let mut menu = Vec::new();
-            for j in 0..m.len() {
-                if m[j].0.contains("gold piece") {
-                    menu.push((m[j].0.to_string(), '$'));
-                    answer_key.insert('$', m[j].1);
+            for (j, item) in m.iter().enumerate() {
+                if item.0.contains("gold piece") {
+                    menu.push((item.0.to_string(), '$'));
+                    answer_key.insert('$', item.1);
                     m.remove(j);
                     break;
                 }
             }
-            for j in 0..m.len() {
-                let ch = (j as u8 + 'a' as u8) as char;
-                menu.push((m[j].0.to_string(), ch));
-                answer_key.insert(ch, m[j].1);
+            for (j, item) in m.iter().enumerate() { // in 0..m.len() {
+                let ch = (j as u8 + b'a') as char;
+                menu.push((item.0.to_string(), ch));
+                answer_key.insert(ch, item.1);
             }
             
             if let Some(answers) = gui.menu_picker2("Pick up what: (* to get everything)".to_string(), &menu, false, true) {
@@ -577,14 +571,14 @@
         let mut swapping = false;
         if item_type == ItemType::Weapon {
             let readied = game_objs.readied_items_of_type(ItemType::Weapon);
-            if readied.len() > 0 && readied[0] != obj_id {
+            if !readied.is_empty() && readied[0] != obj_id {
                 swapping = true;
                 let other = game_objs.get_mut(readied[0]).unwrap();
                 other.item.as_mut().unwrap().equiped = false;
             }        
         } else if item_type == ItemType::Armour {
             let readied = game_objs.readied_items_of_type(ItemType::Armour);
-            if readied.len() > 0 && readied[0] != obj_id {
+            if !readied.is_empty() && readied[0] != obj_id {
                 state.write_msg_buff("You're already wearing armour.");
                 return;             
             }        
@@ -611,7 +605,7 @@
         player.set_readied_weapon(game_objs);
 
         let readied = game_objs.readied_items_of_type(ItemType::Weapon);
-        if item_type == ItemType::Weapon && readied.len() == 0 {
+        if item_type == ItemType::Weapon && readied.is_empty() {
             state.write_msg_buff("You are now empty handed.");
         } 
 
@@ -622,7 +616,7 @@
         let inv = game_objs.inv_slots_used();
         let slots: HashSet<char> = inv.iter().map(|i| *i).collect();
         
-        if slots.len() == 0 {
+        if slots.is_empty() {
             state.write_msg_buff("You are empty handed.");
             return;
         }
@@ -643,7 +637,7 @@
         let inv = game_objs.inv_slots_used();
         let slots: HashSet<char> = inv.iter().map(|i| *i).collect();
 
-        if slots.len() == 0 {
+        if slots.is_empty() {
             state.write_msg_buff("You are empty handed.");
             return;
         }
@@ -674,8 +668,8 @@
     fn use_item(state: &mut GameState, player: &mut Player, game_objs: &mut GameObjects, gui: &mut GameUI) {
         let inv = game_objs.inv_slots_used();
         let slots: HashSet<char> = inv.iter().map(|i| *i).collect();
-
-        if slots.len() == 0 {
+        
+        if slots.is_empty() {
             state.write_msg_buff("You are empty handed.");
             return;
         }
@@ -728,7 +722,6 @@
                 player.energy -= 1.0;
             } else {
                 state.write_msg_buff("You don't know how to use that.");
-                return;
             }       
         } else {
             state.write_msg_buff("Nevermind.");
@@ -737,21 +730,21 @@
 
     fn get_move_tuple(mv: &str) -> (i32, i32) {
         if mv == "N" {
-            return (-1, 0);
+            (-1, 0)
         } else if mv == "S" {
-            return (1, 0);
+            (1, 0)
         } else if mv == "W" {
-            return (0, -1);
+            (0, -1)
         } else if mv == "E" {
-            return (0, 1);
+            (0, 1)
         } else if mv == "NW" {
-            return (-1, -1);
+            (-1, -1)
         } else if mv == "NE" {
-            return (-1, 1);
+            (-1, 1)
         } else if mv == "SW" {
-            return (1, -1);
+            (1, -1)
         } else {
-            return (1, 1);
+            (1, 1)
         }
     }
 
@@ -820,7 +813,7 @@
         if player.location == loc {
             let mut options: Vec<usize> = (0..util::ADJ.len()).collect();            
             options.shuffle(&mut rng);
-            while options.len() > 0 {
+            while !options.is_empty() {
                 let id = options.pop().unwrap();
                 let landing_spot = (loc.0 + util::ADJ[id].0, loc.1 + util::ADJ[id].1, loc.2);
                 if !state.map[&landing_spot].passable() {
@@ -835,13 +828,12 @@
             }
 
             // If we get here there are no available landing spots. What to do?
-            // Just crush the player to death??
-            return;
+            // Just crush the player to death??           
         } else if let Some(obj_id) = game_objs.npc_at(&loc) {
             // This is untested because I don't have NPCs aside from villagers in the game...
             let mut options: Vec<usize> = (0..util::ADJ.len()).collect();            
             options.shuffle(&mut rng);
-            while options.len() > 0 {
+            while !options.is_empty() {
                 let id = options.pop().unwrap();                
                 let landing_spot = (loc.0 + util::ADJ[id].0, loc.1 + util::ADJ[id].1, loc.2);
                 if !state.map[&landing_spot].passable() {
@@ -892,12 +884,9 @@
                 Attitude::Indifferent | Attitude::Stranger => {
                     let sbi = state.curr_sidebar_info(player);
                     let s = format!("Really attack {}? (y/n)", npc.get_npc_name(false));
-                    match gui.query_yes_no(&s, Some(&sbi)) {
-                        'y' => {
-                            battle::player_attacks(state, player, npc_id, game_objs);
-                            player.energy -= 1.0;
-                        },
-                        _ => { },
+                    if let 'y' = gui.query_yes_no(&s, Some(&sbi)) {
+                        battle::player_attacks(state, player, npc_id, game_objs);
+                        player.energy -= 1.0;
                     }                    
                 },
                 _ => {
@@ -1043,7 +1032,7 @@
             s
         };
 
-        if menu.len() == 0 && player.purse == 0 {
+        if !menu.is_empty() && player.purse == 0 {
             state.write_msg_buff("You are empty-handed.");
         } else {
             let mut m: Vec<&str> = menu.iter().map(AsRef::as_ref).collect();        
@@ -1056,10 +1045,10 @@
     }
 
     fn dump_level(state: &GameState, level: i8) {
-        let dungeon_sqs: Vec<(i32, i32, i8)> = state.map.keys()
-                                                        .filter(|k| k.2 == level)
-                                                        .map(|k| *k)
-                                                        .collect();
+        let dungeon_sqs:  Vec<(i32, i32, i8)> = state.map.keys()
+                                                     .filter(|k| k.2 == level)
+                                                     .copied()
+                                                     .collect();
         let min_row = dungeon_sqs.iter().map(|sq| sq.0).min().unwrap();
         let min_col = dungeon_sqs.iter().map(|sq| sq.1).min().unwrap();
         let max_col = dungeon_sqs.iter().map(|sq| sq.1).max().unwrap();
@@ -1099,31 +1088,28 @@
 
     fn wiz_command(state: &mut GameState, gui: &mut GameUI, player: &mut Player) {
         let sbi = state.curr_sidebar_info(player);
-        match gui.query_user(":", 20, Some(&sbi)) {
-            Some(result) => {
-                let pieces: Vec<&str> = result.trim().split('=').collect();
+        if let Some(result) = gui.query_user(":", 20, Some(&sbi)) {
+            let pieces: Vec<&str> = result.trim().split('=').collect();
 
-                if result == "loc" {
-                    println!("{:?}", player.location);
-                } else if result == "dump level" {
-                    if player.location.2 == 0 {
-                        state.write_msg_buff("Uhh the wilderness is too big to dump.");
-                    } else {
-                        dump_level(state, player.location.2);
-                    }
-                } else if pieces.len() != 2 {
-                    state.write_msg_buff("Invalid wizard command");
-                } else if pieces[0] == "turn" {
-                    let num = pieces[1].parse::<u32>();
-                    match num {
-                        Ok(v) => state.turn = v,
-                        Err(_) => state.write_msg_buff("Invalid wizard command"),
-                    }
+            if result == "loc" {
+                println!("{:?}", player.location);
+            } else if result == "dump level" {
+                if player.location.2 == 0 {
+                    state.write_msg_buff("Uhh the wilderness is too big to dump.");
                 } else {
-                    state.write_msg_buff("Invalid wizard command");
+                    dump_level(state, player.location.2);
                 }
-            },
-            None => { },
+            } else if pieces.len() != 2 {
+                state.write_msg_buff("Invalid wizard command");
+            } else if pieces[0] == "turn" {
+                let num = pieces[1].parse::<u32>();
+                match num {
+                    Ok(v) => state.turn = v,
+                    Err(_) => state.write_msg_buff("Invalid wizard command"),
+                }
+            } else {
+                state.write_msg_buff("Invalid wizard command");
+            }
         }
     }
 
@@ -1160,7 +1146,7 @@
     // From that, we assemble the vector of tiles to send to the GameUI to be drawn. If an NPC is in a visible square,
     // they are on top, otherwise show the tile. If the tile isn't visible but the player has seen it before, show the 
     // tile as unlit, otherwise leave it as a blank square.
-    fn fov_to_tiles(state: &mut GameState, game_objs: &GameObjects, visible: &Vec<((i32, i32, i8), bool)>) -> Vec<(map::Tile, bool)> {
+    fn fov_to_tiles(state: &mut GameState, game_objs: &GameObjects, visible: &[((i32, i32, i8), bool)]) -> Vec<(map::Tile, bool)> {
         let mut v_matrix = vec![(map::Tile::Blank, false); visible.len()];
         
         for j in 0..visible.len() {
@@ -1202,7 +1188,7 @@
     }
 
     fn kill_screen(state: &mut GameState, gui: &mut GameUI, player: &Player, msg: &str) {
-        if msg == "" {
+        if msg.is_empty() {
             state.write_msg_buff("Oh no! You have died!");
         } else {
             let s = format!("Oh no! You have been killed by {}!", msg);
@@ -1267,7 +1253,7 @@
             game_objs.update_listeners(state);
             
             // Are there any accumulated events we need to deal with?
-            while state.queued_events.len() > 0 {
+            while !state.queued_events.is_empty() {
                 match state.queued_events.pop_front().unwrap() {
                     (EventType::GateClosed, loc, _, _) => {
                         check_closed_gate(state, game_objs, player, loc);

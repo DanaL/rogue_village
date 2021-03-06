@@ -108,12 +108,7 @@ fn draw_building(map: &mut Map, r: i32, c: i32, loc: (i32, i32), lot_width: usiz
     let start_r = r + 12 * loc.0;
     let start_c = c + 12 * loc.1;
 
-    let is_tavern = if let BuildingType::Tavern = cat {
-        true
-    } else {
-        false
-    };
-
+    let is_tavern = matches!(cat, BuildingType::Tavern);
     let mut building = template.clone();
     // We want to rotate the building so that an entrance more or less points toward town
     // centre (or at least doesn't face away). This code is assuming all building templates
@@ -171,11 +166,7 @@ fn draw_building(map: &mut Map, r: i32, c: i32, loc: (i32, i32), lot_width: usiz
     let stagger_c = rng.gen_range(0, 3) as i32;
 
     let mut building_sqs = HashSet::new();
-    let is_wood = if rng.gen_range(0.0, 1.0) < 0.7 {
-        true
-    } else {
-        false
-    };
+    let is_wood = rng.gen_range(0.0, 1.0) < 0.7;
     for row in 0..lot_length {
         for col in 0..lot_width {
             let tile = match building[row * lot_width + col] {
@@ -196,7 +187,7 @@ fn draw_building(map: &mut Map, r: i32, c: i32, loc: (i32, i32), lot_width: usiz
                 Tile::Door(_) => { building_sqs.insert(coord); },
                 Tile::Floor => { building_sqs.insert(coord); },
                 Tile::StoneFloor => { building_sqs.insert(coord); },
-                _ => {  false; },
+                _ => { },
             }
         }
     }
@@ -275,7 +266,7 @@ fn place_town_buildings(map: &mut Map, start_r: usize, start_c: usize,
     available_lots.remove(&lots_used.1);
 
     // The town will have only 1 shrine. (Maybe in the future I can implement relisgious rivalries...)
-    let loc = available_lots.iter().choose(&mut rng).unwrap().clone();
+    let loc = *available_lots.iter().choose(&mut rng).unwrap();
     available_lots.remove(&loc);
     draw_building(map, start_r as i32, start_c as i32, loc,9,9, &templates["shrine"], buildings, BuildingType::Shrine);
 
@@ -326,7 +317,7 @@ fn draw_paths_in_town(map: &mut Map, world_info: &WorldInfo) {
     let centre = world_info.town_square.iter().nth(j).unwrap();
     for door in doors {
         let path = pathfinding::find_path(map, false, door.0, door.1, 0, centre.0, centre.1, 150, &passable);
-        if path.len() > 0 {
+        if !path.is_empty() {
             for sq in path {
                 let loc = (sq.0, sq.1, 0);
                 if let Tile::Grass = map[&loc] {
@@ -376,8 +367,8 @@ fn create_villager(voice: &str, tb: &mut TownBuildings, used_names: &HashSet<Str
     let home_id = tb.vacant_home().unwrap();
     let home = &tb.homes[home_id];
     let j = rand::thread_rng().gen_range(0, home.len());    
-    let loc = home.iter().nth(j).unwrap().clone();
-    let mut villager = NPC::villager(actor::pick_villager_name(used_names), loc, home_id, voice, game_objs);
+    let loc = home.iter().nth(j).unwrap();
+    let mut villager = NPC::villager(actor::pick_villager_name(used_names), *loc, home_id, voice, game_objs);
     tb.taken_homes.push(home_id);
     
     if voice.starts_with("mayor") {
@@ -417,9 +408,9 @@ pub fn create_town(map: &mut Map, game_objs: &mut GameObjects) -> WorldInfo {
 
     let tavern_name = random_tavern_name();
     let town_name = random_town_name();
-    let mut world_info = WorldInfo::new(town_name.to_string(),
+    let mut world_info = WorldInfo::new(town_name,
         (start_r as i32, start_c as i32, start_r as i32 + 35, start_c as i32 + 60),
-        tavern_name.to_string());    
+        tavern_name);    
     
     // The town square is in lot (1, 2)
     for r in start_r + 12..start_r + 24 {
