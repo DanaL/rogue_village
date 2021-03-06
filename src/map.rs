@@ -140,7 +140,7 @@ impl SpecialSquare {
 	fn handle_triggered_event(&mut self, state: &mut GameState, loc: (i32, i32, i8), obj_id: usize) {
 		if let Tile::Gate(_) = self.tile {
 			self.active = !self.active;
-			state.write_msg_buff("You here a metallic grinding.");
+			state.write_msg_buff("You hear a metallic grinding.");
 			if self.active {
 				state.queued_events.push_back((EventType::GateClosed, loc, obj_id, None));
 				state.map.insert(loc, Tile::Gate(DoorState::Closed));
