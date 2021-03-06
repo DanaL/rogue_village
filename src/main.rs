@@ -1253,7 +1253,7 @@
                     _ => continue,
                 }
                 
-                if player.energy >= 1.0 {                    
+                if player.energy >= 1.0 {         
                     state.player_loc = player.location;
                     game_objs.update_listeners(state);
                     update_view(state, player, game_objs, gui);
@@ -1261,9 +1261,7 @@
             }
             
             state.player_loc = player.location;
-            game_objs.update_listeners(state);
-            update_view(state, player, game_objs, gui);
-            
+                        
             game_objs.do_npc_turns(state, player);
             game_objs.update_listeners(state);
             
