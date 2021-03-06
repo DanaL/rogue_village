@@ -85,22 +85,22 @@ pub fn player_attacks(state: &mut GameState, player: &mut Player, opponent_id: u
     let npc = game_objs.get_mut(opponent_id).unwrap();
     if attack_roll >= npc.npc.as_ref().unwrap().ac as i8 {
         let s = format!("You hit {}!", npc.get_npc_name(false));
-        state.write_msg_buff(&s);        
+        state.write_msg_buff(&s);
+
+        let dmg_roll: u8 = (0..num_dmg_die).map(|_| rng.gen_range(1, weapon_dmg_dice + 1)).sum();
+        let dmg_total = dmg_roll as i8 + weapon_attack_bonus + player::stat_to_mod(player.str);    
+        if dmg_total > 0 {
+            monster_damaged(state, npc, dmg_total as u8, 0);
+
+            // I don't know if this is the best spot for this? But for now, if the monsters is no longer
+            // alive after the player must have killed it so award xp
+            if !npc.npc.as_ref().unwrap().alive {
+                player.add_xp(npc.npc.as_ref().unwrap().xp_value, state);
+            }
+        }
     } else {
         let s = format!("You miss {}!", npc.get_npc_name(false));
         state.write_msg_buff(&s);
-    }
-
-    let dmg_roll: u8 = (0..num_dmg_die).map(|_| rng.gen_range(1, weapon_dmg_dice + 1)).sum();
-    let dmg_total = dmg_roll as i8 + weapon_attack_bonus + player::stat_to_mod(player.str);    
-    if dmg_total > 0 {
-        monster_damaged(state, npc, dmg_total as u8, 0);
-
-        // I don't know if this is the best spot for this? But for now, if the monsters is no longer
-        // alive after the player must have killed it so award xp
-        if !npc.npc.as_ref().unwrap().alive {
-            player.add_xp(npc.npc.as_ref().unwrap().xp_value, state);
-        }
     }
 }
 
