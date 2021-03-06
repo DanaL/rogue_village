@@ -96,7 +96,7 @@ pub struct GameUI<'a, 'b> {
 	event_pump: EventPump,
 	pub v_matrix: Vec<(map::Tile, bool)>,
 	surface_cache: HashMap<(char, Color), Surface<'a>>,
-	last_msg: String,
+	msg_line: String,
 }
 
 impl<'a, 'b> GameUI<'a, 'b> {
@@ -125,7 +125,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 			sm_font, sm_font_width, sm_font_height,
 			v_matrix,
 			surface_cache: HashMap::new(),
-			last_msg: "".to_string(),
+			msg_line: "".to_string(),
 		};
 
 		Ok(gui)
@@ -152,10 +152,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 	}
 
 	pub fn query_single_response(&mut self, question: &str, sbi: Option<&SidebarInfo>) -> Option<char> {
-		let mut m = VecDeque::new();
-		m.push_front(question.to_string());
-		self.write_screen(&mut m, sbi);
-
+		self.draw_frame(question, sbi);
 		self.wait_for_key_input()
 	}
 
@@ -170,9 +167,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 	}
 
 	pub fn pick_direction(&mut self, msg: &str, sbi: Option<&SidebarInfo>) -> Option<(i32, i32)> {
-		let mut m = VecDeque::new();
-		m.push_front(String::from(msg));
-		self.write_screen(&mut m, sbi);
+		self.draw_frame(msg, sbi);
 
 		loop {
 			match self.wait_for_key_input() {
@@ -197,10 +192,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 			let mut s = String::from(query);
 			s.push(' ');
 			s.push_str(&answer);
-
-			let mut msgs = VecDeque::new();
-			msgs.push_front(s);
-			self.write_screen(&mut msgs, sbi);
+			self.draw_frame(&s, sbi);
 
 			match self.wait_for_key_input() {
 				Some('\n') => { break; },
@@ -229,10 +221,8 @@ impl<'a, 'b> GameUI<'a, 'b> {
 			s.push(' ');
 			s.push_str(&answer);
 
-			let mut msgs = VecDeque::new();
-			msgs.push_front(s);
-			self.write_screen(&mut msgs, sbi);
-
+			self.draw_frame(&s, sbi);
+			
 			match self.wait_for_key_input() {
 				Some('\n') => { break; },
 				Some(BACKSPACE_CH) => { answer.pop(); },
@@ -265,10 +255,8 @@ impl<'a, 'b> GameUI<'a, 'b> {
 				Some(loc)
 			},
 			None => { 
-				let mut msgs = VecDeque::new();
-				msgs.push_front("Nevermind.".to_string());
 				let sbi = state.curr_sidebar_info(player);
-				self.write_screen(&mut msgs, Some(&sbi));
+				self.draw_frame("Nevermind.", Some(&sbi));
 				None
 			},
 		}
@@ -607,22 +595,11 @@ impl<'a, 'b> GameUI<'a, 'b> {
 		self.write_sidebar_line(&s, fov_w, 21, white, 0);		
 	}
 
-	pub fn clear_msg_line(&mut self) {
-		self.last_msg = "".to_string();
-		self.write_line(0, "", false);
-	}
-
 	fn draw_frame(&mut self, msg: &str, sbi: Option<&SidebarInfo>) {
 		self.canvas.set_draw_color(BLACK);
 		self.canvas.clear();
 
-		if msg.len() == 0 && self.last_msg.len() > 0 {
-			let s = self.last_msg.clone();
-			self.write_line(0, &s, false);
-		} else {
-			self.write_line(0, msg, false);
-			self.last_msg = String::from(msg);
-		}
+		self.write_line(0, msg, false);
 
 		// I wonder if, since I've got rid of write_sq() and am generating a bunch of textures here,
 		// if I can keep a texture_creator instance in the GUI struct and thereby placate Rust and 
@@ -674,43 +651,53 @@ impl<'a, 'b> GameUI<'a, 'b> {
 		self.canvas.present();
 	}
 
-	pub fn write_screen(&mut self, msgs: &mut VecDeque<String>, sbi: Option<&SidebarInfo>) {
-		if msgs.len() > 0 {
+	pub fn write_screen(&mut self, msgs: &Vec<String>, sbi: Option<&SidebarInfo>) {
+		let mut msg = String::from("");
+		if !msgs.is_empty() {
 			let mut words = VecDeque::new();
-			while msgs.len() > 0 {
-				let line = msgs.pop_front().unwrap();
-				for w in line.split(" ") {
+			if !self.msg_line.is_empty() {
+				for w in self.msg_line.split(' ') {
+					let s = String::from(w);
+					words.push_back(s);
+				}
+			}
+			for line in msgs.iter() {
+				for w in line.split(' ') {
 					let s = String::from(w);
 					words.push_back(s);
 				}
 			}
 
-			let mut s = String::from("");
-			while words.len() > 0 {
+			while !words.is_empty() {
 				let word = words.pop_front().unwrap();
-
+				
 				// If we can't fit the new word in the message put it back
 				// on the queue and display what we have so far
-				if s.len() + word.len() + 1 >=  SCREEN_WIDTH as usize - 9 {
+				if msg.len() + word.len() + 1 >=  SCREEN_WIDTH as usize - 9 {
 					words.push_front(word);
-					s.push_str("--More--");
-					self.draw_frame(&s, sbi);
+					msg.push_str("--More--");
+					self.draw_frame(&msg, sbi);
 					self.pause_for_more();
-					s = String::from("");	
+					msg = String::from("");
 				} else {
-					s.push_str(&word);
-					s.push(' ');
+					msg.push_str(&word);
+					msg.push(' ');
 				}
 			}
-
-			if s.len() > 0 {
-				self.last_msg = s;
-			}
+		} else {
+			msg = self.msg_line.clone();
 		}
 
-		self.draw_frame("", sbi);
+		self.draw_frame(&msg, sbi);
+		if !msg.is_empty() {			
+			self.msg_line = msg;
+		}
 	}
 
+	pub fn clear_msg_buff(&mut self) {
+		self.msg_line = "".to_string();
+	}
+	
 	// Currently not handling a menu with more options than there are are lines on the screen...
 	pub fn menu_picker(&mut self, preamble: String, menu: &Vec<(String, char)>, single_choice: bool, small_font: bool) -> Option<HashSet<char>> {
 		let mut answers: HashSet<char> = HashSet::new();

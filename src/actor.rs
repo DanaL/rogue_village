@@ -413,9 +413,9 @@ impl MonsterFactory {
     pub fn init() -> MonsterFactory {
         let mut mf = MonsterFactory { table: HashMap::new() };
 
-        mf.table.insert(String::from("kobold"), (22, 7, 'k', display::DULL_RED, NPCMode::SimpleMonster, 4, 1, 4, 2, 1,
+        mf.table.insert(String::from("kobold"), (13, 7, 'k', display::DULL_RED, NPCMode::SimpleMonster, 4, 1, 4, 2, 1,
             MA_OPEN_DOORS | MA_UNLOCK_DOORS | MA_PACK_TACTICS, 4));
-        mf.table.insert(String::from("goblin"), (22, 7, 'o', display::GREEN, NPCMode::SimpleMonster, 4, 1, 6, 2, 1,
+        mf.table.insert(String::from("goblin"), (15, 7, 'o', display::GREEN, NPCMode::SimpleMonster, 4, 1, 6, 2, 1,
             MA_OPEN_DOORS | MA_UNLOCK_DOORS, 4));
         mf.table.insert(String::from("zombie"), (12, 8, 'z', display::GREY, NPCMode::SimpleMonster, 4, 1, 6, 2, 1,
             MA_OPEN_DOORS | MA_UNLOCK_DOORS | MA_FEARLESS, 5));

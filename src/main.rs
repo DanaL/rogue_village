@@ -922,7 +922,6 @@
         if game_objs.blocking_obj_at(&next_loc) {
             maybe_fight(state, game_objs, player, next_loc, gui);            
         } else if tile.passable() {
-            gui.clear_msg_line();
             player.location = next_loc;
 
             match tile {
@@ -1202,20 +1201,25 @@
         let s = format!("Farewell, {}.", player.name);
         state.write_msg_buff(&s);
         let sbi = state.curr_sidebar_info(player);
-        gui.write_screen(&mut state.msg_buff, Some(&sbi));
-        gui.pause_for_more();
+        // gui.write_screen(&state.msg_buff, Some(&sbi));
+        // gui.pause_for_more();
     }
 
+    // Herein lies the main gampe loop
     fn run(gui: &mut GameUI, state: &mut GameState, player: &mut Player, game_objs: &mut GameObjects, dialogue: &DialogueLibrary) -> Result<(), ExitReason> {    
-        let visible = fov::visible_sqs(state, player.location, player.vision_radius, false);
-        gui.v_matrix = fov_to_tiles(state, game_objs, &visible);
-        let sbi = state.curr_sidebar_info(player);
-        gui.write_screen(&mut state.msg_buff, Some(&sbi));
+        // let visible = fov::visible_sqs(state, player.location, player.vision_radius, false);
+        // gui.v_matrix = fov_to_tiles(state, game_objs, &visible);
+        // let sbi = state.curr_sidebar_info(player);
+        // gui.write_screen(&mut state.msg_buff, Some(&sbi));
+        update_view(state, player, game_objs, gui);
+        state.msg_buff.clear();
 
         loop {
             state.turn += 1;
 
             while player.energy >= 1.0 {
+                gui.clear_msg_buff();
+
                 let cmd = gui.get_command(&state, &player);
                 match cmd {
                     Cmd::Chat(loc) => chat_with(state, gui, loc, player, game_objs, dialogue),
@@ -1282,8 +1286,7 @@
             }
 
             update_view(state, player, game_objs, gui);
-
-            player.energy += player.energy_restore;
+            player.energy += player.energy_restore;            
         }
     }
 
@@ -1298,7 +1301,14 @@
         
         //let write_screen_start = Instant::now();
         let sbi = state.curr_sidebar_info(player);
-        gui.write_screen(&mut state.msg_buff, Some(&sbi));
+
+        // Temp I think
+        let mut msgs = Vec::new();
+        for m in state.msg_buff.iter() {
+            msgs.push(m.to_string());
+        }
+        gui.write_screen(&msgs, Some(&sbi));
+        state.msg_buff.clear();
         //let write_screen_duration = write_screen_start.elapsed();
         //println!("Time for write_screen(): {:?}", write_screen_duration); 
     }
