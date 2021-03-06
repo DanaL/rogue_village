@@ -114,7 +114,7 @@ pub fn player_damaged(state: &mut GameState, player: &mut Player, dmg_total: u8,
     }
 }
 
-pub fn monster_attacks(state: &mut GameState, monster: &mut NPC, monster_id: usize, player: &mut Player) {
+pub fn monster_attacks(state: &mut GameState, monster: &mut NPC, _monster_id: usize, player: &mut Player) {
     let mut rng = rand::thread_rng();
 
     let attack_roll = rng.gen_range(1, 21) + monster.attack_mod;

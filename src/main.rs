@@ -374,7 +374,7 @@
                 game_objs.add(zorkmids);
                 player.purse -= 1;
             }
-            state.turn += 1;
+            player.energy -= 1.0;
         }
     }
 
@@ -399,22 +399,24 @@
         state.write_msg_buff(&s);        
     }
 
-    fn drop_stack(state: &mut GameState, game_objs: &mut GameObjects, loc: (i32, i32, i8), slot: char, count: u32) {
+    fn drop_stack(state: &mut GameState, game_objs: &mut GameObjects, loc: (i32, i32, i8), slot: char, count: u32) -> f32 {
         match game_objs.inv_remove_from_slot(slot, count) {
             Ok(mut pile) => {
                 if pile.len() == 1 {
                     let id = pile.remove(0);
                     item_hits_ground(state, id, loc, game_objs);
-                    state.turn += 1;
+                    return 1.0;
                 } else if pile.len() > 1 {
                     stack_hits_ground(state, &pile, loc, game_objs);
-                    state.turn += 1;
+                    return 1.0;
                 } else {
                     state.write_msg_buff("Nevermind.");
                 }
             },
             Err(msg) => state.write_msg_buff(&msg),
-        }        
+        }
+
+        0.0
     }
 
     fn drop_item(state: &mut GameState, player: &mut Player, game_objs: &mut GameObjects, gui: &mut GameUI) {    
@@ -433,7 +435,10 @@
                     state.write_msg_buff("You do not have that item.");
                 } else if count > 1 {
                     match gui.query_natural_num("Drop how many?", Some(&sbi)) {
-                        Some(v) => drop_stack(state, game_objs, player.location, ch, v),
+                        Some(v) => {
+                            let cost = drop_stack(state, game_objs, player.location, ch, v);
+                            player.energy -= cost;
+                        },
                         None => state.write_msg_buff("Nevermind"),
                     }
                 } else {
@@ -441,7 +446,7 @@
                     match result {
                         Ok(items) => {
                             item_hits_ground(state, items[0], player.location, game_objs);
-                            state.turn += 1;
+                            player.energy -= 1.0;
                         },
                         Err(msg) => state.write_msg_buff(&msg),
                     }
@@ -508,7 +513,7 @@
                 game_objs.add_to_inventory(obj);            
             }
             
-            state.turn += 1;
+            player.energy -= 1.0;
         } else {
             let mut m = game_objs.get_pickup_menu(player.location);
             let mut answer_key = HashMap::new();
@@ -552,7 +557,7 @@
                         game_objs.add_to_inventory(obj); 
                     }
                 }
-                state.turn += 1;
+                player.energy -= 1.0;
             } else {
                 state.write_msg_buff("Nevermind.");
             }
@@ -610,7 +615,7 @@
             state.write_msg_buff("You are now empty handed.");
         } 
 
-        state.turn += 1;
+        player.energy -= 1.0;
     }
 
     fn toggle_equipment(state: &mut GameState, player: &mut Player, game_objs: &mut GameObjects, gui: &mut GameUI) {
@@ -660,7 +665,7 @@
                 }
             }
             
-            state.turn += 1;
+            player.energy -= 1.0;
         } else {
             state.write_msg_buff("Nevermind.");
         }
@@ -720,7 +725,7 @@
                     game_objs.inc_slot();
                 }
 
-                state.turn += 1;
+                player.energy -= 1.0;
             } else {
                 state.write_msg_buff("You don't know how to use that.");
                 return;
@@ -760,8 +765,7 @@
             },
             Tile::Door(DoorState::Locked) => state.write_msg_buff("That door is locked!"),
             _ => state.write_msg_buff("You cannot open that!"),
-        }
-        state.turn += 1;
+        }        
     }
 
     fn do_close(state: &mut GameState, loc: (i32, i32, i8)) {
@@ -774,8 +778,7 @@
             },
             Tile::Door(DoorState::Broken) => state.write_msg_buff("That door is broken."),
             _ => state.write_msg_buff("You cannot open that!"),
-        }
-        state.turn += 1;
+        }        
     }
 
     fn take_stairs(state: &mut GameState, player: &mut Player, down: bool) {
@@ -785,11 +788,11 @@
             if *tile == map::Tile::Portal {
                 state.write_msg_buff("You enter the beckoning portal.");
                 player.location = (player.location.0, player.location.1, player.location.2 + 1);
-                state.turn += 1;
+                player.energy -= 1.0;
             } else if *tile == map::Tile::StairsDown {
                 state.write_msg_buff("You brave the stairs downward.");
                 player.location = (player.location.0, player.location.1, player.location.2 + 1);
-                state.turn += 1;
+                player.energy -= 1.0;
             } else {
                 state.write_msg_buff("You cannot do that here.");
             }
@@ -801,7 +804,7 @@
             if *tile == map::Tile::StairsUp {
                 state.write_msg_buff("You climb the stairway.");
                 player.location = (player.location.0, player.location.1, player.location.2 - 1);
-                state.turn += 1;
+                player.energy -= 1.0;
                 
                 if player.location.2 == 0 {
                     state.write_msg_buff("Fresh air!");
@@ -884,7 +887,7 @@
             match npc.npc.as_ref().unwrap().attitude {
                 Attitude::Hostile => {
                     battle::player_attacks(state, player, npc_id, game_objs);
-                    state.turn += 1;
+                    player.energy -= 1.0;
                 },
                 Attitude::Indifferent | Attitude::Stranger => {
                     let sbi = state.curr_sidebar_info(player);
@@ -892,7 +895,7 @@
                     match gui.query_yes_no(&s, Some(&sbi)) {
                         'y' => {
                             battle::player_attacks(state, player, npc_id, game_objs);
-                            state.turn += 1;
+                            player.energy -= 1.0;
                         },
                         _ => { },
                     }                    
@@ -900,7 +903,7 @@
                 _ => {
                     let s = format!("{} is in your way!", npc.get_npc_name(false).capitalize());
                     state.write_msg_buff(&s);
-                    state.turn += 1;
+                    player.energy -= 1.0;
                 }
             }            
         }        
@@ -970,7 +973,7 @@
             
             land_on_location(state, game_objs, next_loc, 0);
 
-            state.turn += 1;
+            player.energy -= 1.0;
         } else if *tile == Tile::Door(DoorState::Closed) {
             // Bump to open doors. I might make this an option later
             do_open(state, next_loc);
@@ -987,7 +990,7 @@
 
             let line = npc.npc.as_mut().unwrap().talk_to(state, player, dialogue, npc.location);
             state.add_to_msg_history(&line);
-            gui.popup_msg(&npc.get_fullname().with_indef_article().capitalize(), &line);            
+            gui.popup_msg(&npc.get_fullname().with_indef_article().capitalize(), &line);         
         } else {
             if let Tile::Door(_) = state.map[&loc] {
                 state.write_msg_buff("The door is ignoring you.");
@@ -995,6 +998,8 @@
                 state.write_msg_buff("Oh no, talking to yourself?");
             } 
         }
+
+        player.energy -= 1.0;
     }
 
     fn show_character_sheet(gui: &mut GameUI, player: &Player) {
@@ -1217,40 +1222,45 @@
         gui.write_screen(&mut state.msg_buff, Some(&sbi));
 
         loop {
-            let start_turn = state.turn;
-            let cmd = gui.get_command(&state, &player);
-            match cmd {
-                Cmd::Chat(loc) => chat_with(state, gui, loc, player, game_objs, dialogue),
-                Cmd::Close(loc) => do_close(state, loc),
-                Cmd::Down => take_stairs(state, player, true),
-                Cmd::DropItem => drop_item(state, player, game_objs, gui),  
-                Cmd::Move(dir) => do_move(state, player, game_objs, &dir, gui),
-                Cmd::MsgHistory => show_message_history(state, gui),
-                Cmd::Open(loc) => do_open(state, loc),
-                Cmd::Pass => {
-                    state.turn += 1;
-                    println!("{:?}", state.curr_time());
-                },
-                Cmd::PickUp => pick_up(state, player, game_objs, gui),
-                Cmd::Read => read_item(state, player, game_objs, gui),
-                Cmd::Save => save_and_exit(state, game_objs, player, gui)?,
-                Cmd::Search => search(state, player, game_objs),
-                Cmd::ShowCharacterSheet => show_character_sheet(gui, player),
-                Cmd::ShowInventory => show_inventory(gui, state, player, game_objs),
-                Cmd::ToggleEquipment => toggle_equipment(state, player, game_objs, gui),
-                Cmd::Use => use_item(state, player, game_objs, gui),
-                Cmd::Quit => confirm_quit(state, gui, player)?,
-                Cmd::Up => take_stairs(state, player, false),
-                Cmd::WizardCommand => wiz_command(state, gui, player),
-                _ => continue,
+            state.turn += 1;
+
+            while player.energy >= 1.0 {
+                let cmd = gui.get_command(&state, &player);
+                match cmd {
+                    Cmd::Chat(loc) => chat_with(state, gui, loc, player, game_objs, dialogue),
+                    Cmd::Close(loc) => {
+                        do_close(state, loc);
+                        player.energy -= 1.0;
+                    },
+                    Cmd::Down => take_stairs(state, player, true),
+                    Cmd::DropItem => drop_item(state, player, game_objs, gui),  
+                    Cmd::Move(dir) => do_move(state, player, game_objs, &dir, gui),
+                    Cmd::MsgHistory => show_message_history(state, gui),
+                    Cmd::Open(loc) => { 
+                        do_open(state, loc);
+                        player.energy -= 1.0;
+                    },
+                    Cmd::Pass => { player.energy -= 1.0; },
+                    Cmd::PickUp => pick_up(state, player, game_objs, gui),
+                    Cmd::Read => read_item(state, player, game_objs, gui),
+                    Cmd::Save => save_and_exit(state, game_objs, player, gui)?,
+                    Cmd::Search => search(state, player, game_objs),
+                    Cmd::ShowCharacterSheet => show_character_sheet(gui, player),
+                    Cmd::ShowInventory => show_inventory(gui, state, player, game_objs),
+                    Cmd::ToggleEquipment => toggle_equipment(state, player, game_objs, gui),
+                    Cmd::Use => use_item(state, player, game_objs, gui),
+                    Cmd::Quit => confirm_quit(state, gui, player)?,
+                    Cmd::Up => take_stairs(state, player, false),
+                    Cmd::WizardCommand => wiz_command(state, gui, player),
+                    _ => continue,
+                }
+                
+                state.player_loc = player.location;
+                update_view(state, player, game_objs, gui);
             }
             
-            state.player_loc = player.location;
-
-            if state.turn > start_turn {
-                 game_objs.do_npc_turns(state, player);
-                 game_objs.end_of_turn(state);
-            }
+            game_objs.do_npc_turns(state, player);
+            game_objs.end_of_turn(state);
             
             // Are there any accumulated events we need to deal with?
             while state.queued_events.len() > 0 {
@@ -1269,20 +1279,26 @@
                 }                
             }
 
-            player.calc_vision_radius(state, game_objs);
-            
-            let _fov_start = Instant::now();
-            let visible = fov::visible_sqs(state, player.location, player.vision_radius, false);
-            gui.v_matrix = fov_to_tiles(state, game_objs, &visible);        
-            let _fov_duration = _fov_start.elapsed();
-            //println!("Player fov: {:?}", fov_duration);
-            
-            //let write_screen_start = Instant::now();
-            let sbi = state.curr_sidebar_info(player);
-            gui.write_screen(&mut state.msg_buff, Some(&sbi));
-            //let write_screen_duration = write_screen_start.elapsed();
-            //println!("Time for write_screen(): {:?}", write_screen_duration);        
+            update_view(state, player, game_objs, gui);
+
+            player.energy += player.energy_restore;
         }
+    }
+
+    fn update_view(state: &mut GameState, player: &mut Player, game_objs: &GameObjects, gui: &mut GameUI) {
+        player.calc_vision_radius(state, game_objs);
+            
+        let _fov_start = Instant::now();
+        let visible = fov::visible_sqs(state, player.location, player.vision_radius, false);
+        gui.v_matrix = fov_to_tiles(state, game_objs, &visible);        
+        let _fov_duration = _fov_start.elapsed();
+        //println!("Player fov: {:?}", fov_duration);
+        
+        //let write_screen_start = Instant::now();
+        let sbi = state.curr_sidebar_info(player);
+        gui.write_screen(&mut state.msg_buff, Some(&sbi));
+        //let write_screen_duration = write_screen_start.elapsed();
+        //println!("Time for write_screen(): {:?}", write_screen_duration); 
     }
 
     fn main() {
