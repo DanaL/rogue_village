@@ -510,10 +510,8 @@ impl GameObjects {
 
     pub fn get_inventory_menu(&self) -> Vec<String> {
         let mut items = Vec::new();
-        if !self.obj_locs.contains_key(&PLAYER_INV) && self.obj_locs[&PLAYER_INV].is_empty() {
-            let obj_ids: Vec<usize> = self.obj_locs[&PLAYER_INV].iter().map(|i| *i).collect();
-
-            for id in obj_ids {
+        if self.obj_locs.contains_key(&PLAYER_INV) && !self.obj_locs[&PLAYER_INV].is_empty() {
+            for id in self.obj_locs[&PLAYER_INV].iter().copied() {
                 if let Some(item) = &self.objects[&id].item {
                     let name = self.objects[&id].get_fullname();
                     items.push((item.slot, name));
