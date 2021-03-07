@@ -48,8 +48,7 @@ pub struct Player {
 	pub name: String,
 	pub max_hp: u8,
 	pub curr_hp: u8,
-	pub location: (i32, i32, i8),
-    pub vision_radius: u8,
+	pub vision_radius: u8,
     pub str: u8,
     pub dex: u8,
     pub con: u8,
@@ -67,11 +66,11 @@ pub struct Player {
 }
 
 impl Player {
-    pub fn calc_vision_radius(&mut self, state: &mut GameState,) {
+    pub fn calc_vision_radius(&mut self, state: &mut GameState, loc: (i32, i32, i8)) {
         let prev_vr = self.vision_radius;
         let (hour, _) = state.curr_time();
 
-        if self.location.2 == 0 {
+        if loc.2 == 0 {
             // outdoors
             self.vision_radius = if hour >= 6 && hour <= 19 {
                 99
@@ -99,10 +98,10 @@ impl Player {
         // Announce sunrise and sunset if the player is on the surface
         // This should be here and is a dumb calculation because vision radius will be
         // affected by say torches. It should be moved to end-of-turn stuff in the gameloop
-        if prev_vr == 99 && self.vision_radius == 9 && self.location.2 == 0 {
+        if prev_vr == 99 && self.vision_radius == 9 && loc.2 == 0 {
             state.write_msg_buff("The sun is beginning to set.");
         }
-        if prev_vr == 5 && self.vision_radius == 7 && self.location.2 == 0 {
+        if prev_vr == 5 && self.vision_radius == 7 && loc.2 == 0 {
             state.write_msg_buff("Sunrise soon.");
         }
     }
@@ -119,7 +118,7 @@ impl Player {
         };
 
         let mut p = Player {            
-            object_id: 0, name: name.clone(), max_hp: (15 + stat_to_mod(stats[1])) as u8, curr_hp: (15 + stat_to_mod(stats[1])) as u8, location: (0, 0, 0), 
+            object_id: 0, name: name.clone(), max_hp: (15 + stat_to_mod(stats[1])) as u8, curr_hp: (15 + stat_to_mod(stats[1])) as u8,
                 vision_radius: default_vision_radius, str: stats[0], con: stats[1], dex: stats[2], chr, apt, role: Role::Warrior, xp: 0, level: 1, max_depth: 0, 
                 ac: 10, purse: 20, readied_weapon: "".to_string(), energy: 1.0, energy_restore: 2.0,
         };
@@ -161,7 +160,7 @@ impl Player {
         };
 
         let mut p = Player {            
-            object_id: 0, name: name.clone(), max_hp: (12 + stat_to_mod(stats[2])) as u8, curr_hp: (12 + stat_to_mod(stats[2])) as u8, location: (0, 0, 0), 
+            object_id: 0, name: name.clone(), max_hp: (12 + stat_to_mod(stats[2])) as u8, curr_hp: (12 + stat_to_mod(stats[2])) as u8,
                 vision_radius: default_vision_radius, str, con: stats[2], dex: stats[0], chr, apt: stats[1], role: Role::Rogue, xp: 0, level: 1, max_depth: 0, ac: 10, 
                 purse: 20, readied_weapon: "".to_string(), energy: 1.0, energy_restore: 1.25,
         };
@@ -257,7 +256,7 @@ impl Player {
         }
     }
 
-    pub fn add_xp(&mut self, xp: u32, state: &mut GameState) {
+    pub fn add_xp(&mut self, xp: u32, state: &mut GameState, loc: (i32, i32, i8)) {
         self.xp += xp;
 
         // If the player is less than max level, check to see if they've leveled up.
@@ -268,7 +267,7 @@ impl Player {
         if self.level < 20 {
             let next_level_xp = XP_CHART[self.level as usize - 1];
             if self.xp >= next_level_xp {
-                state.queued_events.push_back((EventType::LevelUp, self.location, 0, None));
+                state.queued_events.push_back((EventType::LevelUp, loc, 0, None));
             }
 
             if self.level < 19 && self.xp >= XP_CHART[self.level as usize] {

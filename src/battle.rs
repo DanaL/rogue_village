@@ -95,7 +95,7 @@ pub fn player_attacks(state: &mut GameState, player: &mut Player, opponent_id: u
             // I don't know if this is the best spot for this? But for now, if the monsters is no longer
             // alive after the player must have killed it so award xp
             if !npc.npc.as_ref().unwrap().alive {
-                player.add_xp(npc.npc.as_ref().unwrap().xp_value, state);
+                player.add_xp(npc.npc.as_ref().unwrap().xp_value, state, (0, 0, 0));
             }
         }
     } else {
@@ -108,7 +108,7 @@ pub fn player_damaged(state: &mut GameState, player: &mut Player, dmg_total: u8,
     if dmg_total >= player.curr_hp {
         // Oh no the player has been killed :O
         player.curr_hp = 0;
-        state.queued_events.push_front((EventType::PlayerKilled, player.location, 0, Some(String::from(assailant_name))));
+        state.queued_events.push_front((EventType::PlayerKilled, (0, 0, 0), 0, Some(String::from(assailant_name))));
     } else {
         player.curr_hp -= dmg_total;
     }

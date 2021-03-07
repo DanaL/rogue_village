@@ -349,6 +349,7 @@
             return;
         }
 
+        let player_loc = game_objs.player_location();
         let sbi = state.curr_sidebar_info(game_objs);
         let amt = gui.query_natural_num("How much?", Some(&sbi)).unwrap();
         if amt == 0 {
@@ -356,18 +357,18 @@
         } else {
             if amt >= player.purse {
                 state.write_msg_buff("You drop all your money.");
-                let zorkmids = GoldPile::make(game_objs, player.purse, player.location);
+                let zorkmids = GoldPile::make(game_objs, player.purse, player_loc);
                 game_objs.add(zorkmids);
                 player.purse = 0;
             } else if amt > 1 {
                 let s = format!("You drop {} gold pieces.", amt);
                 state.write_msg_buff(&s);
-                let zorkmids = GoldPile::make(game_objs, amt, player.location);
+                let zorkmids = GoldPile::make(game_objs, amt, player_loc);
                 game_objs.add(zorkmids);
                 player.purse -= amt;
             } else {
                 state.write_msg_buff("You drop a gold piece.");
-                let zorkmids = GoldPile::make(game_objs, 1, player.location);
+                let zorkmids = GoldPile::make(game_objs, 1, player_loc);
                 game_objs.add(zorkmids);
                 player.purse -= 1;
             }
@@ -422,6 +423,7 @@
             return;
         }
         
+        let player_loc = game_objs.player_location();
         let sbi = state.curr_sidebar_info(game_objs);
         if let Some(ch) = gui.query_single_response("Drop what?", Some(&sbi)) {
             if ch == '$' {
@@ -433,7 +435,7 @@
                 } else if count > 1 {
                     match gui.query_natural_num("Drop how many?", Some(&sbi)) {
                         Some(v) => {
-                            let cost = drop_stack(state, game_objs, player.location, ch, v);
+                            let cost = drop_stack(state, game_objs, player_loc, ch, v);
                             player.energy -= cost;
                         },
                         None => state.write_msg_buff("Nevermind"),
@@ -442,7 +444,7 @@
                     let result = game_objs.inv_remove_from_slot(ch, 1);
                     match result {
                         Ok(items) => {
-                            item_hits_ground(state, items[0], player.location, game_objs);
+                            item_hits_ground(state, items[0], player_loc, game_objs);
                             player.energy -= 1.0;
                         },
                         Err(msg) => state.write_msg_buff(&msg),
@@ -485,7 +487,8 @@
 
     // Not yet handling when there are no inventory slots yet
     fn pick_up(state: &mut GameState, player: &mut Player, game_objs: &mut GameObjects, gui: &mut GameUI) {
-        let things = game_objs.things_at_loc(player.location);
+        let player_loc = game_objs.player_location();
+        let things = game_objs.things_at_loc(player_loc);
 
         if things.is_empty() {
             state.write_msg_buff("There is nothing here.");
@@ -513,7 +516,7 @@
             
             player.energy -= 1.0;
         } else {
-            let mut m = game_objs.get_pickup_menu(player.location);
+            let mut m = game_objs.get_pickup_menu(player_loc);
             let mut answer_key = HashMap::new();
             let mut menu = Vec::new();
             for (j, item) in m.iter().enumerate() {
@@ -1285,7 +1288,7 @@
                         do_close(state, loc);
                         energy_cost = 1.0;
                     },
-                    //Cmd::Down => energy_cost = take_stairs(state, game_objs, true),
+                    Cmd::Down => energy_cost = take_stairs(state, game_objs, true),
                     //Cmd::DropItem => drop_item(state, player, game_objs, gui),  
                     Cmd::Move(dir) => energy_cost = do_move(state, game_objs, &dir, gui),
                     Cmd::MsgHistory => show_message_history(state, gui),
@@ -1365,7 +1368,7 @@
     fn update_view(state: &mut GameState, game_objs: &mut GameObjects, gui: &mut GameUI) {
         let player_obj = game_objs.get_mut(0).unwrap();
         let player_loc = player_obj.location;
-        player_obj.player.as_mut().unwrap().calc_vision_radius(state);
+        player_obj.player.as_mut().unwrap().calc_vision_radius(state, player_loc);
         let player_vr = player_obj.player.as_mut().unwrap().vision_radius;
             
         //let _fov_start = Instant::now();
