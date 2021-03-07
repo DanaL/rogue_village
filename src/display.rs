@@ -18,6 +18,7 @@ extern crate sdl2;
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::time::Duration;
 
+use crate::game_obj::GameObjects;
 use crate::map;
 use crate::map::{Tile, DoorState};
 use crate::player::Player;
@@ -240,31 +241,33 @@ impl<'a, 'b> GameUI<'a, 'b> {
 		Some(answer)
 	}
 
-	fn select_door(&mut self, prompt: &str, state: &GameState, player: &Player, door_state: DoorState) -> Option<(i32, i32, i8)> {	
-		if let Some(d) = map::adjacent_door(&state.map, player.location, door_state) {
+	fn select_door(&mut self, prompt: &str, state: &GameState, game_objs: &mut GameObjects, door_state: DoorState) -> Option<(i32, i32, i8)> {	
+		let player_loc = game_objs.player_location();
+		if let Some(d) = map::adjacent_door(&state.map, player_loc, door_state) {
 			Some(d)
 		} else {
-			self.select_dir(prompt, state, player)
+			self.select_dir(prompt, state, game_objs)
 		}		
 	}
 
-	fn select_dir(&mut self, prompt: &str, state: &GameState, player: &Player) -> Option<(i32, i32, i8)> {
-		match self.pick_direction(prompt, Some(&state.curr_sidebar_info(player))) {
+	fn select_dir(&mut self, prompt: &str, state: &GameState, game_objs: &mut GameObjects) -> Option<(i32, i32, i8)> {
+		match self.pick_direction(prompt, Some(&state.curr_sidebar_info(game_objs))) {
 			Some(dir) => {
-				let obj_row =  player.location.0 as i32 + dir.0;
-				let obj_col = player.location.1 as i32 + dir.1;
-				let loc = (obj_row, obj_col, player.location.2);
+				let loc = game_objs.player_location();
+				let obj_row =  loc.0 as i32 + dir.0;
+				let obj_col = loc.1 as i32 + dir.1;
+				let loc = (obj_row, obj_col, loc.2);
 				Some(loc)
 			},
 			None => { 
-				let sbi = state.curr_sidebar_info(player);
+				let sbi = state.curr_sidebar_info(game_objs);
 				self.draw_frame("Nevermind.", Some(&sbi));
 				None
 			},
 		}
 	}
 
-	pub fn get_command(&mut self, state: &GameState, player: &Player) -> Cmd {
+	pub fn get_command(&mut self, state: &GameState, game_objs: &mut GameObjects) -> Cmd {
 		loop {
 			// I collect the events into a vector and then loop over them so that I can
 			// call gui functions inside the event loop without Rust's fucking borrow checker
@@ -305,7 +308,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 						} else if val == "S" {
 							return Cmd::Save; 
 						} else if val == "C" {
-							match self.select_dir("Chat with whom?", state, player) {
+							match self.select_dir("Chat with whom?", state, game_objs) {
 								Some(loc) => return Cmd::Chat(loc),
 								None => { },
 							}
@@ -314,12 +317,12 @@ impl<'a, 'b> GameUI<'a, 'b> {
                         } else if val == "?" {
 							return Cmd::Help;
 						} else if val == "o" {
-							match self.select_door("Open what?", state, player, DoorState::Closed) {
+							match self.select_door("Open what?", state, game_objs, DoorState::Closed) {
 								Some(loc) => return Cmd::Open(loc),
 								None => { },
 							}							
 						} else if val == "c" {
-							match self.select_door("Close what?", state, player, DoorState::Open) {
+							match self.select_door("Close what?", state, game_objs, DoorState::Open) {
 								Some(loc) => return Cmd::Close(loc),
 								None => { },
 							}	

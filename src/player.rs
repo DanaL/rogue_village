@@ -19,7 +19,9 @@ use rand::Rng;
 use serde::{Serialize, Deserialize};
 
 use super::{GameObjects, GameState};
+use crate::display;
 use crate::{EventType, items};
+use crate::game_obj::GameObject;
 use crate::items::Item;
 use crate::util::StringUtils;
 
@@ -65,7 +67,7 @@ pub struct Player {
 }
 
 impl Player {
-    pub fn calc_vision_radius(&mut self, state: &mut GameState, _game_objs: &GameObjects) {
+    pub fn calc_vision_radius(&mut self, state: &mut GameState,) {
         let prev_vr = self.vision_radius;
         let (hour, _) = state.curr_time();
 
@@ -105,7 +107,7 @@ impl Player {
         }
     }
 
-    pub fn new_warrior(game_objs: &mut GameObjects, name: String) -> Player {
+    pub fn new_warrior(game_objs: &mut GameObjects, name: String) {
         let default_vision_radius = 99;
         let stats = roll_stats();
         
@@ -117,7 +119,7 @@ impl Player {
         };
 
         let mut p = Player {            
-            object_id: 0, name, max_hp: (15 + stat_to_mod(stats[1])) as u8, curr_hp: (15 + stat_to_mod(stats[1])) as u8, location: (0, 0, 0), 
+            object_id: 0, name: name.clone(), max_hp: (15 + stat_to_mod(stats[1])) as u8, curr_hp: (15 + stat_to_mod(stats[1])) as u8, location: (0, 0, 0), 
                 vision_radius: default_vision_radius, str: stats[0], con: stats[1], dex: stats[2], chr, apt, role: Role::Warrior, xp: 0, level: 1, max_depth: 0, 
                 ac: 10, purse: 20, readied_weapon: "".to_string(), energy: 1.0, energy_restore: 2.0,
         };
@@ -142,10 +144,12 @@ impl Player {
         p.calc_ac(game_objs);
         p.set_readied_weapon(game_objs);
 
-        p
+        let player_obj = GameObject::new(0, &name, (0, 0, 0), '@', display::WHITE, display::WHITE, 
+            None, None , None, None, Some(p), true);
+        game_objs.add(player_obj);
     }
 
-    pub fn new_rogue(game_objs: &mut GameObjects, name: String) -> Player {
+    pub fn new_rogue(game_objs: &mut GameObjects, name: String) {
         let default_vision_radius = 99;
         let stats = roll_stats();
 
@@ -157,7 +161,7 @@ impl Player {
         };
 
         let mut p = Player {            
-            object_id: 0, name, max_hp: (12 + stat_to_mod(stats[2])) as u8, curr_hp: (12 + stat_to_mod(stats[2])) as u8, location: (0, 0, 0), 
+            object_id: 0, name: name.clone(), max_hp: (12 + stat_to_mod(stats[2])) as u8, curr_hp: (12 + stat_to_mod(stats[2])) as u8, location: (0, 0, 0), 
                 vision_radius: default_vision_radius, str, con: stats[2], dex: stats[0], chr, apt: stats[1], role: Role::Rogue, xp: 0, level: 1, max_depth: 0, ac: 10, 
                 purse: 20, readied_weapon: "".to_string(), energy: 1.0, energy_restore: 1.25,
         };
@@ -165,7 +169,9 @@ impl Player {
         p.calc_ac(game_objs);
         p.set_readied_weapon(game_objs);
 
-        p
+        let player_obj = GameObject::new(0, &name, (0, 0, 0), '@', display::WHITE, display::WHITE, 
+            None, None , None, None, Some(p), true);
+        game_objs.add(player_obj);
     }
 
     pub fn calc_ac(&mut self, game_objs: &GameObjects) {

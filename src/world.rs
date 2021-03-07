@@ -57,12 +57,13 @@ pub struct WorldInfo {
     pub town_square: HashSet<(i32, i32, i8)>,
     pub tavern_name: String,
     pub town_buildings: Option<TownBuildings>,
+    pub player_name: String,
 }
 
 impl WorldInfo {
     pub fn new(town_name: String, town_boundary: (i32, i32, i32, i32), tavern_name: String) -> WorldInfo {
         WorldInfo { town_name, facts: Vec::new(), town_boundary, town_square: HashSet::new(),
-            tavern_name, town_buildings: None }
+            tavern_name, town_buildings: None, player_name: "".to_string() }
     }
 }
 
@@ -484,13 +485,14 @@ fn build_dungeon(world_info: &mut WorldInfo, map: &mut Map, entrance: (i32, i32,
     populate_levels(world_info, max_level as i8, &floor_sqs, game_objs, monster_fac);
 }
 
-pub fn generate_world(game_objs: &mut GameObjects, monster_fac: &MonsterFactory) -> (Map, WorldInfo) {
+pub fn generate_world(game_objs: &mut GameObjects, monster_fac: &MonsterFactory, player_name: &str) -> (Map, WorldInfo) {
     let map_start = Instant::now();
     let mut map = wilderness::gen_wilderness_map();
     let map_end = map_start.elapsed();
     println!("Time to make world map: {:?}", map_end);
 
     let mut world_info = town::create_town(&mut map, game_objs);
+    world_info.player_name = player_name.to_string();
 
     let valleys = find_all_valleys(&map);
     // We want to place the dungeon entrance somewhere in the largest 'valley', which will be

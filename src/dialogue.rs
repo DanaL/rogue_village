@@ -98,10 +98,10 @@ pub fn calc_direction(start: (i32, i32, i8), dest: (i32, i32, i8)) -> String {
     }
 }
 
-pub fn parse_voice_line(line: &str, world_info: &WorldInfo, player: &Player, speaker: &str, speaker_loc: (i32, i32, i8)) -> String {
+pub fn parse_voice_line(line: &str, world_info: &WorldInfo, speaker: &str, speaker_loc: (i32, i32, i8)) -> String {
     // this is a dead stupid implementation but at the moment my dialogue lines are pretty simple
     let mut s = line.replace("{village}", &world_info.town_name);
-    s = s.replace("{player-name}", &player.name);
+    s = s.replace("{player-name}", &world_info.player_name);
     s = s.replace("{name}", speaker);
 
     if line.contains("{dungeon-dir}") {

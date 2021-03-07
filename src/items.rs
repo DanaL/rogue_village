@@ -72,7 +72,7 @@ impl Item {
                 let mut i = Item::new(ItemType::Weapon, 3, false);
                 i.dmg_die = 8;
                 i.dmg_type = DamageType::Slashing;
-                let obj = GameObject::new(game_objs.next_id(), name, (0, 0, 0), ')', display::WHITE, display::GREY, None, Some(i) , None, None, false);
+                let obj = GameObject::new(game_objs.next_id(), name, (0, 0, 0), ')', display::WHITE, display::GREY, None, Some(i) , None, None, None, false);
 
                 Some(obj)
             },
@@ -80,7 +80,7 @@ impl Item {
                 let mut i = Item::new(ItemType::Weapon, 1, false);
                 i.dmg_die = 4;
                 i.dmg_type = DamageType::Slashing;
-                let obj = GameObject::new(game_objs.next_id(), name, (0, 0, 0), ')', display::WHITE, display::GREY, None, Some(i) , None, None, false);
+                let obj = GameObject::new(game_objs.next_id(), name, (0, 0, 0), ')', display::WHITE, display::GREY, None, Some(i) , None, None, None, false);
 
                 Some(obj)
             },
@@ -88,7 +88,7 @@ impl Item {
                 let mut i = Item::new(ItemType::Weapon, 2, false);
                 i.dmg_die = 6;
                 i.dmg_type = DamageType::Piercing;
-                let obj = GameObject::new(game_objs.next_id(), name, (0, 0, 0), ')', display::WHITE, display::GREY, None, Some(i) , None, None, false);
+                let obj = GameObject::new(game_objs.next_id(), name, (0, 0, 0), ')', display::WHITE, display::GREY, None, Some(i) , None, None, None, false);
 
                 Some(obj)
             },
@@ -96,7 +96,7 @@ impl Item {
                 let mut i = Item::new(ItemType::Weapon, 1, false);
                 i.dmg_die = 6;
                 i.dmg_type = DamageType::Bludgeoning;
-                let obj = GameObject::new(game_objs.next_id(), name, (0, 0, 0), ')', display::LIGHT_BROWN, display::BROWN, None, Some(i) , None, None, false);
+                let obj = GameObject::new(game_objs.next_id(), name, (0, 0, 0), ')', display::LIGHT_BROWN, display::BROWN, None, Some(i) , None, None, None, false);
 
                 Some(obj)
             },
@@ -104,7 +104,7 @@ impl Item {
                 let mut i = Item::new(ItemType::Armour, 10, false);
                 i.ac_bonus = 3;
                 i.attributes |= IA_MED_ARMOUR;
-                let obj = GameObject::new(game_objs.next_id(), name, (0, 0, 0), '[', display::GREY, display::DARK_GREY, None, Some(i) , None, None, false);
+                let obj = GameObject::new(game_objs.next_id(), name, (0, 0, 0), '[', display::GREY, display::DARK_GREY, None, Some(i) , None, None, None, false);
                 
                 Some(obj)
             },            
@@ -113,12 +113,12 @@ impl Item {
                 i.charges = 1000;
                 i.aura = 5;
                 
-                let obj = GameObject::new(game_objs.next_id(), name, (0, 0, 0), '(', display::LIGHT_BROWN, display::BROWN, None, Some(i) , None, None, false);
+                let obj = GameObject::new(game_objs.next_id(), name, (0, 0, 0), '(', display::LIGHT_BROWN, display::BROWN, None, Some(i) , None, None, None, false);
                 Some(obj)
             },
             "note" => {
                 let i = Item::new(ItemType::Note, 0, false);
-                let obj = GameObject::new(game_objs.next_id(), name, (0, 0, 0), '?', display::WHITE, display::LIGHT_GREY, None, Some(i) , None, None, false);            
+                let obj = GameObject::new(game_objs.next_id(), name, (0, 0, 0), '?', display::WHITE, display::LIGHT_GREY, None, Some(i) , None, None, None, false);            
                 
                 Some(obj)
             }
@@ -234,7 +234,7 @@ pub struct GoldPile {
 impl GoldPile {
     pub fn make(game_objs: &mut GameObjects, amount: u32, loc: (i32, i32, i8)) -> GameObject {
         let g = GoldPile { amount };
-        GameObject::new(game_objs.next_id(), "zorkmids", loc, '$', display::GOLD, display::YELLOW_ORANGE, None, None , Some(g), None, false)
+        GameObject::new(game_objs.next_id(), "zorkmids", loc, '$', display::GOLD, display::YELLOW_ORANGE, None, None , Some(g), None, None, false)
     }
 
     pub fn get_fullname(&self) -> String {

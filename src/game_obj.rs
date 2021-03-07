@@ -37,14 +37,17 @@ pub struct GameObject {
     pub item: Option<Item>,
     pub gold_pile: Option<GoldPile>,
     pub special_sq: Option<SpecialSquare>,
+    pub player: Option<Player>,
     blocks: bool,
     pub name: String,
 }
 
 impl GameObject {
-    pub fn new(object_id: usize, name: &str, location: (i32, i32, i8), symbol: char, lit_colour: (u8, u8, u8), unlit_colour: (u8, u8, u8),
-        npc: Option<NPC>, item: Option<Item>, gold_pile: Option<GoldPile>, special_sq: Option<SpecialSquare>, blocks: bool) -> Self {
-            GameObject { object_id, name: String::from(name), location, hidden: false, symbol, lit_colour, unlit_colour, npc, item, gold_pile, special_sq, blocks, }
+    pub fn new(object_id: usize, name: &str, location: (i32, i32, i8), symbol: char, lit_colour: (u8, u8, u8), 
+        unlit_colour: (u8, u8, u8), npc: Option<NPC>, item: Option<Item>, gold_pile: Option<GoldPile>, 
+            special_sq: Option<SpecialSquare>, player: Option<Player>, blocks: bool) -> Self {
+            GameObject { object_id, name: String::from(name), location, hidden: false, symbol, lit_colour, 
+                unlit_colour, npc, item, gold_pile, special_sq, player, blocks, }
         }
 
     pub fn blocks(&self) -> bool {
@@ -166,6 +169,14 @@ impl GameObjects {
         }
     }
 
+    pub fn player_details(&mut self) -> &mut Player {
+        self.get_mut(0).unwrap().player.as_mut().unwrap()
+    }
+
+    pub fn player_location(&self) -> (i32, i32, i8) {
+        self.objects[&0].location
+    }
+
     // Note there can be more than one item in a slot if they are stackable (ie torches).
     // But if the player is just using one of the items in the stack, we don't really care
     // which one it is so just return the first one.
@@ -210,10 +221,12 @@ impl GameObjects {
     pub fn set_to_loc(&mut self, obj_id: usize, loc: (i32, i32, i8)) {
         if !self.obj_locs.contains_key(&loc) {
             self.obj_locs.insert(loc, VecDeque::new());
-        }
+        } 
 
         self.obj_locs.get_mut(&loc).unwrap().push_front(obj_id);
         if self.objects.contains_key(&obj_id) {
+            let prev_loc = self.objects[&obj_id].location;
+            self.remove_from_loc(obj_id, prev_loc);
             self.objects.get_mut(&obj_id).unwrap().location = loc;
         }
     }
@@ -300,7 +313,8 @@ impl GameObjects {
         if self.obj_locs.contains_key(&loc) && !self.obj_locs[&loc].is_empty() {
             for obj_id in self.obj_locs[&loc].iter() {
                 if self.objects[&obj_id].blocks() {
-                    return Some((self.objects[&obj_id].get_tile(), self.objects[&obj_id].npc.is_some()));
+                    return Some((self.objects[&obj_id].get_tile(), 
+                        self.objects[&obj_id].npc.is_some() || self.objects[&obj_id].player.is_some()));
                 }
             }
 

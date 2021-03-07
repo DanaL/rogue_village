@@ -121,7 +121,7 @@ impl NPC {
         };
 
         let obj = GameObject::new(game_objs.next_id(), &npc_name, location, '@', display::LIGHT_GREY, display::LIGHT_GREY, 
-            Some(npc), None , None, None, true);
+            Some(npc), None , None, None, None, true);
 		obj
     }
     
@@ -350,13 +350,13 @@ impl NPC {
         self.follow_plan(my_id, state, game_objs, loc, player);
     }
 
-    pub fn talk_to(&mut self, state: &mut GameState, player: &Player, dialogue: &DialogueLibrary, my_loc: (i32, i32, i8)) -> String {
+    pub fn talk_to(&mut self, state: &mut GameState, dialogue: &DialogueLibrary, my_loc: (i32, i32, i8)) -> String {
         if self.voice == "monster" {
             let s = format!("{} growls.", self.name.with_def_article().capitalize());
             return s;
         }
 
-        let line = dialogue::parse_voice_line(&dialogue::pick_voice_line(dialogue, &self.voice, self.attitude), &state.world_info, player,
+        let line = dialogue::parse_voice_line(&dialogue::pick_voice_line(dialogue, &self.voice, self.attitude), &state.world_info,
             &self.name, my_loc);
         if self.attitude == Attitude::Stranger {
             // Perhaps a charisma check to possibly jump straight to friendly?
@@ -454,7 +454,7 @@ impl MonsterFactory {
         };
 
         let monster = GameObject::new(game_objs.next_id(), &monster_name, loc, sym, stats.3, stats.3, 
-            Some(npc), None , None, None, true);
+            Some(npc), None , None, None, None, true);
 		let obj_id = monster.object_id;
         game_objs.add(monster);
         game_objs.listeners.insert((obj_id, EventType::TakeTurn));
