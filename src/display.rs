@@ -21,7 +21,6 @@ use std::time::Duration;
 use crate::game_obj::GameObjects;
 use crate::map;
 use crate::map::{Tile, DoorState};
-use crate::player::Player;
 
 use super::{Cmd, GameState, FOV_WIDTH, FOV_HEIGHT};
 

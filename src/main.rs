@@ -49,7 +49,7 @@
     use actor::{Attitude, MonsterFactory};
     use dialogue::DialogueLibrary;
     use display::{GameUI, SidebarInfo, WHITE};
-    use game_obj::{GameObject, GameObjects};
+    use game_obj::GameObjects;
     use items::{GoldPile, ItemType};
     use map::{DoorState, ShrineType, Tile};
     use player::Player;
@@ -817,7 +817,6 @@
         let player_loc = game_objs.player_location();
         let tile = &state.map[&player_loc];
 
-        let energy_cost: f32;
         if down {
             let cost = if *tile == map::Tile::Portal {
                 state.write_msg_buff("You enter the beckoning portal.");

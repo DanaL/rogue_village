@@ -285,7 +285,7 @@ fn add_fire_pit(level: usize, map: &mut Map, floor_sqs: &mut HashMap<usize, Hash
     game_objs.add(pile);
 }
 
-fn add_teleport_trap(level: usize, map: &mut Map, floor_sqs: &mut HashMap<usize, HashSet<(i32, i32, i8)>>, game_objs: &mut GameObjects) {
+fn add_teleport_trap(level: usize, floor_sqs: &mut HashMap<usize, HashSet<(i32, i32, i8)>>, game_objs: &mut GameObjects) {
     let loc = random_sq(&floor_sqs[&(level - 1)]);
     let trap = SpecialSquare::teleport_trap(loc, game_objs);
     game_objs.listeners.insert((trap.object_id, EventType::SteppedOn));
@@ -409,7 +409,7 @@ fn decorate_levels(world_info: &mut WorldInfo, map: &mut Map, deepest_level: i8,
             add_vault(world_info, map, floors, game_objs, &vaults[&(curr_level as usize - 1)], curr_level);
         }
 
-        add_teleport_trap(curr_level as usize, map, floor_sqs, game_objs);
+        add_teleport_trap(curr_level as usize, floor_sqs, game_objs);
         
         curr_level -= 1;
     }

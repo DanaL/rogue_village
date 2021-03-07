@@ -31,7 +31,6 @@ use crate::display;
 use crate::game_obj::GameObject;
 use crate::map::{Tile, DoorState};
 use crate::pathfinding::find_path;
-use crate::player::Player;
 use crate::util;
 use crate::util::StringUtils;
 use crate::fov;
