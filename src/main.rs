@@ -593,14 +593,14 @@
         0.0
     }
 
-    fn toggle_item(state: &mut GameState, game_objs: &mut GameObjects, slot: char, player: &mut Player) {
+    fn toggle_item(state: &mut GameState, game_objs: &mut GameObjects, slot: char) -> f32 {
         let obj_id = game_objs.obj_id_in_slot(slot);
         let obj = game_objs.get_mut(obj_id).unwrap();
         let item = obj.item.as_ref().unwrap();
         let item_type = item.item_type;
         if !item.equipable() {
                 state.write_msg_buff("You cannot wear or wield that!");
-                return 
+                return 0.0;
         }
         
         let mut swapping = false;
@@ -615,7 +615,7 @@
             let readied = game_objs.readied_items_of_type(ItemType::Armour);
             if !readied.is_empty() && readied[0] != obj_id {
                 state.write_msg_buff("You're already wearing armour.");
-                return;             
+                return 0.0;             
             }        
         }
 
@@ -643,44 +643,48 @@
             state.write_msg_buff("You are now empty handed.");
         } 
 
-        player.energy -= 1.0;
+        1.0
     }
 
-    fn toggle_equipment(state: &mut GameState, player: &mut Player, game_objs: &mut GameObjects, gui: &mut GameUI) {
+    fn toggle_equipment(state: &mut GameState, game_objs: &mut GameObjects, gui: &mut GameUI) -> f32 {
         let inv = game_objs.inv_slots_used();
         let slots: HashSet<char> = inv.iter().map(|i| *i).collect();
         
         if slots.is_empty() {
             state.write_msg_buff("You are empty handed.");
-            return;
+            return 0.0;
         }
 
         let sbi = state.curr_sidebar_info(game_objs);
-        if let Some(ch) = gui.query_single_response("Ready/unready what?", Some(&sbi)) {
+        let cost = if let Some(ch) = gui.query_single_response("Ready/unready what?", Some(&sbi)) {
             if !slots.contains(&ch) {
                 state.write_msg_buff("You do not have that item!");
+                0.0
             } else {
-                toggle_item(state, game_objs, ch, player);
+                toggle_item(state, game_objs, ch)
             }
         } else {
             state.write_msg_buff("Nevermind.");
-        }
+            0.0
+        };
+
+        cost
     }
 
-    fn read_item(state: &mut GameState, player: &mut Player, game_objs: &mut GameObjects, gui: &mut GameUI) {
+    fn read_item(state: &mut GameState, game_objs: &mut GameObjects, gui: &mut GameUI) -> f32 {
         let inv = game_objs.inv_slots_used();
         let slots: HashSet<char> = inv.iter().map(|i| *i).collect();
 
         if slots.is_empty() {
             state.write_msg_buff("You are empty handed.");
-            return;
+            return 0.0;
         }
 
         let sbi = state.curr_sidebar_info(game_objs);
         if let Some(ch) = gui.query_single_response("Read what?", Some(&sbi)) {
             if !slots.contains(&ch) {
                 state.write_msg_buff("You do not have that item!");
-                return;
+                return 0.0;
             }
             
             let obj_id = game_objs.obj_id_in_slot(ch);
@@ -693,26 +697,27 @@
                 }
             }
             
-            player.energy -= 1.0;
+            1.0
         } else {
             state.write_msg_buff("Nevermind.");
+            0.0
         }
     }
 
-    fn use_item(state: &mut GameState, player: &mut Player, game_objs: &mut GameObjects, gui: &mut GameUI) {
+    fn use_item(state: &mut GameState, game_objs: &mut GameObjects, gui: &mut GameUI) -> f32 {
         let inv = game_objs.inv_slots_used();
         let slots: HashSet<char> = inv.iter().map(|i| *i).collect();
         
         if slots.is_empty() {
             state.write_msg_buff("You are empty handed.");
-            return;
+            return 0.0;
         }
         
         let sbi = state.curr_sidebar_info(game_objs);
         if let Some(ch) = gui.query_single_response("Use what?", Some(&sbi)) {
             if !slots.contains(&ch) {
                 state.write_msg_buff("You do not have that item!");
-                return;
+                return 0.0;
             }
             
             let next_slot = game_objs.next_slot; // We might need to give the item a new inventory slot
@@ -753,13 +758,15 @@
                     game_objs.inc_slot();
                 }
 
-                player.energy -= 1.0;
+                return 1.0;
             } else {
                 state.write_msg_buff("You don't know how to use that.");
             }       
         } else {
             state.write_msg_buff("Nevermind.");
         }
+
+        0.0
     }
 
     fn get_move_tuple(mv: &str) -> (i32, i32) {
@@ -1328,7 +1335,7 @@
                     },
                     Cmd::Pass => { },
                     Cmd::PickUp => energy_cost = pick_up(state, game_objs, gui),
-                    //Cmd::Read => read_item(state, player, game_objs, gui),
+                    Cmd::Read => energy_cost = read_item(state, game_objs, gui),
                     //Cmd::Save => save_and_exit(state, game_objs, player, gui)?,
                     Cmd::Search => {
                         search(state, game_objs);
@@ -1339,8 +1346,8 @@
                         show_character_sheet(gui, p)
                     },
                     Cmd::ShowInventory => show_inventory(gui, state, game_objs),
-                    //Cmd::ToggleEquipment => toggle_equipment(state, player, game_objs, gui),
-                    //Cmd::Use => use_item(state, player, game_objs, gui),
+                    Cmd::ToggleEquipment => energy_cost = toggle_equipment(state, game_objs, gui),
+                    Cmd::Use => energy_cost = use_item(state, game_objs, gui),
                     Cmd::Quit => confirm_quit(state, gui, game_objs)?,
                     Cmd::Up => energy_cost = take_stairs(state, game_objs, false),
                     Cmd::WizardCommand => wiz_command(state, gui, game_objs, monster_fac),
