@@ -129,7 +129,6 @@
         msg_history: VecDeque<(String, u32)>,
         map: Map,
         turn: u32,
-        player_loc: (i32, i32, i8),
         world_info: WorldInfo,
         tile_memory: HashMap<(i32, i32, i8), Tile>,
         lit_sqs: HashSet<(i32, i32, i8)>, // by light sources independent of player
@@ -144,7 +143,6 @@
                 msg_history: VecDeque::new(),
                 map,
                 turn: 0,
-                player_loc: (-1, -1, -1),
                 world_info: world_info,
                 tile_memory: HashMap::new(),
                 lit_sqs: HashSet::new(),
@@ -872,7 +870,6 @@
                 }
                 if !game_objs.location_occupied(&landing_spot) {
                     state.write_msg_buff("You are shoved out of the way by the falling gate!");
-                    state.player_loc = landing_spot;
                     game_objs.set_to_loc(0, landing_spot);
                     return;
                 }
@@ -924,29 +921,33 @@
         }
     }
 
-    fn maybe_fight(state: &mut GameState, game_objs: &mut GameObjects, player: &mut Player, loc: (i32, i32, i8), gui: &mut GameUI) {
-        // if let Some(npc_id) = game_objs.npc_at(&loc) {
-        //     let npc = game_objs.get_mut(npc_id).unwrap();
-        //     match npc.npc.as_ref().unwrap().attitude {
-        //         Attitude::Hostile => {
-        //             battle::player_attacks(state, player, npc_id, game_objs);
-        //             player.energy -= 1.0;
-        //         },
-        //         Attitude::Indifferent | Attitude::Stranger => {
-        //             let sbi = state.curr_sidebar_info(game_objs);
-        //             let s = format!("Really attack {}? (y/n)", npc.get_npc_name(false));
-        //             if let 'y' = gui.query_yes_no(&s, Some(&sbi)) {
-        //                 battle::player_attacks(state, player, npc_id, game_objs);
-        //                 player.energy -= 1.0;
-        //             }                    
-        //         },
-        //         _ => {
-        //             let s = format!("{} is in your way!", npc.get_npc_name(false).capitalize());
-        //             state.write_msg_buff(&s);
-        //             player.energy -= 1.0;
-        //         }
-        //     }            
-        // }        
+    fn maybe_fight(state: &mut GameState, game_objs: &mut GameObjects, loc: (i32, i32, i8), gui: &mut GameUI) -> f32 {
+        if let Some(npc_id) = game_objs.npc_at(&loc) {
+            let npc = game_objs.get_mut(npc_id).unwrap();
+            let npc_name = npc.get_npc_name(false);
+            let attitude = npc.npc.as_ref().unwrap().attitude;
+            match attitude {
+                Attitude::Hostile => {
+                    battle::player_attacks(state, npc_id, game_objs);
+                    return 1.0;
+                },
+                Attitude::Indifferent | Attitude::Stranger => {
+                    let sbi = state.curr_sidebar_info(game_objs);
+                    let s = format!("Really attack {}? (y/n)", npc_name);
+                    if let 'y' = gui.query_yes_no(&s, Some(&sbi)) {
+                        battle::player_attacks(state, npc_id, game_objs);
+                        return 1.0;
+                    }                    
+                },
+                _ => {
+                    let s = format!("{} is in your way!", npc_name.capitalize());
+                    state.write_msg_buff(&s);
+                    return 1.0;
+                }
+            }
+        }
+
+        0.0
     }
 
     fn random_open_sq(state: &mut GameState, game_objs: &GameObjects, level: i8) -> (i32, i32, i8) {
@@ -988,7 +989,7 @@
         let tile = &state.map[&next_loc].clone();
         
         if game_objs.blocking_obj_at(&next_loc) {
-            //maybe_fight(state, game_objs, player, next_loc, gui);            
+            return maybe_fight(state, game_objs, next_loc, gui);            
         } else if tile.passable() {
             match tile {
                 Tile::Water => state.write_msg_buff("You splash in the shallow water."),
@@ -1045,8 +1046,7 @@
             }
             if teleport {
                 let sq = random_open_sq(state, game_objs, start_loc.2);
-                game_objs.set_to_loc(0, sq);
-                state.player_loc = sq;
+                game_objs.set_to_loc(0, sq);                
             }
 
             return 1.0;
@@ -1331,7 +1331,10 @@
                         do_open(state, loc);
                         energy_cost = 1.0;
                     },
-                    Cmd::Pass => { },
+                    Cmd::Pass => {
+                        let p = game_objs.player_details();
+                        energy_cost = p.energy;
+                     },
                     Cmd::PickUp => energy_cost = pick_up(state, game_objs, gui),
                     Cmd::Read => energy_cost = read_item(state, game_objs, gui),
                     Cmd::Save => save_and_exit(state, game_objs, gui)?,
@@ -1356,7 +1359,6 @@
                 p.energy -= energy_cost;
                 curr_energy = p.energy;
                 if curr_energy >= 1.0 {
-                    state.player_loc = game_objs.player_location();
                     // We need to do this here in case a player has enough energy to take multiple actions
                     // and kills a monster on their first aciton.
                     // I should queue an event "Monster killed" and then check the event queue. That way I don't
@@ -1367,10 +1369,8 @@
                     update_view(state, game_objs, gui);
                 }
             }
-            
-            state.player_loc = game_objs.player_location();
                         
-            //game_objs.do_npc_turns(state, player);
+            game_objs.do_npc_turns(state);
             game_objs.update_listeners(state);
             
             // Are there any accumulated events we need to deal with?
@@ -1380,24 +1380,25 @@
                         check_closed_gate(state, game_objs, loc);
                     },
                     (EventType::PlayerKilled, _, _, Some(msg)) => {
-                        //kill_screen(state, gui, player, &msg);
+                        kill_screen(state, gui, game_objs, &msg);
                         return Err(ExitReason::Death(String::from("Player killed")));
                     },
                     (EventType::LevelUp, _, _, _) => {
-                        //player.level_up(state);
+                        let p = game_objs.player_details();
+                        p.level_up(state);
                     }
                     _ => { },
                 }                
             }
 
-            // if state.turn % 25 == 0 {
-            //     player.add_hp(1);
-            // }
+            let p = game_objs.player_details();
+            p.energy += p.energy_restore;
+            if state.turn % 25 == 0 {
+                p.add_hp(1);
+            }
 
             state.turn += 1;
-            update_view(state, game_objs, gui);
-            let p = game_objs.player_details();
-            p.energy += p.energy_restore;            
+            update_view(state, game_objs, gui);            
         }
     }
 
@@ -1462,8 +1463,7 @@
             println!("World gen time: {:?}", wg_dur);
 
             start_new_game(&state, &mut game_objs, &mut gui, player_name);
-            state.player_loc = game_objs.player_location();            
-
+            
             state.write_msg_buff("Welcome, adventurer!");
         }
         

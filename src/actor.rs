@@ -160,7 +160,7 @@ impl NPC {
     }
 
     fn try_to_move_to_loc(&mut self, goal_loc: (i32, i32, i8), state: &mut GameState, game_objs: &mut GameObjects, my_loc: (i32, i32, i8)) {        
-        if game_objs.blocking_obj_at(&goal_loc) || state.player_loc == goal_loc {
+        if game_objs.blocking_obj_at(&goal_loc) {
             state.write_msg_buff("\"Excuse me.\"");
             self.plan.push_front(Action::Move(goal_loc));
         } else if state.map[&goal_loc] == Tile::Door(DoorState::Closed) {
@@ -186,7 +186,7 @@ impl NPC {
     }
 
     fn close_door(&mut self, loc: (i32, i32, i8), state: &mut GameState, game_objs: &mut GameObjects) {
-        if game_objs.blocking_obj_at(&loc) || loc == state.player_loc {
+        if game_objs.blocking_obj_at(&loc) {
             state.write_msg_buff("Please don't stand in the doorway.");
             self.plan.push_front(Action::CloseDoor(loc));
         } else {
@@ -202,14 +202,14 @@ impl NPC {
         }
     }
 
-    fn follow_plan(&mut self, my_id: usize, state: &mut GameState, game_objs: &mut GameObjects, my_loc: (i32, i32, i8), player: &mut Player) {
+    fn follow_plan(&mut self, my_id: usize, state: &mut GameState, game_objs: &mut GameObjects, my_loc: (i32, i32, i8)) {
         if let Some(action) = self.plan.pop_front() {
             match action {
                 Action::Move(loc) => self.try_to_move_to_loc(loc, state, game_objs, my_loc),
                 Action::OpenDoor(loc) => self.open_door(loc, state),
                 Action::CloseDoor(loc) => self.close_door(loc, state, game_objs),
                 Action::Attack(_loc) => {
-                    battle::monster_attacks(state, self, my_id, player);
+                    battle::monster_attacks_player(state, self, my_id, game_objs);
                 },
             }
         }
@@ -288,9 +288,9 @@ impl NPC {
         }
     }
 
-    fn simple_monster_schedule(&mut self, state: &GameState, loc: (i32, i32, i8)) {
-        let dr = loc.0 - state.player_loc.0;
-        let dc = loc.1 - state.player_loc.1;
+    fn simple_monster_schedule(&mut self, state: &GameState, loc: (i32, i32, i8), player_loc: (i32, i32, i8)) {
+        let dr = loc.0 - player_loc.0;
+        let dc = loc.1 - player_loc.1;
         let d = dr * dr + dc * dc;
 
         if self.attitude != Attitude::Hostile {
@@ -301,7 +301,7 @@ impl NPC {
                 //let m_fov_elapsed = m_fov_time.elapsed();
                 //println!("Monster fov: {:?}", m_fov_elapsed);
             
-                if visible.contains(&state.player_loc) {
+                if visible.contains(&player_loc) {
                     self.attitude = Attitude::Hostile;
                 }
             }
@@ -309,10 +309,10 @@ impl NPC {
 
         if self.attitude == Attitude::Hostile {
             if d <= 2 {
-                self.plan.push_front(Action::Attack(state.player_loc));
+                self.plan.push_front(Action::Attack(player_loc));
             } else {
                 //let m_pf_time = Instant::now();
-                self.calc_plan_to_move(state, state.player_loc, true, loc);
+                self.calc_plan_to_move(state, player_loc, true, loc);
                 // Since the player is probably moving, only keep the first 2 or 3 
                 // steps of the move plan
                 while self.plan.len() > 1 {
@@ -324,13 +324,13 @@ impl NPC {
         }        
     }
 
-    fn check_schedule(&mut self, state: &GameState, loc: (i32, i32, i8)) {
+    fn check_schedule(&mut self, state: &GameState, loc: (i32, i32, i8), player_loc: (i32, i32, i8)) {
         // I feel like there HAS to be way a better way to do polymorphism/different behaviours in Rust. I
         // feel like Traits will be too much of a pain with the GameObjs and I couldn't really share code between the 
         // NPC types. Unless I make them floating functions and have no private fields?
         match self.mode {
             NPCMode::Villager => self.villager_schedule(state, loc),
-            NPCMode::SimpleMonster => self.simple_monster_schedule(state, loc),
+            NPCMode::SimpleMonster => self.simple_monster_schedule(state, loc, player_loc),
         }
     }
 
@@ -342,12 +342,13 @@ impl NPC {
         self.calc_plan_to_move(state, *goal_loc, false, my_loc);
     }
 
-    pub fn take_turn(&mut self, my_id: usize, state: &mut GameState, game_objs: &mut GameObjects, loc: (i32, i32, i8), player: &mut Player) {
+    pub fn take_turn(&mut self, my_id: usize, state: &mut GameState, game_objs: &mut GameObjects, loc: (i32, i32, i8)) {
         if self.plan.len() == 0 {
-            self.check_schedule(state, loc);
+            let player_loc = game_objs.player_location();
+            self.check_schedule(state, loc, player_loc);
         }
         
-        self.follow_plan(my_id, state, game_objs, loc, player);
+        self.follow_plan(my_id, state, game_objs, loc);
     }
 
     pub fn talk_to(&mut self, state: &mut GameState, dialogue: &DialogueLibrary, my_loc: (i32, i32, i8)) -> String {

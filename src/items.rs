@@ -165,9 +165,9 @@ impl Item {
         }
     }
 
-	fn mark_lit_sqs(&self, state: &mut GameState, loc: (i32, i32, i8)) {
+	fn mark_lit_sqs(&self, state: &mut GameState, loc: (i32, i32, i8), player_loc: (i32, i32, i8)) {
 		let location = if loc == PLAYER_INV {
-			state.player_loc
+			player_loc
 		} else {
 			loc
 		};
@@ -178,15 +178,17 @@ impl Item {
 		}		
 	}
 
-    pub fn receive_event(&mut self, event: EventType, state: &mut GameState, loc: (i32, i32, i8), name: String, obj_id: usize) -> Option<EventResponse> {
+    pub fn receive_event(&mut self, event: EventType, state: &mut GameState, 
+                loc: (i32, i32, i8), player_loc: (i32, i32, i8),
+                name: String, obj_id: usize) -> Option<EventResponse> {
 		match event {
 			EventType::EndOfTurn => {
 				self.charges -= 1;
                 // right now light sources are the only things in the game which times like this
 				// This'll mark squares that are lit independent of the player's vision. Don't bother
 				// with the calculation if the light source is on another level of the dungeon
-				if self.charges > 0 && (loc == PLAYER_INV || loc.2 == state.player_loc.2) {
-					self.mark_lit_sqs(state, loc);
+				if self.charges > 0 && (loc == PLAYER_INV || loc.2 == player_loc.2) {
+					self.mark_lit_sqs(state, loc, player_loc);
 				}
 
 				if self.charges == 150 {

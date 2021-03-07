@@ -95,9 +95,9 @@ impl GameObject {
         self.hidden = false
     }
 
-    fn receive_event(&mut self, event: EventType, state: &mut GameState) -> Option<EventResponse> {
+    fn receive_event(&mut self, event: EventType, state: &mut GameState, player_loc: (i32, i32, i8)) -> Option<EventResponse> {
         if self.item.is_some() {
-            self.item.as_mut().unwrap().receive_event(event, state, self.location, self.name.clone(), self.object_id)
+            self.item.as_mut().unwrap().receive_event(event, state, self.location, player_loc, self.name.clone(), self.object_id)
         } else if self.special_sq.is_some() {
             self.special_sq.as_mut().unwrap().receive_event(event, state, self.location, self.object_id)
         } else {
@@ -249,6 +249,7 @@ impl GameObjects {
     }
 
     pub fn update_listeners(&mut self, state: &mut GameState) {
+        let ploc = self.player_location();
         let listeners: Vec<usize> = self.listeners.iter()
             .filter(|l| l.1 == EventType::EndOfTurn)
             .map(|l| l.0).collect();
@@ -259,7 +260,7 @@ impl GameObjects {
         for obj_id in listeners {
             let obj = self.get_mut(obj_id).unwrap();
 
-            match obj.receive_event(EventType::EndOfTurn, state) {
+            match obj.receive_event(EventType::EndOfTurn, state, ploc) {
                 Some(response) => {
                     if response.event_type == EventType::LightExpired {
                         to_remove.push(obj_id);                        
@@ -280,11 +281,13 @@ impl GameObjects {
 
         for obj_id in listeners {
             let obj = self.get_mut(obj_id).unwrap();
-            obj.receive_event(EventType::LitUp, state);            
+            obj.receive_event(EventType::LitUp, state, ploc);            
         }
     }
 
     pub fn stepped_on_event(&mut self, state: &mut GameState, loc: (i32, i32, i8)) {
+        let ploc = self.player_location();
+
         let listeners: Vec<usize> = self.listeners.iter()
             .filter(|l| l.1 == EventType::SteppedOn)
             .map(|l| l.0).collect();
@@ -292,15 +295,15 @@ impl GameObjects {
         for obj_id in listeners {
             let obj = self.get_mut(obj_id).unwrap();
             if obj.location == loc {
-                if let Some(result) = obj.receive_event(EventType::SteppedOn, state) {
+                if let Some(result) = obj.receive_event(EventType::SteppedOn, state, ploc) {
                     match result.event_type {
                         EventType::TrapRevealed => {
                             let target = self.objects.get_mut(&obj_id).unwrap();
                         target.hidden = false;
                         },
-                        EventType::Triggered => {
+                        EventType::Triggered => {                            
                             let target = self.objects.get_mut(&obj_id).unwrap();
-                            target.receive_event(EventType::Triggered, state);
+                            target.receive_event(EventType::Triggered, state, ploc);
                         },
                         _ => { /* Should maybe panic! here? */ },
                     }
@@ -338,7 +341,7 @@ impl GameObjects {
         }
     }
 
-    pub fn do_npc_turns(&mut self, state: &mut GameState, player: &mut Player) {
+    pub fn do_npc_turns(&mut self, state: &mut GameState) {
         let actors = self.listeners.iter()
                                    .filter(|i| i.1 == EventType::TakeTurn)
                                    .map(|i| i.0).collect::<Vec<usize>>();
@@ -366,9 +369,10 @@ impl GameObjects {
             
             // I don't want to have every single monster in the game taking a turn every round, so
             // only update monsters on the surface or on the same level as the player. (Who knows, in
-            // the end maybe it'll be fast enough to always update 100s of monsters..)            
-            if actor_loc.2 == 0 || actor_loc.2 == state.player_loc.2 {
-                actor.npc.as_mut().unwrap().take_turn(actor_id, state, self, actor_loc, player);
+            // the end maybe it'll be fast enough to always update 100s of monsters..)
+            let curr_dungeon_level =  self.player_location().2;      
+            if actor_loc.2 == 0 || actor_loc.2 == curr_dungeon_level {
+                actor.npc.as_mut().unwrap().take_turn(actor_id, state, self, actor_loc);
             }
 
             // Was the npc killed during their turn?
