@@ -510,12 +510,13 @@
     }
 
     // Not yet handling when there are no inventory slots yet
-    fn pick_up(state: &mut GameState, player: &mut Player, game_objs: &mut GameObjects, gui: &mut GameUI) {
+    fn pick_up(state: &mut GameState, game_objs: &mut GameObjects, gui: &mut GameUI) -> f32 {
         let player_loc = game_objs.player_location();
         let things = game_objs.things_at_loc(player_loc);
 
         if things.is_empty() {
             state.write_msg_buff("There is nothing here.");
+            return 0.0;
         } else if things.len() == 1 {
             let obj = game_objs.get(things[0]).unwrap();
             let is_zorkmids = obj.gold_pile.is_some();
@@ -530,7 +531,8 @@
                     state.write_msg_buff(&s);
                 }
                 game_objs.remove(things[0]);
-                player.purse += zorkmids;
+                let p = game_objs.player_details();
+                p.purse += zorkmids;
             } else if is_item {
                 let obj = game_objs.remove(things[0]);
                 let s = format!("You pick up {}.", obj.get_fullname().with_def_article());
@@ -538,7 +540,7 @@
                 game_objs.add_to_inventory(obj);            
             }
             
-            player.energy -= 1.0;
+            return 1.0;
         } else {
             let mut m = game_objs.get_pickup_menu(player_loc);
             let mut answer_key = HashMap::new();
@@ -566,7 +568,6 @@
 
                     if is_zorkmids {
                         let zorkmids = obj.gold_pile.as_ref().unwrap().amount;
-                        player.purse += zorkmids;
                         if zorkmids == 1 {
                             state.write_msg_buff("You pick up a single gold piece.");
                         } else {
@@ -574,19 +575,22 @@
                             state.write_msg_buff(&s);
                         }
                         game_objs.remove(id);
+                        let p = game_objs.player_details();
+                        p.purse += zorkmids;
                     } else if is_item {
-                        println!("{:?}", obj.location);
                         let obj = game_objs.remove(id);
                         let s = format!("You pick up {}.", obj.get_fullname().with_def_article());
                         state.write_msg_buff(&s);
                         game_objs.add_to_inventory(obj); 
                     }
                 }
-                player.energy -= 1.0;
+                return 1.0;
             } else {
                 state.write_msg_buff("Nevermind.");
             }
         }
+
+        0.0
     }
 
     fn toggle_item(state: &mut GameState, game_objs: &mut GameObjects, slot: char, player: &mut Player) {
@@ -1101,22 +1105,25 @@
         gui.write_long_msg(&lines, true);
     }
 
-    fn show_inventory(gui: &mut GameUI, state: &mut GameState, player: &Player, game_objs: &GameObjects) {
+    fn show_inventory(gui: &mut GameUI, state: &mut GameState, game_objs: &mut GameObjects) {
         let menu = game_objs.get_inventory_menu();
 
-        let money = if player.purse == 1 {
+        let p = game_objs.player_details();
+        let purse = p.purse;
+
+        let money = if purse == 1 {
             String::from("$) a single zorkmid to your name")
         } else {
-            let s = format!("$) {} gold pieces", player.purse);
+            let s = format!("$) {} gold pieces", purse);
             s
         };
 
-        if menu.is_empty() && player.purse == 0 {
+        if menu.is_empty() && purse == 0 {
             state.write_msg_buff("You are empty-handed.");
         } else {
             let mut m: Vec<&str> = menu.iter().map(AsRef::as_ref).collect();        
             m.insert(0, "You are carrying:");
-            if player.purse > 0 {
+            if purse > 0 {
                 m.insert(1, &money);
             }
             gui.write_long_msg(&m, true);
@@ -1320,7 +1327,7 @@
                         energy_cost = 1.0;
                     },
                     Cmd::Pass => { },
-                    //Cmd::PickUp => pick_up(state, player, game_objs, gui),
+                    Cmd::PickUp => energy_cost = pick_up(state, game_objs, gui),
                     //Cmd::Read => read_item(state, player, game_objs, gui),
                     //Cmd::Save => save_and_exit(state, game_objs, player, gui)?,
                     Cmd::Search => {
@@ -1331,7 +1338,7 @@
                         let p = game_objs.player_details();
                         show_character_sheet(gui, p)
                     },
-                    //Cmd::ShowInventory => show_inventory(gui, state, player, game_objs),
+                    Cmd::ShowInventory => show_inventory(gui, state, game_objs),
                     //Cmd::ToggleEquipment => toggle_equipment(state, player, game_objs, gui),
                     //Cmd::Use => use_item(state, player, game_objs, gui),
                     Cmd::Quit => confirm_quit(state, gui, game_objs)?,

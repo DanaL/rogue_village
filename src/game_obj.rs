@@ -628,7 +628,9 @@ impl GameObjects {
         if self.obj_locs.contains_key(&loc) {
             let obj_ids = self.obj_locs[&loc].iter().copied();
             for id in obj_ids {
-                if self.objects[&id].hidden || self.objects[&id].special_sq.is_some() {
+                if self.objects[&id].hidden 
+                        || self.objects[&id].special_sq.is_some() 
+                        || self.objects[&id].player.is_some() {
                     continue;
                 }
                 if self.objects[&id].gold_pile.is_some() {
