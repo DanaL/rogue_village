@@ -256,11 +256,11 @@
         format!("{}.yaml", s)
     }
 
-    fn serialize_game_data(state: &GameState, game_objs: &GameObjects, player: &Player) {
-        let game_data = (state, game_objs, player);
+    fn serialize_game_data(state: &GameState, game_objs: &GameObjects) {
+        let player_name = game_objs.get(0).unwrap().name.to_string();
+        let game_data = (state, game_objs);
         let serialized = serde_yaml::to_string(&game_data).unwrap();
-
-        let filename = calc_save_filename(&player.name);
+        let filename = calc_save_filename(&player_name);
 
         match File::create(&filename) {
             Ok(mut buffer) => {
@@ -273,6 +273,7 @@
         }
 
     }
+
     fn existing_save_file(player_name: &str) -> bool {
         let save_filename = calc_save_filename(player_name);
 
@@ -286,26 +287,26 @@
         false
     }
 
-    fn load_save_game(player_name: &str) -> Result<(GameState, GameObjects, Player), serde_yaml::Error> {
+    fn load_save_game(player_name: &str) -> Result<(GameState, GameObjects), serde_yaml::Error> {
         let filename = calc_save_filename(player_name);
         let blob = fs::read_to_string(filename).expect("Error reading save file");
-        let game_data: (GameState, GameObjects, Player) = serde_yaml::from_str(&blob)?;
-
-        Ok((game_data.0, game_data.1, game_data.2))
+        let game_data: (GameState, GameObjects) = serde_yaml::from_str(&blob)?;
+        
+        Ok((game_data.0, game_data.1))
     }
 
-    fn fetch_saved_data(player_name: &str) -> Option<(GameState, GameObjects, Player)> {    
+    fn fetch_saved_data(player_name: &str) -> Option<(GameState, GameObjects)> {    
         match load_save_game(player_name) {
             Ok(gd) => Some(gd),
-            Err(_) => None,
+            Err(err) => { println!("error in save file {:?}", err); None },
         }
     }
 
-    fn save_and_exit(state: &GameState, game_objs: &mut GameObjects, player: &Player, gui: &mut GameUI) -> Result<(), ExitReason> {
+    fn save_and_exit(state: &GameState, game_objs: &mut GameObjects, gui: &mut GameUI) -> Result<(), ExitReason> {
         let sbi = state.curr_sidebar_info(game_objs);
         match gui.query_yes_no("Save and exit? (y/n)", Some(&sbi)) {
             'y' => {
-                serialize_game_data(state, game_objs, player);
+                serialize_game_data(state, game_objs);
                 Err(ExitReason::Save)
             },
             _ => Ok(()),
@@ -457,8 +458,7 @@
                             cost = 1.0;
                         },
                         Err(msg) => state.write_msg_buff(&msg),
-                    }
-                    
+                    }                    
                 }
             }
         } else {
@@ -1309,9 +1309,7 @@
         update_view(state, game_objs, gui);
         state.msg_buff.clear();
 
-        loop {
-            state.turn += 1;
-
+        loop {            
             let p = game_objs.player_details();
             let mut curr_energy = p.energy;
             while curr_energy >= 1.0 {
@@ -1336,7 +1334,7 @@
                     Cmd::Pass => { },
                     Cmd::PickUp => energy_cost = pick_up(state, game_objs, gui),
                     Cmd::Read => energy_cost = read_item(state, game_objs, gui),
-                    //Cmd::Save => save_and_exit(state, game_objs, player, gui)?,
+                    Cmd::Save => save_and_exit(state, game_objs, gui)?,
                     Cmd::Search => {
                         search(state, game_objs);
                         energy_cost = 1.0;
@@ -1396,6 +1394,7 @@
             //     player.add_hp(1);
             // }
 
+            state.turn += 1;
             update_view(state, game_objs, gui);
             let p = game_objs.player_details();
             p.energy += p.energy_restore;            
@@ -1442,20 +1441,18 @@
         
         let mut game_objs: GameObjects;
         let mut state: GameState;
-        let mut player: GameObject;
-        //if existing_save_file(&player_name) {
-            // if let Some(saved_objs) = fetch_saved_data(&player_name) {
-            //     state = saved_objs.0;
-            //     game_objs = saved_objs.1;
-            //     player = saved_objs.2;
+        if existing_save_file(&player_name) {
+            if let Some(saved_objs) = fetch_saved_data(&player_name) {
+                state = saved_objs.0;
+                game_objs = saved_objs.1;
                 
-            //     let msg = format!("Welcome back, {}!", player.name);
-            //     state.write_msg_buff(&msg);
-            // } else {
-            //     // need to dump some sort of message for corrupted game file
-            //     return;
-            // }
-        //} else {
+                let msg = format!("Welcome back, {}!", player_name);
+                state.write_msg_buff(&msg);
+            } else {
+                // need to dump some sort of message for corrupted game file
+                return;
+            }
+        } else {
             game_objs = GameObjects::new();
 
             let wg_start = Instant::now();
@@ -1468,7 +1465,7 @@
             state.player_loc = game_objs.player_location();            
 
             state.write_msg_buff("Welcome, adventurer!");
-        //}
+        }
         
         match run(&mut gui, &mut state, &mut game_objs, &dialogue_library, &mf) {
             Ok(_) => println!("Game over I guess? Probably the player won?!"),

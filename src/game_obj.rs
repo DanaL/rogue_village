@@ -153,7 +153,7 @@ impl GameObjects {
         self.objects.insert(obj_id, obj);        
     }
 
-    pub fn get(&mut self, obj_id: usize) -> Option<&GameObject> {
+    pub fn get(&self, obj_id: usize) -> Option<&GameObject> {
         if !self.objects.contains_key(&obj_id) {
             None
         } else {
@@ -652,7 +652,8 @@ impl GameObjects {
                           .iter().copied();
             
             ids.filter(|id| !self.objects[&id].hidden 
-                     && self.objects[&id].special_sq.is_none()).collect()
+                     && self.objects[&id].special_sq.is_none()
+                     && self.objects[&id].player.is_none()).collect()
         } else {
             Vec::new()
         }
