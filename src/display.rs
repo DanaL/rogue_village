@@ -53,6 +53,8 @@ pub const DULL_RED: (u8, u8, u8) = (129, 12, 12);
 pub const GOLD: (u8, u8, u8) = (255, 215, 0);
 pub const YELLOW: (u8, u8, u8) = (255, 225, 53);
 pub const YELLOW_ORANGE: (u8, u8, u8,) = (255, 159, 0);
+pub const PINK: (u8, u8, u8) = (255, 20, 147);
+pub const PURPLE: (u8, u8, u8) = (138,43,226);
 
 const SCREEN_WIDTH: u32 = 58;
 const SCREEN_HEIGHT: u32 = 22;
@@ -1031,5 +1033,12 @@ fn sq_info_for_tile(tile: &map::Tile, lit: bool) -> (char, sdl2::pixels::Color) 
 				('.', tuple_to_sdl2_color(&DARK_GREY))
 			}
 		},
+		map::Tile::TeleportTrap => {
+			if lit {
+				('^', tuple_to_sdl2_color(&PINK))
+			} else {
+				('^', tuple_to_sdl2_color(&PURPLE))
+			}
+		}
 	}
 }

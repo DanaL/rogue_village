@@ -280,9 +280,18 @@ impl GameObjects {
             let obj = self.get_mut(obj_id).unwrap();
             if obj.location == loc {
                 if let Some(result) = obj.receive_event(EventType::SteppedOn, state) {
-                    let target = self.objects.get_mut(&result.object_id).unwrap();
-                    target.receive_event(EventType::Triggered, state);
-                }
+                    match result.event_type {
+                        EventType::TrapRevealed => {
+                            let target = self.objects.get_mut(&obj_id).unwrap();
+                        target.hidden = false;
+                        },
+                        EventType::Triggered => {
+                            let target = self.objects.get_mut(&obj_id).unwrap();
+                            target.receive_event(EventType::Triggered, state);
+                        },
+                        _ => { /* Should maybe panic! here? */ },
+                    }
+                }                
             }            
         }
     }
@@ -604,9 +613,8 @@ impl GameObjects {
 
         if self.obj_locs.contains_key(&loc) {
             let obj_ids = self.obj_locs[&loc].iter().copied();
-
             for id in obj_ids {
-                if self.objects[&id].hidden {
+                if self.objects[&id].hidden || self.objects[&id].special_sq.is_some() {
                     continue;
                 }
                 if self.objects[&id].gold_pile.is_some() {
@@ -627,7 +635,8 @@ impl GameObjects {
             let ids = self.obj_locs[&loc]
                           .iter().copied();
             
-            ids.filter(|id| !self.objects[&id].hidden).collect()
+            ids.filter(|id| !self.objects[&id].hidden 
+                     && self.objects[&id].special_sq.is_none()).collect()
         } else {
             Vec::new()
         }
@@ -636,9 +645,23 @@ impl GameObjects {
     pub fn hidden_at_loc(&self, loc: (i32, i32, i8)) -> Vec<usize> {
         if self.obj_locs.contains_key(&loc) {
             let ids = self.obj_locs[&loc]
-                          .iter().copied();
+                .iter().copied();
             
             ids.filter(|id| self.objects[&id].hidden).collect()
+        } else {
+            Vec::new()
+        }
+    }
+
+    pub fn special_sqs_at_loc(&self, loc: &(i32, i32, i8)) -> Vec<&GameObject> {
+        if self.obj_locs.contains_key(&loc) {
+            let ids = self.obj_locs[&loc]
+                .iter().copied();
+
+            let specials: Vec<&GameObject> = ids.filter(|id| self.objects[&id].special_sq.is_some())
+                .map(|id| self.objects.get(&id).unwrap())
+                .collect();
+            specials
         } else {
             Vec::new()
         }

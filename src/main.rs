@@ -93,6 +93,7 @@
         GateClosed,
         PlayerKilled,
         LevelUp,
+        TrapRevealed,
     }
 
     pub enum Cmd {
@@ -901,12 +902,34 @@
         }        
     }
 
+    fn random_open_sq(state: &mut GameState, game_objs: &GameObjects, level: i8) -> (i32, i32, i8) {
+        let mut rng = rand::thread_rng();
+
+        let all_sqs_on_level: Vec<(i32, i32, i8)> = state.map.keys()
+            .filter(|k| k.2 == level)
+            .map(|k| *k).collect();
+
+        loop {
+            let i = rng.gen_range(0, all_sqs_on_level.len());
+            let loc = all_sqs_on_level[i];
+            if state.map[&loc].passable_dry_land() && !game_objs.blocking_obj_at(&loc) {
+                return loc;
+            }
+        }
+    }
+
     // Stuff that happens after someone steps on a square. I could probably move a bunch of the code here for
     // stepping on lava, etc. It's a bit awkward right now because Player and NPC are separate types and I can't
     // just pass a reference in, but if I eventually need to, I can sort out who exactly stepped on the square via
     // the obj_id (0 is always the player)
     fn land_on_location(state: &mut GameState, game_objs: &mut GameObjects, loc: (i32, i32, i8), _obj_id: usize) {
         game_objs.stepped_on_event(state, loc);
+
+        for special in game_objs.special_sqs_at_loc(&loc) {
+            if special.special_sq.as_ref().unwrap().get_tile() == Tile::TeleportTrap {
+                
+            }
+        }
     }
 
     fn do_move(state: &mut GameState, player: &mut Player, game_objs: &mut GameObjects, dir: &str, gui: &mut GameUI) {
@@ -964,8 +987,16 @@
                 state.write_msg_buff("There are several items here.");
             }
             
-            land_on_location(state, game_objs, next_loc, 0);
-            
+            game_objs.stepped_on_event(state, next_loc);
+
+            for special in game_objs.special_sqs_at_loc(&next_loc) {
+                if special.special_sq.as_ref().unwrap().get_tile() == Tile::TeleportTrap {
+                    let sq = random_open_sq(state, game_objs, player.location.2);
+                    player.location = sq;
+                    state.player_loc = sq;
+                }
+            }
+
             player.energy -= 1.0;
         } else if *tile == Tile::Door(DoorState::Closed) {
             // Bump to open doors. I might make this an option later
@@ -1036,7 +1067,7 @@
             s
         };
 
-        if !menu.is_empty() && player.purse == 0 {
+        if menu.is_empty() && player.purse == 0 {
             state.write_msg_buff("You are empty-handed.");
         } else {
             let mut m: Vec<&str> = menu.iter().map(AsRef::as_ref).collect();        

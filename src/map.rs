@@ -80,6 +80,7 @@ pub enum Tile {
 	StairsDown,
 	Shrine(ShrineType),
 	Trigger,
+	TeleportTrap,
 }
 
 impl Tile {
@@ -127,6 +128,15 @@ impl SpecialSquare {
 		obj
 	}
 
+	pub fn teleport_trap(location: (i32, i32, i8), game_objs: &mut GameObjects) -> GameObject {
+		let sq = SpecialSquare { tile: Tile::TeleportTrap,  radius: 0, target: None, active: true };
+
+		let mut obj = GameObject::new(game_objs.next_id(), "teleport trap", location, '^', display::PINK, display::PURPLE, None, None , None, Some(sq), false);
+		obj.hidden = true;
+
+		obj
+	}
+
 	fn mark_aura(&self, state: &mut GameState, loc: (i32, i32, i8)) {
 		if self.active {
 			let in_aura = fov::calc_fov(state, loc, self.radius, true);
@@ -161,19 +171,28 @@ impl SpecialSquare {
 		}
 	}
 
+	fn stepped_on(&mut self, state: &mut GameState, obj_id: usize) -> Option<EventResponse> {
+		if self.tile == Tile::TeleportTrap {
+			state.write_msg_buff("A feeling of vertigo!");
+			return Some(EventResponse::new(obj_id, EventType::TrapRevealed));
+		}  else {
+			state.write_msg_buff("Click.");
+			self.active = !self.active;
+
+			if let Some(target) = self.target {
+				return Some(EventResponse::new(target, EventType::Triggered));
+			}
+		}
+
+		None
+	}
+
 	pub fn receive_event(&mut self, event: EventType, state: &mut GameState, loc: (i32, i32, i8), obj_id: usize) -> Option<EventResponse> {
 		match event {
 			EventType::EndOfTurn => {
 				self.mark_aura(state, loc);
 			},
-			EventType::SteppedOn => {
-				state.write_msg_buff("Click.");
-				self.active = !self.active;
-
-				if let Some(target) = self.target {
-					return Some(EventResponse::new(target, EventType::Triggered));
-				}
-			},
+			EventType::SteppedOn => return self.stepped_on(state, obj_id),
 			EventType::LitUp => {
 				let lit = state.lit_sqs.contains(&loc);
 				self.handle_litup(state, lit, loc, obj_id);
@@ -187,6 +206,10 @@ impl SpecialSquare {
 		}
 
 		None
+	}
+
+	pub fn get_tile(&self) -> Tile {
+		self.tile
 	}
 }
 
