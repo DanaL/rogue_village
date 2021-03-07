@@ -343,37 +343,44 @@
         }
     }
 
-    fn drop_zorkmids(state: &mut GameState, player: &mut Player, game_objs: &mut GameObjects, gui: &mut GameUI) {
-        if player.purse == 0 {
-            state.write_msg_buff("You have no money!");
-            return;
-        }
-
+    fn drop_zorkmids(state: &mut GameState, game_objs: &mut GameObjects, gui: &mut GameUI) -> f32 {
         let player_loc = game_objs.player_location();
+        let player = game_objs.player_details();
+        let mut purse = player.purse;
+
+        if purse == 0 {
+            state.write_msg_buff("You have no money!");
+            return 0.0;
+        }
+        
         let sbi = state.curr_sidebar_info(game_objs);
         let amt = gui.query_natural_num("How much?", Some(&sbi)).unwrap();
         if amt == 0 {
-            state.write_msg_buff("Never mind.");                
+            state.write_msg_buff("Never mind.");
+            return 0.0;
         } else {
-            if amt >= player.purse {
+            if amt >= purse {
                 state.write_msg_buff("You drop all your money.");
-                let zorkmids = GoldPile::make(game_objs, player.purse, player_loc);
+                let zorkmids = GoldPile::make(game_objs, purse, player_loc);
                 game_objs.add(zorkmids);
-                player.purse = 0;
+                purse = 0;
             } else if amt > 1 {
                 let s = format!("You drop {} gold pieces.", amt);
                 state.write_msg_buff(&s);
                 let zorkmids = GoldPile::make(game_objs, amt, player_loc);
                 game_objs.add(zorkmids);
-                player.purse -= amt;
+                purse -= amt;
             } else {
                 state.write_msg_buff("You drop a gold piece.");
                 let zorkmids = GoldPile::make(game_objs, 1, player_loc);
                 game_objs.add(zorkmids);
-                player.purse -= 1;
+                purse -= 1;
             }
-            player.energy -= 1.0;
         }
+
+        let player = game_objs.player_details();
+        player.purse = purse;
+        1.0
     }
 
     // Pretty similar to item_hits_grounds() but this keeps calculating the message to display simpler
@@ -417,17 +424,20 @@
         0.0
     }
 
-    fn drop_item(state: &mut GameState, player: &mut Player, game_objs: &mut GameObjects, gui: &mut GameUI) {    
-        if player.purse == 0 && game_objs.descs_at_loc(&PLAYER_INV).is_empty() {
+    fn drop_item(state: &mut GameState, game_objs: &mut GameObjects, gui: &mut GameUI) -> f32 {    
+        let player_loc = game_objs.player_location();
+        let p = game_objs.player_details();
+
+        if p.purse == 0 && game_objs.descs_at_loc(&PLAYER_INV).is_empty() {
             state.write_msg_buff("You are empty handed.");
-            return;
+            return 0.0;
         }
         
-        let player_loc = game_objs.player_location();
         let sbi = state.curr_sidebar_info(game_objs);
+        let mut cost = 0.0;
         if let Some(ch) = gui.query_single_response("Drop what?", Some(&sbi)) {
             if ch == '$' {
-                drop_zorkmids(state, player, game_objs, gui);
+                return drop_zorkmids(state, game_objs, gui);
             } else {
                 let count = game_objs.inv_count_at_slot(ch);
                 if count == 0 {
@@ -435,8 +445,7 @@
                 } else if count > 1 {
                     match gui.query_natural_num("Drop how many?", Some(&sbi)) {
                         Some(v) => {
-                            let cost = drop_stack(state, game_objs, player_loc, ch, v);
-                            player.energy -= cost;
+                            cost = drop_stack(state, game_objs, player_loc, ch, v);
                         },
                         None => state.write_msg_buff("Nevermind"),
                     }
@@ -445,7 +454,7 @@
                     match result {
                         Ok(items) => {
                             item_hits_ground(state, items[0], player_loc, game_objs);
-                            player.energy -= 1.0;
+                            cost = 1.0;
                         },
                         Err(msg) => state.write_msg_buff(&msg),
                     }
@@ -456,8 +465,23 @@
             state.write_msg_buff("Nevermind.");            
         }
         
-        player.calc_ac(game_objs);
-        player.set_readied_weapon(game_objs);
+        set_gear_stuff(game_objs);
+
+        cost
+    }
+
+    // Super ugly and coupled until I move the player inventory back to under the Player struct
+    fn set_gear_stuff(game_objs: &mut GameObjects) {
+        let ac_mods_from_gear = game_objs.ac_mods_from_gear();
+        let weapon_name = if let Some(weapon) = game_objs.readied_weapon() {
+            weapon.1.capitalize()
+        } else {
+            "".to_string()
+        };
+
+        let p = game_objs.player_details();
+        p.calc_ac(ac_mods_from_gear);
+        p.readied_weapon = weapon_name;
     }
 
     fn search_loc(state: &mut GameState, roll: u8, loc: (i32, i32, i8), game_objs: &mut GameObjects) {
@@ -608,8 +632,7 @@
         s.push('.');
         state.write_msg_buff(&s);
 
-        player.calc_ac(game_objs);
-        player.set_readied_weapon(game_objs);
+        set_gear_stuff(game_objs);
 
         let readied = game_objs.readied_items_of_type(ItemType::Weapon);
         if item_type == ItemType::Weapon && readied.is_empty() {
@@ -1289,7 +1312,7 @@
                         energy_cost = 1.0;
                     },
                     Cmd::Down => energy_cost = take_stairs(state, game_objs, true),
-                    //Cmd::DropItem => drop_item(state, player, game_objs, gui),  
+                    Cmd::DropItem => energy_cost = drop_item(state, game_objs, gui),  
                     Cmd::Move(dir) => energy_cost = do_move(state, game_objs, &dir, gui),
                     Cmd::MsgHistory => show_message_history(state, gui),
                     Cmd::Open(loc) => { 

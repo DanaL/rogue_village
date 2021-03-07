@@ -140,7 +140,8 @@ impl Player {
             game_objs.add_to_inventory(t);
         }
         
-        p.calc_ac(game_objs);
+        let mods = game_objs.ac_mods_from_gear();
+        p.calc_ac(mods);
         p.set_readied_weapon(game_objs);
 
         let player_obj = GameObject::new(0, &name, (0, 0, 0), '@', display::WHITE, display::WHITE, 
@@ -165,7 +166,8 @@ impl Player {
                 purse: 20, readied_weapon: "".to_string(), energy: 1.0, energy_restore: 1.25,
         };
 
-        p.calc_ac(game_objs);
+        let mods = game_objs.ac_mods_from_gear();
+        p.calc_ac(mods);
         p.set_readied_weapon(game_objs);
 
         let player_obj = GameObject::new(0, &name, (0, 0, 0), '@', display::WHITE, display::WHITE, 
@@ -173,9 +175,9 @@ impl Player {
         game_objs.add(player_obj);
     }
 
-    pub fn calc_ac(&mut self, game_objs: &GameObjects) {
+    pub fn calc_ac(&mut self, from_gear: (i8, u32)) {
         let mut ac: i8 = 10;        
-        let (armour, attributes) = game_objs.ac_mods_from_gear();
+        let (armour, attributes) = from_gear;
         
         // // Heavier armour types reduce the benefit you get from a higher dex
         let mut dex_mod = stat_to_mod(self.dex);
@@ -204,7 +206,7 @@ impl Player {
         }
     }
 
-    pub fn set_readied_weapon(&mut self, game_objs: &GameObjects) {
+    pub fn set_readied_weapon(&mut self, game_objs: &GameObjects) {        
         if let Some(weapon) = game_objs.readied_weapon() {
             self.readied_weapon = weapon.1.capitalize();    
         } else {
