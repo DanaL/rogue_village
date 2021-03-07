@@ -531,7 +531,7 @@ impl GameObjects {
         
         let mut menu = Vec::new();
         let mut slots: Vec<char> = items.iter().map(|i| i.0).collect();
-        slots.sort();
+        slots.sort_unstable();
         slots.dedup();
         let mut menu_items = HashMap::new();
         for s in items {
@@ -627,7 +627,7 @@ impl GameObjects {
             let ids = self.obj_locs[&loc]
                           .iter().copied();
             
-            ids.filter(|id| !self.objects[&id].hidden).map(|k| k).collect()
+            ids.filter(|id| !self.objects[&id].hidden).collect()
         } else {
             Vec::new()
         }
@@ -636,10 +636,9 @@ impl GameObjects {
     pub fn hidden_at_loc(&self, loc: (i32, i32, i8)) -> Vec<usize> {
         if self.obj_locs.contains_key(&loc) {
             let ids = self.obj_locs[&loc]
-                          .iter()
-                          .copied();
+                          .iter().copied();
             
-            ids.filter(|id| self.objects[&id].hidden).map(|k| k).collect()
+            ids.filter(|id| self.objects[&id].hidden).collect()
         } else {
             Vec::new()
         }

@@ -77,7 +77,7 @@ fn find_valley(map: &Map, start_loc: (i32, i32, i8)) -> HashSet<(i32, i32, i8)> 
     let mut queue = vec![start_loc];
     let mut visited = HashSet::new();
 
-    while queue.len() > 0 {
+    while !queue.is_empty() {
         let loc = queue.pop().unwrap();
         visited.insert(loc);
 
@@ -189,7 +189,7 @@ fn add_old_road(map: &mut Map, start: (i32, i32, i8)) {
         
         let path = pathfinding::find_path(map, false, start.0, start.1, 0, row, col, 40, &passable);
         let mut draw_sq = 1.0;
-        if path.len() > 0 {
+        if !path.is_empty() {
             for sq in path {
                 if map[&(sq.0, sq.1, 0)] != Tile::DeepWater {
                     if rng.gen_range(0.0, 1.0) < draw_sq {

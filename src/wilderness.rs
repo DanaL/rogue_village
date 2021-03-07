@@ -205,7 +205,7 @@ fn next_point(r: i32, c: i32, d: i32, angle: f64) -> (i32, i32, i8) {
 	let next_r = r + (d as f64 * f64::sin(angle)) as i32;
 	let next_c = c + (d as f64 * f64::cos(angle)) as i32;
 
-	return (next_r, next_c, 0);
+	(next_r, next_c, 0)
 }
 
 fn draw_river(map: &mut Map, start: (i32, i32, i8), angle: f64) {

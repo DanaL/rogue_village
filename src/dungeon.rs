@@ -352,7 +352,7 @@ fn find_spot_for_room(level: &mut Vec<Tile>, rooms: &mut Vec<(Vec<Vec<Tile>>, us
     let mut tries: Vec<usize> = (0..rooms.len()).collect();
     tries.shuffle(&mut rng);
     
-    while tries.len() > 0 {
+    while !tries.is_empty() {
         let i = tries.pop().unwrap();
         if place_room(level, rooms, i, room, width) {
             return true;

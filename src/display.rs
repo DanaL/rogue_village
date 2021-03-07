@@ -206,7 +206,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 			}
 		}
 
-		if answer.len() == 0 {
+		if answer.is_empty() {
 			Some(0)
 		} else {
 			Some(answer.parse::<u32>().unwrap())

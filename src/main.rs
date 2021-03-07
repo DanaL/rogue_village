@@ -1122,9 +1122,10 @@
 
     fn confirm_quit(state: &GameState, gui: &mut GameUI, player: &Player) -> Result<(), ExitReason> {
         let sbi = state.curr_sidebar_info(player);
-        match gui.query_yes_no("Do you really want to Quit? (y/n)", Some(&sbi)) {
-            'y' => Err(ExitReason::Quit),
-            _ => Ok(()),
+        if let 'y' = gui.query_yes_no("Do you really want to Quit? (y/n)", Some(&sbi)) {
+            Err(ExitReason::Quit)
+        } else {
+            Ok(())
         }
     }
 
@@ -1204,7 +1205,7 @@
         let s = format!("Farewell, {}.", player.name);
         state.write_msg_buff(&s);
         let sbi = state.curr_sidebar_info(player);
-        //gui.write_screen(&state.msg_buff, Some(&sbi));
+        gui.write_screen(&state.msg_buff, Some(&sbi));
         gui.pause_for_more();
     }
 
