@@ -1090,13 +1090,16 @@
         }        
     }
 
-    fn wiz_command(state: &mut GameState, gui: &mut GameUI, player: &mut Player) {
+    fn wiz_command(state: &mut GameState, gui: &mut GameUI, player: &mut Player, game_objs: &mut GameObjects, mf: &MonsterFactory)  {
         let sbi = state.curr_sidebar_info(player);
         if let Some(result) = gui.query_user(":", 20, Some(&sbi)) {
             let pieces: Vec<&str> = result.trim().split('=').collect();
 
             if result == "loc" {
                 println!("{:?}", player.location);
+            } else if result == "goblin" {
+                let loc = (player.location.0, player.location.1 - 1, player.location.2);
+                mf.add_monster("goblin", loc, game_objs);
             } else if result == "dump level" {
                 if player.location.2 == 0 {
                     state.write_msg_buff("Uhh the wilderness is too big to dump.");
@@ -1201,12 +1204,12 @@
         let s = format!("Farewell, {}.", player.name);
         state.write_msg_buff(&s);
         let sbi = state.curr_sidebar_info(player);
-        // gui.write_screen(&state.msg_buff, Some(&sbi));
-        // gui.pause_for_more();
+        //gui.write_screen(&state.msg_buff, Some(&sbi));
+        gui.pause_for_more();
     }
 
     // Herein lies the main gampe loop
-    fn run(gui: &mut GameUI, state: &mut GameState, player: &mut Player, game_objs: &mut GameObjects, dialogue: &DialogueLibrary) -> Result<(), ExitReason> {    
+    fn run(gui: &mut GameUI, state: &mut GameState, player: &mut Player, game_objs: &mut GameObjects, dialogue: &DialogueLibrary, monster_fac: &MonsterFactory) -> Result<(), ExitReason> {    
         // let visible = fov::visible_sqs(state, player.location, player.vision_radius, false);
         // gui.v_matrix = fov_to_tiles(state, game_objs, &visible);
         // let sbi = state.curr_sidebar_info(player);
@@ -1249,7 +1252,7 @@
                     Cmd::Use => use_item(state, player, game_objs, gui),
                     Cmd::Quit => confirm_quit(state, gui, player)?,
                     Cmd::Up => take_stairs(state, player, false),
-                    Cmd::WizardCommand => wiz_command(state, gui, player),
+                    Cmd::WizardCommand => wiz_command(state, gui, player, game_objs, monster_fac),
                     _ => continue,
                 }
                 
@@ -1309,12 +1312,7 @@
         //let write_screen_start = Instant::now();
         let sbi = state.curr_sidebar_info(player);
 
-        // Temp I think
-        let mut msgs = Vec::new();
-        for m in state.msg_buff.iter() {
-            msgs.push(m.to_string());
-        }
-        gui.write_screen(&msgs, Some(&sbi));
+        gui.write_screen(&state.msg_buff, Some(&sbi));
         state.msg_buff.clear();
         //let write_screen_duration = write_screen_start.elapsed();
         //println!("Time for write_screen(): {:?}", write_screen_duration); 
@@ -1366,7 +1364,7 @@
             state.write_msg_buff("Welcome, adventurer!");
         }
         
-        match run(&mut gui, &mut state, &mut player, &mut game_objs, &dialogue_library) {
+        match run(&mut gui, &mut state, &mut player, &mut game_objs, &dialogue_library, &mf) {
             Ok(_) => println!("Game over I guess? Probably the player won?!"),
             //Err(ExitReason::Save) => save_msg(&mut state, &mut gui),
             //Err(ExitReason::Quit) => quit_msg(&mut state, &mut gui),

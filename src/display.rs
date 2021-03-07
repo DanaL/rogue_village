@@ -651,7 +651,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 		self.canvas.present();
 	}
 
-	pub fn write_screen(&mut self, msgs: &Vec<String>, sbi: Option<&SidebarInfo>) {
+	pub fn write_screen(&mut self, msgs: &VecDeque<String>, sbi: Option<&SidebarInfo>) {
 		let mut msg = String::from("");
 		if !msgs.is_empty() {
 			let mut words = VecDeque::new();
@@ -697,7 +697,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 	pub fn clear_msg_buff(&mut self) {
 		self.msg_line = "".to_string();
 	}
-	
+
 	// Currently not handling a menu with more options than there are are lines on the screen...
 	pub fn menu_picker(&mut self, preamble: String, menu: &Vec<(String, char)>, single_choice: bool, small_font: bool) -> Option<HashSet<char>> {
 		let mut answers: HashSet<char> = HashSet::new();
