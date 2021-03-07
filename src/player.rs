@@ -15,13 +15,14 @@
 
 extern crate serde;
 
+use std::collections::{HashMap, HashSet};
 use rand::Rng;
 use serde::{Serialize, Deserialize};
 
-use super::{GameObjects, GameState};
+use super::GameState;
 use crate::display;
 use crate::{EventType, items};
-use crate::game_obj::GameObject;
+use crate::game_obj::{GameObject, GameObjects};
 use crate::items::Item;
 use crate::util::StringUtils;
 
@@ -63,6 +64,8 @@ pub struct Player {
     pub readied_weapon: String,
     pub energy: f32,
     pub energy_restore: f32,
+    pub inventory: Vec<GameObject>,
+    pub next_slot: char,
 }
 
 impl Player {
@@ -120,24 +123,24 @@ impl Player {
         let mut p = Player {            
             object_id: 0, name: name.clone(), max_hp: (15 + stat_to_mod(stats[1])) as u8, curr_hp: (15 + stat_to_mod(stats[1])) as u8,
                 vision_radius: default_vision_radius, str: stats[0], con: stats[1], dex: stats[2], chr, apt, role: Role::Warrior, xp: 0, level: 1, max_depth: 0, 
-                ac: 10, purse: 20, readied_weapon: "".to_string(), energy: 1.0, energy_restore: 1.0,
+                ac: 10, purse: 20, readied_weapon: "".to_string(), energy: 1.0, energy_restore: 1.0, inventory: Vec::new(), next_slot: 'a',
         };
         
         // Warrior starting equipment
         let mut sword = Item::get_item(game_objs, "longsword").unwrap();        
         sword.item.as_mut().unwrap().equiped = true;
-        game_objs.add_to_inventory(sword);
-        
+        p.add_to_inv(sword);
+                
         let mut armour = Item::get_item(game_objs, "ringmail").unwrap();
         armour.item.as_mut().unwrap().equiped = true;
-        game_objs.add_to_inventory(armour);
-
+        p.add_to_inv(armour);
+        
         let dagger = Item::get_item(game_objs, "dagger").unwrap();
-        game_objs.add_to_inventory(dagger);
+        p.add_to_inv(dagger);
         
         for _ in 0..5 {
             let t = Item::get_item(game_objs, "torch").unwrap();
-            game_objs.add_to_inventory(t);
+            p.add_to_inv(t);
         }
         
         let mods = game_objs.ac_mods_from_gear();
@@ -163,7 +166,7 @@ impl Player {
         let mut p = Player {            
             object_id: 0, name: name.clone(), max_hp: (12 + stat_to_mod(stats[2])) as u8, curr_hp: (12 + stat_to_mod(stats[2])) as u8,
                 vision_radius: default_vision_radius, str, con: stats[2], dex: stats[0], chr, apt: stats[1], role: Role::Rogue, xp: 0, level: 1, max_depth: 0, ac: 10, 
-                purse: 20, readied_weapon: "".to_string(), energy: 1.0, energy_restore: 1.25,
+                purse: 20, readied_weapon: "".to_string(), energy: 1.0, energy_restore: 1.25, inventory: Vec::new(), next_slot: 'a',
         };
 
         let mods = game_objs.ac_mods_from_gear();
@@ -173,6 +176,85 @@ impl Player {
         let player_obj = GameObject::new(0, &name, (0, 0, 0), '@', display::WHITE, display::WHITE, 
             None, None , None, None, Some(p), true);
         game_objs.add(player_obj);
+    }
+
+    fn inv_slots_used(&self) -> HashSet<char> {
+        self.inventory.iter()
+            .map(|i| i.item.as_ref().unwrap().slot)
+            .collect::<HashSet<char>>()
+    }
+
+    fn inc_next_slot(&mut self) {
+        let used = self.inv_slots_used();
+        let mut nslot = self.next_slot;		
+        loop {
+            nslot = (nslot as u8 + 1) as char;
+            if nslot > 'z' {
+                nslot = 'a';
+            }
+
+            if !used.contains(&nslot) {
+                self.next_slot = nslot;
+                break;
+            }
+
+            if nslot == self.next_slot {
+                // No free spaces left in the invetory!
+                self.next_slot = '\0';
+                break;
+            }
+        }
+    }
+
+    pub fn add_to_inv(&mut self, mut obj: GameObject) {
+        // If the item is stackable and there's another like it, they share a slot
+        if obj.item.as_ref().unwrap().stackable() {
+            for other in self.inventory.iter() {
+                let other_item = other.item.as_ref().unwrap();
+                if obj.name == other.name && other_item.stackable {
+                    obj.item.as_mut().unwrap().slot = other_item.slot;
+                    self.inventory.push(obj);
+                    return;
+                }
+            }
+        }
+
+        obj.item.as_mut().unwrap().slot = self.next_slot;
+        self.inc_next_slot();
+        self.inventory.push(obj);
+    }
+
+    pub fn inv_menu(&self) -> Vec<String> {
+        let mut items = Vec::new();
+        for obj in self.inventory.iter() {
+            let name = obj.get_fullname();
+            items.push((obj.item.as_ref().unwrap().slot, name));
+        }
+        
+        let mut menu = Vec::new();
+        let mut slots = items.iter().map(|i| i.0).collect::<Vec<char>>();
+        slots.sort_unstable();
+        slots.dedup();
+        let mut menu_items = HashMap::new();
+        for s in items {
+            let counter = menu_items.entry(s.0).or_insert((s.1, 0));
+            counter.1 += 1;
+        }
+        
+        for slot in slots {
+            let mut s = String::from(slot);
+            s.push_str(") ");
+
+            let i = menu_items.get(&slot).unwrap();
+            if i.1 == 1 {
+                s.push_str(&i.0.with_indef_article());
+            } else {
+                s.push_str(&format!("{} {}", i.1.to_string(), i.0.pluralize()));
+            }
+            menu.push(s);
+        }
+        
+        menu
     }
 
     pub fn calc_ac(&mut self, from_gear: (i8, u32)) {

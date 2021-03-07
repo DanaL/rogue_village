@@ -1112,9 +1112,8 @@
     }
 
     fn show_inventory(gui: &mut GameUI, state: &mut GameState, game_objs: &mut GameObjects) {
-        let menu = game_objs.get_inventory_menu();
-
-        let p = game_objs.player_details();
+        let p = game_objs.player_details();        
+        let menu = p.inv_menu();
         let purse = p.purse;
 
         let money = if purse == 1 {

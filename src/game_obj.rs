@@ -545,43 +545,6 @@ impl GameObjects {
         }
     }
 
-    pub fn get_inventory_menu(&self) -> Vec<String> {
-        let mut items = Vec::new();
-        if self.obj_locs.contains_key(&PLAYER_INV) && !self.obj_locs[&PLAYER_INV].is_empty() {
-            for id in self.obj_locs[&PLAYER_INV].iter().copied() {
-                if let Some(item) = &self.objects[&id].item {
-                    let name = self.objects[&id].get_fullname();
-                    items.push((item.slot, name));
-                }
-            }            
-        }
-        
-        let mut menu = Vec::new();
-        let mut slots: Vec<char> = items.iter().map(|i| i.0).collect();
-        slots.sort_unstable();
-        slots.dedup();
-        let mut menu_items = HashMap::new();
-        for s in items {
-            let counter = menu_items.entry(s.0).or_insert((s.1, 0));
-            counter.1 += 1;
-        }
-        
-        for slot in slots {
-            let mut s = String::from(slot);
-            s.push_str(") ");
-
-            let i = menu_items.get(&slot).unwrap();
-            if i.1 == 1 {
-                s.push_str(&i.0.with_indef_article());
-            } else {
-                s.push_str(&format!("{} {}", i.1.to_string(), i.0.pluralize()));
-            }
-            menu.push(s);
-        }
-        
-        menu
-    }
-
     pub fn ac_mods_from_gear(&self) -> (i8, u32) {
         let mut sum = 0;
         let mut attributes = 0;
