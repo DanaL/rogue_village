@@ -382,11 +382,9 @@
         1.0
     }
 
-    fn item_hits_ground(state: &mut GameState, mut obj: GameObject, loc: (i32, i32, i8), game_objs: &mut GameObjects) {
+    fn item_hits_ground(mut obj: GameObject, loc: (i32, i32, i8), game_objs: &mut GameObjects) {
         obj.item.as_mut().unwrap().equiped = false;
         obj.location = loc;
-        let s = format!("You drop {}.", &obj.get_fullname().with_def_article());
-        state.write_msg_buff(&s);
         game_objs.add(obj);
     }
 
@@ -397,8 +395,10 @@
         match result {
             Ok(pile) => {
                 if !pile.is_empty() {
-                    for obj in pile {
-                        item_hits_ground(state, obj, loc, game_objs);
+                    for obj in pile {                        
+                        let s = format!("You drop {}.", &obj.get_fullname().with_def_article());
+                        state.write_msg_buff(&s);
+                        item_hits_ground(obj, loc, game_objs);
                     }
                     return 1.0; // Really, dropping several items should take several turns...
                 }
@@ -439,7 +439,9 @@
                     match result {
                         Ok(mut items) => {
                             let obj = items.remove(0);
-                            item_hits_ground(state, obj, player_loc, game_objs);
+                            let s = format!("You drop {}.", &obj.get_fullname().with_def_article());
+                            state.write_msg_buff(&s);
+                            item_hits_ground(obj, player_loc, game_objs);
                             cost = 1.0;
                         },
                         Err(msg) => state.write_msg_buff(&msg),
@@ -1346,7 +1348,7 @@
                     update_view(state, game_objs, gui);
                 }
             }
-                        
+
             game_objs.do_npc_turns(state);
             game_objs.update_listeners(state, EventType::Update);
             game_objs.update_listeners(state, EventType::EndOfTurn);

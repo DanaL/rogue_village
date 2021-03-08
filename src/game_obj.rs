@@ -322,12 +322,26 @@ impl GameObjects {
         None
     }
 
+    pub fn drop_npc_inventory(&mut self, npc: &mut NPC, loc: (i32, i32, i8)) {
+        while !npc.inventory.is_empty() {
+            let mut obj = npc.inventory.remove(0);
+            obj.location = loc;
+            if obj.item.is_some() {
+                obj.item.as_mut().unwrap().equiped = false;
+            }
+            self.add(obj);
+        }
+    }
+
     pub fn check_for_dead_npcs(&mut self) {
         let ids: Vec<usize> = self.objects.keys().map(|k| *k).collect();
 
         for id in ids {
             if self.objects[&id].npc.is_some() && !self.objects[&id].npc.as_ref().unwrap().alive {
-                self.remove(id);
+                let loc = self.objects[&id].location;
+                let mut npc = self.remove(id);
+                let npc_details = npc.npc.as_mut().unwrap();
+                self.drop_npc_inventory(npc_details, loc);
             }
         }
     }
@@ -353,6 +367,8 @@ impl GameObjects {
             if !still_alive {
                 self.listeners.retain(|l| l.0 != actor_id);
                 self.remove_from_loc(actor_id, actor_loc);
+                let actor_details = actor.npc.as_mut().unwrap();
+                self.drop_npc_inventory(actor_details, actor_loc);
                 continue;    
             }
             
@@ -371,6 +387,8 @@ impl GameObjects {
             if !still_alive {
                 self.listeners.retain(|l| l.0 != actor_id);
                 self.remove_from_loc(actor_id, actor_loc);
+                let npc_details = actor.npc.as_mut().unwrap();
+                self.drop_npc_inventory(npc_details, actor_loc);
                 continue;    
             }
 

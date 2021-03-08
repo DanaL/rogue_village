@@ -29,6 +29,7 @@ use crate::dialogue;
 use crate::dialogue::DialogueLibrary;
 use crate::display;
 use crate::game_obj::GameObject;
+use crate::items::GoldPile;
 use crate::map::{Tile, DoorState};
 use crate::pathfinding::find_path;
 use crate::util;
@@ -87,7 +88,7 @@ pub enum NPCMode {
     SimpleMonster,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct NPC {
     pub name: String,
     pub ac: u8,
@@ -109,6 +110,7 @@ pub struct NPC {
     pub curr_loc: (i32, i32, i8),
     pub alive: bool, // as in function, HPs > 0, not indication of undead status
     pub xp_value: u32,
+    pub inventory: Vec<GameObject>,
 }
 
 impl NPC {
@@ -116,7 +118,7 @@ impl NPC {
         let npc_name = name.clone();  
         let npc = NPC { name, ac: 10, curr_hp: 8, max_hp: 8, attitude: Attitude::Stranger, facts_known: Vec::new(), home_id, plan: VecDeque::new(), 
             voice: String::from(voice), schedule: Vec::new(), mode: NPCMode::Villager, attack_mod: 2, dmg_dice: 1, dmg_die: 3, dmg_bonus: 0, edc: 12,
-            attributes: MA_OPEN_DOORS | MA_UNLOCK_DOORS, curr_loc: (-1, -1, -1), alive: true, xp_value: 0,
+            attributes: MA_OPEN_DOORS | MA_UNLOCK_DOORS, curr_loc: (-1, -1, -1), alive: true, xp_value: 0, inventory: Vec::new(),
         };
 
         let obj = GameObject::new(game_objs.next_id(), &npc_name, location, '@', display::LIGHT_GREY, display::LIGHT_GREY, 
@@ -448,10 +450,15 @@ impl MonsterFactory {
 
         let monster_name = name.clone();
         let sym = stats.2;
-        let npc = NPC { name: String::from(name), ac: stats.0, curr_hp: stats.1, max_hp: stats.1, attitude: Attitude::Indifferent, facts_known: Vec::new(), home_id: 0, 
+        let mut npc = NPC { name: String::from(name), ac: stats.0, curr_hp: stats.1, max_hp: stats.1, attitude: Attitude::Indifferent, facts_known: Vec::new(), home_id: 0, 
             plan: VecDeque::new(), voice: String::from("monster"), schedule: Vec::new(), mode: stats.4, attack_mod: stats.5, dmg_dice: stats.6, dmg_die: stats.7, 
-            dmg_bonus: stats.8, edc: self.calc_dc(stats.9), attributes: stats.10, curr_loc: loc, alive: true, xp_value: stats.11,
+            dmg_bonus: stats.8, edc: self.calc_dc(stats.9), attributes: stats.10, curr_loc: loc, alive: true, xp_value: stats.11, inventory: Vec::new(),
         };
+
+        let mut rng = rand::thread_rng();
+        let amt = rng.gen_range(1, 6);
+        let gold = GoldPile::make(game_objs, amt, loc);
+        npc.inventory.push(gold);
 
         let monster = GameObject::new(game_objs.next_id(), &monster_name, loc, sym, stats.3, stats.3, 
             Some(npc), None , None, None, None, true);
