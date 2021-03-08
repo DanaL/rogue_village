@@ -143,8 +143,7 @@ impl Player {
             p.add_to_inv(t);
         }
         
-        let mods = game_objs.ac_mods_from_gear();
-        p.calc_ac(mods);
+        p.calc_ac();
         p.set_readied_weapon(game_objs);
 
         let player_obj = GameObject::new(0, &name, (0, 0, 0), '@', display::WHITE, display::WHITE, 
@@ -169,8 +168,7 @@ impl Player {
                 purse: 20, readied_weapon: "".to_string(), energy: 1.0, energy_restore: 1.25, inventory: Vec::new(), next_slot: 'a',
         };
 
-        let mods = game_objs.ac_mods_from_gear();
-        p.calc_ac(mods);
+        p.calc_ac();
         p.set_readied_weapon(game_objs);
 
         let player_obj = GameObject::new(0, &name, (0, 0, 0), '@', display::WHITE, display::WHITE, 
@@ -257,9 +255,23 @@ impl Player {
         menu
     }
 
-    pub fn calc_ac(&mut self, from_gear: (i8, u32)) {
+    pub fn ac_mods_from_gear(&self) -> (i8, u32) {
+        let mut sum = 0;
+        let mut attributes = 0;
+        for obj in self.inventory.iter() {
+            let item = obj.item.as_ref().unwrap();
+            if item.equiped && item.ac_bonus > 0 {
+                sum += item.ac_bonus;
+                attributes |= item.attributes;                 
+            }
+        }
+        
+        (sum, attributes)
+    }
+
+    pub fn calc_ac(&mut self) {
         let mut ac: i8 = 10;        
-        let (armour, attributes) = from_gear;
+        let (armour, attributes) = self.ac_mods_from_gear();
         
         // // Heavier armour types reduce the benefit you get from a higher dex
         let mut dex_mod = stat_to_mod(self.dex);

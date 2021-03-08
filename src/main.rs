@@ -470,7 +470,6 @@
 
     // Super ugly and coupled until I move the player inventory back to under the Player struct
     fn set_gear_stuff(game_objs: &mut GameObjects) {
-        let ac_mods_from_gear = game_objs.ac_mods_from_gear();
         let weapon_name = if let Some(weapon) = game_objs.readied_weapon() {
             weapon.1.capitalize()
         } else {
@@ -478,7 +477,7 @@
         };
 
         let p = game_objs.player_details();
-        p.calc_ac(ac_mods_from_gear);
+        p.calc_ac();
         p.readied_weapon = weapon_name;
     }
 

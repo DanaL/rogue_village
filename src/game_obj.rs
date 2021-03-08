@@ -545,23 +545,6 @@ impl GameObjects {
         }
     }
 
-    pub fn ac_mods_from_gear(&self) -> (i8, u32) {
-        let mut sum = 0;
-        let mut attributes = 0;
-        if self.obj_locs.contains_key(&PLAYER_INV) {
-            for id in self.obj_locs[&PLAYER_INV].iter().copied() {
-                if let Some(item) = &self.objects[&id].item {
-                    if item.equiped && item.ac_bonus > 0 {
-                        sum += item.ac_bonus;
-                        attributes |= item.attributes;                 
-                    }
-                }
-            }
-        }
-
-        (sum, attributes)
-    }
-
     pub fn readied_items_of_type(&self, item_type: ItemType) -> Vec<usize> {
         let mut ids = Vec::new();
 
