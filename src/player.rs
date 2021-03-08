@@ -213,6 +213,36 @@ impl Player {
         None
     }
 
+    // // Caller should check if the slot exists before calling this...
+    pub fn inv_remove_from_slot(&mut self, slot: char, amt: u32) -> Result<Vec<GameObject>, String>  {
+        let mut removed = Vec::new();
+
+        let mut count = 0;
+        for j in 0..self.inventory.len() {
+            if count >= amt {
+                break;
+            }
+
+            let obj_id = self.inventory[j].object_id;
+            let details = self.inventory[j].item.as_ref().unwrap();
+            let item_slot = details.slot;
+            let equiped = details.equiped;
+            let i_type = details.item_type;
+            if item_slot == slot {
+                if equiped && i_type == ItemType::Armour {
+                    return Err("You're wearing that!".to_string());
+                }
+                
+                let obj = self.inv_remove(obj_id).unwrap();
+                removed.push(obj);
+                count += 1;            
+            }
+            
+        }     
+
+        Ok(removed)
+    }    
+
     pub fn readied_obj_ids_of_type(&self, item_type: ItemType) -> Vec<usize> {
         let mut ids = Vec::new();
         for obj in self.inventory.iter() {

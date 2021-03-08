@@ -49,7 +49,7 @@
     use actor::{Attitude, MonsterFactory};
     use dialogue::DialogueLibrary;
     use display::{GameUI, SidebarInfo, WHITE};
-    use game_obj::GameObjects;
+    use game_obj::{GameObject, GameObjects};
     use items::{GoldPile, ItemType};
     use map::{DoorState, ShrineType, Tile};
     use player::Player;
@@ -381,63 +381,49 @@
         1.0
     }
 
-    // Pretty similar to item_hits_grounds() but this keeps calculating the message to display simpler
-    fn stack_hits_ground(state: &mut GameState, stack: &[usize], loc: (i32, i32, i8), game_objs: &mut GameObjects) {
-        let stack_name = game_objs.objects.get(&stack[0]).unwrap().get_fullname().with_def_article().pluralize();
-        let s = format!("You drop {}", stack_name);
-        for id in stack {
-            game_objs.set_to_loc(*id, loc);
-            let obj = game_objs.get_mut(*id).unwrap();
-            obj.item.as_mut().unwrap().equiped = false;
-        }
-        state.write_msg_buff(&s);
-    }
-
-    fn item_hits_ground(state: &mut GameState, obj_id: usize, loc: (i32, i32, i8), game_objs: &mut GameObjects) {
-        game_objs.set_to_loc(obj_id, loc);
-        let obj = game_objs.get_mut(obj_id).unwrap();
+    fn item_hits_ground(state: &mut GameState, mut obj: GameObject, loc: (i32, i32, i8), game_objs: &mut GameObjects) {
         obj.item.as_mut().unwrap().equiped = false;
-
+        obj.location = loc;
         let s = format!("You drop {}.", &obj.get_fullname().with_def_article());
-        state.write_msg_buff(&s);        
+        state.write_msg_buff(&s);
+        game_objs.add(obj);
     }
 
     fn drop_stack(state: &mut GameState, game_objs: &mut GameObjects, loc: (i32, i32, i8), slot: char, count: u32) -> f32 {
-        match game_objs.inv_remove_from_slot(slot, count) {
+        let player = game_objs.player_details();
+        let result = player.inv_remove_from_slot(slot, count);
+
+        match result {
             Ok(mut pile) => {
-                if pile.len() == 1 {
-                    let id = pile.remove(0);
-                    item_hits_ground(state, id, loc, game_objs);
-                    return 1.0;
-                } else if pile.len() > 1 {
-                    stack_hits_ground(state, &pile, loc, game_objs);
-                    return 1.0;
-                } else {
-                    state.write_msg_buff("Nevermind.");
+                if !pile.is_empty() {
+                    for obj in pile {
+                        item_hits_ground(state, obj, loc, game_objs);
+                    }
+                    return 1.0; // Really, dropping several items should take several turns...
                 }
             },
             Err(msg) => state.write_msg_buff(&msg),
         }
-
+        
         0.0
     }
 
     fn drop_item(state: &mut GameState, game_objs: &mut GameObjects, gui: &mut GameUI) -> f32 {    
+        let sbi = state.curr_sidebar_info(game_objs);
         let player_loc = game_objs.player_location();
-        let p = game_objs.player_details();
+        let player = game_objs.player_details();
 
-        if p.purse == 0 && game_objs.descs_at_loc(&PLAYER_INV).is_empty() {
+        if player.purse == 0 && player.inventory.is_empty() {
             state.write_msg_buff("You are empty handed.");
             return 0.0;
         }
         
-        let sbi = state.curr_sidebar_info(game_objs);
         let mut cost = 0.0;
         if let Some(ch) = gui.query_single_response("Drop what?", Some(&sbi)) {
             if ch == '$' {
                 return drop_zorkmids(state, game_objs, gui);
             } else {
-                let count = game_objs.inv_count_at_slot(ch);
+                let count = player.inv_count_in_slot(ch);
                 if count == 0 {
                     state.write_msg_buff("You do not have that item.");
                 } else if count > 1 {
@@ -448,10 +434,11 @@
                         None => state.write_msg_buff("Nevermind"),
                     }
                 } else {
-                    let result = game_objs.inv_remove_from_slot(ch, 1);
+                    let result = player.inv_remove_from_slot(ch, 1);
                     match result {
-                        Ok(items) => {
-                            item_hits_ground(state, items[0], player_loc, game_objs);
+                        Ok(mut items) => {
+                            let obj = items.remove(0);
+                            item_hits_ground(state, obj, player_loc, game_objs);
                             cost = 1.0;
                         },
                         Err(msg) => state.write_msg_buff(&msg),
@@ -462,7 +449,8 @@
             state.write_msg_buff("Nevermind.");            
         }
         
-        //set_gear_stuff(game_objs);
+        let player = game_objs.player_details();
+        player.calc_ac();
 
         cost
     }
