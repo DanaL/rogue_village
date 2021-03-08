@@ -394,7 +394,7 @@
         let result = player.inv_remove_from_slot(slot, count);
 
         match result {
-            Ok(mut pile) => {
+            Ok(pile) => {
                 if !pile.is_empty() {
                     for obj in pile {
                         item_hits_ground(state, obj, loc, game_objs);
@@ -508,7 +508,8 @@
                 let obj = game_objs.remove(things[0]);
                 let s = format!("You pick up {}.", obj.get_fullname().with_def_article());
                 state.write_msg_buff(&s);
-                game_objs.add_to_inventory(obj);            
+                let p = game_objs.player_details();
+                p.add_to_inv(obj);
             }
             
             return 1.0;
@@ -552,7 +553,8 @@
                         let obj = game_objs.remove(id);
                         let s = format!("You pick up {}.", obj.get_fullname().with_def_article());
                         state.write_msg_buff(&s);
-                        game_objs.add_to_inventory(obj); 
+                        let p = game_objs.player_details();
+                        p.add_to_inv(obj);
                     }
                 }
                 return 1.0;
@@ -645,7 +647,9 @@
     }
 
     fn read_item(state: &mut GameState, game_objs: &mut GameObjects, gui: &mut GameUI) -> f32 {
-        let inv = game_objs.inv_slots_used();
+        let sbi = state.curr_sidebar_info(game_objs);
+        let player = game_objs.player_details();
+        let inv = player.inv_slots_used();
         let slots: HashSet<char> = inv.iter().map(|i| *i).collect();
 
         if slots.is_empty() {
@@ -653,15 +657,13 @@
             return 0.0;
         }
 
-        let sbi = state.curr_sidebar_info(game_objs);
         if let Some(ch) = gui.query_single_response("Read what?", Some(&sbi)) {
             if !slots.contains(&ch) {
                 state.write_msg_buff("You do not have that item!");
                 return 0.0;
             }
             
-            let obj_id = game_objs.obj_id_in_slot(ch);
-            let obj = game_objs.get_mut(obj_id).unwrap();
+            let obj = player.inv_item_in_slot(ch).unwrap();
             if obj.item.is_some() {                
                 if let Some(text) = &obj.item.as_ref().unwrap().text {
                     gui.popup_msg(&text.0.with_indef_article().capitalize(), &text.1);

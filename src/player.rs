@@ -290,8 +290,12 @@ impl Player {
             }
         }
 
-        obj.item.as_mut().unwrap().slot = self.next_slot;
-        self.inc_next_slot();
+        let used = self.inv_slots_used();
+        let curr_slot = obj.item.as_ref().unwrap().slot;
+        if curr_slot == '\0' || used.contains(&curr_slot) {
+            obj.item.as_mut().unwrap().slot = self.next_slot;
+            self.inc_next_slot();
+        }
         self.inventory.push(obj);
     }
 

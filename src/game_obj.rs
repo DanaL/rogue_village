@@ -112,14 +112,13 @@ pub struct GameObjects {
     pub obj_locs: HashMap<(i32, i32, i8), VecDeque<usize>>,
     pub objects: HashMap<usize, GameObject>,
     pub listeners: HashSet<(usize, EventType)>,
-    pub next_slot: char,
 }
 
 impl GameObjects {
     pub fn new() -> GameObjects {
         // start at 1 because we assume the player is object 0
         GameObjects { next_obj_id: 1, obj_locs: HashMap::new(), objects: HashMap::new(),
-            listeners: HashSet::new(), next_slot: 'a' }
+            listeners: HashSet::new(), }
     }
 
     pub fn next_id(&mut self) -> usize {
@@ -175,23 +174,6 @@ impl GameObjects {
 
     pub fn player_location(&self) -> (i32, i32, i8) {
         self.objects[&0].location
-    }
-
-    // Note there can be more than one item in a slot if they are stackable (ie torches).
-    // But if the player is just using one of the items in the stack, we don't really care
-    // which one it is so just return the first one.
-    pub fn obj_id_in_slot(&self, slot: char) -> usize {
-        let inv_ids: Vec<usize> = self.obj_locs[&PLAYER_INV].iter().map(|i| *i).collect();
-
-        for id in inv_ids {
-            if self.objects[&id].item.is_some() {
-                if self.objects.get(&id).unwrap().item.as_ref().unwrap().slot == slot {
-                    return id;
-                }
-            }
-        }
-
-        0
     }
 
     pub fn remove(&mut self, obj_id: usize) -> GameObject {  
@@ -428,140 +410,6 @@ impl GameObjects {
         }
 
         None
-    }
-
-    pub fn inv_slots_used(&self) -> Vec<char> {
-        let mut slots = Vec::new();
-
-        if self.obj_locs.contains_key(&PLAYER_INV) && !self.obj_locs[&PLAYER_INV].is_empty() {
-            let obj_ids: Vec<usize> = self.obj_locs[&PLAYER_INV].iter().map(|i| *i).collect();
-
-            for id in obj_ids {
-                if let Some(item) = &self.objects[&id].item {
-                    slots.push(item.slot);
-                }
-            }            
-        }
-
-        slots
-    }
-
-    pub fn inv_count_at_slot(&self, slot: char) -> u8 {
-        if !self.obj_locs.contains_key(&PLAYER_INV) || self.obj_locs[&PLAYER_INV].is_empty() {
-            return 0;
-        }
-
-        let ids: Vec<usize> = self.obj_locs[&PLAYER_INV].iter().map(|i| *i).collect();        
-        let mut sum = 0;
-        for id in ids {
-            if let Some(item) = &self.objects[&id].item {
-                if item.slot == slot {
-                    sum += 1;
-                }
-            }
-        }     
-
-        sum
-    }
-
-    // // Caller should check if the slot exists before calling this...
-    pub fn inv_remove_from_slot(&mut self, slot: char, amt: u32) -> Result<Vec<usize>, String>  {
-        let mut removed = Vec::new();
-
-        let items: Vec<usize> = self.obj_locs[&PLAYER_INV].iter().map(|i| *i).collect();        
-        
-        let mut count = 0;
-        for id in items {
-            if count >= amt {
-                break;
-            }
-
-            let obj_id = self.objects[&id].object_id;
-            if let Some(item) = &self.objects[&id].item {
-                if item.slot == slot {
-                    if item.equiped && item.item_type == ItemType::Armour {
-                        return Err("You're wearing that!".to_string());
-                    } else {
-                        removed.push(obj_id);
-                        self.remove_from_loc(id, PLAYER_INV);
-                        count += 1;
-                    }
-                }
-            }
-        }     
-
-        Ok(removed)
-    }
-
-    pub fn add_to_inventory(&mut self, mut obj: GameObject) {
-        // to add a new item, we
-        // check its existing slot. If it's free, great. 
-        // If not, if the current item is stackable and can stack with the
-        // item there, great!
-        // otherwise we find the next available slot and set item's slot to it
-        let slots = self.inv_slots_used();
-        let obj_id = obj.object_id;
-
-        if obj.item.as_ref().unwrap().stackable() {
-            for id in self.obj_locs[&PLAYER_INV].iter() {
-                let o = &self.objects[&id];
-                let other_item = &o.item.as_ref().unwrap();
-                if obj.name == o.name && other_item.stackable {
-                    obj.item.as_mut().unwrap().slot = other_item.slot;
-                    obj.location = PLAYER_INV;                 
-                    self.add(obj);
-                    self.objects.get_mut(&obj_id).unwrap().set_loc(PLAYER_INV);
-                    return;
-                }
-            }            
-        }
-
-        obj.location = PLAYER_INV;
-        self.add(obj);        
-        self.objects.get_mut(&obj_id).unwrap().set_loc(PLAYER_INV);
-        
-        let curr_slot = self.objects[&obj_id].item.as_ref().unwrap().slot;     
-        if curr_slot == '\0' || slots.contains(&curr_slot) {
-            self.objects.get_mut(&obj_id).unwrap()
-                        .item.as_mut().unwrap().slot = self.next_slot;
-            
-            self.inc_slot();            
-        }        
-    }
-    
-    pub fn inc_slot(&mut self) {
-        let slots = self.inv_slots_used();
-        let mut nslot = self.next_slot;		
-        loop {
-            nslot = (nslot as u8 + 1) as char;
-            if nslot > 'z' {
-                nslot = 'a';
-            }
-
-            if !slots.contains(&nslot) {
-                self.next_slot = nslot;
-                break;
-            }
-
-            if nslot == self.next_slot {
-                // No free spaces left in the invetory!
-                self.next_slot = '\0';
-                break;
-            }
-        }
-    }
-
-    pub fn readied_items_of_type(&self, item_type: ItemType) -> Vec<usize> {
-        let mut ids = Vec::new();
-
-        for id in self.obj_locs[&PLAYER_INV].iter() {
-            let obj = self.objects.get(&id).unwrap();
-            if obj.item.is_some() && obj.item.as_ref().unwrap().item_type == item_type && obj.item.as_ref().unwrap().equiped  {
-                ids.push(*id);
-            }
-        }
-
-        ids
     }
 
     pub fn get_pickup_menu(&self, loc: (i32, i32, i8)) -> Vec<(String, usize)> {
