@@ -558,20 +558,6 @@ impl GameObjects {
         ids
     }
 
-    pub fn readied_weapon(&self) -> Option<(&Item, String)> {
-        if self.obj_locs.contains_key(&PLAYER_INV) {
-            for id in self.obj_locs[&PLAYER_INV].iter().copied() {
-                if let Some(item) = &self.objects[&id].item {
-                    if item.equiped && item.item_type == ItemType::Weapon {
-                        return Some((item, self.objects[&id].get_fullname()))
-                    }
-                }
-            }
-        }
-
-        None
-    }
-
     pub fn get_pickup_menu(&self, loc: (i32, i32, i8)) -> Vec<(String, usize)> {
         let mut menu = Vec::new();
 

@@ -23,7 +23,7 @@ use super::GameState;
 use crate::display;
 use crate::{EventType, items};
 use crate::game_obj::{GameObject, GameObjects};
-use crate::items::Item;
+use crate::items::{Item, ItemType};
 use crate::util::StringUtils;
 
 const XP_CHART: [u32; 19] = [20, 40, 80, 160, 320, 640, 1280, 2560, 5210, 10_000, 15_000, 21_000, 28_000, 36_000, 44_000, 52_000, 60_000, 68_000, 76_000];
@@ -144,8 +144,7 @@ impl Player {
         }
         
         p.calc_ac();
-        p.set_readied_weapon(game_objs);
-
+               
         let player_obj = GameObject::new(0, &name, (0, 0, 0), '@', display::WHITE, display::WHITE, 
             None, None , None, None, Some(p), true);
         game_objs.add(player_obj);
@@ -169,19 +168,52 @@ impl Player {
         };
 
         p.calc_ac();
-        p.set_readied_weapon(game_objs);
-
+        
         let player_obj = GameObject::new(0, &name, (0, 0, 0), '@', display::WHITE, display::WHITE, 
             None, None , None, None, Some(p), true);
         game_objs.add(player_obj);
     }
 
-    fn inv_slots_used(&self) -> HashSet<char> {
+    pub fn inv_slots_used(&self) -> HashSet<char> {
         self.inventory.iter()
             .map(|i| i.item.as_ref().unwrap().slot)
             .collect::<HashSet<char>>()
     }
 
+    pub fn inv_item_in_slot(&mut self, slot: char) -> Option<&mut GameObject> {
+        for j in 0..self.inventory.len() {
+            if self.inventory[j].item.as_ref().unwrap().slot == slot {
+                let obj = self.inventory.get_mut(j);
+                return obj;
+            }
+        }
+
+        None
+    }
+
+    pub fn inv_obj_of_id(&mut self, id: usize) -> Option<&mut GameObject> {
+        for j in 0..self.inventory.len() {
+            if self.inventory[j].object_id == id {
+                let obj = self.inventory.get_mut(j);
+                return obj;
+            }
+        }
+        
+        None
+    }
+
+    pub fn readied_obj_ids_of_type(&self, item_type: ItemType) -> Vec<usize> {
+        let mut ids = Vec::new();
+        for obj in self.inventory.iter() {
+            let item = obj.item.as_ref().unwrap();
+            if item.item_type == item_type && item.equiped {
+                ids.push(obj.object_id);
+            }
+        }
+
+        ids
+    }
+    
     fn inc_next_slot(&mut self) {
         let used = self.inv_slots_used();
         let mut nslot = self.next_slot;		
@@ -269,6 +301,18 @@ impl Player {
         (sum, attributes)
     }
 
+    pub fn readied_weapon(&self) -> Option<(&Item, String)> {
+        for j in 0..self.inventory.len() {
+            let name = self.inventory[j].get_fullname();
+            let item = self.inventory[j].item.as_ref().unwrap();
+            if item.equiped && item.item_type == ItemType::Weapon {
+                return Some((item, name))
+            }
+        }
+
+        None
+    }
+
     pub fn calc_ac(&mut self) {
         let mut ac: i8 = 10;        
         let (armour, attributes) = self.ac_mods_from_gear();
@@ -298,14 +342,6 @@ impl Player {
         } else {
             roll as u8
         }
-    }
-
-    pub fn set_readied_weapon(&mut self, game_objs: &GameObjects) {        
-        if let Some(weapon) = game_objs.readied_weapon() {
-            self.readied_weapon = weapon.1.capitalize();    
-        } else {
-            self.readied_weapon = "".to_string();
-        }        
     }
 
     // My idea is that the roles will have differing bonuses to attack rolls. Ie.,

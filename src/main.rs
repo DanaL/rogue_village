@@ -175,14 +175,13 @@
         pub fn curr_sidebar_info(&self, game_objs: &mut GameObjects) -> SidebarInfo {
             let loc = game_objs.player_location();
             let player = game_objs.player_details();
-            let weapon = if !player.readied_weapon.is_empty() {
-                String::from(&player.readied_weapon)
-            } else {
-                String::from("Empty handed")
+            let weapon_name = match player.readied_weapon() {
+                Some(res) => res.1.capitalize(),
+                None => "Empty handed".to_string(),
             };
-
+            
             SidebarInfo::new(player.name.to_string(), player.curr_hp, player.max_hp, self.turn, player.ac,
-            player.purse, weapon, loc.2 as u8)
+            player.purse, weapon_name, loc.2 as u8)
         }
 
         // I made life difficult for myself by deciding that Turn 0 of the game is 8:00am T_T
@@ -463,22 +462,9 @@
             state.write_msg_buff("Nevermind.");            
         }
         
-        set_gear_stuff(game_objs);
+        //set_gear_stuff(game_objs);
 
         cost
-    }
-
-    // Super ugly and coupled until I move the player inventory back to under the Player struct
-    fn set_gear_stuff(game_objs: &mut GameObjects) {
-        let weapon_name = if let Some(weapon) = game_objs.readied_weapon() {
-            weapon.1.capitalize()
-        } else {
-            "".to_string()
-        };
-
-        let p = game_objs.player_details();
-        p.calc_ac();
-        p.readied_weapon = weapon_name;
     }
 
     fn search_loc(state: &mut GameState, roll: u8, loc: (i32, i32, i8), game_objs: &mut GameObjects) {
@@ -590,26 +576,28 @@
         0.0
     }
 
-    fn toggle_item(state: &mut GameState, game_objs: &mut GameObjects, slot: char) -> f32 {
-        let obj_id = game_objs.obj_id_in_slot(slot);
-        let obj = game_objs.get_mut(obj_id).unwrap();
-        let item = obj.item.as_ref().unwrap();
-        let item_type = item.item_type;
-        if !item.equipable() {
+    fn toggle_item(state: &mut GameState, player: &mut Player, slot: char) -> f32 {
+        let obj = player.inv_item_in_slot(slot).unwrap();
+        let obj_id = obj.object_id;
+        let item_details = obj.item.as_ref().unwrap();
+        let equipable = item_details.equipable();
+        let item_type = item_details.item_type;
+
+        if !equipable {
                 state.write_msg_buff("You cannot wear or wield that!");
                 return 0.0;
         }
         
         let mut swapping = false;
         if item_type == ItemType::Weapon {
-            let readied = game_objs.readied_items_of_type(ItemType::Weapon);
+            let readied = player.readied_obj_ids_of_type(ItemType::Weapon);
             if !readied.is_empty() && readied[0] != obj_id {
                 swapping = true;
-                let other = game_objs.get_mut(readied[0]).unwrap();
+                let other = player.inv_obj_of_id(readied[0]).unwrap();
                 other.item.as_mut().unwrap().equiped = false;
             }        
         } else if item_type == ItemType::Armour {
-            let readied = game_objs.readied_items_of_type(ItemType::Armour);
+            let readied = player.readied_obj_ids_of_type(ItemType::Armour);
             if !readied.is_empty() && readied[0] != obj_id {
                 state.write_msg_buff("You're already wearing armour.");
                 return 0.0;             
@@ -617,7 +605,7 @@
         }
 
         // // Alright, so at this point we can toggle the item in the slot.
-        let obj = game_objs.get_mut(obj_id).unwrap();
+        let obj = player.inv_obj_of_id(obj_id).unwrap();
         let equiped = obj.item.as_ref().unwrap().equiped;
         obj.item.as_mut().unwrap().equiped = !equiped;
         
@@ -633,9 +621,9 @@
         s.push('.');
         state.write_msg_buff(&s);
 
-        set_gear_stuff(game_objs);
+        player.calc_ac();
 
-        let readied = game_objs.readied_items_of_type(ItemType::Weapon);
+        let readied = player.readied_obj_ids_of_type(ItemType::Weapon);
         if item_type == ItemType::Weapon && readied.is_empty() {
             state.write_msg_buff("You are now empty handed.");
         } 
@@ -644,21 +632,21 @@
     }
 
     fn toggle_equipment(state: &mut GameState, game_objs: &mut GameObjects, gui: &mut GameUI) -> f32 {
-        let inv = game_objs.inv_slots_used();
-        let slots: HashSet<char> = inv.iter().map(|i| *i).collect();
+        let sbi = state.curr_sidebar_info(game_objs);    
+        let player = game_objs.player_details();
+        let slots = player.inv_slots_used();
         
         if slots.is_empty() {
             state.write_msg_buff("You are empty handed.");
             return 0.0;
         }
 
-        let sbi = state.curr_sidebar_info(game_objs);
         let cost = if let Some(ch) = gui.query_single_response("Ready/unready what?", Some(&sbi)) {
             if !slots.contains(&ch) {
                 state.write_msg_buff("You do not have that item!");
                 0.0
             } else {
-                toggle_item(state, game_objs, ch)
+                toggle_item(state, player, ch)
             }
         } else {
             state.write_msg_buff("Nevermind.");

@@ -70,7 +70,8 @@ pub fn player_attacks(state: &mut GameState, opponent_id: usize, game_objs: &mut
     let weapon_attack_bonus;
     let weapon_dmg_dice;
     let num_dmg_die;
-    if let Some(weapon_info) = game_objs.readied_weapon() {
+    let player = game_objs.player_details();
+    if let Some(weapon_info) = player.readied_weapon() {
         weapon_attack_bonus = weapon_info.0.attack_bonus;
         num_dmg_die = weapon_info.0.dmg_die;
         weapon_dmg_dice = weapon_info.0.dmg_dice;
