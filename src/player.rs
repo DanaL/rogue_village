@@ -144,7 +144,7 @@ impl Player {
         }
         
         p.calc_ac();
-               
+
         let player_obj = GameObject::new(0, &name, (0, 0, 0), '@', display::WHITE, display::WHITE, 
             None, None , None, None, Some(p), true);
         game_objs.add(player_obj);
@@ -202,6 +202,17 @@ impl Player {
         None
     }
 
+    pub fn inv_remove(&mut self, id: usize) -> Option<GameObject> {
+        for j in 0..self.inventory.len() {
+            if self.inventory[j].object_id == id {
+                let obj = self.inventory.remove(j);
+                return Some(obj);
+            }
+        }
+
+        None
+    }
+
     pub fn readied_obj_ids_of_type(&self, item_type: ItemType) -> Vec<usize> {
         let mut ids = Vec::new();
         for obj in self.inventory.iter() {
@@ -214,7 +225,7 @@ impl Player {
         ids
     }
     
-    fn inc_next_slot(&mut self) {
+    pub fn inc_next_slot(&mut self) {
         let used = self.inv_slots_used();
         let mut nslot = self.next_slot;		
         loop {
@@ -252,6 +263,17 @@ impl Player {
         obj.item.as_mut().unwrap().slot = self.next_slot;
         self.inc_next_slot();
         self.inventory.push(obj);
+    }
+
+    pub fn inv_count_in_slot(&self, slot: char) -> usize {
+        let mut count = 0;
+        for obj in self.inventory.iter() {
+            if obj.item.as_ref().unwrap().slot == slot {
+                count += 1;
+            }
+        }
+
+        count
     }
 
     pub fn inv_menu(&self) -> Vec<String> {

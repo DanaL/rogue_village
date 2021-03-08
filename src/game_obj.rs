@@ -194,21 +194,6 @@ impl GameObjects {
         0
     }
 
-    pub fn count_in_slot(&self, slot: char) -> usize {
-        let inv_ids: Vec<usize> = self.obj_locs[&PLAYER_INV].iter().map(|i| *i).collect();
-
-        let mut count = 0;
-        for id in inv_ids {
-            if self.objects[&id].item.is_some() {
-                if self.objects.get(&id).unwrap().item.as_ref().unwrap().slot == slot {
-                    count += 1;
-                }
-            }
-        }
-
-        count
-    }
-
     pub fn remove(&mut self, obj_id: usize) -> GameObject {  
         let obj = self.objects.get(&obj_id).unwrap();
         let loc = obj.location;
@@ -258,20 +243,41 @@ impl GameObjects {
         state.lit_sqs.clear();
         state.aura_sqs.clear();
         for obj_id in listeners {
-            let obj = self.get_mut(obj_id).unwrap();
-
-            match obj.receive_event(EventType::EndOfTurn, state, ploc) {
-                Some(response) => {
-                    if response.event_type == EventType::LightExpired {
-                        to_remove.push(obj_id);                        
+            // Awkward because some items might be on the floor in the dungeon
+            // (and thus in the GameObjs structure) while some mgiht be in the player's
+            // inventory.
+            if let Some(obj) = self.get_mut(obj_id) {        
+                match obj.receive_event(EventType::EndOfTurn, state, ploc) {
+                    Some(response) => {
+                        if response.event_type == EventType::LightExpired {
+                            to_remove.push((obj_id, false));                        
+                        }
+                    },
+                    _ => { },
+                }
+            } else {
+                let p = self.player_details();
+                if let Some(obj) = p.inv_obj_of_id(obj_id) {
+                    obj.location = PLAYER_INV;
+                    match obj.receive_event(EventType::EndOfTurn, state, ploc) {
+                        Some(response) => {
+                            if response.event_type == EventType::LightExpired {
+                                to_remove.push((obj_id, true));                        
+                            }
+                        },
+                        _ => { },
                     }
-                },
-                _ => { },
+                }
             }
         }
 
-        for obj_id in to_remove {
-            self.remove(obj_id);
+        for item in to_remove {
+            if item.1 {
+                let p = self.player_details();
+                p.inv_remove(item.0);
+            } else {
+                self.remove(item.0);
+            }
         }
 
         // Now that we've updated which squares are lit, let any listeners know

@@ -690,34 +690,33 @@
     }
 
     fn use_item(state: &mut GameState, game_objs: &mut GameObjects, gui: &mut GameUI) -> f32 {
-        let inv = game_objs.inv_slots_used();
-        let slots: HashSet<char> = inv.iter().map(|i| *i).collect();
+        let sbi = state.curr_sidebar_info(game_objs);        
+        let player = game_objs.player_details();
+        let slots = player.inv_slots_used();
         
         if slots.is_empty() {
             state.write_msg_buff("You are empty handed.");
             return 0.0;
         }
         
-        let sbi = state.curr_sidebar_info(game_objs);
         if let Some(ch) = gui.query_single_response("Use what?", Some(&sbi)) {
             if !slots.contains(&ch) {
                 state.write_msg_buff("You do not have that item!");
                 return 0.0;
             }
             
-            let next_slot = game_objs.next_slot; // We might need to give the item a new inventory slot
-            let was_in_stack = game_objs.count_in_slot(ch) > 1;
-            let obj_id = game_objs.obj_id_in_slot(ch);
-            let obj = game_objs.get_mut(obj_id).unwrap();
+            let next_slot = player.next_slot; // We might need to give the item a new inventory slot
+            let was_in_stack = player.inv_count_in_slot(ch) > 1;
+            let obj = player.inv_item_in_slot(ch).unwrap();
+            let obj_id = obj.object_id;
             let name = obj.get_fullname();
-            let is_item = obj.item.is_some();
-            let useable = if is_item {
+            let useable = if obj.item.is_some() {
                 obj.item.as_ref().unwrap().useable()
             } else {
                 false
             };
 
-            if is_item && useable {
+            if useable {
                 let item = obj.item.as_mut().unwrap();
                 let s = if item.active { 
                     format!("You extinguish {}.", name.with_def_article())
@@ -727,20 +726,20 @@
                 state.write_msg_buff(&s);
 
                 item.active = !item.active;
+                let active = item.active;
                 item.stackable = false;
                 if was_in_stack {
                     item.slot = next_slot;
                 }
 
-                let active = item.active;
+                if was_in_stack {
+                    player.inc_next_slot();
+                }
+                
                 if active {
                     game_objs.listeners.insert((obj_id, EventType::EndOfTurn));
                 } else {
                     game_objs.listeners.remove(&(obj_id, EventType::EndOfTurn));
-                }
-
-                if was_in_stack {
-                    game_objs.inc_slot();
                 }
 
                 return 1.0;
