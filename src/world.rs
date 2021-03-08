@@ -299,7 +299,7 @@ fn add_teleport_trap(level: usize, floor_sqs: &mut HashMap<usize, HashSet<(i32, 
 fn add_shrine(world_info: &mut WorldInfo, level: usize, map: &mut Map, floor_sqs: &mut HashMap<usize, HashSet<(i32, i32, i8)>>, game_objs: &mut GameObjects) {
     let loc = random_sq(&floor_sqs[&(level - 1)]);
     let shrine = SpecialSquare::make(Tile::Shrine(ShrineType::Woden), loc, true, 3, game_objs);
-    game_objs.listeners.insert((shrine.object_id, EventType::EndOfTurn));
+    game_objs.listeners.insert((shrine.object_id, EventType::Update));
     game_objs.add(shrine);
 
     map.insert(loc, Tile::Shrine(ShrineType::Woden));

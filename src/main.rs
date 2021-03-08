@@ -84,6 +84,7 @@
     #[derive(Debug, Hash, Eq, PartialEq, Serialize, Deserialize, Clone, Copy)]
     pub enum EventType {
         EndOfTurn,
+        Update,
         LightExpired,
         TakeTurn,
         SteppedOn,
@@ -727,8 +728,10 @@
                 }
                 
                 if active {
+                    game_objs.listeners.insert((obj_id, EventType::Update));
                     game_objs.listeners.insert((obj_id, EventType::EndOfTurn));
                 } else {
+                    game_objs.listeners.remove(&(obj_id, EventType::Update));
                     game_objs.listeners.remove(&(obj_id, EventType::EndOfTurn));
                 }
 
@@ -1339,13 +1342,14 @@
                     // have to loop over the entire structure of GameObjects looking to see if there are any
                     // dead ones.
                     game_objs.check_for_dead_npcs();
-                    game_objs.update_listeners(state);
+                    game_objs.update_listeners(state, EventType::Update);
                     update_view(state, game_objs, gui);
                 }
             }
                         
             game_objs.do_npc_turns(state);
-            game_objs.update_listeners(state);
+            game_objs.update_listeners(state, EventType::Update);
+            game_objs.update_listeners(state, EventType::EndOfTurn);
             
             // Are there any accumulated events we need to deal with?
             while !state.queued_events.is_empty() {

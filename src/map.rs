@@ -189,7 +189,7 @@ impl SpecialSquare {
 
 	pub fn receive_event(&mut self, event: EventType, state: &mut GameState, loc: (i32, i32, i8), obj_id: usize) -> Option<EventResponse> {
 		match event {
-			EventType::EndOfTurn => {
+			EventType::Update => {
 				self.mark_aura(state, loc);
 			},
 			EventType::SteppedOn => return self.stepped_on(state, obj_id),

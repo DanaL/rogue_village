@@ -182,15 +182,19 @@ impl Item {
                 loc: (i32, i32, i8), player_loc: (i32, i32, i8),
                 name: String, obj_id: usize) -> Option<EventResponse> {
 		match event {
-			EventType::EndOfTurn => {
-				self.charges -= 1;
+            EventType::Update => {
                 // right now light sources are the only things in the game which times like this
 				// This'll mark squares that are lit independent of the player's vision. Don't bother
 				// with the calculation if the light source is on another level of the dungeon
-				if self.charges > 0 && (loc == PLAYER_INV || loc.2 == player_loc.2) {
-					self.mark_lit_sqs(state, loc, player_loc);
-				}
-
+                // Note this currently isn't working for a monster carrying a lit light source (or, eventually
+                // other items that may have charges)
+                if self.charges > 0 && (loc == PLAYER_INV || loc.2 == player_loc.2) {
+                    self.mark_lit_sqs(state, loc, player_loc);
+				}                
+            },
+			EventType::EndOfTurn => {
+				self.charges -= 1;
+                
 				if self.charges == 150 {
 					let s = if loc == PLAYER_INV {
 						format!("Your {} flickers.", name)					
