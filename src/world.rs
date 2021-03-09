@@ -15,7 +15,7 @@
 
 extern crate serde;
 
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::time::Instant;
 use rand::{prelude::{IteratorRandom}, thread_rng};
 use rand::Rng;
@@ -434,6 +434,148 @@ fn populate_levels(_world_info: &mut WorldInfo, deepest_level: i8, floor_sqs: &H
     }
 }
 
+fn find_cave_id(caves: &Vec<HashSet<(i32, i32)>>, pt: &(i32, i32)) -> Option<usize> {
+    for cave_id in 0..caves.len() {
+        if caves[cave_id].contains(pt) {
+            return Some(cave_id);
+        }
+    }
+
+    None
+}
+
+// Moar floodfill -- I wonder if it's worth trying to amalgamate the 
+// places I've implemented floodfill in the code.
+fn join_caves(sqs: &mut Vec<bool>, width: usize, height: usize) {
+    let mut caves = Vec::new();
+
+    // find start point
+    let mut q = VecDeque::new();
+    let mut visited = HashSet::new();
+    for j in 0..sqs.len() {
+        if !sqs[j] { continue; }
+        let r = j / width;
+        let c = j - r * width;
+        let start = (r as i32, c as i32);
+        if visited.contains(&start) {
+            continue;
+        }
+
+        q.push_front(start);
+        while !q.is_empty() {
+            let pt = q.pop_front().unwrap();
+            if visited.contains(&pt) {
+                continue;
+            }
+            
+            visited.insert(pt);
+    
+            // Find out it pt is in an existing cave, if not start a new cave
+            let cave_id = if let Some(id) = find_cave_id(&caves, &pt) {
+                id 
+            } else {
+                caves.push(HashSet::new());
+                let cave_id = caves.len() - 1;            
+                caves[cave_id].insert(pt);
+                cave_id
+            };
+            
+            for adj in util::ADJ.iter() {
+                let n = (pt.0 + adj.0, pt.1 + adj.1);
+                if n.0 < 0 || n.1 < 0 || n.0 as usize >= height || n.1 as usize >= width {
+                    continue;
+                }
+                let i = n.0 as usize * width + n.1 as usize;
+                if sqs[i] {
+                    caves[cave_id].insert(n);
+                    if !visited.contains(&n) {
+                        q.push_back(n);
+                    }
+                }
+            }
+        }
+    }
+
+    println!("# of caves: {}", caves.len());
+
+    let mut m = vec![' '; height * width];
+    for cave_id in 0..caves.len() {
+        for sq in caves[cave_id].iter() {
+            let i = sq.0 as usize * width + sq.1 as usize;
+            m[i] = ('0' as u8 + cave_id as u8) as char;
+        }
+    }
+    
+    for r in 0..height {
+        let mut s = String::from("");
+        for c in 0..width {
+            let ch = m[r * width + c];            
+            s.push(ch);
+        }
+        println!("{}", s);
+    }
+}
+
+fn count_neighbours(sqs: &Vec<bool>, row: usize, col: usize, height: usize, width: usize) -> u8 {
+    let mut sum = 0;
+    for adj in util::ADJ.iter() {
+        let nr = row as i32 + adj.0;
+        let nc = col as i32 + adj.1;
+        if nr < 0 || nc < 0 || nr as usize >= height || nc as usize >= width {
+            continue;
+        }
+
+        if sqs[nr as usize * width + nc as usize] {
+            sum += 1;
+        }
+    }
+
+    sum
+}
+
+fn cave_overlay(width: usize, height: usize) -> Vec<bool> {
+    // Cellular automata to make a cave system I can draw over part of the level on
+    let mut rng = rand::thread_rng();
+    let mut sqs: Vec<bool> = (0..width * height).map(|_|  rng.gen_range(0.0, 1.0) < 0.45).collect();
+    
+    for _ in 0..3 {
+        let mut next_gen = sqs.clone();
+        for r in 0..height {
+            for c in 0..width {
+                let i = r * width + c;
+                let count = count_neighbours(&sqs, r, c, height, width);
+                if sqs[i] && count < 4 {
+                    next_gen[i] = false;
+                } else if !sqs[i] && count > 3 {
+                    next_gen[i] = true;
+                }
+            }
+        }
+
+        sqs = next_gen.clone();
+    }
+    
+    join_caves(&mut sqs, width, height);
+    
+    sqs
+}
+
+fn dump(sqs: Vec<bool>, width: usize, height: usize) {
+    for r in 0..height {
+        let mut s = String::from("");
+        for c in 0..width {
+            let ch =             
+                if sqs[r * width + c] {
+                    '.'
+                } else {
+                    '#'
+                };
+            s.push(ch);
+        }
+        println!("{}", s);
+    }
+}
+
 fn build_dungeon(world_info: &mut WorldInfo, map: &mut Map, entrance: (i32, i32, i8), game_objs: &mut GameObjects, monster_fac: &MonsterFactory) {
     let width = 125;
     let height = 40;
@@ -446,6 +588,9 @@ fn build_dungeon(world_info: &mut WorldInfo, map: &mut Map, entrance: (i32, i32,
         let result = dungeon::draw_level(width, height);
         let level = result.0;
         
+        let sqs = cave_overlay(40, height);
+        //dump(sqs, 40, height);
+
         dungeon.push(level);
         floor_sqs.insert(n, HashSet::new());
         vaults.insert(n, result.1); // vaults are rooms with only one entrance, which are useful for setting puzzles        
