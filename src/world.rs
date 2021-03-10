@@ -535,8 +535,7 @@ fn join_caves(sqs: &mut Vec<bool>, width: usize, height: usize) {
                 }
             }
 
-            println!("{:?} to {:?}", start, closest_pt);
-            let tunnel = find_cave_tunnel(sqs, start, closest_pt);
+            let tunnel = find_cave_tunnel(start, closest_pt);
             // For the tunnels, I want to carve out pts that have only diagonal movement between them
             for j in 0..tunnel.len() - 1 {
                 let pt = tunnel[j];
@@ -554,30 +553,12 @@ fn join_caves(sqs: &mut Vec<bool>, width: usize, height: usize) {
             }
         }
     }
-    
-    println!("# of caves: {}", caves.len());
-    let mut m = vec![' '; height * width];
-    for cave_id in 0..caves.len() {
-        for sq in caves[cave_id].iter() {
-            let i = sq.0 as usize * width + sq.1 as usize;
-            m[i] = ('0' as u8 + cave_id as u8) as char;
-        }
-    }
-    
-    for r in 0..height {
-        let mut s = String::from("");
-        for c in 0..width {
-            let ch = m[r * width + c];            
-            s.push(ch);
-        }
-        println!("{}", s);
-    }
 }
 
 // Here's a Bresenham Line function again. Once again, I wonder if it's worth it to 
 // consilidate my other instances of it into a shared function. Maybe not worth the
 // complication? (See for instance my beamcasting in FOV)
-fn find_cave_tunnel(sqs: &mut Vec<bool>, start: (i32, i32), end: (i32, i32)) -> Vec<(i32, i32)> {
+fn find_cave_tunnel(start: (i32, i32), end: (i32, i32)) -> Vec<(i32, i32)> {
     let mut pts = Vec::new();
     pts.push(start);
     let mut r = start.0;
@@ -686,19 +667,28 @@ fn cave_overlay(width: usize, height: usize) -> Vec<bool> {
     sqs
 }
 
-fn dump(sqs: Vec<bool>, width: usize, height: usize) {
-    for r in 0..height {
-        let mut s = String::from("");
-        for c in 0..width {
-            let ch =             
-                if sqs[r * width + c] {
-                    '.'
-                } else {
-                    '#'
-                };
-            s.push(ch);
+// My idea for the 'release' version is to have a chance of a level being
+// partially filled in by caves, representing a level where there's been
+// an earthquake or such that caused a cave-in. Villagers may mention a feeling
+// a tremor as a hint of what's to come. Some other ideas:
+//         - strew the area with rubble (once I decide how it'll effect the player)
+//         - maybe graveyards or more undead to reflect that a disaster happened?
+fn add_caves_to_level(tiles: &mut Vec<Tile>, height: usize, width: usize) {
+    let mut rng = rand::thread_rng();
+    let caves_width = rng.gen_range(40, 80);
+    let caves = cave_overlay(caves_width, height - 2);
+    let start_col = rng.gen_range(20, width - caves_width);
+
+    for r in 0..height-2 {
+        for c in 0..caves_width {
+            let oi = r * caves_width + c;
+            let map_i = (r + 1) * width + c + start_col;
+            tiles[map_i] = if caves[oi] {                
+                Tile::StoneFloor
+            } else {
+                Tile::Wall
+            };
         }
-        println!("{}", s);
     }
 }
 
@@ -708,15 +698,13 @@ fn build_dungeon(world_info: &mut WorldInfo, map: &mut Map, entrance: (i32, i32,
     let mut floor_sqs = HashMap::new();
     let mut vaults = HashMap::new();
     let max_level = 1;
-        
     let mut dungeon = Vec::new();
     for n in 0..max_level {
         let result = dungeon::draw_level(width, height);
-        let level = result.0;
+        let mut level = result.0;
         
-        let sqs = cave_overlay(80, height - 2);
-        dump(sqs, 80, height - 2);
-
+        add_caves_to_level(&mut level, height, width);
+        
         dungeon.push(level);
         floor_sqs.insert(n, HashSet::new());
         vaults.insert(n, result.1); // vaults are rooms with only one entrance, which are useful for setting puzzles        
