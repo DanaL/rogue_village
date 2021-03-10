@@ -152,55 +152,6 @@ fn translate_to_tile(grid: &[f64]) -> Map {
 	map
 }
 
-fn bresenham(r0: i32, c0: i32, r1: i32, c1: i32) -> Vec<(i32, i32, i8)> {
-	let mut pts = Vec::new();
-	let mut error = 0;
-	let mut r = r0;
-	let mut c = c0;
-	let mut delta_c = c1 - c0;
-	
-	let step_c = if delta_c < 0 {
-		delta_c = -delta_c;
-		-1
-	} else {
-		1
-	};
-
-	let mut delta_r = r1 - r0;
-	let step_r = if delta_r < 0 {
-		delta_r = -delta_r;
-		-1
-	} else {
-		1
-	};		
-
-	if delta_r <= delta_c {
-		let criterion = delta_c / 2;
-		while c != c1 + step_c {
-			pts.push((r, c, 0));
-			c += step_c;
-			error += delta_r;
-			if error > criterion {
-				error -= delta_c;
-				r += step_r;
-			}
-		}
-	} else {
-		let criterion = delta_r / 2;
-		while r != r1 + step_r {
-			pts.push((r, c, 0));
-			r += step_r;
-			error += delta_c;
-			if error > criterion {
-				error -= delta_r;
-				c += step_c;
-			}
-		}
-	}
-
-	pts
-}
-
 fn next_point(r: i32, c: i32, d: i32, angle: f64) -> (i32, i32, i8) {
 	let next_r = r + (d as f64 * f64::sin(angle)) as i32;
 	let next_c = c + (d as f64 * f64::cos(angle)) as i32;
@@ -222,7 +173,7 @@ fn draw_river(map: &mut Map, start: (i32, i32, i8), angle: f64) {
 			break;
 		}
 
-		let next_segment = bresenham(row, col, n.0, n.1);
+		let next_segment = util::bresenham(row, col, n.0, n.1);
 		let mut river_crossing = false;
 		for pt in next_segment.iter() {
 			pts.push((pt.0, pt.1, 0));

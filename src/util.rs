@@ -54,7 +54,58 @@ pub fn ds_find(ds: &mut Vec<i32>, x: i32) -> i32 {
 	}
 }
 
-// Straight out of my old scientific computing textbook
+// Bresenham functions straight out of my old scientific computing textbook
+pub fn bresenham(r0: i32, c0: i32, r1: i32, c1: i32) -> Vec<(i32, i32)> {
+	let mut pts = Vec::new();
+	pts.push((r0, c0));
+	let mut error = 0;
+	let mut r = r0;
+	let mut c = c0;
+	let mut delta_c = c1 - c0;
+	
+	let step_c = if delta_c < 0 {
+		delta_c = -delta_c;
+		-1
+	} else {
+		1
+	};
+
+	let mut delta_r = r1 - r0;
+	let step_r = if delta_r < 0 {
+		delta_r = -delta_r;
+		-1
+	} else {
+		1
+	};		
+
+	if delta_r <= delta_c {
+		let criterion = delta_c / 2;
+		while c != c1 + step_c {
+			pts.push((r, c));
+			c += step_c;
+			error += delta_r;
+			if error > criterion {
+				error -= delta_c;
+				r += step_r;
+			}
+		}
+	} else {
+		let criterion = delta_r / 2;
+		while r != r1 + step_r {
+			pts.push((r, c));
+			r += step_r;
+			error += delta_c;
+			if error > criterion {
+				error -= delta_r;
+				c += step_c;
+			}
+		}
+	}
+
+	pts.push((r1, c1));
+	pts
+}
+
 pub fn bresenham_circle(rc: i32, cc: i32, radius: i32) -> Vec<(i32, i32)> {
 	let mut pts = Vec::new();
 	let mut x = radius;

@@ -535,7 +535,7 @@ fn connect_rooms(sqs: &mut Vec<Tile>, height: usize, width: usize) {
                 }
             }
 
-            let tunnel = find_tunnel(start, closest_pt);
+            let tunnel = util::bresenham(start.0, start.1, closest_pt.0, closest_pt.1);
             // For the tunnels, I want to carve out pts that have only diagonal movement between them
             for j in 0..tunnel.len() - 1 {
                 let pt = tunnel[j];
@@ -553,60 +553,6 @@ fn connect_rooms(sqs: &mut Vec<Tile>, height: usize, width: usize) {
             }
         }
     }
-}
-
-// Here's a Bresenham Line function again. Once again, I wonder if it's worth it to 
-// consilidate my other instances of it into a shared function. Maybe not worth the
-// complication? (See for instance my beamcasting in FOV)
-fn find_tunnel(start: (i32, i32), end: (i32, i32)) -> Vec<(i32, i32)> {
-    let mut pts = Vec::new();
-    pts.push(start);
-    let mut r = start.0;
-	let mut c = start.1;
-	let mut error = 0;
-
-	let mut r_step = 1;
-	let mut delta_r = end.0 - r;
-	if delta_r < 0 {
-		delta_r = -delta_r;
-		r_step = -1;
-	} 
-
-	let mut c_step = 1;
-	let mut delta_c = end.1 - c;
-	if delta_c < 0 {
-		delta_c = -delta_c;
-		c_step = -1;
-	} 
-
-	if delta_c <= delta_r {
-		let criterion = delta_r / 2;
-		while r != end.0 + r_step {
-            pts.push((r, c));
-			
-			r += r_step;
-			error += delta_c;
-			if error > criterion {
-				error -= delta_r;
-				c += c_step;
-			}
-		} 	
-	} else {
-		let criterion = delta_c / 2;
-		while c != end.1 + c_step {
-			pts.push((r, c));
-			
-			c += c_step;
-			error += delta_r;
-			if error > criterion {
-				error -= delta_c;
-				r += r_step;
-			}
-		}
-	}
-
-    pts.push(end);
-    pts
 }
 
 fn closest_point(pt: &(i32, i32), room: &Vec<(i32, i32)>) -> ((i32, i32), i32) {
