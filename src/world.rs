@@ -434,10 +434,10 @@ fn populate_levels(_world_info: &mut WorldInfo, deepest_level: i8, floor_sqs: &H
     }
 }
 
-fn find_cave_id(caves: &Vec<HashSet<(i32, i32)>>, pt: &(i32, i32)) -> Option<usize> {
-    for cave_id in 0..caves.len() {
-        if caves[cave_id].contains(pt) {
-            return Some(cave_id);
+fn find_room_id(rooms: &Vec<HashSet<(i32, i32)>>, pt: &(i32, i32)) -> Option<usize> {
+    for room_id in 0..rooms.len() {
+        if rooms[room_id].contains(pt) {
+            return Some(room_id);
         }
     }
 
@@ -446,14 +446,14 @@ fn find_cave_id(caves: &Vec<HashSet<(i32, i32)>>, pt: &(i32, i32)) -> Option<usi
 
 // Moar floodfill -- I wonder if it's worth trying to amalgamate the 
 // places I've implemented floodfill in the code.
-fn join_caves(sqs: &mut Vec<bool>, width: usize, height: usize) {
-    let mut caves = Vec::new();
+fn connect_rooms(sqs: &mut Vec<Tile>, height: usize, width: usize) {
+    let mut rooms = Vec::new();
 
     // find start point
     let mut q = VecDeque::new();
     let mut visited = HashSet::new();
     for j in 0..sqs.len() {
-        if !sqs[j] { continue; }
+        if sqs[j] == Tile::Wall { continue; }
         let r = j / width;
         let c = j - r * width;
         let start = (r as i32, c as i32);
@@ -471,13 +471,13 @@ fn join_caves(sqs: &mut Vec<bool>, width: usize, height: usize) {
             visited.insert(pt);
     
             // Find out it pt is in an existing cave, if not start a new cave
-            let cave_id = if let Some(id) = find_cave_id(&caves, &pt) {
+            let room_d = if let Some(id) = find_room_id(&rooms, &pt) {
                 id 
             } else {
-                caves.push(HashSet::new());
-                let cave_id = caves.len() - 1;            
-                caves[cave_id].insert(pt);
-                cave_id
+                rooms.push(HashSet::new());
+                let room_id = rooms.len() - 1;            
+                rooms[room_id].insert(pt);
+                room_id
             };
             
             for adj in util::ADJ.iter() {
@@ -486,8 +486,8 @@ fn join_caves(sqs: &mut Vec<bool>, width: usize, height: usize) {
                     continue;
                 }
                 let i = n.0 as usize * width + n.1 as usize;
-                if sqs[i] {
-                    caves[cave_id].insert(n);
+                if sqs[i] != Tile::Wall {
+                    rooms[room_d].insert(n);
                     if !visited.contains(&n) {
                         q.push_back(n);
                     }
@@ -496,38 +496,38 @@ fn join_caves(sqs: &mut Vec<bool>, width: usize, height: usize) {
         }
     }
 
-    // Fill in any small caves that are 3 squares or less
+    // Just fill in any small caves that are 3 squares or less
     let mut largest = 0;
     let mut largest_id = 0;
-    for j in 0..caves.len() {
-        if caves[j].len() > largest {
-            largest = caves[j].len();
+    for j in 0..rooms.len() {
+        if rooms[j].len() > largest {
+            largest = rooms[j].len();
             largest_id = j;
         }
-        if caves[j].len() <= 3 {
-            for sq in &caves[j] {
-                sqs[sq.0 as usize * width + sq.1 as usize] = false;
+        if rooms[j].len() <= 3 {
+            for sq in &rooms[j] {
+                sqs[sq.0 as usize * width + sq.1 as usize] = Tile::Wall;
             }
         }
     }
-    caves.retain(|c| c.len() > 3);
+    rooms.retain(|c| c.len() > 3);
 
     // Okay, now for each cave aside from the main one, find the sq nearest the main
     // and draw a tunnel to it.
-    let mut main_cave: Vec<(i32, i32)> = caves[largest_id].iter().map(|s| *s).collect();
-    main_cave.sort();
-    let mut cave_ids = (0..caves.len()).collect::<Vec<usize>>();
-    cave_ids.retain(|v| *v != largest_id);
+    let mut main_area: Vec<(i32, i32)> = rooms[largest_id].iter().map(|s| *s).collect();
+    main_area.sort();
+    let mut room_ids = (0..rooms.len()).collect::<Vec<usize>>();
+    room_ids.retain(|v| *v != largest_id);
 
     // Not super great in a Big-Oh sense but modern computers are fast and the grids I'm
     // dealing with are pretty small.
-    if !cave_ids.is_empty() {
-        for id in cave_ids {
+    if !room_ids.is_empty() {
+        for id in room_ids {
             let mut closest_pt = (-1, -1);
             let mut shortest_d = i32::MAX;
             let mut start = (-1, -1);
-            for pt in caves[id].iter() {
-                let (best, d) = closest_point(pt, &main_cave);
+            for pt in rooms[id].iter() {
+                let (best, d) = closest_point(pt, &main_area);
                 if d < shortest_d {
                     shortest_d = d;
                     closest_pt = best;
@@ -539,7 +539,7 @@ fn join_caves(sqs: &mut Vec<bool>, width: usize, height: usize) {
             // For the tunnels, I want to carve out pts that have only diagonal movement between them
             for j in 0..tunnel.len() - 1 {
                 let pt = tunnel[j];
-                sqs[pt.0 as usize * width + pt.1 as usize] = true;
+                sqs[pt.0 as usize * width + pt.1 as usize] = Tile::StoneFloor;
                 let npt = tunnel[j + 1];
                 if pt.0 != npt.0 && pt.1 != npt.1 {
                     let i = if pt.0 < npt.0 {
@@ -548,7 +548,7 @@ fn join_caves(sqs: &mut Vec<bool>, width: usize, height: usize) {
                         (pt.0 - 1) as usize * width + pt.1 as usize
                     };
 
-                    sqs[i] = true;
+                    sqs[i] = Tile::StoneFloor;
                 }
             }
         }
@@ -661,9 +661,7 @@ fn cave_overlay(width: usize, height: usize) -> Vec<bool> {
 
         sqs = next_gen.clone();
     }
-    
-    join_caves(&mut sqs, width, height);
-    
+        
     sqs
 }
 
@@ -704,7 +702,8 @@ fn build_dungeon(world_info: &mut WorldInfo, map: &mut Map, entrance: (i32, i32,
         let mut level = result.0;
         
         add_caves_to_level(&mut level, height, width);
-        
+        connect_rooms(&mut level, height, width);
+
         dungeon.push(level);
         floor_sqs.insert(n, HashSet::new());
         vaults.insert(n, result.1); // vaults are rooms with only one entrance, which are useful for setting puzzles        
