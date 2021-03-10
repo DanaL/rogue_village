@@ -535,7 +535,7 @@ fn connect_rooms(sqs: &mut Vec<Tile>, height: usize, width: usize) {
                 }
             }
 
-            let tunnel = find_cave_tunnel(start, closest_pt);
+            let tunnel = find_tunnel(start, closest_pt);
             // For the tunnels, I want to carve out pts that have only diagonal movement between them
             for j in 0..tunnel.len() - 1 {
                 let pt = tunnel[j];
@@ -558,7 +558,7 @@ fn connect_rooms(sqs: &mut Vec<Tile>, height: usize, width: usize) {
 // Here's a Bresenham Line function again. Once again, I wonder if it's worth it to 
 // consilidate my other instances of it into a shared function. Maybe not worth the
 // complication? (See for instance my beamcasting in FOV)
-fn find_cave_tunnel(start: (i32, i32), end: (i32, i32)) -> Vec<(i32, i32)> {
+fn find_tunnel(start: (i32, i32), end: (i32, i32)) -> Vec<(i32, i32)> {
     let mut pts = Vec::new();
     pts.push(start);
     let mut r = start.0;
@@ -609,10 +609,10 @@ fn find_cave_tunnel(start: (i32, i32), end: (i32, i32)) -> Vec<(i32, i32)> {
     pts
 }
 
-fn closest_point(pt: &(i32, i32), cave: &Vec<(i32, i32)>) -> ((i32, i32), i32) {
+fn closest_point(pt: &(i32, i32), room: &Vec<(i32, i32)>) -> ((i32, i32), i32) {
     let mut shortest = i32::MAX;
-    let mut nearest = *cave.iter().nth(0).unwrap();
-    for other_pt in cave.iter() {
+    let mut nearest = *room.iter().nth(0).unwrap();
+    for other_pt in room.iter() {
         let d = (pt.0 - other_pt.0) * (pt.0 - other_pt.0) + (pt.1 - other_pt.1) * (pt.1 - other_pt.1);
         if d < shortest {
             nearest = *other_pt;
@@ -681,10 +681,14 @@ fn add_caves_to_level(tiles: &mut Vec<Tile>, height: usize, width: usize) {
         for c in 0..caves_width {
             let oi = r * caves_width + c;
             let map_i = (r + 1) * width + c + start_col;
-            tiles[map_i] = if caves[oi] {                
-                Tile::StoneFloor
-            } else {
+
+            // Make some of the tiles of the cave system rubble
+            tiles[map_i] = if !caves[oi] {
                 Tile::Wall
+            } else if rng.gen_range(0.0, 1.0) < 0.2 {
+                Tile::Rubble
+            } else {
+                Tile::StoneFloor
             };
         }
     }

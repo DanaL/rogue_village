@@ -148,6 +148,7 @@ impl NPC {
             passable.insert(Tile::StoneFloor, 1.0);
             passable.insert(Tile::Floor, 1.0);
             passable.insert(Tile::Trigger, 1.0);
+            passable.insert(Tile::Rubble, 1.50);
 
             let mut path = find_path(&state.map, stop_before, my_loc.0, my_loc.1, 
                 my_loc.2, goal.0, goal.1, 50, &passable);
@@ -174,6 +175,18 @@ impl NPC {
                 if let Tile::Door(DoorState::Open) = state.map[&my_loc] {
                     self.plan.push_front(Action::CloseDoor(my_loc));                
                 }
+            }
+
+            // Need to fix this up so that I'm not duplicating code from do_move() in main.rs as much as possible
+            let curr_tile = state.map[&my_loc];
+            if curr_tile == Tile::Rubble {
+                let mut rng = rand::thread_rng();
+                if rng.gen_range(1, 21) < 9 {
+                    let s = format!("{} stumbles in the rubble.", self.npc_name(false).capitalize());
+                    state.write_msg_buff(&s);
+                    self.plan.push_front(Action::Move(goal_loc));
+                    return;
+                }                
             }
 
             self.curr_loc = goal_loc;            

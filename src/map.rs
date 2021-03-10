@@ -77,6 +77,7 @@ pub enum Tile {
 	Shrine(ShrineType),
 	Trigger,
 	TeleportTrap,
+	Rubble,
 }
 
 impl Tile {

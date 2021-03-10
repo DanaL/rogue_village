@@ -28,6 +28,14 @@ use crate::util::StringUtils;
 
 const XP_CHART: [u32; 19] = [20, 40, 80, 160, 320, 640, 1280, 2560, 5210, 10_000, 15_000, 21_000, 28_000, 36_000, 44_000, 52_000, 60_000, 68_000, 76_000];
 
+pub enum Ability {
+    Str,
+    Dex,
+    Con,
+    Chr,
+    Apt,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum Role {
     Warrior,
@@ -390,9 +398,17 @@ impl Player {
         };
     }
 
-    pub fn perception_roll(&self) -> u8 {
+    pub fn ability_check(&self, ability: Ability) -> u8 {
         let mut rng = rand::thread_rng();
-        let roll = rng.gen_range(1, 21) + stat_to_mod(self.apt);
+        let roll = rng.gen_range(1, 21) + 
+            match ability {
+                Ability::Str => stat_to_mod(self.str),
+                Ability::Dex => stat_to_mod(self.dex),
+                Ability::Con => stat_to_mod(self.con),
+                Ability::Chr => stat_to_mod(self.chr),
+                Ability::Apt => stat_to_mod(self.apt),
+            };
+        
         if roll < 0 {
             0
         } else {

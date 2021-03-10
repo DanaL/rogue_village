@@ -52,7 +52,7 @@
     use game_obj::{GameObject, GameObjects};
     use items::{GoldPile, ItemType};
     use map::{DoorState, ShrineType, Tile};
-    use player::Player;
+    use player::{Ability, Player};
     use util::StringUtils;
     use world::WorldInfo;
 
@@ -474,7 +474,7 @@
     fn search(state: &mut GameState, game_objs: &mut GameObjects) {
         let ploc = game_objs.player_location();
         let player = game_objs.player_details();
-        let roll = player.perception_roll();
+        let roll = player.ability_check(Ability::Apt);
         
         search_loc(state, roll, ploc, game_objs);
         for adj in util::ADJ.iter() {
@@ -953,28 +953,48 @@
     fn land_on_location(state: &mut GameState, game_objs: &mut GameObjects, loc: (i32, i32, i8), _obj_id: usize) {
         game_objs.stepped_on_event(state, loc);
 
-        for special in game_objs.special_sqs_at_loc(&loc) {
-            if special.special_sq.as_ref().unwrap().get_tile() == Tile::TeleportTrap {
+        // for special in game_objs.special_sqs_at_loc(&loc) {
+        //     if special.special_sq.as_ref().unwrap().get_tile() == Tile::TeleportTrap {
                 
-            }
-        }
+        //     }
+        // }
     }
 
     fn do_move(state: &mut GameState, game_objs: &mut GameObjects, dir: &str, gui: &mut GameUI) -> f32 {
         let mv = get_move_tuple(dir);
 
         let start_loc = game_objs.player_location();
-        let start_tile = &state.map[&start_loc];
+        let start_tile = state.map[&start_loc];
         let next_loc = (start_loc.0 + mv.0, start_loc.1 + mv.1, start_loc.2);
-        let tile = &state.map[&next_loc].clone();
+        let tile = state.map[&next_loc].clone();
         
+        // Ugh, this function is turning into a hot mess. I need to break it up into the attempt to 
+        // move to or from a square and the effects of landing on a square. With difficult terrain
+        // for instance, if you are stuck on a square you should suffer its effects again. Ie., if
+        // it is difficult terrain to move out of lava
+
         if game_objs.blocking_obj_at(&next_loc) {
             return maybe_fight(state, game_objs, next_loc, gui);            
         } else if tile.passable() {
+            // Rubble is difficult terrain and requires a dex check to mvoe off of.
+            // (If you designate more terrain types as difficult terrain, probably make a function)
+            if start_tile == Tile::Rubble {
+                let p = game_objs.get(0).unwrap().player.as_ref().unwrap();
+                if p.ability_check(Ability::Dex) <= 12 {
+                    state.write_msg_buff("You stumble and trip over the rubble.");
+                    return 1.0;
+                }
+            }
+
             match tile {
                 Tile::Water => state.write_msg_buff("You splash in the shallow water."),
+                Tile::Rubble => {
+                    if start_tile != Tile::Rubble {
+                        state.write_msg_buff("The ground is cracked and rubble-strewn here.")
+                    }
+                },
                 Tile::DeepWater => {
-                    if *start_tile != map::Tile::DeepWater {
+                    if start_tile != Tile::DeepWater {
                         state.write_msg_buff("You begin to swim.");				
                     }
                 },
@@ -982,7 +1002,7 @@
                 Tile::FirePit => {
                     state.write_msg_buff("You step in the fire!");
                 },
-                Tile::OldFirePit(n) => state.write_msg_buff(firepit_msg(*n)),
+                Tile::OldFirePit(n) => state.write_msg_buff(firepit_msg(n)),
                 Tile::Portal => state.write_msg_buff("Where could this lead..."),
                 Tile::Shrine(stype) => {
                     match stype {
@@ -991,7 +1011,7 @@
                     }
                 },
                 _ => {
-                    if *start_tile == map::Tile::DeepWater { 
+                    if start_tile == map::Tile::DeepWater { 
                         state.write_msg_buff("Whew, you stumble ashore.");
                     } else if state.aura_sqs.contains(&next_loc) && !state.aura_sqs.contains(&start_loc) {
                         state.write_msg_buff("You feel a sense of peace.");
@@ -1030,11 +1050,11 @@
             }
 
             return 1.0;
-        } else if *tile == Tile::Door(DoorState::Closed) {
+        } else if tile == Tile::Door(DoorState::Closed) {
             // Bump to open doors. I might make this an option later
             do_open(state, next_loc);
             return 1.0;
-        } else if *tile == Tile::Gate(DoorState::Closed) || *tile == Tile::Gate(DoorState::Locked) {
+        } else if tile == Tile::Gate(DoorState::Closed) || tile == Tile::Gate(DoorState::Locked) {
             state.write_msg_buff("A portcullis bars your way.");    
         } else  {
             state.write_msg_buff("You cannot go that way.");
@@ -1139,6 +1159,7 @@
                     Tile::StairsDown => '>',
                     Tile::StairsUp => '<',
                     Tile::Gate(_) => '/',
+                    Tile::Rubble => ':',
                     _ => ' ',
                 };
             
