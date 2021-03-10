@@ -496,8 +496,66 @@ fn join_caves(sqs: &mut Vec<bool>, width: usize, height: usize) {
         }
     }
 
-    println!("# of caves: {}", caves.len());
+    // Fill in any small caves that are 3 squares or less
+    let mut largest = 0;
+    let mut largest_id = 0;
+    for j in 0..caves.len() {
+        if caves[j].len() > largest {
+            largest = caves[j].len();
+            largest_id = j;
+        }
+        if caves[j].len() <= 3 {
+            for sq in &caves[j] {
+                sqs[sq.0 as usize * width + sq.1 as usize] = false;
+            }
+        }
+    }
+    caves.retain(|c| c.len() > 3);
 
+    // Okay, now for each cave aside from the main one, find the sq nearest the main
+    // and draw a tunnel to it.
+    let mut main_cave: Vec<(i32, i32)> = caves[largest_id].iter().map(|s| *s).collect();
+    main_cave.sort();
+    let mut cave_ids = (0..caves.len()).collect::<Vec<usize>>();
+    cave_ids.retain(|v| *v != largest_id);
+
+    // Not super great in a Big-Oh sense but modern computers are fast and the grids I'm
+    // dealing with are pretty small.
+    if !cave_ids.is_empty() {
+        for id in cave_ids {
+            let mut closest_pt = (-1, -1);
+            let mut shortest_d = i32::MAX;
+            let mut start = (-1, -1);
+            for pt in caves[id].iter() {
+                let (best, d) = closest_point(pt, &main_cave);
+                if d < shortest_d {
+                    shortest_d = d;
+                    closest_pt = best;
+                    start = *pt;
+                }
+            }
+
+            println!("{:?} to {:?}", start, closest_pt);
+            let tunnel = find_cave_tunnel(sqs, start, closest_pt);
+            // For the tunnels, I want to carve out pts that have only diagonal movement between them
+            for j in 0..tunnel.len() - 1 {
+                let pt = tunnel[j];
+                sqs[pt.0 as usize * width + pt.1 as usize] = true;
+                let npt = tunnel[j + 1];
+                if pt.0 != npt.0 && pt.1 != npt.1 {
+                    let i = if pt.0 < npt.0 {
+                        (pt.0 + 1) as usize * width + pt.1 as usize                        
+                    } else {
+                        (pt.0 - 1) as usize * width + pt.1 as usize
+                    };
+
+                    sqs[i] = true;
+                }
+            }
+        }
+    }
+    
+    println!("# of caves: {}", caves.len());
     let mut m = vec![' '; height * width];
     for cave_id in 0..caves.len() {
         for sq in caves[cave_id].iter() {
@@ -514,6 +572,74 @@ fn join_caves(sqs: &mut Vec<bool>, width: usize, height: usize) {
         }
         println!("{}", s);
     }
+}
+
+// Here's a Bresenham Line function again. Once again, I wonder if it's worth it to 
+// consilidate my other instances of it into a shared function. Maybe not worth the
+// complication? (See for instance my beamcasting in FOV)
+fn find_cave_tunnel(sqs: &mut Vec<bool>, start: (i32, i32), end: (i32, i32)) -> Vec<(i32, i32)> {
+    let mut pts = Vec::new();
+    pts.push(start);
+    let mut r = start.0;
+	let mut c = start.1;
+	let mut error = 0;
+
+	let mut r_step = 1;
+	let mut delta_r = end.0 - r;
+	if delta_r < 0 {
+		delta_r = -delta_r;
+		r_step = -1;
+	} 
+
+	let mut c_step = 1;
+	let mut delta_c = end.1 - c;
+	if delta_c < 0 {
+		delta_c = -delta_c;
+		c_step = -1;
+	} 
+
+	if delta_c <= delta_r {
+		let criterion = delta_r / 2;
+		while r != end.0 + r_step {
+            pts.push((r, c));
+			
+			r += r_step;
+			error += delta_c;
+			if error > criterion {
+				error -= delta_r;
+				c += c_step;
+			}
+		} 	
+	} else {
+		let criterion = delta_c / 2;
+		while c != end.1 + c_step {
+			pts.push((r, c));
+			
+			c += c_step;
+			error += delta_r;
+			if error > criterion {
+				error -= delta_c;
+				r += r_step;
+			}
+		}
+	}
+
+    pts.push(end);
+    pts
+}
+
+fn closest_point(pt: &(i32, i32), cave: &Vec<(i32, i32)>) -> ((i32, i32), i32) {
+    let mut shortest = i32::MAX;
+    let mut nearest = *cave.iter().nth(0).unwrap();
+    for other_pt in cave.iter() {
+        let d = (pt.0 - other_pt.0) * (pt.0 - other_pt.0) + (pt.1 - other_pt.1) * (pt.1 - other_pt.1);
+        if d < shortest {
+            nearest = *other_pt;
+            shortest = d;
+        }
+    }
+
+    (nearest, shortest)
 }
 
 fn count_neighbours(sqs: &Vec<bool>, row: usize, col: usize, height: usize, width: usize) -> u8 {
@@ -534,7 +660,7 @@ fn count_neighbours(sqs: &Vec<bool>, row: usize, col: usize, height: usize, widt
 }
 
 fn cave_overlay(width: usize, height: usize) -> Vec<bool> {
-    // Cellular automata to make a cave system I can draw over part of the level on
+    // Classic ellular automata to make a cave system I can draw over part of a level
     let mut rng = rand::thread_rng();
     let mut sqs: Vec<bool> = (0..width * height).map(|_|  rng.gen_range(0.0, 1.0) < 0.45).collect();
     
@@ -588,8 +714,8 @@ fn build_dungeon(world_info: &mut WorldInfo, map: &mut Map, entrance: (i32, i32,
         let result = dungeon::draw_level(width, height);
         let level = result.0;
         
-        let sqs = cave_overlay(40, height);
-        //dump(sqs, 40, height);
+        let sqs = cave_overlay(80, height - 2);
+        dump(sqs, 80, height - 2);
 
         dungeon.push(level);
         floor_sqs.insert(n, HashSet::new());
