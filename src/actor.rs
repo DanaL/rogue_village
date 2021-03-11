@@ -37,11 +37,14 @@ use crate::util::StringUtils;
 use crate::fov;
 
 // Some bitmasks for various monster attributes
-pub const MA_OPEN_DOORS: u128       = 0b00000001;
-pub const MA_UNLOCK_DOORS: u128     = 0b00000010;
-pub const MA_WEAK_VENOMS: u128      = 0b00000100;
-pub const MA_PACK_TACTICS: u128     = 0b00001000;
-pub const MA_FEARLESS: u128         = 0b00010000;
+pub const MA_OPEN_DOORS: u128       = 0x00000001;
+pub const MA_UNLOCK_DOORS: u128     = 0x00000002;
+pub const MA_WEAK_VENOMS: u128      = 0x00000004;
+pub const MA_PACK_TACTICS: u128     = 0x00000008;
+pub const MA_FEARLESS: u128         = 0x00000010;
+pub const MA_UNDEAD: u128           = 0x00000020;
+pub const MA_RESIST_SLASH: u128     = 0x00000040;
+pub const MA_RESIST_PIERCE: u128    = 0x00000080;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum Venue {
@@ -86,6 +89,7 @@ pub enum Action {
 pub enum NPCMode {
     Villager,
     SimpleMonster,
+    BasicUndead,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -311,7 +315,7 @@ impl NPC {
             // Can I see the player? if so, become hostile            
             if d < 100 {
                 //let m_fov_time = Instant::now();
-                let visible = fov::calc_fov(state, loc, 10, true);
+                let visible = fov::calc_fov(state, loc, 12, true);
                 //let m_fov_elapsed = m_fov_time.elapsed();
                 //println!("Monster fov: {:?}", m_fov_elapsed);
             
@@ -338,6 +342,39 @@ impl NPC {
         }        
     }
 
+    // Mindless skeletons and zombies who wander the level until they see the player, then attack.
+    fn basic_undead_schedule(&mut self, state: &GameState, loc: (i32, i32, i8), player_loc: (i32, i32, i8)) {
+        let dr = loc.0 - player_loc.0;
+        let dc = loc.1 - player_loc.1;
+        let d = dr * dr + dc * dc;
+
+        if self.attitude != Attitude::Hostile {
+            let visible = fov::calc_fov(state, loc, 12, true);
+
+            if visible.contains(&player_loc) {
+                self.attitude = Attitude::Hostile;                
+            } else {
+                // pick a random nearby spot and move to it
+            }
+        }
+
+        if self.attitude == Attitude::Hostile {
+            if d <= 2 {
+                self.plan.push_front(Action::Attack(player_loc));
+            } else {
+                //let m_pf_time = Instant::now();
+                self.calc_plan_to_move(state, player_loc, true, loc);
+                // Since the player is probably moving, only keep the first 2 or 3 
+                // steps of the move plan
+                while self.plan.len() > 1 {
+                    self.plan.pop_back();
+                }
+                //let m_pf_elapsed = m_pf_time.elapsed();
+                //println!("Monster pf time: {:?}", m_pf_elapsed);
+            }
+        }
+    }
+
     fn check_schedule(&mut self, state: &GameState, loc: (i32, i32, i8), player_loc: (i32, i32, i8)) {
         // I feel like there HAS to be way a better way to do polymorphism/different behaviours in Rust. I
         // feel like Traits will be too much of a pain with the GameObjs and I couldn't really share code between the 
@@ -357,7 +394,7 @@ impl NPC {
     }
 
     pub fn take_turn(&mut self, my_id: usize, state: &mut GameState, game_objs: &mut GameObjects, loc: (i32, i32, i8)) {
-        if self.plan.len() == 0 {
+        if self.plan.is_empty() == 0 {
             let player_loc = game_objs.player_location();
             self.check_schedule(state, loc, player_loc);
         }
@@ -432,8 +469,10 @@ impl MonsterFactory {
             MA_OPEN_DOORS | MA_UNLOCK_DOORS | MA_PACK_TACTICS, 4));
         mf.table.insert(String::from("goblin"), (15, 7, 'o', display::GREEN, NPCMode::SimpleMonster, 4, 1, 6, 2, 1,
             MA_OPEN_DOORS | MA_UNLOCK_DOORS, 4));
-        mf.table.insert(String::from("zombie"), (12, 8, 'z', display::GREY, NPCMode::SimpleMonster, 4, 1, 6, 2, 1,
-            MA_OPEN_DOORS | MA_UNLOCK_DOORS | MA_FEARLESS, 5));
+        mf.table.insert(String::from("zombie"), (11, 8, 'z', display::GREY, NPCMode::BasicUndead, 4, 1, 6, 2, 1,
+            MA_OPEN_DOORS | MA_FEARLESS  | MA_UNDEAD, 5));
+        mf.table.insert(String::from("skeleton"), (12, 8, 's', display::WHITE, NPCMode::BasicUndead, 4, 1, 6, 2, 1,
+            MA_OPEN_DOORS | MA_FEARLESS  | MA_UNDEAD | MA_RESIST_PIERCE | MA_RESIST_SLASH, 6));
         mf
     }
 

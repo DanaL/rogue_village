@@ -483,9 +483,7 @@ impl Player {
 
     pub fn level_up(&mut self, state: &mut GameState) {
         self.level += 1;
-        let s = format!("Welcome to level {}!", self.level);
-
-        println!("?? {}", self.max_hp);
+        
         // Other stuff needs to happen like more hit points, etc
         let mut rng = rand::thread_rng();
         let mut hp_roll = rng.gen_range(1, self.hit_die + 1) as i8 + stat_to_mod(self.con);
@@ -494,7 +492,8 @@ impl Player {
         }
         self.max_hp += hp_roll as u8;
         self.add_hp(hp_roll as u8);
-        println!("?? {}", self.max_hp);
+        
+        let s = format!("Welcome to level {}!", self.level);
         state.write_msg_buff(&s);
     }
 }
