@@ -708,21 +708,33 @@ fn add_river_to_level(tiles: &mut Vec<Tile>, height: usize, width: usize, top:bo
 }
 
 fn build_dungeon(world_info: &mut WorldInfo, map: &mut Map, entrance: (i32, i32, i8), game_objs: &mut GameObjects, monster_fac: &MonsterFactory) {
+    let mut rng = rand::thread_rng();
     let width = 125;
     let height = 40;
     let mut floor_sqs = HashMap::new();
     let mut vaults = HashMap::new();
-    let max_level = 1;
+    let max_level = 5;
     let mut dungeon = Vec::new();
     for n in 0..max_level {
         let result = dungeon::draw_level(width, height);
         let mut level = result.0;
         
-        add_caves_to_level(&mut level, height, width);
-        connect_rooms(&mut level, height, width);
-        add_river_to_level(&mut level, height, width, true, Tile::UndergroundRiver);
-        add_river_to_level(&mut level, height, width, false, Tile::UndergroundRiver);
-
+        // A few of the levels will have caves and/or rivers
+        if rng.gen_range(0, 5) == 0 {
+            add_caves_to_level(&mut level, height, width);
+            connect_rooms(&mut level, height, width);
+            world_info.facts.push(Fact::new("caves".to_string(), 0, (0, 0, n as i8 + 1)));
+        }
+        if rng.gen_range(0, 10) == 0 {
+            // I should guarantee some means of crossing the river further up the dungeon
+            add_river_to_level(&mut level, height, width, true, Tile::UndergroundRiver);
+            if rng.gen_range(0, 3) == 0 {
+                add_river_to_level(&mut level, height, width, false, Tile::UndergroundRiver);
+            }
+            world_info.facts.push(Fact::new("river".to_string(), 0, (0, 0, n as i8 + 1)));
+        }
+        
+        // TODO: I should probably clean out vaults that are mostly destroyed by caves
         dungeon.push(level);
         floor_sqs.insert(n, HashSet::new());
         vaults.insert(n, result.1); // vaults are rooms with only one entrance, which are useful for setting puzzles        
