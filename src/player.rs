@@ -74,6 +74,7 @@ pub struct Player {
     pub energy_restore: f32,
     pub inventory: Vec<GameObject>,
     pub next_slot: char,
+    pub hit_die: u8,
 }
 
 impl Player {
@@ -131,7 +132,7 @@ impl Player {
         let mut p = Player {            
             object_id: 0, name: name.clone(), max_hp: (15 + stat_to_mod(stats[1])) as u8, curr_hp: (15 + stat_to_mod(stats[1])) as u8,
                 vision_radius: default_vision_radius, str: stats[0], con: stats[1], dex: stats[2], chr, apt, role: Role::Warrior, xp: 0, level: 1, max_depth: 0, 
-                ac: 10, purse: 20, readied_weapon: "".to_string(), energy: 1.0, energy_restore: 1.0, inventory: Vec::new(), next_slot: 'a',
+                ac: 10, purse: 20, readied_weapon: "".to_string(), energy: 1.0, energy_restore: 1.0, inventory: Vec::new(), next_slot: 'a', hit_die: 10,
         };
         
         // Warrior starting equipment
@@ -172,7 +173,7 @@ impl Player {
         let mut p = Player {            
             object_id: 0, name: name.clone(), max_hp: (12 + stat_to_mod(stats[2])) as u8, curr_hp: (12 + stat_to_mod(stats[2])) as u8,
                 vision_radius: default_vision_radius, str, con: stats[2], dex: stats[0], chr, apt: stats[1], role: Role::Rogue, xp: 0, level: 1, max_depth: 0, ac: 10, 
-                purse: 20, readied_weapon: "".to_string(), energy: 1.0, energy_restore: 1.25, inventory: Vec::new(), next_slot: 'a',
+                purse: 20, readied_weapon: "".to_string(), energy: 1.0, energy_restore: 1.25, inventory: Vec::new(), next_slot: 'a', hit_die: 8,
         };
 
         p.calc_ac();
@@ -484,8 +485,16 @@ impl Player {
         self.level += 1;
         let s = format!("Welcome to level {}!", self.level);
 
+        println!("?? {}", self.max_hp);
         // Other stuff needs to happen like more hit points, etc
-
+        let mut rng = rand::thread_rng();
+        let mut hp_roll = rng.gen_range(1, self.hit_die + 1) as i8 + stat_to_mod(self.con);
+        if hp_roll < 1 {
+            hp_roll = 1;
+        }
+        self.max_hp += hp_roll as u8;
+        self.add_hp(hp_roll as u8);
+        println!("?? {}", self.max_hp);
         state.write_msg_buff(&s);
     }
 }
