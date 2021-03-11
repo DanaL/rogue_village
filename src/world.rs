@@ -682,6 +682,7 @@ fn add_river_to_level(tiles: &mut Vec<Tile>, height: usize, width: usize, top:bo
     }
     river.dedup();
     
+    let mut pts_drawn = Vec::new();
     for pt in river.iter() {
         if pt.0 < 1 || pt.0 > height as i32 - 2 || pt.1 < 1 || pt.1 > width as i32 - 2 {
             break;
@@ -691,8 +692,19 @@ fn add_river_to_level(tiles: &mut Vec<Tile>, height: usize, width: usize, top:bo
             break;
         }
         tiles[i] = tile;
-        tiles[i + 1] = tile;        
-    }    
+        pts_drawn.push(i);     
+    }
+
+    // now fatten up the river and maybe add river banks
+    for pt in pts_drawn {
+        tiles[pt + 1] = Tile::UndergroundRiver;
+        if pt - 1 > 2 && tiles[pt - 1] != Tile::UndergroundRiver && rng.gen_range(0.0, 1.0) < 0.75 {
+            tiles[pt - 1] = Tile::StoneFloor;
+        }
+        if pt + 2 < width - 3 && tiles[pt + 2] != Tile::UndergroundRiver && rng.gen_range(0.0, 1.0) < 0.75 {
+            tiles[pt + 2] = Tile::StoneFloor;
+        }
+    }
 }
 
 fn build_dungeon(world_info: &mut WorldInfo, map: &mut Map, entrance: (i32, i32, i8), game_objs: &mut GameObjects, monster_fac: &MonsterFactory) {
@@ -706,7 +718,7 @@ fn build_dungeon(world_info: &mut WorldInfo, map: &mut Map, entrance: (i32, i32,
         let result = dungeon::draw_level(width, height);
         let mut level = result.0;
         
-        //add_caves_to_level(&mut level, height, width);
+        add_caves_to_level(&mut level, height, width);
         connect_rooms(&mut level, height, width);
         add_river_to_level(&mut level, height, width, true, Tile::UndergroundRiver);
         add_river_to_level(&mut level, height, width, false, Tile::UndergroundRiver);
