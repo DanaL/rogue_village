@@ -78,6 +78,7 @@ pub enum Tile {
 	Trigger,
 	TeleportTrap,
 	Rubble,
+	UndergroundRiver,
 }
 
 impl Tile {
@@ -91,7 +92,8 @@ impl Tile {
 		!matches!(self,
 			Tile::Wall | Tile::Blank | Tile::WorldEdge |
 			Tile::Mountain | Tile::SnowPeak | Tile::Gate(DoorState::Closed) | Tile::Gate(DoorState::Locked) |
-			Tile::Door(DoorState::Closed) | Tile::Door(DoorState::Locked) | Tile::WoodWall | Tile::Window(_))
+			Tile::Door(DoorState::Closed) | Tile::Door(DoorState::Locked) | Tile::WoodWall | Tile::Window(_) |
+			Tile::UndergroundRiver)
 	}
 
 	pub fn passable_dry_land(&self) -> bool {
@@ -99,7 +101,7 @@ impl Tile {
 			Tile::Wall | Tile::Blank | Tile::WorldEdge |
 			Tile::Mountain | Tile::SnowPeak | Tile::Gate(DoorState::Closed) | Tile::Gate(DoorState::Locked) | 
 			Tile::Door(DoorState::Closed) | Tile::Door(DoorState::Locked) | Tile::WoodWall | Tile::Window(_) | 
-			Tile::DeepWater)
+			Tile::DeepWater | Tile::UndergroundRiver)
 	}
 
 	pub fn indoors(&self) -> bool {

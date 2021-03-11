@@ -57,7 +57,6 @@ pub fn ds_find(ds: &mut Vec<i32>, x: i32) -> i32 {
 // Bresenham functions straight out of my old scientific computing textbook
 pub fn bresenham(r0: i32, c0: i32, r1: i32, c1: i32) -> Vec<(i32, i32)> {
 	let mut pts = Vec::new();
-	pts.push((r0, c0));
 	let mut error = 0;
 	let mut r = r0;
 	let mut c = c0;
@@ -102,7 +101,6 @@ pub fn bresenham(r0: i32, c0: i32, r1: i32, c1: i32) -> Vec<(i32, i32)> {
 		}
 	}
 
-	pts.push((r1, c1));
 	pts
 }
 

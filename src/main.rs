@@ -1160,6 +1160,7 @@
                     Tile::StairsUp => '<',
                     Tile::Gate(_) => '/',
                     Tile::Rubble => ':',
+                    Tile::UndergroundRiver => '~',
                     _ => ' ',
                 };
             

@@ -831,28 +831,14 @@ fn sq_info_for_tile(tile: &map::Tile, lit: bool) -> (char, sdl2::pixels::Color) 
 				('=', tuple_to_sdl2_color(&DARK_GREY))
 			}
 		},
-		map::Tile::Door(DoorState::Closed) => {
+		map::Tile::Door(DoorState::Closed) | map::Tile::Door(DoorState::Locked) => {
 			if lit {
 				('+', tuple_to_sdl2_color(&LIGHT_BROWN))
 			} else {
 				('+', tuple_to_sdl2_color(&BROWN))
 			}
-		},
-		map::Tile::Door(DoorState::Locked) => {
-			if lit {
-				('+', tuple_to_sdl2_color(&LIGHT_BROWN))
-			} else {
-				('+', tuple_to_sdl2_color(&BROWN))
-			}
-		},
-		map::Tile::Door(DoorState::Open) => {
-			if lit {
-				('/', tuple_to_sdl2_color(&LIGHT_BROWN))
-			} else {
-				('/', tuple_to_sdl2_color(&BROWN))
-			}
-		},
-		map::Tile::Door(DoorState::Broken) => {
+		},				
+		map::Tile::Door(DoorState::Open) | map::Tile::Door(DoorState::Broken) => {
 			if lit {
 				('/', tuple_to_sdl2_color(&LIGHT_BROWN))
 			} else {
@@ -875,7 +861,7 @@ fn sq_info_for_tile(tile: &map::Tile, lit: bool) -> (char, sdl2::pixels::Color) 
 				('}', tuple_to_sdl2_color(&BLUE))
 			}
 		},
-		map::Tile::DeepWater => {
+		map::Tile::DeepWater | map::Tile::UndergroundRiver => {
 			if lit {
 				('}', tuple_to_sdl2_color(&BLUE))
 			} else {
@@ -919,28 +905,14 @@ fn sq_info_for_tile(tile: &map::Tile, lit: bool) -> (char, sdl2::pixels::Color) 
 				('{', tuple_to_sdl2_color(&DULL_RED))
 			}
 		},
-		map::Tile::Gate(DoorState::Closed) => { 
+		map::Tile::Gate(DoorState::Closed) | map::Tile::Gate(DoorState::Locked) => { 
 			if lit { 
 				('#', tuple_to_sdl2_color(&LIGHT_BLUE)) 
 			} else {
 				('#', tuple_to_sdl2_color(&LIGHT_GREY))
 			}
 		},
-		map::Tile::Gate(DoorState::Locked) => { 
-			if lit { 
-				('#', tuple_to_sdl2_color(&LIGHT_BLUE)) 
-			} else {
-				('#', tuple_to_sdl2_color(&LIGHT_GREY))
-			}
-		},
-		map::Tile::Gate(DoorState::Open) => { 
-			if lit { 
-				('/', tuple_to_sdl2_color(&LIGHT_BLUE)) 
-			} else {
-				('/', tuple_to_sdl2_color(&LIGHT_GREY))
-			}
-		},
-		map::Tile::Gate(DoorState::Broken) => { 
+		map::Tile::Gate(DoorState::Open) | map::Tile::Gate(DoorState::Broken) => { 
 			if lit { 
 				('/', tuple_to_sdl2_color(&LIGHT_BLUE)) 
 			} else {

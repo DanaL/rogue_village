@@ -640,6 +640,61 @@ fn add_caves_to_level(tiles: &mut Vec<Tile>, height: usize, width: usize) {
     }
 }
 
+fn next_row(row: i32, distance: i32, slope: f32) -> i32 {
+    let next = row as f32 + (distance as f32 * slope) / f32::sqrt(1.0 + slope * slope);
+
+    f32::round(next) as i32
+}
+
+fn next_col(col: i32, distance: i32, slope: f32) -> i32 {
+    let next = col as f32 + distance as f32 / (f32::sqrt(1.0 + slope * slope));
+
+    f32::round(next) as i32
+}
+
+fn add_river_to_level(tiles: &mut Vec<Tile>, height: usize, width: usize, top:bool, tile: Tile) {
+    // Let's say the 4 outer walls of the level are split and the river and start in any of them, so there are 6
+    // different possibilities for start position and slope
+    let mut rng = rand::thread_rng();
+    
+    let (mut row, mut col, mut slope) = if  top {
+        let col = rng.gen_range(5, width / 2) as i32;
+        (1, col, 1.0)
+    } else {
+        let col = rng.gen_range(width / 4 , width - width / 4) as i32;
+        (height as i32 - 2, col, -1.0)
+    };
+
+    // So keep drawing short line segments and tweaking the slope a bit until we hit another border
+    let mut river: Vec<(i32, i32)> = Vec::new();
+    loop {
+        let length = rng.gen_range(2, 5);
+        let next_r = next_row(row, length, slope);
+        let next_c = next_col(col, length, slope);
+        let mut pts = util::bresenham(row, col, next_r, next_c);
+        river.append(&mut pts);
+        row = next_r;
+        col = next_c;
+        slope += rng.gen_range(-0.33, 0.33);
+        if next_r < 1 || next_r > height as i32 - 2 || next_c < 1 || next_c > width as i32 - 2 {
+            break;
+        }
+    }
+    river.dedup();
+    
+    for pt in river.iter() {
+        if pt.0 < 1 || pt.0 > height as i32 - 2 || pt.1 < 1 || pt.1 > width as i32 - 2 {
+            break;
+        }
+        let i = pt.0 as usize * width + pt.1 as usize;
+        if tiles[i] == Tile::UndergroundRiver {
+            break;
+        }
+        tiles[i] = tile;
+        tiles[i + 1] = tile;        
+    }    
+}
+
 fn build_dungeon(world_info: &mut WorldInfo, map: &mut Map, entrance: (i32, i32, i8), game_objs: &mut GameObjects, monster_fac: &MonsterFactory) {
     let width = 125;
     let height = 40;
@@ -651,8 +706,10 @@ fn build_dungeon(world_info: &mut WorldInfo, map: &mut Map, entrance: (i32, i32,
         let result = dungeon::draw_level(width, height);
         let mut level = result.0;
         
-        add_caves_to_level(&mut level, height, width);
+        //add_caves_to_level(&mut level, height, width);
         connect_rooms(&mut level, height, width);
+        add_river_to_level(&mut level, height, width, true, Tile::UndergroundRiver);
+        add_river_to_level(&mut level, height, width, false, Tile::UndergroundRiver);
 
         dungeon.push(level);
         floor_sqs.insert(n, HashSet::new());
