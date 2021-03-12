@@ -394,7 +394,7 @@ impl NPC {
     }
 
     pub fn take_turn(&mut self, my_id: usize, state: &mut GameState, game_objs: &mut GameObjects, loc: (i32, i32, i8)) {
-        if self.plan.is_empty() == 0 {
+        if self.plan.is_empty() {
             let player_loc = game_objs.player_location();
             self.check_schedule(state, loc, player_loc);
         }
