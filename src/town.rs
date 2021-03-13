@@ -316,7 +316,7 @@ fn draw_paths_in_town(map: &mut Map, world_info: &WorldInfo) {
     let j = rng.gen_range(0, world_info.town_square.len());
     let centre = world_info.town_square.iter().nth(j).unwrap();
     for door in doors {
-        let path = pathfinding::find_path(map, false, door.0, door.1, 0, centre.0, centre.1, 150, &passable);
+        let path = pathfinding::find_path(map, None, false, door.0, door.1, 0, centre.0, centre.1, 150, &passable);
         if !path.is_empty() {
             for sq in path {
                 let loc = (sq.0, sq.1, 0);

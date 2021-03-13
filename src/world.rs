@@ -188,7 +188,7 @@ fn add_old_road(map: &mut Map, start: (i32, i32, i8)) {
         
         if !map.contains_key(&(row, col, 0)) || !map[&(row, col, 0)].passable() { continue; }
         
-        let path = pathfinding::find_path(map, false, start.0, start.1, 0, row, col, 40, &passable);
+        let path = pathfinding::find_path(map, None, false, start.0, start.1, 0, row, col, 40, &passable);
         let mut draw_sq = 1.0;
         if !path.is_empty() {
             for sq in path {

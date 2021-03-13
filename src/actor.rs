@@ -147,7 +147,7 @@ impl NPC {
     // I should be able to move calc_plan_to_move, try_to_move_to_loc, etc to generic
     // places for all Villager types since they'll be pretty same-y. The differences
     // will be in how NPCs set their plans/schedules. 
-    fn calc_plan_to_move(&mut self, state: &GameState, goal: (i32, i32, i8), stop_before: bool, my_loc: (i32, i32, i8)) {
+    fn calc_plan_to_move(&mut self, state: &GameState, game_objs: &GameObjects, goal: (i32, i32, i8), stop_before: bool, my_loc: (i32, i32, i8)) {
         if self.plan.len() == 0 {
             let mut passable = HashMap::new();
             passable.insert(Tile::Grass, 1.0);
@@ -168,7 +168,7 @@ impl NPC {
             passable.insert(Tile::Trigger, 1.0);
             passable.insert(Tile::Rubble, 1.50);
 
-            let mut path = find_path(&state.map, stop_before, my_loc.0, my_loc.1, 
+            let mut path = find_path(&state.map, Some(game_objs), stop_before, my_loc.0, my_loc.1, 
                 my_loc.2, goal.0, goal.1, 50, &passable);
             
             path.pop(); // first square in path is the start location
@@ -275,7 +275,7 @@ impl NPC {
             Venue::Tavern => {
                 let tavern = &state.world_info.town_buildings.as_ref().unwrap().tavern;
                 if !in_location(state, loc, &tavern, true) {
-                    self.go_to_place(state, tavern, loc);
+                    self.go_to_place(state, game_objs, tavern, loc);
                 } else {
                     self.random_adj_sq(state, game_objs, loc);
                 }
@@ -283,7 +283,7 @@ impl NPC {
             Venue::TownSquare => {
                 let ts = &state.world_info.town_square;
                 if !in_location(state, loc, ts, false) {
-                    self.go_to_place(state, ts, loc);
+                    self.go_to_place(state, game_objs, ts, loc);
                 } else {
                     self.random_adj_sq(state, game_objs, loc);
                 }
@@ -308,7 +308,7 @@ impl NPC {
             // The default behaviour is to go home if nothing on the agenda.
             let b = &state.world_info.town_buildings.as_ref().unwrap();
             if !in_location(state, my_loc, &b.homes[self.home_id], true) {
-                self.go_to_place(state, &b.homes[self.home_id], my_loc);
+                self.go_to_place(state, game_objs, &b.homes[self.home_id], my_loc);
             } else {
                 self.random_adj_sq(state, game_objs, my_loc);
             }
@@ -320,10 +320,10 @@ impl NPC {
 
     // Generally, when I have an NPC go a building/place, I assume it doesn't matter too much if 
     // they go to specific square inside it, so just pick any one of them.
-    fn go_to_place(&mut self, state: &GameState, sqs: &HashSet<(i32, i32, i8)>, my_loc: (i32, i32, i8)) {
+    fn go_to_place(&mut self, state: &GameState, game_objs: &GameObjects, sqs: &HashSet<(i32, i32, i8)>, my_loc: (i32, i32, i8)) {
         let j = thread_rng().gen_range(0, &sqs.len());
         let goal_loc = &sqs.iter().nth(j).unwrap().clone(); // Clone prevents a compiler warning...
-        self.calc_plan_to_move(state, *goal_loc, false, my_loc);
+        self.calc_plan_to_move(state, game_objs, *goal_loc, false, my_loc);
     }
 
     fn random_adj_sq(&mut self, state: &GameState , game_objs: &GameObjects, loc: (i32, i32, i8)) {
@@ -332,7 +332,7 @@ impl NPC {
             let d = util::ADJ[j];
             let adj = (loc.0 + d.0, loc.1 + d.1, loc.2);
             if !game_objs.blocking_obj_at(&adj) && state.map[&adj].passable_dry_land() {
-                self.calc_plan_to_move(state, adj, false, loc);
+                self.calc_plan_to_move(state, game_objs, adj, false, loc);
             }
         }
     }
@@ -391,10 +391,10 @@ impl NPC {
         if in_range {
             self.plan.push_front(Action::Attack(player_loc));
         } else if self.can_see_player(state, game_objs, my_loc, player_loc) {
-            self.calc_plan_to_move(state, player_loc, true, my_loc);
+            self.calc_plan_to_move(state, game_objs, player_loc, true, my_loc);
         } else {
             let guess = self.best_guess_toward_player(state, my_loc, player_loc);
-            self.calc_plan_to_move(state, guess, true, my_loc);
+            self.calc_plan_to_move(state, game_objs, guess, true, my_loc);
         }
 
         self.follow_plan(my_id, state, game_objs, my_loc);        
@@ -420,7 +420,7 @@ impl NPC {
                 let c = rng.gen_range(-10, 11);
                 let n = (my_loc.0 + r, my_loc.1 + c, my_loc.2);
                 if state.map.contains_key(&n) && state.map[&n].passable_dry_land() {
-                    self.calc_plan_to_move(state, n, false, my_loc);
+                    self.calc_plan_to_move(state, game_objs, n, false, my_loc);
                 }
             }
         }

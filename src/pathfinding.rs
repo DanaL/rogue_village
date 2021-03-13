@@ -19,6 +19,7 @@ use std::collections::HashSet;
 use std::cmp::Ordering;
 
 use super::Map;
+use crate::game_obj::GameObjects;
 use crate::map;
 use crate::util;
 
@@ -129,8 +130,8 @@ fn backtrace_path(goal_r: i32, goal_c: i32, parents: &HashMap<(i32, i32), (i32, 
 // This is based straight-up on the algorithm description on Wikipedia.
 // For now, I'm limiting pathfinding to being on the same level
 fn astar(
-		map: &Map, stop_before: bool, start_r: i32, start_c: i32, level: i8,
-		end_r: i32, end_c: i32, max_distance: i32,
+		map: &Map, game_objs: Option<&GameObjects>, stop_before: bool, start_r: i32, start_c: i32, 
+		level: i8, end_r: i32, end_c: i32, max_distance: i32,
 		passable_tiles: &HashMap<map::Tile, f64>) -> Vec<(i32, i32)> {
 	let mut queue = BinaryHeap::new();
 	let mut in_queue = HashSet::new();
@@ -156,11 +157,18 @@ fn astar(
 			let nc = curr.1 + adj.1;
 			if !map.contains_key(&(nr, nc, level)) { continue; }
 
+			if (nr, nc) != (start_r, start_c) {
+				if let Some(go) = game_objs {
+					if go.blocking_obj_at(&(nr, nc, level)) {
+						continue;
+					}
+				}
+			}
+
 			let n_loc = (nr, nc);
 			let tile = map[&(n_loc.0, n_loc.1, level)];
 			if !passable_by_me(&tile, passable_tiles) { continue; }
-			//if n_loc != goal && !super::sq_is_open(state, n_loc.0, n_loc.1) { continue; }
-
+			
 			let tentative_score = *g_scores.get(&curr).unwrap() + 1;
 			let mut g = std::u32::MAX;
 			if g_scores.contains_key(&n_loc) {
@@ -198,7 +206,8 @@ pub fn passable_by_me(tile: &map::Tile, valid: &HashMap<map::Tile, f64>) -> bool
 }
 
 pub fn find_path(
-		map: &Map, stop_before: bool /* stop one square before the target*/,
+		map: &Map, game_objs: Option<&GameObjects>,
+		stop_before: bool /* stop one square before the target*/,
 		start_r: i32, start_c: i32, level: i8,
 		end_r: i32, end_c: i32, max_distance: i32,
 		passable_tiles: &HashMap<map::Tile, f64>) -> Vec<(i32, i32)> {
@@ -224,5 +233,5 @@ pub fn find_path(
 	// 	goal_c = res.1;
 	// }
 
-	astar(map, stop_before, start_r, start_c, level, goal_r, goal_c, max_distance, passable_tiles)
+	astar(map, game_objs, stop_before, start_r, start_c, level, goal_r, goal_c, max_distance, passable_tiles)
 }
