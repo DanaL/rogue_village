@@ -272,6 +272,11 @@ fn place_town_buildings(map: &mut Map, start_r: usize, start_c: usize,
 
     // Every once in a blue moon, this crashes the game because there seem to be no available lots, so something to fix eventually
     for _ in 0..6 {
+        if available_lots.is_empty() {
+            println!("No lot for the building");
+            break;
+        }
+        
         let loc = available_lots.iter().choose(&mut rng).unwrap().clone();
         available_lots.remove(&loc);
         if rng.gen_range(0.0, 1.0) < 0.5 {
