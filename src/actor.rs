@@ -270,31 +270,31 @@ impl NPC {
     //     }        
     // }
 
-    fn check_agenda_item(&mut self, state: &GameState, item: &AgendaItem, loc: (i32, i32, i8)) {        
-        // match item.place {
-        //     Venue::Tavern => {
-        //         let tavern = &state.world_info.town_buildings.as_ref().unwrap().tavern;
-        //         if !in_location(state, loc, &tavern, true) {
-        //             self.go_to_place(state, tavern, loc);
-        //         } else {
-        //             self.idle_behaviour(state, loc);
-        //         }
-        //     },
-        //     Venue::TownSquare => {
-        //         let ts = &state.world_info.town_square;
-        //         if !in_location(state, loc, ts, false) {
-        //             self.go_to_place(state, ts, loc);
-        //         } else {
-        //             self.idle_behaviour(state, loc);
-        //         }
-        //     },
-        //     _ => {
-        //         // Eventually I'll implement the other venues...
-        //     },
-        // }
+    fn check_agenda_item(&mut self, state: &GameState, game_objs: &GameObjects, item: &AgendaItem, loc: (i32, i32, i8)) {        
+        match item.place {
+            Venue::Tavern => {
+                let tavern = &state.world_info.town_buildings.as_ref().unwrap().tavern;
+                if !in_location(state, loc, &tavern, true) {
+                    self.go_to_place(state, tavern, loc);
+                } else {
+                    self.random_adj_sq(state, game_objs, loc);
+                }
+            },
+            Venue::TownSquare => {
+                let ts = &state.world_info.town_square;
+                if !in_location(state, loc, ts, false) {
+                    self.go_to_place(state, ts, loc);
+                } else {
+                    self.random_adj_sq(state, game_objs, loc);
+                }
+            },
+            _ => {
+                // Eventually I'll implement the other venues...
+            },
+        }
     }
 
-    fn villager_schedule(&mut self, state: &GameState, loc: (i32, i32, i8)) {
+    fn villager_schedule(&mut self, state: &GameState, game_objs: &GameObjects, my_loc: (i32, i32, i8)) {
         let ct = state.curr_time();
         let minutes = ct.0 * 60 + ct.1;
         
@@ -307,25 +307,15 @@ impl NPC {
         if items.len() == 0 {
             // The default behaviour is to go home if nothing on the agenda.
             let b = &state.world_info.town_buildings.as_ref().unwrap();
-            if !in_location(state, loc, &b.homes[self.home_id], true) {
-                self.go_to_place(state, &b.homes[self.home_id], loc);
+            if !in_location(state, my_loc, &b.homes[self.home_id], true) {
+                self.go_to_place(state, &b.homes[self.home_id], my_loc);
             } else {
-                //self.idle_behaviour(state, loc);
+                self.random_adj_sq(state, game_objs, my_loc);
             }
         } else {
             let item = &items[0].clone();
-            self.check_agenda_item(state, item, loc);
+            self.check_agenda_item(state, game_objs, item, my_loc);
         }
-    }
-
-    fn check_schedule(&mut self, state: &GameState, loc: (i32, i32, i8), player_loc: (i32, i32, i8)) {
-        // I feel like there HAS to be way a better way to do polymorphism/different behaviours in Rust. I
-        // feel like Traits will be too much of a pain with the GameObjs and I couldn't really share code between the 
-        // NPC types. Unless I make them floating functions and have no private fields?
-        
-        // if let self.mode = NPCPersonality::Villager {
-        //     self.villager_schedule(state, loc);
-        // } 
     }
 
     // Generally, when I have an NPC go a building/place, I assume it doesn't matter too much if 
@@ -336,7 +326,7 @@ impl NPC {
         self.calc_plan_to_move(state, *goal_loc, false, my_loc);
     }
 
-    fn random_adj_sq(&mut self, game_objs: &GameObjects, state: &GameState, loc: (i32, i32, i8)) {
+    fn random_adj_sq(&mut self, state: &GameState , game_objs: &GameObjects, loc: (i32, i32, i8)) {
         if thread_rng().gen_range(0.0, 1.0) < 0.33 {
             let j = thread_rng().gen_range(0, util::ADJ.len()) as usize;
             let d = util::ADJ[j];
@@ -450,11 +440,11 @@ impl NPC {
         }
 
         // just pick a random adjacent square
-        self.random_adj_sq(game_objs, state, my_loc);
+        self.random_adj_sq(state, game_objs, my_loc);
         self.follow_plan(my_id, state, game_objs, my_loc);
     }
 
-    pub fn take_turn(&mut self, my_id: usize, state: &mut GameState, game_objs: &mut GameObjects, loc: (i32, i32, i8)) {
+    pub fn take_turn(&mut self, my_id: usize, state: &mut GameState, game_objs: &mut GameObjects, my_loc: (i32, i32, i8)) {
         let curr_behaviour = if self.active {
             self.active_behaviour
         } else {
@@ -463,21 +453,21 @@ impl NPC {
 
         match curr_behaviour {
             Behaviour::Hunt => {
-                self.hunt_player(my_id, state, game_objs, loc);
+                self.hunt_player(my_id, state, game_objs, my_loc);
             },
             Behaviour::Wander => {
-                self.wander(my_id, state, game_objs, loc);
+                self.wander(my_id, state, game_objs, my_loc);
             },
             Behaviour::Idle => {
-                self.idle_monster(my_id, state, game_objs, loc);
+                if self.mode == NPCPersonality::Villager {
+                    self.villager_schedule(state, game_objs, my_loc);
+                    self.follow_plan(my_id, state, game_objs, my_loc);
+                } else {
+                    self.idle_monster(my_id, state, game_objs, my_loc);
+                }
             },
             Behaviour::Guard(_) | Behaviour:: Defend(_) => panic!("These are not implemented yet!"),
-        }
-
-        if self.plan.is_empty() {
-            let player_loc = game_objs.player_location();
-            self.check_schedule(state, loc, player_loc);
-        }        
+        }   
     }
 
     pub fn talk_to(&mut self, state: &mut GameState, dialogue: &DialogueLibrary, my_loc: (i32, i32, i8)) -> String {
