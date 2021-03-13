@@ -206,6 +206,10 @@ impl GameObjects {
     pub fn blocking_obj_at(&self, loc: &(i32, i32, i8)) -> bool {
         if self.obj_locs.contains_key(&loc) && !self.obj_locs[&loc].is_empty() {
             for obj_id in self.obj_locs[&loc].iter() {
+                if !self.objects.contains_key(obj_id) {
+                    let s = format!("Should find obj_id {}!", obj_id);
+                    panic!(s);
+                }
                 if self.objects[&obj_id].blocks() {
                     return true;
                 }
@@ -356,7 +360,11 @@ impl GameObjects {
             // function for the NPC. (For things like check if squares they want to move to are occupied, etc).
             // But the simplest way to do that I could think of is to remove the NPC GameObject from objects
             // so that there isn't a mutual borrow situation going on. But we gotta remember to re-add it after
-            // the NPC's turn is over. (Of course if the die or something we don't have to).
+            // the NPC's turn is over. (Of course if the diey or something we don't have to).
+            
+            // NB: I attempted to convert this mess to the objects table holding Rc<RefCell<GameObject>> so that I
+            // could multiple ownership and it was a bit of a disaster, but maybe something to try again another time...
+            
             // I'm not going to remove them from listeners or obj_locs tables, although we'll have to check if their 
             // position changed after their turn.
             let mut actor = self.objects.remove(&actor_id).unwrap();

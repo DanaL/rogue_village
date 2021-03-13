@@ -24,7 +24,7 @@ use serde::{Serialize, Deserialize};
 
 use super::{EventType, GameObjects, GameState};
 
-use crate::battle;
+use crate::{battle, player};
 use crate::dialogue;
 use crate::dialogue::DialogueLibrary;
 use crate::display;
@@ -85,8 +85,8 @@ pub enum Action {
     Attack((i32, i32, i8)),
 }
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
-pub enum NPCMode {
+#[derive(Clone, Copy, Eq, PartialEq, Debug, Serialize, Deserialize)]
+pub enum NPCPersonality {
     Villager,
     SimpleMonster,
     BasicUndead,
@@ -113,7 +113,7 @@ pub struct NPC {
     pub plan: VecDeque<Action>,
     pub voice: String,
     pub schedule: Vec<AgendaItem>,
-    pub mode: NPCMode,
+    pub mode: NPCPersonality,
     pub attack_mod: u8,
     pub dmg_dice: u8,
     pub dmg_die: u8,
@@ -124,6 +124,7 @@ pub struct NPC {
     pub alive: bool, // as in function, HPs > 0, not indication of undead status
     pub xp_value: u32,
     pub inventory: Vec<GameObject>,
+    pub active: bool,
     pub active_behaviour: Behaviour,
     pub inactive_behaviour: Behaviour,
 }
@@ -132,9 +133,9 @@ impl NPC {
     pub fn villager(name: String, location: (i32, i32, i8), home_id: usize, voice: &str, game_objs: &mut GameObjects) -> GameObject {      
         let npc_name = name.clone();  
         let npc = NPC { name, ac: 10, curr_hp: 8, max_hp: 8, attitude: Attitude::Stranger, facts_known: Vec::new(), home_id, plan: VecDeque::new(), 
-            voice: String::from(voice), schedule: Vec::new(), mode: NPCMode::Villager, attack_mod: 2, dmg_dice: 1, dmg_die: 3, dmg_bonus: 0, edc: 12,
+            voice: String::from(voice), schedule: Vec::new(), mode: NPCPersonality::Villager, attack_mod: 2, dmg_dice: 1, dmg_die: 3, dmg_bonus: 0, edc: 12,
             attributes: MA_OPEN_DOORS | MA_UNLOCK_DOORS, curr_loc: (-1, -1, -1), alive: true, xp_value: 0, inventory: Vec::new(),
-            active_behaviour: Behaviour::Idle, inactive_behaviour: Behaviour::Idle,
+            active: true, active_behaviour: Behaviour::Idle, inactive_behaviour: Behaviour::Idle,
         };
 
         let obj = GameObject::new(game_objs.next_id(), &npc_name, location, '@', display::LIGHT_GREY, display::LIGHT_GREY, 
@@ -177,17 +178,28 @@ impl NPC {
         }
     }
 
-    fn try_to_move_to_loc(&mut self, goal_loc: (i32, i32, i8), state: &mut GameState, game_objs: &mut GameObjects, my_loc: (i32, i32, i8)) {        
+    fn try_to_move_to_loc(&mut self, goal_loc: (i32, i32, i8), state: &mut GameState, game_objs: &mut GameObjects, my_loc: (i32, i32, i8)) {
+        if goal_loc == my_loc {
+            println!("Hmm I'm trying to move to my own location...");
+        }   
         if game_objs.blocking_obj_at(&goal_loc) {
-            state.write_msg_buff("\"Excuse me.\"");
-            self.plan.push_front(Action::Move(goal_loc));
+            match self.mode {
+                NPCPersonality::Villager => {
+                    state.write_msg_buff("\"Excuse me.\"");
+                    self.plan.push_front(Action::Move(goal_loc));
+                }
+                _ => {
+                    // if someone/something is blocking path, clear the current plan which should trigger creating a new plan
+                    self.plan.clear();
+                }
+            }
+            
         } else if state.map[&goal_loc] == Tile::Door(DoorState::Closed) {
             self.plan.push_front(Action::Move(goal_loc));
             self.open_door(goal_loc, state);
         } else {
-            // Villagers will close doors after they pass through them, although monsters in the dungeon 
-            // shouldn't for the most part.
-            if !(self.attitude == Attitude::Hostile || self.attitude == Attitude::Fleeing) {
+            // Villagers will close doors after they pass through them
+            if self.mode == NPCPersonality::Villager {
                 if let Tile::Door(DoorState::Open) = state.map[&my_loc] {
                     self.plan.push_front(Action::CloseDoor(my_loc));                
                 }
@@ -257,41 +269,28 @@ impl NPC {
     //     }        
     // }
 
-    fn idle_behaviour(&mut self, state: &GameState, loc: (i32, i32, i8)) {
-        // If the NPC doesn't need to move anywhere, just pick an adjacent square to step to sometimes.
-        // (Maybe eventually if they are adjacent to another NPC, have them make small talk?)
-        if thread_rng().gen_range(0.0, 1.0) < 0.33 {
-            let j = thread_rng().gen_range(0, util::ADJ.len()) as usize;
-            let d = util::ADJ[j];
-            let adj = (loc.0 + d.0, loc.1 + d.1, loc.2);
-            if state.map[&adj].passable_dry_land() {
-                self.calc_plan_to_move(state, adj, false, loc);
-            }
-        }
-    }
-
     fn check_agenda_item(&mut self, state: &GameState, item: &AgendaItem, loc: (i32, i32, i8)) {        
-        match item.place {
-            Venue::Tavern => {
-                let tavern = &state.world_info.town_buildings.as_ref().unwrap().tavern;
-                if !in_location(state, loc, &tavern, true) {
-                    self.go_to_place(state, tavern, loc);
-                } else {
-                    self.idle_behaviour(state, loc);
-                }
-            },
-            Venue::TownSquare => {
-                let ts = &state.world_info.town_square;
-                if !in_location(state, loc, ts, false) {
-                    self.go_to_place(state, ts, loc);
-                } else {
-                    self.idle_behaviour(state, loc);
-                }
-            },
-            _ => {
-                // Eventually I'll implement the other venues...
-            },
-        }
+        // match item.place {
+        //     Venue::Tavern => {
+        //         let tavern = &state.world_info.town_buildings.as_ref().unwrap().tavern;
+        //         if !in_location(state, loc, &tavern, true) {
+        //             self.go_to_place(state, tavern, loc);
+        //         } else {
+        //             self.idle_behaviour(state, loc);
+        //         }
+        //     },
+        //     Venue::TownSquare => {
+        //         let ts = &state.world_info.town_square;
+        //         if !in_location(state, loc, ts, false) {
+        //             self.go_to_place(state, ts, loc);
+        //         } else {
+        //             self.idle_behaviour(state, loc);
+        //         }
+        //     },
+        //     _ => {
+        //         // Eventually I'll implement the other venues...
+        //     },
+        // }
     }
 
     fn villager_schedule(&mut self, state: &GameState, loc: (i32, i32, i8)) {
@@ -310,7 +309,7 @@ impl NPC {
             if !in_location(state, loc, &b.homes[self.home_id], true) {
                 self.go_to_place(state, &b.homes[self.home_id], loc);
             } else {
-                self.idle_behaviour(state, loc);
+                //self.idle_behaviour(state, loc);
             }
         } else {
             let item = &items[0].clone();
@@ -318,84 +317,14 @@ impl NPC {
         }
     }
 
-    fn simple_monster_schedule(&mut self, state: &GameState, loc: (i32, i32, i8), player_loc: (i32, i32, i8)) {
-        let dr = loc.0 - player_loc.0;
-        let dc = loc.1 - player_loc.1;
-        let d = dr * dr + dc * dc;
-
-        if self.attitude != Attitude::Hostile {
-            // Can I see the player? if so, become hostile            
-            if d < 100 {
-                //let m_fov_time = Instant::now();
-                let visible = fov::calc_fov(state, loc, 12, true);
-                //let m_fov_elapsed = m_fov_time.elapsed();
-                //println!("Monster fov: {:?}", m_fov_elapsed);
-            
-                if visible.contains(&player_loc) {
-                    self.attitude = Attitude::Hostile;
-                }
-            }
-        }
-
-        if self.attitude == Attitude::Hostile {
-            if d <= 2 {
-                self.plan.push_front(Action::Attack(player_loc));
-            } else {
-                //let m_pf_time = Instant::now();
-                self.calc_plan_to_move(state, player_loc, true, loc);
-                // Since the player is probably moving, only keep the first 2 or 3 
-                // steps of the move plan
-                while self.plan.len() > 1 {
-                    self.plan.pop_back();
-                }
-                //let m_pf_elapsed = m_pf_time.elapsed();
-                //println!("Monster pf time: {:?}", m_pf_elapsed);
-            }
-        }        
-    }
-
-    // Mindless skeletons and zombies who wander the level until they see the player, then attack.
-    fn basic_undead_schedule(&mut self, state: &GameState, loc: (i32, i32, i8), player_loc: (i32, i32, i8)) {
-        let dr = loc.0 - player_loc.0;
-        let dc = loc.1 - player_loc.1;
-        let d = dr * dr + dc * dc;
-
-        if self.attitude != Attitude::Hostile {
-            let visible = fov::calc_fov(state, loc, 12, true);
-
-            if visible.contains(&player_loc) {
-                self.attitude = Attitude::Hostile;                
-            } else {
-                // pick a random nearby spot and move to it
-            }
-        }
-
-        if self.attitude == Attitude::Hostile {
-            if d <= 2 {
-                self.plan.push_front(Action::Attack(player_loc));
-            } else {
-                //let m_pf_time = Instant::now();
-                self.calc_plan_to_move(state, player_loc, true, loc);
-                // Since the player is probably moving, only keep the first 2 or 3 
-                // steps of the move plan
-                while self.plan.len() > 1 {
-                    self.plan.pop_back();
-                }
-                //let m_pf_elapsed = m_pf_time.elapsed();
-                //println!("Monster pf time: {:?}", m_pf_elapsed);
-            }
-        }
-    }
-
     fn check_schedule(&mut self, state: &GameState, loc: (i32, i32, i8), player_loc: (i32, i32, i8)) {
         // I feel like there HAS to be way a better way to do polymorphism/different behaviours in Rust. I
         // feel like Traits will be too much of a pain with the GameObjs and I couldn't really share code between the 
         // NPC types. Unless I make them floating functions and have no private fields?
-        match self.mode {
-            NPCMode::Villager => self.villager_schedule(state, loc),
-            NPCMode::SimpleMonster => self.simple_monster_schedule(state, loc, player_loc),
-            NPCMode::BasicUndead => self.simple_monster_schedule(state, loc, player_loc),
-        }
+        
+        // if let self.mode = NPCPersonality::Villager {
+        //     self.villager_schedule(state, loc);
+        // } 
     }
 
     // Generally, when I have an NPC go a building/place, I assume it doesn't matter too much if 
@@ -406,13 +335,141 @@ impl NPC {
         self.calc_plan_to_move(state, *goal_loc, false, my_loc);
     }
 
+    fn random_adj_sq(&mut self, game_objs: &GameObjects, state: &GameState, loc: (i32, i32, i8)) {
+        if thread_rng().gen_range(0.0, 1.0) < 0.33 {
+            let j = thread_rng().gen_range(0, util::ADJ.len()) as usize;
+            let d = util::ADJ[j];
+            let adj = (loc.0 + d.0, loc.1 + d.1, loc.2);
+            if !game_objs.blocking_obj_at(&adj) && state.map[&adj].passable_dry_land() {
+                self.calc_plan_to_move(state, adj, false, loc);
+            }
+        }
+    }
+
+    // Quick, dirty guess of which adjacent, open square is closest to the player
+    fn best_guess_toward_player(&mut self, state: &GameState, loc: (i32, i32, i8), player_loc: (i32, i32, i8)) -> (i32, i32, i8) {
+        let mut nearest = i32::MAX;
+        let mut best = loc;
+        for adj in util::ADJ.iter() {            
+            let a = (loc.0 + adj.0, loc.1 + adj.1, loc.2);
+
+            // This will need to be updated when I add aquatic creatures
+            if !state.map[&a].passable_dry_land() {
+                continue;
+            }
+
+            let d = (a.0 - player_loc.0) * (a.0 - player_loc.0) + (a.1 - player_loc.1) * (a.1 - player_loc.1);
+            if d < nearest {
+                best = a;
+                nearest = d;
+            }
+        }
+
+        best
+    }
+
+    fn can_see_player(&mut self, state: &GameState, loc: (i32, i32, i8), player_loc: (i32, i32, i8)) -> bool {
+        let dr = loc.0 - player_loc.0;
+        let dc = loc.1 - player_loc.1;
+        let d = dr * dr + dc * dc;
+
+        // This distance check may be premature optimization. If monster fov turns out to not be a bottleneck
+        // I can ditch it. But my first ever attempt at a roguelike was in Python in 2002 and you had to be
+        // careful about speed...
+        if d < 169 {
+            let visible = fov::calc_fov(state, loc, 12, true);
+            visible.contains(&player_loc)
+        } else {
+            false
+        }
+    }
+
+    fn hunt_player(&mut self, my_id: usize, state: &mut GameState, game_objs: &mut GameObjects, my_loc: (i32, i32, i8)) {
+        let player_loc = game_objs.player_location();
+        
+        // Am I within range of the player? (I don't have ranged monsters yet so just check if monster is adjacent to the player...)
+        let in_range = util::are_adj(my_loc, player_loc);
+
+        if in_range {
+            self.plan.push_front(Action::Attack(player_loc));
+        } else if self.can_see_player(state, my_loc, player_loc) {
+            self.calc_plan_to_move(state, player_loc, true, my_loc);
+        } else {
+            let guess = self.best_guess_toward_player(state, my_loc, player_loc);
+            self.calc_plan_to_move(state, guess, true, my_loc);
+        }
+
+        self.follow_plan(my_id, state, game_objs, my_loc);        
+    }
+
+    fn wander(&mut self, my_id: usize, state: &mut GameState, game_objs: &mut GameObjects, my_loc: (i32, i32, i8)) {
+        let player_loc = game_objs.player_location();
+
+        // Need to give the monster a check here vs the player's 'passive stealth'
+        if self.can_see_player(state, my_loc, player_loc) {
+            self.attitude = Attitude::Hostile;
+            self.active = true;
+            self.hunt_player(my_id, state, game_objs, my_loc);
+            return;
+        } 
+
+        // Continue on its current amble, or pick a new square
+        if self.plan.is_empty() {
+            let mut rng = rand::thread_rng();
+            // try a bunch of times to find a new plae to move to.
+            for _ in 0..50 {
+                let r = rng.gen_range(-10, 11);
+                let c = rng.gen_range(-10, 11);
+                let n = (my_loc.0 + r, my_loc.1 + c, my_loc.2);
+                if state.map.contains_key(&n) && state.map[&n].passable_dry_land() {
+                    self.calc_plan_to_move(state, n, false, my_loc);
+                }
+            }
+        }
+
+        self.follow_plan(my_id, state, game_objs, my_loc);
+    }
+
+    fn idle_monster(&mut self, my_id: usize, state: &mut GameState, game_objs: &mut GameObjects, my_loc: (i32, i32, i8)) {
+        let player_loc = game_objs.player_location();
+
+        // Need to give the monster a check here vs the player's 'passive stealth'
+        if self.can_see_player(state, my_loc, player_loc) {
+            self.attitude = Attitude::Hostile;
+            self.active = true;
+            self.hunt_player(my_id, state, game_objs, my_loc);
+            return;
+        }
+
+        // just pick a random adjacent square
+        self.random_adj_sq(game_objs, state, my_loc);
+        self.follow_plan(my_id, state, game_objs, my_loc);
+    }
+
     pub fn take_turn(&mut self, my_id: usize, state: &mut GameState, game_objs: &mut GameObjects, loc: (i32, i32, i8)) {
+        let curr_behaviour = if self.active {
+            self.active_behaviour
+        } else {
+            self.inactive_behaviour
+        };
+
+        match curr_behaviour {
+            Behaviour::Hunt => {
+                self.hunt_player(my_id, state, game_objs, loc);
+            },
+            Behaviour::Wander => {
+                self.wander(my_id, state, game_objs, loc);
+            },
+            Behaviour::Idle => {
+                self.idle_monster(my_id, state, game_objs, loc);
+            },
+            Behaviour::Guard(_) | Behaviour:: Defend(_) => panic!("These are not implemented yet!"),
+        }
+
         if self.plan.is_empty() {
             let player_loc = game_objs.player_location();
             self.check_schedule(state, loc, player_loc);
-        }
-        
-        self.follow_plan(my_id, state, game_objs, loc);
+        }        
     }
 
     pub fn talk_to(&mut self, state: &mut GameState, dialogue: &DialogueLibrary, my_loc: (i32, i32, i8)) -> String {
@@ -472,21 +529,21 @@ pub fn pick_villager_name(used_names: &HashSet<String>) -> String {
 pub struct MonsterFactory {
     // AC, HP, ch, colour, mode, attack_mod, dmg_dice, dmg_die, dmg_bonus, level, attributes, xp_value,
     // active_behaviour, inactive_behaviour
-    table: HashMap<String, (u8, u8, char, (u8, u8, u8), NPCMode, u8, u8, u8, u8, u8, u128, u32, Behaviour, Behaviour)>, 
+    table: HashMap<String, (u8, u8, char, (u8, u8, u8), NPCPersonality, u8, u8, u8, u8, u8, u128, u32, bool, Behaviour, Behaviour)>, 
 }
 
 impl MonsterFactory {
     pub fn init() -> MonsterFactory {
         let mut mf = MonsterFactory { table: HashMap::new() };
 
-        mf.table.insert(String::from("kobold"), (13, 7, 'k', display::DULL_RED, NPCMode::SimpleMonster, 4, 1, 4, 2, 1,
-            MA_OPEN_DOORS | MA_UNLOCK_DOORS | MA_PACK_TACTICS, 4, Behaviour::Hunt, Behaviour::Idle));
-        mf.table.insert(String::from("goblin"), (15, 7, 'o', display::GREEN, NPCMode::SimpleMonster, 4, 1, 6, 2, 1,
-            MA_OPEN_DOORS | MA_UNLOCK_DOORS, 4, Behaviour::Hunt, Behaviour::Idle));
-        mf.table.insert(String::from("zombie"), (11, 8, 'z', display::GREY, NPCMode::BasicUndead, 4, 1, 6, 2, 1,
-            MA_OPEN_DOORS | MA_FEARLESS  | MA_UNDEAD, 5, Behaviour::Hunt, Behaviour::Wander));
-        mf.table.insert(String::from("skeleton"), (12, 8, 's', display::WHITE, NPCMode::BasicUndead, 4, 1, 6, 2, 1,
-            MA_OPEN_DOORS | MA_FEARLESS  | MA_UNDEAD | MA_RESIST_PIERCE | MA_RESIST_SLASH, 6, Behaviour::Hunt, Behaviour::Wander));
+        mf.table.insert(String::from("kobold"), (13, 7, 'k', display::DULL_RED, NPCPersonality::SimpleMonster, 4, 1, 4, 2, 1,
+            MA_OPEN_DOORS | MA_UNLOCK_DOORS | MA_PACK_TACTICS, 4, false, Behaviour::Hunt, Behaviour::Idle));
+        mf.table.insert(String::from("goblin"), (15, 7, 'o', display::GREEN, NPCPersonality::SimpleMonster, 4, 1, 6, 2, 1,
+            MA_OPEN_DOORS | MA_UNLOCK_DOORS, 4, false, Behaviour::Hunt, Behaviour::Idle));
+        mf.table.insert(String::from("zombie"), (11, 8, 'z', display::GREY, NPCPersonality::BasicUndead, 4, 1, 6, 2, 1,
+            MA_OPEN_DOORS | MA_FEARLESS  | MA_UNDEAD, 5, false, Behaviour::Hunt, Behaviour::Wander));
+        mf.table.insert(String::from("skeleton"), (12, 8, 's', display::WHITE, NPCPersonality::BasicUndead, 4, 1, 6, 2, 1,
+            MA_OPEN_DOORS | MA_FEARLESS  | MA_UNDEAD | MA_RESIST_PIERCE | MA_RESIST_SLASH, 6, false, Behaviour::Hunt, Behaviour::Wander));
         mf
     }
 
@@ -519,7 +576,7 @@ impl MonsterFactory {
         let mut npc = NPC { name: String::from(name), ac: stats.0, curr_hp: stats.1, max_hp: stats.1, attitude: Attitude::Indifferent, facts_known: Vec::new(), home_id: 0, 
             plan: VecDeque::new(), voice: String::from("monster"), schedule: Vec::new(), mode: stats.4, attack_mod: stats.5, dmg_dice: stats.6, dmg_die: stats.7, 
             dmg_bonus: stats.8, edc: self.calc_dc(stats.9), attributes: stats.10, curr_loc: loc, alive: true, xp_value: stats.11, inventory: Vec::new(),
-            active_behaviour: stats.12, inactive_behaviour: stats.13,
+            active: stats.12, active_behaviour: stats.13, inactive_behaviour: stats.14,
         };
 
         let mut rng = rand::thread_rng();

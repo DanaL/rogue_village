@@ -54,6 +54,17 @@ pub fn ds_find(ds: &mut Vec<i32>, x: i32) -> i32 {
 	}
 }
 
+pub fn are_adj(a: (i32, i32, i8), b: (i32, i32, i8)) -> bool {
+	for adj in ADJ.iter() {
+		// Note that so far in the game, I don't want squares that are at the same row/col but on different floors 
+		// to count as adjacent
+		if (a.0 + adj.0, a.1 + adj.1, a.2) == b {
+			return true;
+		}
+	}
+
+	false
+}
 // Bresenham functions straight out of my old scientific computing textbook
 pub fn bresenham(r0: i32, c0: i32, r1: i32, c1: i32) -> Vec<(i32, i32)> {
 	let mut pts = Vec::new();

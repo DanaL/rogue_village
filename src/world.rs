@@ -424,11 +424,11 @@ fn populate_levels(_world_info: &mut WorldInfo, deepest_level: i8, floor_sqs: &H
 
         for _ in 0..10 {
             let loc = random_sq(&floor_sqs[&level_index]);
-            if rng.gen_range(0.0, 1.0) < 0.5 {
+            //if rng.gen_range(0.0, 1.0) < 0.5 {
                 monster_fac.add_monster("skeleton", loc, game_objs);
-            } else {
-                monster_fac.add_monster("goblin", loc, game_objs);
-            }
+            // } else {
+            //     monster_fac.add_monster("goblin", loc, game_objs);
+            // }
         }
         curr_level -= 1;
     }
@@ -720,12 +720,12 @@ fn build_dungeon(world_info: &mut WorldInfo, map: &mut Map, entrance: (i32, i32,
         let mut level = result.0;
         
         // A few of the levels will have caves and/or rivers
-        if rng.gen_range(0, 5) == 0 {
+        if n > 1 && rng.gen_range(0, 5) == 0 {
             add_caves_to_level(&mut level, height, width);
             connect_rooms(&mut level, height, width);
             world_info.facts.push(Fact::new("caves".to_string(), 0, (0, 0, n as i8 + 1)));
         }
-        if rng.gen_range(0, 10) == 0 {
+        if n > 2 && rng.gen_range(0, 10) == 0 {
             // I should guarantee some means of crossing the river further up the dungeon
             add_river_to_level(&mut level, height, width, true, Tile::UndergroundRiver);
             if rng.gen_range(0, 3) == 0 {
