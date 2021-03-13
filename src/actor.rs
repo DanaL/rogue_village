@@ -127,6 +127,7 @@ pub struct NPC {
     pub active: bool,
     pub active_behaviour: Behaviour,
     pub inactive_behaviour: Behaviour,
+    pub level: u8,
 }
 
 impl NPC {
@@ -135,7 +136,7 @@ impl NPC {
         let npc = NPC { name, ac: 10, curr_hp: 8, max_hp: 8, attitude: Attitude::Stranger, facts_known: Vec::new(), home_id, plan: VecDeque::new(), 
             voice: String::from(voice), schedule: Vec::new(), mode: NPCPersonality::Villager, attack_mod: 2, dmg_dice: 1, dmg_die: 3, dmg_bonus: 0, edc: 12,
             attributes: MA_OPEN_DOORS | MA_UNLOCK_DOORS, curr_loc: (-1, -1, -1), alive: true, xp_value: 0, inventory: Vec::new(),
-            active: true, active_behaviour: Behaviour::Idle, inactive_behaviour: Behaviour::Idle,
+            active: true, active_behaviour: Behaviour::Idle, inactive_behaviour: Behaviour::Idle, level: 0,
         };
 
         let obj = GameObject::new(game_objs.next_id(), &npc_name, location, '@', display::LIGHT_GREY, display::LIGHT_GREY, 
@@ -368,7 +369,7 @@ impl NPC {
         best
     }
 
-    fn can_see_player(&mut self, state: &GameState, loc: (i32, i32, i8), player_loc: (i32, i32, i8)) -> bool {
+    fn can_see_player(&mut self, state: &GameState, game_objs: &mut GameObjects, loc: (i32, i32, i8), player_loc: (i32, i32, i8)) -> bool {
         let dr = loc.0 - player_loc.0;
         let dc = loc.1 - player_loc.1;
         let d = dr * dr + dc * dc;
@@ -377,6 +378,13 @@ impl NPC {
         // I can ditch it. But my first ever attempt at a roguelike was in Python in 2002 and you had to be
         // careful about speed...
         if d < 169 {
+            let mut rng = rand::thread_rng();
+            let percept = rng.gen_range(1, 21) + self.level;
+            let player_stealth = game_objs.player_details().stealth_score;
+            if percept < player_stealth {
+                return false;
+            }
+
             let visible = fov::calc_fov(state, loc, 12, true);
             visible.contains(&player_loc)
         } else {
@@ -392,7 +400,7 @@ impl NPC {
 
         if in_range {
             self.plan.push_front(Action::Attack(player_loc));
-        } else if self.can_see_player(state, my_loc, player_loc) {
+        } else if self.can_see_player(state, game_objs, my_loc, player_loc) {
             self.calc_plan_to_move(state, player_loc, true, my_loc);
         } else {
             let guess = self.best_guess_toward_player(state, my_loc, player_loc);
@@ -406,7 +414,7 @@ impl NPC {
         let player_loc = game_objs.player_location();
 
         // Need to give the monster a check here vs the player's 'passive stealth'
-        if self.can_see_player(state, my_loc, player_loc) {
+        if self.can_see_player(state, game_objs, my_loc, player_loc) {
             self.attitude = Attitude::Hostile;
             self.active = true;
             self.hunt_player(my_id, state, game_objs, my_loc);
@@ -434,7 +442,7 @@ impl NPC {
         let player_loc = game_objs.player_location();
 
         // Need to give the monster a check here vs the player's 'passive stealth'
-        if self.can_see_player(state, my_loc, player_loc) {
+        if self.can_see_player(state, game_objs, my_loc, player_loc) {
             self.attitude = Attitude::Hostile;
             self.active = true;
             self.hunt_player(my_id, state, game_objs, my_loc);
@@ -576,7 +584,7 @@ impl MonsterFactory {
         let mut npc = NPC { name: String::from(name), ac: stats.0, curr_hp: stats.1, max_hp: stats.1, attitude: Attitude::Indifferent, facts_known: Vec::new(), home_id: 0, 
             plan: VecDeque::new(), voice: String::from("monster"), schedule: Vec::new(), mode: stats.4, attack_mod: stats.5, dmg_dice: stats.6, dmg_die: stats.7, 
             dmg_bonus: stats.8, edc: self.calc_dc(stats.9), attributes: stats.10, curr_loc: loc, alive: true, xp_value: stats.11, inventory: Vec::new(),
-            active: stats.12, active_behaviour: stats.13, inactive_behaviour: stats.14,
+            active: stats.12, active_behaviour: stats.13, inactive_behaviour: stats.14, level: stats.9,
         };
 
         let mut rng = rand::thread_rng();

@@ -453,7 +453,7 @@
         }
         
         let player = game_objs.player_details();
-        player.calc_ac();
+        player.calc_gear_effects();
 
         cost
     }
@@ -614,7 +614,7 @@
         s.push('.');
         state.write_msg_buff(&s);
 
-        player.calc_ac();
+        player.calc_gear_effects();
 
         let readied = player.readied_obj_ids_of_type(ItemType::Weapon);
         if item_type == ItemType::Weapon && readied.is_empty() {
@@ -915,6 +915,9 @@
                     let sbi = state.curr_sidebar_info(game_objs);
                     let s = format!("Really attack {}? (y/n)", npc_name);
                     if let 'y' = gui.query_yes_no(&s, Some(&sbi)) {
+                        let npc = game_objs.get_mut(npc_id).unwrap();
+                        npc.npc.as_mut().unwrap().attitude = Attitude::Hostile;
+                        npc.npc.as_mut().unwrap().active = true;
                         battle::player_attacks(state, npc_id, game_objs);
                         return 1.0;
                     }                    

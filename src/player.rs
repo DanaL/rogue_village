@@ -36,7 +36,7 @@ pub enum Ability {
     Apt,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum Role {
     Warrior,
     Rogue,
@@ -75,6 +75,7 @@ pub struct Player {
     pub inventory: Vec<GameObject>,
     pub next_slot: char,
     pub hit_die: u8,
+    pub stealth_score: u8,
 }
 
 impl Player {
@@ -133,6 +134,7 @@ impl Player {
             object_id: 0, name: name.clone(), max_hp: (15 + stat_to_mod(stats[1])) as u8, curr_hp: (15 + stat_to_mod(stats[1])) as u8,
                 vision_radius: default_vision_radius, str: stats[0], con: stats[1], dex: stats[2], chr, apt, role: Role::Warrior, xp: 0, level: 1, max_depth: 0, 
                 ac: 10, purse: 20, readied_weapon: "".to_string(), energy: 1.0, energy_restore: 1.0, inventory: Vec::new(), next_slot: 'a', hit_die: 10,
+                stealth_score: 10,
         };
         
         // Warrior starting equipment
@@ -152,7 +154,7 @@ impl Player {
             p.add_to_inv(t);
         }
         
-        p.calc_ac();
+        p.calc_gear_effects();
 
         let player_obj = GameObject::new(0, &name, (0, 0, 0), '@', display::WHITE, display::WHITE, 
             None, None , None, None, Some(p), true);
@@ -174,9 +176,10 @@ impl Player {
             object_id: 0, name: name.clone(), max_hp: (12 + stat_to_mod(stats[2])) as u8, curr_hp: (12 + stat_to_mod(stats[2])) as u8,
                 vision_radius: default_vision_radius, str, con: stats[2], dex: stats[0], chr, apt: stats[1], role: Role::Rogue, xp: 0, level: 1, max_depth: 0, ac: 10, 
                 purse: 20, readied_weapon: "".to_string(), energy: 1.0, energy_restore: 1.25, inventory: Vec::new(), next_slot: 'a', hit_die: 8,
+                stealth_score: 10,
         };
 
-        p.calc_ac();
+        p.calc_gear_effects();
         
         let player_obj = GameObject::new(0, &name, (0, 0, 0), '@', display::WHITE, display::WHITE, 
             None, None , None, None, Some(p), true);
@@ -378,7 +381,12 @@ impl Player {
         None
     }
 
-    pub fn calc_ac(&mut self) {
+    pub fn calc_gear_effects(&mut self) {
+        self.calc_ac();
+        self.calc_stealth();
+    }
+
+    fn calc_ac(&mut self) {
         let mut ac: i8 = 10;        
         let (armour, attributes) = self.ac_mods_from_gear();
         
@@ -396,6 +404,27 @@ impl Player {
             0
         } else {
             ac as u8
+        };
+    }
+
+    fn calc_stealth(&mut self) {
+        let mut score = 10 + stat_to_mod(self.dex);
+
+        if self.role == Role::Rogue {
+            score += 1 + self.level as i8 / 4;
+        }
+
+        // I feel like having a lit torch should also have a big
+        // penalty to stealth but that might nerf Rogues too much?
+        let (_, attributes) = self.ac_mods_from_gear();
+        if attributes & items::IA_HEAVY_ARMOUR > 0 {
+            score /= 2;
+        }
+
+        self.stealth_score = if score < 0 {
+            0
+        } else {
+            score as u8
         };
     }
 
