@@ -185,16 +185,13 @@ impl NPC {
         }   
         if game_objs.blocking_obj_at(&goal_loc) {
             match self.mode {
-                NPCPersonality::Villager => {
-                    state.write_msg_buff("\"Excuse me.\"");
-                    self.plan.push_front(Action::Move(goal_loc));
-                }
-                _ => {
-                    // if someone/something is blocking path, clear the current plan which should trigger creating a new plan
-                    self.plan.clear();
-                }
+                NPCPersonality::Villager => { state.write_msg_buff("\"Excuse me.\""); }
+                _ => { }
+
             }
-            
+            // if someone/something is blocking path, clear the current plan which should trigger 
+            // creating a new plan
+            self.plan.clear();
         } else if state.map[&goal_loc] == Tile::Door(DoorState::Closed) {
             self.plan.push_front(Action::Move(goal_loc));
             self.open_door(goal_loc, state);
