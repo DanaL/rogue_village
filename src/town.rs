@@ -122,8 +122,7 @@ fn draw_building(map: &mut Map, loc: (i32, i32), template: &Template,
         buildings: &mut TownBuildings, cat: BuildingType) {
     let mut rng = rand::thread_rng();
     
-    let is_tavern = matches!(cat, BuildingType::Tavern);
-    
+    let mut building_sqs = HashSet::new();
     let is_wood = rng.gen_range(0.0, 1.0) < 0.7;
     for r in 0..template.height {
         for c in 0..template.width {
@@ -140,7 +139,20 @@ fn draw_building(map: &mut Map, loc: (i32, i32), template: &Template,
                 _ => panic!("Illegal character in building template!"),
             };
             map.insert(coord, tile);
+
+            match map[&coord] {
+                Tile::Door(_) => { building_sqs.insert(coord); },
+                Tile::Floor => { building_sqs.insert(coord); },
+                Tile::StoneFloor => { building_sqs.insert(coord); },
+                _ => { },
+            }
         }
+    }
+
+    match cat {
+        BuildingType::Shrine => buildings.shrine = building_sqs,
+        BuildingType::Home => buildings.homes.push(building_sqs),
+        BuildingType::Tavern => buildings.tavern = building_sqs,
     }
     /*
     // We want to rotate the building so that an entrance more or less points toward town
@@ -198,7 +210,7 @@ fn draw_building(map: &mut Map, loc: (i32, i32), template: &Template,
     let stagger_r = rng.gen_range(0, 3) as i32;
     let stagger_c = rng.gen_range(0, 3) as i32;
 
-    let mut building_sqs = HashSet::new();
+    
     let is_wood = rng.gen_range(0.0, 1.0) < 0.7;
     for row in 0..lot_length {
         for col in 0..lot_width {
@@ -225,11 +237,6 @@ fn draw_building(map: &mut Map, loc: (i32, i32), template: &Template,
         }
     }
 
-    match cat {
-        BuildingType::Shrine => buildings.shrine = building_sqs,
-        BuildingType::Home => buildings.homes.push(building_sqs),
-        BuildingType::Tavern => buildings.tavern = building_sqs,
-    }
     */
 }
 
@@ -275,13 +282,41 @@ fn check_along_col(map: &mut Map, start: (i32, i32), delta: i32, town: (i32, i32
         row += delta;
     }
 
-    return false;
+    false
+}
+
+fn check_along_row(map: &mut Map, start: (i32, i32), delta: i32, town: (i32, i32), template: &Template, buildings: &mut TownBuildings, cat: BuildingType) -> bool {
+    let width = template.width as i32;
+
+    if delta > 0 {
+        let mut col = start.1;
+        while col + width < town.1 + TOWN_WIDTH {
+            if building_fits(map, start.0, col, template) {
+                println!("{} {}", start.0, col);
+                draw_building(map, (start.0, col), template, buildings, cat);
+                return true;
+            }
+            col += delta;
+        }
+    } else {
+        let mut col = town.1 + TOWN_WIDTH - width - 1;
+        while col > town.1 {
+            if building_fits(map, start.0, col, template) {
+                println!("{} {}", start.0, col);
+                draw_building(map, (start.0, col), template, buildings, cat);
+                return true;
+            }
+            col += delta;
+        }
+    }
+
+    false
 }
 
 // The inn is placed on the outside of town
 fn place_tavern(map: &mut Map, town_r: i32, town_c: i32, templates: &HashMap<String, Template>, buildings: &mut TownBuildings) {
     let mut rng = rand::thread_rng();
-    let mut options = vec![4];
+    let mut options = vec![3];
     options.shuffle(&mut rng);
 
     while !options.is_empty() {
@@ -300,9 +335,23 @@ fn place_tavern(map: &mut Map, town_r: i32, town_c: i32, templates: &HashMap<Str
         } else if choice == 2 {
             // south facing tavern
             let template = templates.get("tavern 2").unwrap();
+            let (start_c, delta) = if rng.gen_range(0.0, 1.0) < 0.5 {
+                (town_c, 1)
+            } else {
+                (town_c + TOWN_WIDTH - template.width as i32, - 1)
+            };
+            check_along_row(map, (town_r, start_c), delta, (town_r, town_c), template, buildings, BuildingType::Tavern);
+            break;
         } else if choice == 3 {
             // north facing tavern
             let template = templates.get("tavern 3").unwrap();
+            let (start_c, delta) = if rng.gen_range(0.0, 1.0) < 0.5 {
+                (town_c, 1)
+            } else {
+                (town_c + TOWN_WIDTH - template.width as i32, - 1)
+            };
+            println!("{}", check_along_row(map, (town_r + TOWN_HEIGHT - template.height as i32 - 1, start_c), delta, (town_r, town_c), template, buildings, BuildingType::Tavern));
+            break;
         } else {
             // west facing tavern
             let template = templates.get("tavern 4").unwrap();
@@ -526,6 +575,8 @@ pub fn create_town(map: &mut Map, game_objs: &mut GameObjects) -> WorldInfo {
     let mut tb = TownBuildings::new();
     place_town_buildings(map, start_r as i32, start_c as i32, &buildings, &mut tb);
 
+    println!("{:?}", tb);
+    
     let tavern_name = random_tavern_name();
     let town_name = random_town_name();
     let mut world_info = WorldInfo::new(town_name,
