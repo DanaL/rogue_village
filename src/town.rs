@@ -18,7 +18,7 @@ extern crate serde;
 use std::collections::{HashMap, HashSet};
 use std::fs;
 
-use rand::Rng;
+use rand::{Rng, prelude::SliceRandom};
 use rand::seq::IteratorRandom;
 use serde::{Serialize, Deserialize};
 
@@ -32,10 +32,25 @@ use crate::pathfinding;
 use crate::world::WILDERNESS_SIZE;
 use crate::world::WorldInfo;
 
+const TOWN_WIDTH: i32 = 60;
+const TOWN_HEIGHT: i32 = 36;
 enum BuildingType {
     Shrine,
     Home,
     Tavern,
+}
+
+#[derive(Debug)]
+pub struct Template {
+    pub sqs: Vec<char>,
+    pub width: usize,
+    pub height: usize,
+}
+
+impl Template {
+    pub fn new(width: usize, height: usize) -> Template {
+        Template { width, height, sqs: Vec::new() }
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -67,16 +82,17 @@ impl TownBuildings {
     }
 }
 
-fn lot_has_water(map: &Map, start_r: i32, start_c: i32, lot_r: i32, lot_c: i32) -> bool {
+fn count_water_sqs(map: &Map, start_r: i32, start_c: i32, lot_r: i32, lot_c: i32) -> u8 {
+    let mut sum = 0;
     for r in 0..12 {
-		for c in 0..12 {
+		for c in 0..12 {            
             if map[&(start_r + (lot_r * 12) + r, start_c + (lot_c * 12) + c, 0)] == Tile::DeepWater {
-                return true;
+                sum += 1;
             }
         }
     }
 
-    false
+    sum
 }
 
 fn rotate(building: &Vec<char>) -> Vec<char> {
@@ -102,14 +118,31 @@ fn rotate(building: &Vec<char>) -> Vec<char> {
     rotated
 }
 
-fn draw_building(map: &mut Map, r: i32, c: i32, loc: (i32, i32), lot_width: usize, lot_length: usize,
-        template: &Vec<char>, buildings: &mut TownBuildings, cat: BuildingType) {
+fn draw_building(map: &mut Map, loc: (i32, i32), template: &Template,
+        buildings: &mut TownBuildings, cat: BuildingType) {
     let mut rng = rand::thread_rng();
-    let start_r = r + 12 * loc.0;
-    let start_c = c + 12 * loc.1;
-
+    
     let is_tavern = matches!(cat, BuildingType::Tavern);
-    let mut building = template.clone();
+    
+    let is_wood = rng.gen_range(0.0, 1.0) < 0.7;
+    for r in 0..template.height {
+        for c in 0..template.width {
+            let coord = (loc.0 + r as i32, loc.1 + c as i32, 0);
+            let tile = match template.sqs[r as usize * template.width + c as usize] {
+                '#' if is_wood => Tile::WoodWall,
+                '#' => Tile::Wall,
+                '`' => Tile::Grass,
+                '+' => Tile::Door(DoorState::Closed),
+                '|' => Tile::Window('|'),
+                '-' => Tile::Window('-'),
+                'T' => Tile::Tree,
+                '.' => Tile::StoneFloor,
+                _ => panic!("Illegal character in building template!"),
+            };
+            map.insert(coord, tile);
+        }
+    }
+    /*
     // We want to rotate the building so that an entrance more or less points toward town
     // centre (or at least doesn't face away). This code is assuming all building templates
     // have an entrance on their south wall.
@@ -197,94 +230,161 @@ fn draw_building(map: &mut Map, r: i32, c: i32, loc: (i32, i32), lot_width: usiz
         BuildingType::Home => buildings.homes.push(building_sqs),
         BuildingType::Tavern => buildings.tavern = building_sqs,
     }
+    */
 }
 
-fn place_tavern(map: &mut Map, r: i32, c: i32, templates: &HashMap<String, Vec<char>>, buildings: &mut TownBuildings) -> ((i32, i32), (i32, i32)) {
-    let mut rng = rand::thread_rng();
-    let x = rng.gen_range(0, 4);
-
-    if x == 0 {
-        // east facting tavern
-        let lot_r = rng.gen_range(0, 2);
-        let lot_c = rng.gen_range(0, 2);
-        draw_building(map, r, c, (lot_r, lot_c),9,18, &templates["tavern 1"], buildings, BuildingType::Tavern);
-        ((lot_r, lot_c), (lot_r + 1, lot_c))
-    } else if x == 1 {
-        // south facing tavern
-        let lot_r = 0;
-        let lot_c = rng.gen_range(0, 4);
-        draw_building(map, r, c, (lot_r, lot_c),18,9, &templates["tavern 2"], buildings, BuildingType::Tavern);
-        ((lot_r, lot_c), (lot_r, lot_c + 1))
-    } else if x == 2 {
-        // north facing tavern
-        let lot_r = 2;
-        let lot_c = rng.gen_range(0, 4);
-        draw_building(map, r, c, (lot_r, lot_c),18,9, &templates["tavern 3"], buildings, BuildingType::Tavern);
-        ((lot_r, lot_c), (lot_r, lot_c + 1))
-    } else {
-        // west facing tavern
-        let lot_r = rng.gen_range(0, 2);
-        let lot_c = rng.gen_range(3, 5);
-        draw_building(map, r, c, (lot_r, lot_c),18,9, &templates["tavern 4"], buildings, BuildingType::Tavern);
-        ((lot_r, lot_c), (lot_r + 1, lot_c))
-    }
-}
-
-// Town is laid out with 5x3 lots, each lot being 12x12 squares
-fn place_town_buildings(map: &mut Map, start_r: usize, start_c: usize, 
-            templates: &HashMap<String, Vec<char>>, buildings: &mut TownBuildings) {   
-    let mut rng = rand::thread_rng();
-
-    // Step one, get rid of most but not all of the trees in town and replace with grass.
-	for r in start_r..start_r + 36 {
-		for c in start_c..start_c + 60 {
-            if map[&(r as i32, c as i32, 0)] == Tile::Tree && rng.gen_range(0.0, 1.0) < 0.85 {
-                map.insert((r as i32, c as i32, 0), Tile::Grass);
-            }
-        }
-    }
-
-    let mut available_lots = HashSet::new();
-	for r in 0..3 {
-		for c in 0..5 {
-			// Avoid lots with water in the them to avoid plunking a house
-			// over a river. This is pretty simple minded and  I could do something 
-			// fancier like actually checking if placing a house will overlap with water 
-			// so that if there is just a corner or edge that's water it's still good. Maybe 
-			// in Real CodeTM. Also should reject a town placement where there aren't enough 
-			// lots for all the buildings I want to add because of water hazards.
-			if r == 1 && c == 2 { continue; } // leave the centre sq empty as a 'town square'
-			if !lot_has_water(map, start_r as i32, start_c as i32, r, c) {
-				available_lots.insert((r, c));
+fn building_fits(map: &mut Map, nw_r: i32, nw_c: i32, template: &Template) -> bool {
+    for r in 0..template.height {
+        for c in 0..template.width {
+            let loc = (nw_r + r as i32, nw_c + c as i32, 0);
+            match &map[&loc] {
+                Tile::DeepWater | Tile::Wall | Tile::WoodWall | Tile::Window(_) |
+                Tile::Floor | Tile::StoneFloor | Tile::Door(_) => { return false; }
+                _ => { continue; }
             }
         }
     }
     
-    // Pick and and place one of the inn templates, which take up two lots
-    let lots_used = place_tavern(map, start_r as i32, start_c as i32, templates, buildings);
-    available_lots.remove(&lots_used.0);
-    available_lots.remove(&lots_used.1);
+    true
+}
 
-    // The town will have only 1 shrine. (Maybe in the future I can implement relisgious rivalries...)
-    let loc = *available_lots.iter().choose(&mut rng).unwrap();
-    available_lots.remove(&loc);
-    draw_building(map, start_r as i32, start_c as i32, loc,9,9, &templates["shrine"], buildings, BuildingType::Shrine);
+fn check_along_col(map: &mut Map, start: (i32, i32), delta: i32, town: (i32, i32), template: &Template, buildings: &mut TownBuildings, cat: BuildingType) -> bool {
+    let height = template.height as i32;
 
-    // Every once in a blue moon, this crashes the game because there seem to be no available lots, so something to fix eventually
-    for _ in 0..6 {
-        if available_lots.is_empty() {
-            println!("No lot for the building");
+    if delta > 0 {
+        let mut row = start.0;
+        while row + height < town.0 + TOWN_HEIGHT {
+            if building_fits(map, row, start.1, template) {
+                println!("{} {}", row, start.1);
+                draw_building(map, (row, start.1), template, buildings, cat);
+                return true;
+            }
+
+            row += delta;
+        }
+    } else {
+        let mut row = start.0 - height;
+        while row > town.0 {
+            if building_fits(map, row, start.1, template) {
+                println!("from bottom {} {}", row, start.1);
+                draw_building(map, (row, start.1), template, buildings, cat);
+                return true;
+            }
+        }
+
+        row += delta;
+    }
+
+    return false;
+}
+
+// The inn is placed on the outside of town
+fn place_tavern(map: &mut Map, town_r: i32, town_c: i32, templates: &HashMap<String, Template>, buildings: &mut TownBuildings) {
+    let mut rng = rand::thread_rng();
+    let mut options = vec![4];
+    options.shuffle(&mut rng);
+
+    while !options.is_empty() {
+        let choice = options.pop().unwrap();
+
+        if choice == 1 {
+            // east facting tavern
+            let template = templates.get("tavern 1").unwrap();
+            let (start_r, delta) = if rng.gen_range(0.0, 1.0) < 0.5 {
+                (town_r, 1)
+            } else {
+                (town_r + TOWN_HEIGHT, -1)
+            };
+            check_along_col(map, (start_r, town_c), delta, (town_r, town_c), template, buildings, BuildingType::Tavern);
+            break;
+        } else if choice == 2 {
+            // south facing tavern
+            let template = templates.get("tavern 2").unwrap();
+        } else if choice == 3 {
+            // north facing tavern
+            let template = templates.get("tavern 3").unwrap();
+        } else {
+            // west facing tavern
+            let template = templates.get("tavern 4").unwrap();
+            let (start_r, delta) = if rng.gen_range(0.0, 1.0) < 0.5 {
+                (town_r, 1)
+            } else {
+                (town_r + TOWN_HEIGHT, -1)
+            };
+            println!("{}", check_along_col(map, (start_r, town_c + TOWN_WIDTH - template.width as i32 - 1), delta, (town_r, town_c), template, buildings, BuildingType::Tavern));
             break;
         }
-        
-        let loc = available_lots.iter().choose(&mut rng).unwrap().clone();
-        available_lots.remove(&loc);
-        if rng.gen_range(0.0, 1.0) < 0.5 {
-            draw_building(map, start_r as i32, start_c as i32, loc, 9, 9, &templates["cottage 1"], buildings, BuildingType::Home);
-        } else {
-            draw_building(map, start_r as i32, start_c as i32, loc, 9, 9, &templates["cottage 2"], buildings, BuildingType::Home);
+    }
+    
+    // if x == 0 {
+    //     // east facting tavern
+    //     let lot_r = rng.gen_range(0, 2);
+    //     let lot_c = rng.gen_range(0, 2);
+    //     draw_building(map, r, c, (lot_r, lot_c),9,18, &templates["tavern 1"], buildings, BuildingType::Tavern);
+    //     ((lot_r, lot_c), (lot_r + 1, lot_c))
+    // } else if x == 1 {
+    //     // south facing tavern
+    //     let lot_r = 0;
+    //     let lot_c = rng.gen_range(0, 4);
+    //     draw_building(map, r, c, (lot_r, lot_c),18,9, &templates["tavern 2"], buildings, BuildingType::Tavern);
+    //     ((lot_r, lot_c), (lot_r, lot_c + 1))
+    // } else if x == 2 {
+    //     // north facing tavern
+    //     let lot_r = 2;
+    //     let lot_c = rng.gen_range(0, 4);
+    //     draw_building(map, r, c, (lot_r, lot_c),18,9, &templates["tavern 3"], buildings, BuildingType::Tavern);
+    //     ((lot_r, lot_c), (lot_r, lot_c + 1))
+    // } else {
+    //     // west facing tavern
+    //     let lot_r = rng.gen_range(0, 2);
+    //     let lot_c = rng.gen_range(3, 5);
+    //     draw_building(map, r, c, (lot_r, lot_c),18,9, &templates["tavern 4"], buildings, BuildingType::Tavern);
+    //     ((lot_r, lot_c), (lot_r + 1, lot_c))
+    // }
+}
+
+// Town is laid out with 5x3 lots, each lot being 12x12 squares
+fn place_town_buildings(map: &mut Map, town_r: i32, town_c: i32, 
+            templates: &HashMap<String, Template>, buildings: &mut TownBuildings) {   
+    let mut rng = rand::thread_rng();
+
+    // Step one, get rid of most but not all of the trees in town and replace with grass.
+	for r in town_r..town_r + TOWN_HEIGHT {
+		for c in town_c..town_c + TOWN_WIDTH {
+            if map[&(r, c, 0)] == Tile::Tree && rng.gen_range(0.0, 1.0) < 0.85 {
+                map.insert((r, c, 0), Tile::Grass);
+            }
         }
     }
+
+    // Start by placing the tavern since it's the largest building and the hardest to fit
+    place_tavern(map, town_r, town_c, templates, buildings);
+    
+    // // Pick and and place one of the inn templates, which take up two lots
+    // let lots_used = place_tavern(map, start_r as i32, start_c as i32, templates, buildings);
+    // available_lots.remove(&lots_used.0);
+    // available_lots.remove(&lots_used.1);
+
+    // // The town will have only 1 shrine. (Maybe in the future I can implement relisgious rivalries...)
+    // let loc = *available_lots.iter().choose(&mut rng).unwrap();
+    // available_lots.remove(&loc);
+    // draw_building(map, start_r as i32, start_c as i32, loc,9,9, &templates["shrine"], buildings, BuildingType::Shrine);
+
+    // // Every once in a blue moon, this crashes the game because there seem to be no available lots, so something to fix eventually
+    // for _ in 0..6 {
+    //     if available_lots.is_empty() {
+    //         println!("No lot for the building");
+    //         break;
+    //     }
+        
+    //     let loc = available_lots.iter().choose(&mut rng).unwrap().clone();
+    //     available_lots.remove(&loc);
+    //     if rng.gen_range(0.0, 1.0) < 0.5 {
+    //         draw_building(map, start_r as i32, start_c as i32, loc, 9, 9, &templates["cottage 1"], buildings, BuildingType::Home);
+    //     } else {
+    //         draw_building(map, start_r as i32, start_c as i32, loc, 9, 9, &templates["cottage 2"], buildings, BuildingType::Home);
+    //     }
+    // }
 }
 
 // Draw paths in town. For now they just converge on the town square but I might in the future have
@@ -393,23 +493,38 @@ pub fn create_town(map: &mut Map, game_objs: &mut GameObjects) -> WorldInfo {
     let contents = fs::read_to_string("buildings.txt")
         .expect("Unable to find building templates file!");
     let lines = contents.split('\n').collect::<Vec<&str>>();
-    let mut curr_building = String::from("");
+    let mut curr_building: String = "".to_string();
+    let mut width: usize = 0;
+    let mut sqs: Vec<char> = Vec::new();
+    let mut rows: usize = 0;
     for line in lines {
-        if line.starts_with('%') {
+        if line.starts_with('%') {            
+            if !curr_building.is_empty() {
+                let mut template = Template::new(width, rows);
+                template.sqs = sqs.clone();
+                buildings.insert(curr_building.to_string(), template);
+            }
+
             curr_building = line[1..].to_string();
-            buildings.insert(curr_building.to_string(), Vec::new());
+            rows = 0;
+            sqs = Vec::new();
         } else {
-            buildings.get_mut(&curr_building).unwrap().extend(line.chars());
+            width = line.len();
+            sqs.extend(line.chars());
+            rows += 1;
         }
     }
+    let mut template = Template::new(width, rows);
+    template.sqs = sqs.clone();
+    buildings.insert(curr_building.to_string(), template);
 
     let mut rng = rand::thread_rng();
-    // pick starting co-ordinates that are in the centre-ish part of the map
+    // // pick starting co-ordinates that are in the centre-ish part of the map
 	let start_r = rng.gen_range(WILDERNESS_SIZE /4 , WILDERNESS_SIZE / 2);
 	let start_c = rng.gen_range(WILDERNESS_SIZE /4 , WILDERNESS_SIZE / 2);
 
     let mut tb = TownBuildings::new();
-    place_town_buildings(map, start_r, start_c, &buildings, &mut tb);
+    place_town_buildings(map, start_r as i32, start_c as i32, &buildings, &mut tb);
 
     let tavern_name = random_tavern_name();
     let town_name = random_town_name();
@@ -418,30 +533,30 @@ pub fn create_town(map: &mut Map, game_objs: &mut GameObjects) -> WorldInfo {
         tavern_name);    
     
     // The town square is in lot (1, 2)
-    for r in start_r + 12..start_r + 24 {
-        for c in start_c + 24..start_c + 36 {
-            if map[&(r as i32, c as i32, 0)].passable_dry_land() {
-                world_info.town_square.insert((r as i32, c as i32, 0));
-            }
-        }
-    }
+    // for r in start_r + 12..start_r + 24 {
+    //     for c in start_c + 24..start_c + 36 {
+    //         if map[&(r as i32, c as i32, 0)].passable_dry_land() {
+    //             world_info.town_square.insert((r as i32, c as i32, 0));
+    //         }
+    //     }
+    // }
 
-    draw_paths_in_town(map, &world_info);
+    // draw_paths_in_town(map, &world_info);
 
-    let mut used_names = HashSet::new();
-    let v = create_villager("mayor1", &mut tb, &used_names, game_objs);
-    used_names.insert(v.get_fullname());
-    let obj_id = v.object_id;    
-    game_objs.add(v);
-    game_objs.listeners.insert((obj_id, EventType::TakeTurn));
+    // let mut used_names = HashSet::new();
+    // let v = create_villager("mayor1", &mut tb, &used_names, game_objs);
+    // used_names.insert(v.get_fullname());
+    // let obj_id = v.object_id;    
+    // game_objs.add(v);
+    // game_objs.listeners.insert((obj_id, EventType::TakeTurn));
 
-    let v = create_villager("villager1", &mut tb, &used_names, game_objs);
-    used_names.insert(v.get_fullname());
-    let obj_id = v.object_id;
-    game_objs.add(v);
-    game_objs.listeners.insert((obj_id, EventType::TakeTurn));
+    // let v = create_villager("villager1", &mut tb, &used_names, game_objs);
+    // used_names.insert(v.get_fullname());
+    // let obj_id = v.object_id;
+    // game_objs.add(v);
+    // game_objs.listeners.insert((obj_id, EventType::TakeTurn));
     
-    world_info.town_buildings = Some(tb);
+    // world_info.town_buildings = Some(tb);
 
     world_info
 }
