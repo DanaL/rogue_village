@@ -27,31 +27,36 @@ pub fn num_to_nth(n: u8) -> String {
 		_ => format!("{}th", n),
 	}
 }
-// Union-find functions to implement disjoint sets
-// (handy for finding isolated pockets in maps)
-pub fn ds_union(ds: &mut Vec<i32>, r1: i32, r2: i32) {
-	ds[r2 as usize] = r1;
-	// if ds[r2 as usize] < ds[r1 as usize] {
-	// 	ds[r1 as usize] = r2;
-	// } else {
-	// 	if ds[r1 as usize] == ds[r2 as usize] {
-	// 		ds[r1 as usize] -= 1;
-	// 	}
-	// 	ds[r2 as usize] = r1;
-	// }
+
+pub fn split_msg(text: &str) -> Vec<String> {
+	let mut words = Vec::new();
+
+	let mut word = "".to_string();		
+	for c in text.chars() {
+		if c == ' ' && !word.is_empty() {
+			words.push(word.to_string());
+			word = "".to_string();
+		} else if c == '\n' {
+			if !word.is_empty() {
+				words.push(word.to_string());
+			}
+			words.push("\n".to_string());
+			word = "".to_string();
+		} else {
+			word.push(c);
+		}
+	}
+
+	if !word.is_empty() {
+		words.push(word.to_string());
+	}
+
+	words
 }
 
 pub fn distance(x1: i32, y1: i32, x2: i32, y2: i32) -> f64 {
 	let d = (i32::abs(i32::pow(x1 - x2, 2)) + i32::abs(i32::pow(y1 - y2, 2))) as f64;
 	return d.sqrt();
-}
-
-pub fn ds_find(ds: &mut Vec<i32>, x: i32) -> i32 {
-	if ds[x as usize] < 0 {
-		x
-	} else {
-		ds_find(ds, ds[x as usize])
-	}
 }
 
 pub fn are_adj(a: (i32, i32, i8), b: (i32, i32, i8)) -> bool {
@@ -65,6 +70,7 @@ pub fn are_adj(a: (i32, i32, i8), b: (i32, i32, i8)) -> bool {
 
 	false
 }
+
 // Bresenham functions straight out of my old scientific computing textbook
 pub fn bresenham(r0: i32, c0: i32, r1: i32, c1: i32) -> Vec<(i32, i32)> {
 	let mut pts = Vec::new();

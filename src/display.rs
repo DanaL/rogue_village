@@ -21,6 +21,7 @@ use std::time::Duration;
 use crate::game_obj::GameObjects;
 use crate::map;
 use crate::map::{Tile, DoorState};
+use crate::util;
 
 use super::{Cmd, GameState, FOV_WIDTH, FOV_HEIGHT};
 
@@ -503,6 +504,10 @@ impl<'a, 'b> GameUI<'a, 'b> {
 		line
 	}
 
+	// pub fn popup_menu(&mut self, title: &str, text: &str) {
+
+	// }
+
 	// I'll probably need to eventually add pagination but rendering the text into
 	// lines was plenty for my brain for now...
 	pub fn popup_msg(&mut self, title: &str, text: &str) {
@@ -519,12 +524,16 @@ impl<'a, 'b> GameUI<'a, 'b> {
 
 		// Easiest thing to do is to split the text into words and then append them to 
 		// a line so long as there is room left on the current line.
-		let words = text.split(' ').collect::<Vec<&str>>();
+		let words = util::split_msg(text);
 		let mut wc = 0;
 		let mut line = "".to_string();
 		loop {
-			if line.len() + words[wc].len() < line_width as usize - 5 {
-				line.push_str(words[wc]);
+			if &words[wc] == "\n" {
+				lines.push(self.pad_line_for_popup(&line, line_width));
+				line = "".to_string();
+				wc += 1;
+			} else if line.len() + words[wc].len() < line_width as usize - 5 {
+				line.push_str(&words[wc]);
 				line.push(' ');
 				wc += 1;
 			} else {
@@ -556,7 +565,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 		}
 
 		self.canvas.present();
-		self.wait_for_key_input();		
+		self.wait_for_key_input();
 	}
 
 	fn write_sidebar_line(&mut self, line: &str, start_x: i32, row: usize, colour: sdl2::pixels::Color, indent: u8) {
