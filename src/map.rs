@@ -79,6 +79,7 @@ pub enum Tile {
 	TeleportTrap,
 	Rubble,
 	UndergroundRiver,
+	Well,
 }
 
 impl Tile {

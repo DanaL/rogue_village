@@ -67,7 +67,6 @@ impl WorldInfo {
     }
 }
 
-
 // The random wilderness generator will inevitably create pockets of
 // traversable land complately surrounded by mountains. I don't want to 
 // stick the main dungeon in one of those, and they might also be useful

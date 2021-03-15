@@ -632,6 +632,11 @@ pub fn create_town(map: &mut Map, game_objs: &mut GameObjects) -> WorldInfo {
 
     draw_paths_in_town(map, &world_info);
 
+    let sqs = world_info.town_square.iter().map(|s| *s).collect::<Vec<(i32, i32, i8)>>();
+    let pick = rng.gen_range(0, sqs.len());    
+    let well_loc = sqs[pick];
+    map.insert(well_loc, Tile::Well);
+    
     // let mut used_names = HashSet::new();
     // let v = create_villager("mayor1", &mut tb, &used_names, game_objs);
     // used_names.insert(v.get_fullname());

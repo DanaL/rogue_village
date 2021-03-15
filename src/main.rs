@@ -358,21 +358,35 @@
             state.write_msg_buff("Never mind.");
             return 0.0;
         } else {
+            let tile = &state.map[&player_loc];                        
+            let into_well = *tile == Tile::Well;
             if amt >= purse {
-                state.write_msg_buff("You drop all your money.");
-                let zorkmids = GoldPile::make(game_objs, purse, player_loc);
-                game_objs.add(zorkmids);
+                if into_well {
+                    state.write_msg_buff("You hear faint tinkling splashes.");
+                } else {
+                    state.write_msg_buff("You drop all your money.");
+                    let zorkmids = GoldPile::make(game_objs, purse, player_loc);
+                    game_objs.add(zorkmids);
+                }                
                 purse = 0;
             } else if amt > 1 {
-                let s = format!("You drop {} gold pieces.", amt);
-                state.write_msg_buff(&s);
-                let zorkmids = GoldPile::make(game_objs, amt, player_loc);
-                game_objs.add(zorkmids);
+                if into_well {
+                    state.write_msg_buff("You hear faint tinkling splashes.");
+                } else {
+                    let s = format!("You drop {} gold pieces.", amt);
+                    state.write_msg_buff(&s);
+                    let zorkmids = GoldPile::make(game_objs, amt, player_loc);
+                    game_objs.add(zorkmids);
+                }
                 purse -= amt;
             } else {
-                state.write_msg_buff("You drop a gold piece.");
-                let zorkmids = GoldPile::make(game_objs, 1, player_loc);
-                game_objs.add(zorkmids);
+                if into_well {
+                    state.write_msg_buff("You hear a faint splash.");
+                } else {
+                    state.write_msg_buff("You drop a gold piece.");
+                    let zorkmids = GoldPile::make(game_objs, 1, player_loc);
+                    game_objs.add(zorkmids);                    
+                }
                 purse -= 1;
             }
         }
@@ -1001,6 +1015,7 @@
                         state.write_msg_buff("You begin to swim.");				
                     }
                 },
+                Tile::Well => state.write_msg_buff("A well."),
                 Tile::Lava => state.write_msg_buff("MOLTEN LAVA!"),
                 Tile::FirePit => {
                     state.write_msg_buff("You step in the fire!");
