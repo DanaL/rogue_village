@@ -29,3 +29,18 @@ Friendly
 - Let's hear some of your tales!
 Hostile
 - You're no longer welcome in {village}
+#
+voice:innkeeper1
+Stranger
+- Well to {inn-name}!
+- Going to be staying awhile?
+Indifferent
+- What'll it be?
+- I don't do tabs.
+- {inn-name} at your service.
+Friendly
+- Welcome back, {plyaername}! Pull up a chair.
+- Would you like to hear the specials?
+- {inn-name} at your service!
+Hostile
+- Get out of my establishment.

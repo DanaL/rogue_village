@@ -15,7 +15,8 @@
 
 extern crate serde;
 
-use std::{collections::{HashMap, HashSet, VecDeque}, u128};
+use std::collections::{HashMap, HashSet, VecDeque};
+use std::u128;
 use std::time::Instant;
 
 use rand::thread_rng;
@@ -24,7 +25,7 @@ use serde::{Serialize, Deserialize};
 
 use super::{EventType, GameObjects, GameState};
 
-use crate::{battle, player};
+use crate::{battle};
 use crate::dialogue;
 use crate::dialogue::DialogueLibrary;
 use crate::display;
@@ -53,7 +54,9 @@ pub enum Venue {
     Shrine,
     Favourite((i32, i32, i8)),
     Visit(i32),
+    Home(usize),
 }
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct AgendaItem {
     pub from: (u16, u16),
@@ -109,7 +112,7 @@ pub struct NPC {
 	pub curr_hp: u8,
 	pub attitude: Attitude,
     pub facts_known: Vec<usize>,
-    pub home_id: usize,
+    pub home: Option<Venue>,
     pub plan: VecDeque<Action>,
     pub voice: String,
     pub schedule: Vec<AgendaItem>,
@@ -131,12 +134,12 @@ pub struct NPC {
 }
 
 impl NPC {
-    pub fn villager(name: String, location: (i32, i32, i8), home_id: usize, voice: &str, game_objs: &mut GameObjects) -> GameObject {      
+    pub fn villager(name: String, location: (i32, i32, i8), home: Option<Venue>, voice: &str, game_objs: &mut GameObjects) -> GameObject {      
         let npc_name = name.clone();  
-        let npc = NPC { name, ac: 10, curr_hp: 8, max_hp: 8, attitude: Attitude::Stranger, facts_known: Vec::new(), home_id, plan: VecDeque::new(), 
+        let npc = NPC { name, ac: 10, curr_hp: 8, max_hp: 8, attitude: Attitude::Stranger, facts_known: Vec::new(), home, plan: VecDeque::new(), 
             voice: String::from(voice), schedule: Vec::new(), mode: NPCPersonality::Villager, attack_mod: 2, dmg_dice: 1, dmg_die: 3, dmg_bonus: 0, edc: 12,
             attributes: MA_OPEN_DOORS | MA_UNLOCK_DOORS, curr_loc: (-1, -1, -1), alive: true, xp_value: 0, inventory: Vec::new(),
-            active: true, active_behaviour: Behaviour::Idle, inactive_behaviour: Behaviour::Idle, level: 0,
+            active: true, active_behaviour: Behaviour::Idle, inactive_behaviour: Behaviour::Idle, level: 0, 
         };
 
         let obj = GameObject::new(game_objs.next_id(), &npc_name, location, '@', display::LIGHT_GREY, display::LIGHT_GREY, 
@@ -304,11 +307,18 @@ impl NPC {
         if items.len() == 0 {
             // The default behaviour is to go home if nothing on the agenda.
             let b = &state.world_info.town_buildings.as_ref().unwrap();
-            if !in_location(state, my_loc, &b.homes[self.home_id], true) {
-                self.go_to_place(state, game_objs, &b.homes[self.home_id], my_loc);
+            
+            if let Some(Venue::Home(home_id)) = self.home {
+                if !in_location(state, my_loc, &b.homes[home_id], true) {
+                    self.go_to_place(state, game_objs, &b.homes[home_id], my_loc);
+                } else {
+                    self.random_adj_sq(state, game_objs, my_loc);
+                }
             } else {
                 self.random_adj_sq(state, game_objs, my_loc);
             }
+
+            
         } else {
             let item = &items[0].clone();
             self.check_agenda_item(state, game_objs, item, my_loc);
@@ -568,10 +578,10 @@ impl MonsterFactory {
 
         let monster_name = name.clone();
         let sym = stats.2;
-        let mut npc = NPC { name: String::from(name), ac: stats.0, curr_hp: stats.1, max_hp: stats.1, attitude: Attitude::Indifferent, facts_known: Vec::new(), home_id: 0, 
+        let mut npc = NPC { name: String::from(name), ac: stats.0, curr_hp: stats.1, max_hp: stats.1, attitude: Attitude::Indifferent, facts_known: Vec::new(), home: None, 
             plan: VecDeque::new(), voice: String::from("monster"), schedule: Vec::new(), mode: stats.4, attack_mod: stats.5, dmg_dice: stats.6, dmg_die: stats.7, 
             dmg_bonus: stats.8, edc: self.calc_dc(stats.9), attributes: stats.10, curr_loc: loc, alive: true, xp_value: stats.11, inventory: Vec::new(),
-            active: stats.12, active_behaviour: stats.13, inactive_behaviour: stats.14, level: stats.9,
+            active: stats.12, active_behaviour: stats.13, inactive_behaviour: stats.14, level: stats.9, 
         };
 
         let mut rng = rand::thread_rng();

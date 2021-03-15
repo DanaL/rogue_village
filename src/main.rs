@@ -46,7 +46,7 @@
     use rand::{Rng, prelude::SliceRandom, thread_rng};
     use serde::{Serialize, Deserialize};
 
-    use actor::{Attitude, MonsterFactory};
+    use actor::{Attitude, MonsterFactory, Venue};
     use dialogue::DialogueLibrary;
     use display::{GameUI, SidebarInfo, WHITE};
     use game_obj::{GameObject, GameObjects};
@@ -1085,9 +1085,15 @@
         if let Some(obj_id) = game_objs.npc_at(&loc) {
             let npc = game_objs.get_mut(obj_id).unwrap();
 
-            let line = npc.npc.as_mut().unwrap().talk_to(state, dialogue, npc.location);
-            state.add_to_msg_history(&line);
-            gui.popup_msg(&npc.get_fullname().with_indef_article().capitalize(), &line);         
+            let venue = &npc.npc.as_ref().unwrap().home;
+            match venue {
+                Some(Venue::Tavern) => { },
+                _ => {
+                    let line = npc.npc.as_mut().unwrap().talk_to(state, dialogue, npc.location);
+                    state.add_to_msg_history(&line);
+                    gui.popup_msg(&npc.get_npc_name(true).capitalize(), &line);  
+                },
+            }       
         } else {
             if let Tile::Door(_) = state.map[&loc] {
                 state.write_msg_buff("The door is ignoring you.");

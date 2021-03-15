@@ -19,6 +19,7 @@ use std::fs;
 use rand::{Rng, thread_rng};
 
 use crate::actor::{Attitude};
+use crate::util::StringUtils;
 use crate::world::{WorldInfo};
 
 pub type DialogueLibrary = HashMap<String, HashMap<Attitude, Vec<String>>>;
@@ -102,6 +103,7 @@ pub fn parse_voice_line(line: &str, world_info: &WorldInfo, speaker: &str, speak
     let mut s = line.replace("{village}", &world_info.town_name);
     s = s.replace("{player-name}", &world_info.player_name);
     s = s.replace("{name}", speaker);
+    s = s.replace("{inn-name}", &world_info.tavern_name);
 
     if line.contains("{dungeon-dir}") {
         for fact in &world_info.facts {
@@ -113,5 +115,23 @@ pub fn parse_voice_line(line: &str, world_info: &WorldInfo, speaker: &str, speak
         }        
     }
 
-    s
+    s.capitalize()
+}
+
+pub fn rnd_innkeeper_voice() -> String {
+    let contents = fs::read_to_string("dialogue.txt")
+        .expect("Unable to find dialogue file!");
+    
+    let mut voices = Vec::new();
+    for line in contents.split('\n') {        
+        if line.starts_with("voice:innkeeper") {
+            let pieces: Vec<&str> = line.split(':').collect();
+            voices.push(pieces[1]);
+        }
+    }
+
+    let mut rng = rand::thread_rng();
+    let pick = rng.gen_range(0, voices.len());
+
+    voices[pick].to_string()
 }

@@ -24,11 +24,13 @@ use serde::{Serialize, Deserialize};
 
 use super::{EventType, Map};
 
-use crate::actor;
+use crate::actor::{self, pick_villager_name};
 use crate::actor::{AgendaItem, Venue, NPC};
+use crate::dialogue;
 use crate::game_obj::{GameObject, GameObjects};
 use crate::map::{DoorState, Tile};
 use crate::pathfinding;
+use crate::util;
 use crate::world::WILDERNESS_SIZE;
 use crate::world::WorldInfo;
 
@@ -247,9 +249,9 @@ fn check_along_col(map: &mut Map, start: (i32, i32), delta: i32, town: (i32, i32
                 draw_building(map, (row, start.1), town, template, buildings, cat);
                 return true;
             }
-        }
 
-        row += delta;
+            row += delta;
+        }
     }
 
     false
@@ -536,7 +538,7 @@ fn draw_paths_in_town(map: &mut Map, world_info: &WorldInfo) {
 fn random_tavern_name() -> String {
     let mut rng = rand::thread_rng();
     let nouns = ["Arms", "Boar", "Cup", "Axe", "Bow", "Elf", "Stag"];
-    let adjective = ["Black", "Golden", "Broken", "Jeweled", "Lost"];
+    let adjective = ["Black", "Golden", "Broken", "Jeweled", "Lost", "Pickled"];
 
     let noun = String::from(*nouns.iter().choose(&mut rng).unwrap());
     let adj = String::from(*adjective.iter().choose(&mut rng).unwrap());
@@ -557,10 +559,11 @@ fn random_town_name() -> String {
 
 fn create_villager(voice: &str, tb: &mut TownBuildings, used_names: &HashSet<String>, game_objs: &mut GameObjects) -> GameObject {
     let home_id = tb.vacant_home().unwrap();
-    let home = &tb.homes[home_id];
-    let j = rand::thread_rng().gen_range(0, home.len());    
-    let loc = home.iter().nth(j).unwrap();
-    let mut villager = NPC::villager(actor::pick_villager_name(used_names), *loc, home_id, voice, game_objs);
+    let home_sqs = &tb.homes[home_id];
+    let j = rand::thread_rng().gen_range(0, home_sqs.len());    
+    let loc = home_sqs.iter().nth(j).unwrap();
+    let home = Some(Venue::Home(home_id));
+    let mut villager = NPC::villager(actor::pick_villager_name(used_names), *loc, home, voice, game_objs);
     tb.taken_homes.push(home_id);
     
     if voice.starts_with("mayor") {
@@ -572,6 +575,28 @@ fn create_villager(voice: &str, tb: &mut TownBuildings, used_names: &HashSet<Str
     }
 
     villager
+}
+
+fn create_innkeeper(tb: &TownBuildings, used_names: &HashSet<String>, game_objs: &mut GameObjects) -> GameObject {
+    let inn_sqs: Vec<(i32, i32, i8)> = tb.tavern.iter().map(|s| *s).collect();
+    let j = rand::thread_rng().gen_range(0, inn_sqs.len());    
+    let loc = inn_sqs.iter().nth(j).unwrap();
+
+    let voice = dialogue::rnd_innkeeper_voice();
+    NPC::villager(actor::pick_villager_name(used_names), *loc, Some(Venue::Tavern), &voice, game_objs)
+}
+
+fn add_well(map: &mut Map, world_info: &WorldInfo) {
+    let mut rng = rand::thread_rng();
+    let sqs = world_info.town_square.iter().map(|s| *s).collect::<Vec<(i32, i32, i8)>>();
+    let pick = rng.gen_range(0, sqs.len());    
+    let well_loc = sqs[pick];
+    map.insert(well_loc, Tile::Well);
+
+    for adj in util::ADJ.iter() {
+        let loc = (well_loc.0 + adj.0, well_loc.1 + adj.1, 0);
+        map.insert(loc, Tile::StoneFloor);
+    }
 }
 
 pub fn create_town(map: &mut Map, game_objs: &mut GameObjects) -> WorldInfo {
@@ -632,25 +657,27 @@ pub fn create_town(map: &mut Map, game_objs: &mut GameObjects) -> WorldInfo {
 
     draw_paths_in_town(map, &world_info);
 
-    let sqs = world_info.town_square.iter().map(|s| *s).collect::<Vec<(i32, i32, i8)>>();
-    let pick = rng.gen_range(0, sqs.len());    
-    let well_loc = sqs[pick];
-    map.insert(well_loc, Tile::Well);
+    add_well(map, &world_info);
     
-    // let mut used_names = HashSet::new();
-    // let v = create_villager("mayor1", &mut tb, &used_names, game_objs);
-    // used_names.insert(v.get_fullname());
-    // let obj_id = v.object_id;    
-    // game_objs.add(v);
-    // game_objs.listeners.insert((obj_id, EventType::TakeTurn));
+    let mut used_names = HashSet::new();
+    let v = create_villager("mayor1", &mut tb, &used_names, game_objs);
+    used_names.insert(v.get_fullname());
+    let obj_id = v.object_id;    
+    game_objs.add(v);
+    game_objs.listeners.insert((obj_id, EventType::TakeTurn));
 
-    // let v = create_villager("villager1", &mut tb, &used_names, game_objs);
-    // used_names.insert(v.get_fullname());
-    // let obj_id = v.object_id;
-    // game_objs.add(v);
-    // game_objs.listeners.insert((obj_id, EventType::TakeTurn));
+    let v = create_villager("villager1", &mut tb, &used_names, game_objs);
+    used_names.insert(v.get_fullname());
+    let obj_id = v.object_id;
+    game_objs.add(v);
+    game_objs.listeners.insert((obj_id, EventType::TakeTurn));
     
-    // world_info.town_buildings = Some(tb);
+    let ik = create_innkeeper(&tb, &used_names, game_objs);
+    let obj_id = ik.object_id;
+    game_objs.add(ik);
+    game_objs.listeners.insert((obj_id, EventType::TakeTurn));
+
+    world_info.town_buildings = Some(tb);
 
     world_info
 }
