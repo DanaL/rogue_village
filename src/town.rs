@@ -137,7 +137,7 @@ fn draw_building(map: &mut Map, loc: (i32, i32), town: (i32, i32), template: &Te
             let quarter = TOWN_HEIGHT / 4;
             let north_quarter = town.0 + quarter;
             let south_quarter = town.0 + quarter + quarter;
-            let mid = (town.1 + TOWN_WIDTH as i32) / 2;
+            let mid = town.1 + TOWN_WIDTH / 2;
 
             if centre_row >= south_quarter { 
                 // rotate doors to face north
@@ -186,68 +186,7 @@ fn draw_building(map: &mut Map, loc: (i32, i32), town: (i32, i32), template: &Te
         BuildingType::Shrine => buildings.shrine = building_sqs,
         BuildingType::Home => buildings.homes.push(building_sqs),
         BuildingType::Tavern => buildings.tavern = building_sqs,
-    }
-    /*
-    // We want to rotate the building so that an entrance more or less points toward town
-    // centre (or at least doesn't face away). This code is assuming all building templates
-    // have an entrance on their south wall.
-    if !is_tavern {
-        if loc.0 == 0 && loc.1 < 2 {
-            if rng.gen_range(0.0, 1.0) < 0.5 {
-                // make entrance face east
-                building = rotate(&building);
-            }
-        } else if loc.0 == 0 && loc.1 > 2 {
-            if rng.gen_range(0.0, 1.0) < 0.5 {
-                // make entrance face west
-                building = rotate(&building);
-                building = rotate(&building);
-                building = rotate(&building);
-            }
-        } else if loc.0 == 1 && loc.1 < 2 {
-            // make entrance face east
-            building = rotate(&building);
-        } else if loc.0 == 1 && loc.1 > 2 {
-            // make entrance face west
-            building = rotate(&building);
-            building = rotate(&building);
-            building = rotate(&building);
-        } else if loc.0 == 2 && loc.1 == 2 {
-            // make entrance face north
-            building = rotate(&building);
-            building = rotate(&building);
-        } else if loc.0 == 2 && loc.1 < 2 {
-            if rng.gen_range(0.0, 1.0) < 0.5 {
-                // make entrance face east
-                building = rotate(&building);
-            } else {
-                // make building face north
-                building = rotate(&building);
-                building = rotate(&building);
-            }
-        } else if loc.0 == 2 && loc.1 > 2 {
-            if rng.gen_range(0.0, 1.0) < 0.5 {
-                // make entrance face west
-                building = rotate(&building);
-                building = rotate(&building);
-                building = rotate(&building);
-            } else {
-                // make building face north
-                building = rotate(&building);
-                building = rotate(&building);
-            }
-        }
-    }
-
-    // Lots are 12x12 and building templates are 9x9 so we can stagger them on the lot a bit
-    let stagger_r = rng.gen_range(0, 3) as i32;
-    let stagger_c = rng.gen_range(0, 3) as i32;
-
-    
-    
-    }
-
-    */
+    }   
 }
 
 fn building_fits(map: &mut Map, nw_r: i32, nw_c: i32, template: &Template) -> bool {
@@ -410,6 +349,11 @@ fn place_building(map: &mut Map, town_r: i32, town_c: i32, template: &Template, 
         if pick == 1 {
             // Start at the top left
             let (mut row, mut col, delta_r, delta_c) = (town_r, town_c, 2, 2);
+
+            // stagger the buildings a bit
+            row += rng.gen_range(0, 6);
+            col += rng.gen_range(0, 6);
+
             loop {
                 if check_along_row(map, (row, col), delta_c, (town_r, town_c), template, buildings, &cat) {
                     return true;
@@ -428,6 +372,11 @@ fn place_building(map: &mut Map, town_r: i32, town_c: i32, template: &Template, 
             // Start at the bottom left
             let (mut row, mut col, delta_r, delta_c) = (town_r + TOWN_HEIGHT as i32 - template.height as i32 - 1, 
                     town_c, -2, 2);
+
+            // stagger the buildings a bit
+            row -= rng.gen_range(0, 6);
+            col += rng.gen_range(0, 6);
+
             loop {
                 if check_along_row(map, (row, col), delta_c, (town_r, town_c), template, buildings, &cat) {
                     return true;
@@ -445,6 +394,11 @@ fn place_building(map: &mut Map, town_r: i32, town_c: i32, template: &Template, 
         } else if pick == 3 {
             // Start at the top right
             let (mut row, mut col, delta_r, delta_c) = (town_r, town_c + TOWN_WIDTH - template.width as i32 - 1, 2, -2);
+
+            // stagger the buildings a bit
+            row += rng.gen_range(0, 6);
+            col -= rng.gen_range(0, 6);
+
             loop {
                 if check_along_row(map, (row, col), delta_c, (town_r, town_c), template, buildings, &cat) {
                     return true;
@@ -463,6 +417,11 @@ fn place_building(map: &mut Map, town_r: i32, town_c: i32, template: &Template, 
             // Start at bottom right
             let (mut row, mut col, delta_r, delta_c) = (town_r + TOWN_HEIGHT - template.height as i32 - 1, 
                 town_c + TOWN_WIDTH - template.width as i32 - 1, -2, -2);
+
+            // stagger the buildings a bit
+            row -= rng.gen_range(0, 6);
+            col -= rng.gen_range(0, 6);
+
             loop {
                 if check_along_row(map, (row, col), delta_c, (town_r, town_c), template, buildings, &cat) {
                     return true;
@@ -491,10 +450,9 @@ fn place_town_buildings(map: &mut Map, town_r: i32, town_c: i32,
     // Step one, get rid of most but not all of the trees in town and replace with grass.
 	for r in town_r..town_r + TOWN_HEIGHT {
 		for c in town_c..town_c + TOWN_WIDTH {
-            // if map[&(r, c, 0)] == Tile::Tree && rng.gen_range(0.0, 1.0) < 0.85 {
-            //     map.insert((r, c, 0), Tile::Grass);
-            // }
-            map.insert((r, c, 0), Tile::Dirt);
+            if map[&(r, c, 0)] == Tile::Tree && rng.gen_range(0.0, 1.0) < 0.85 {
+                map.insert((r, c, 0), Tile::Grass);
+            }
         }
     }
 
@@ -655,25 +613,24 @@ pub fn create_town(map: &mut Map, game_objs: &mut GameObjects) -> WorldInfo {
     let mut tb = TownBuildings::new();
     place_town_buildings(map, start_r as i32, start_c as i32, &buildings, &mut tb);
 
-    println!("{:?}", tb.tavern);
-    println!("# of homes: {}", tb.homes.len());
-    
     let tavern_name = random_tavern_name();
     let town_name = random_town_name();
     let mut world_info = WorldInfo::new(town_name,
         (start_r as i32, start_c as i32, start_r as i32 + 35, start_c as i32 + 60),
         tavern_name);    
     
-    // The town square is in lot (1, 2)
-    // for r in start_r + 12..start_r + 24 {
-    //     for c in start_c + 24..start_c + 36 {
-    //         if map[&(r as i32, c as i32, 0)].passable_dry_land() {
-    //             world_info.town_square.insert((r as i32, c as i32, 0));
-    //         }
-    //     }
-    // }
+    // Mark the town square
+    let centre_row = start_r as i32 + TOWN_HEIGHT / 2;
+    let centre_col = start_c as i32 + TOWN_WIDTH / 2;
+    for r in centre_row - 5 .. centre_row + 5 {
+        for c in centre_col - 5 .. centre_col  + 5 {
+            if map[&(r, c, 0)].passable_dry_land() {
+                world_info.town_square.insert((r, c, 0));
+            }
+        }
+    }
 
-    // draw_paths_in_town(map, &world_info);
+    draw_paths_in_town(map, &world_info);
 
     // let mut used_names = HashSet::new();
     // let v = create_villager("mayor1", &mut tb, &used_names, game_objs);
