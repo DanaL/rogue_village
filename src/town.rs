@@ -591,14 +591,33 @@ fn create_innkeeper(tb: &TownBuildings, used_names: &HashSet<String>, game_objs:
 
 fn add_well(map: &mut Map, world_info: &WorldInfo) {
     let mut rng = rand::thread_rng();
-    let sqs = world_info.town_square.iter().map(|s| *s).collect::<Vec<(i32, i32, i8)>>();
-    let pick = rng.gen_range(0, sqs.len());    
-    let well_loc = sqs[pick];
-    map.insert(well_loc, Tile::Well);
+    let mut sqs = world_info.town_square.iter().map(|s| *s).collect::<Vec<(i32, i32, i8)>>();
+    sqs.shuffle(&mut rng);
 
-    for adj in util::ADJ.iter() {
-        let loc = (well_loc.0 + adj.0, well_loc.1 + adj.1, 0);
-        map.insert(loc, Tile::StoneFloor);
+    while !sqs.is_empty() {
+        let sq = sqs.pop().unwrap();
+
+        let mut okay = true;
+        for adj in util::ADJ.iter() {
+            let loc = (sq.0 + adj.0, sq.1 + adj.1, 0);
+            let tile = &map[&loc];
+            if *tile != Tile::Grass && *tile != Tile::Dirt && *tile != Tile::Tree {
+                okay = false;
+                break;
+            }
+        }
+        if !okay {
+            continue;
+        }
+
+        map.insert(sq, Tile::Well);
+
+        for adj in util::ADJ.iter() {
+            let loc = (sq.0 + adj.0, sq.1 + adj.1, 0);
+            map.insert(loc, Tile::StoneFloor);
+        }
+
+        break;
     }
 }
 
