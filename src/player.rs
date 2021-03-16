@@ -19,7 +19,7 @@ use std::collections::{HashMap, HashSet};
 use rand::Rng;
 use serde::{Serialize, Deserialize};
 
-use super::GameState;
+use super::{GameState, Status};
 use crate::display;
 use crate::{EventType, items};
 use crate::game_obj::{GameObject, GameObjects};
@@ -76,6 +76,7 @@ pub struct Player {
     pub next_slot: char,
     pub hit_die: u8,
     pub stealth_score: u8,
+    pub statuses: Vec<Status>,
 }
 
 impl Player {
@@ -134,7 +135,7 @@ impl Player {
             object_id: 0, name: name.clone(), max_hp: (15 + stat_to_mod(stats[1])) as u8, curr_hp: (15 + stat_to_mod(stats[1])) as u8,
                 vision_radius: default_vision_radius, str: stats[0], con: stats[1], dex: stats[2], chr, apt, role: Role::Warrior, xp: 0, level: 1, max_depth: 0, 
                 ac: 10, purse: 20, readied_weapon: "".to_string(), energy: 1.0, energy_restore: 1.0, inventory: Vec::new(), next_slot: 'a', hit_die: 10,
-                stealth_score: 10,
+                stealth_score: 10, statuses: Vec::new(),
         };
         
         // Warrior starting equipment
@@ -176,7 +177,7 @@ impl Player {
             object_id: 0, name: name.clone(), max_hp: (12 + stat_to_mod(stats[2])) as u8, curr_hp: (12 + stat_to_mod(stats[2])) as u8,
                 vision_radius: default_vision_radius, str, con: stats[2], dex: stats[0], chr, apt: stats[1], role: Role::Rogue, xp: 0, level: 1, max_depth: 0, ac: 10, 
                 purse: 20, readied_weapon: "".to_string(), energy: 1.0, energy_restore: 1.25, inventory: Vec::new(), next_slot: 'a', hit_die: 8,
-                stealth_score: 10,
+                stealth_score: 10, statuses: Vec::new(),
         };
 
         p.calc_gear_effects();

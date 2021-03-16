@@ -17,7 +17,7 @@ use std::collections::HashSet;
 
 use rand::Rng;
 
-use super::GameState;
+use super::{GameState, Status};
 use crate::game_obj::GameObjects;
 use crate::dialogue::DialogueLibrary;
 use crate::display::GameUI;
@@ -26,7 +26,19 @@ use crate::util::StringUtils;
 // Is it worth preventing the character from renting a room if it's early in the day?
 // Check in isn't until 3:00pm?
 fn rent_room(state: &mut GameState, game_objs: &mut GameObjects) {
+    let player = game_objs.player_details();
 
+    if player.purse < 10 {
+        state.write_msg_buff("\"You can't afford a room in this establishment.\"");
+        return;
+    }
+
+    player.purse -= 10;
+    
+    let checkout = state.turn + 2880; // renting a room is basically passing for 8 hours
+    player.statuses.push(Status::RestAtInn(checkout));
+
+    state.write_msg_buff("You check in.");
 }
 
 // Eventually, having a drink will incease the player's verve (ie., the emotional readiness for dungeoneering)
@@ -51,7 +63,7 @@ pub fn talk_to_innkeeper(state: &mut GameState, obj_id: usize, loc: (i32, i32, i
     msg.push('\n');
     msg.push('\n');
     msg.push_str("a) buy a drink (1$)\n");
-    msg.push_str("b) room for the night (10$)\n");
+    msg.push_str("b) rent a room (10$)\n");
     msg.push_str("c) buy a round for the bar (X$)");
 
     let name = format!("{}, the innkeeper", npc.get_npc_name(true).capitalize());
