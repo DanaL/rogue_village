@@ -24,7 +24,7 @@ use serde::{Serialize, Deserialize};
 
 use super::{EventType, Map};
 
-use crate::actor::{self, pick_villager_name};
+use crate::actor::{self};
 use crate::actor::{AgendaItem, Venue, NPC};
 use crate::dialogue;
 use crate::game_obj::{GameObject, GameObjects};
@@ -462,7 +462,11 @@ fn place_town_buildings(map: &mut Map, town_r: i32, town_c: i32,
     place_tavern(map, town_r, town_c, templates, buildings);
     
     // The town will have only 1 shrine. (Maybe in the future I can implement religious rivalries...)
-    place_building(map, town_r, town_c, &templates["shrine"], buildings, BuildingType::Shrine);
+    if rng.gen_range(0, 2) == 0 {
+        place_building(map, town_r, town_c, &templates["shrine 1"], buildings, BuildingType::Shrine);
+    } else {
+        place_building(map, town_r, town_c, &templates["shrine 2"], buildings, BuildingType::Shrine);
+    }
 
     for _ in 0..8 {
         let template = if rng.gen_range(0.0, 1.0) < 0.5 {

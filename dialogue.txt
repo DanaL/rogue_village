@@ -32,7 +32,7 @@ Hostile
 #
 voice:innkeeper1
 Stranger
-- Well to {inn-name}!
+- Welcome to {inn-name}!
 - Going to be staying awhile?
 Indifferent
 - What'll it be?

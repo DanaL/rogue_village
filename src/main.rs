@@ -30,6 +30,7 @@
     mod map;
     mod pathfinding;
     mod player;
+    mod shops;
     mod town;
     mod util;
     mod wilderness;
@@ -53,7 +54,8 @@
     use items::{GoldPile, ItemType};
     use map::{DoorState, ShrineType, Tile};
     use player::{Ability, Player};
-    use util::StringUtils;
+    use shops::talk_to_innkeeper;
+use util::StringUtils;
     use world::WorldInfo;
 
     const MSG_HISTORY_LENGTH: usize = 50;
@@ -1087,11 +1089,13 @@
 
             let venue = &npc.npc.as_ref().unwrap().home;
             match venue {
-                Some(Venue::Tavern) => { },
+                Some(Venue::Tavern) => { 
+                    shops::talk_to_innkeeper(state, obj_id, loc, game_objs, dialogue, gui);
+                },
                 _ => {
                     let line = npc.npc.as_mut().unwrap().talk_to(state, dialogue, npc.location);
                     state.add_to_msg_history(&line);
-                    gui.popup_msg(&npc.get_npc_name(true).capitalize(), &line);  
+                    gui.popup_msg(&npc.get_npc_name(true).capitalize(), &line);
                 },
             }       
         } else {
