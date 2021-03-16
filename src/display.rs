@@ -155,7 +155,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 	}
 
 	pub fn query_single_response(&mut self, question: &str, sbi: Option<&SidebarInfo>) -> Option<char> {
-		self.draw_frame(question, sbi);
+		self.draw_frame(question, sbi, true);
 		self.wait_for_key_input()
 	}
 
@@ -170,7 +170,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 	}
 
 	pub fn pick_direction(&mut self, msg: &str, sbi: Option<&SidebarInfo>) -> Option<(i32, i32)> {
-		self.draw_frame(msg, sbi);
+		self.draw_frame(msg, sbi, true);
 
 		loop {
 			match self.wait_for_key_input() {
@@ -195,7 +195,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 			let mut s = String::from(query);
 			s.push(' ');
 			s.push_str(&answer);
-			self.draw_frame(&s, sbi);
+			self.draw_frame(&s, sbi, true);
 
 			match self.wait_for_key_input() {
 				Some('\n') => { break; },
@@ -224,7 +224,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 			s.push(' ');
 			s.push_str(&answer);
 
-			self.draw_frame(&s, sbi);
+			self.draw_frame(&s, sbi, true);
 			
 			match self.wait_for_key_input() {
 				Some('\n') => { break; },
@@ -261,7 +261,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 			},
 			None => { 
 				let sbi = state.curr_sidebar_info(game_objs);
-				self.draw_frame("Nevermind.", Some(&sbi));
+				self.draw_frame("Nevermind.", Some(&sbi), true);
 				None
 			},
 		}
@@ -504,9 +504,9 @@ impl<'a, 'b> GameUI<'a, 'b> {
 		line
 	}
 
-	pub fn popup_menu(&mut self, title: &str, text: &str, options: HashSet<char>) -> Option<char> {
+	pub fn popup_menu(&mut self, title: &str, text: &str, options: &HashSet<char>, sbi: Option<&SidebarInfo>) -> Option<char> {
 		loop {
-			if let Some(ch) = self.popup_msg(title, text) {
+			if let Some(ch) = self.popup_msg(title, text, sbi) {
 				if options.contains(&ch) {
 					return Some(ch);
 				}
@@ -518,7 +518,9 @@ impl<'a, 'b> GameUI<'a, 'b> {
 
 	// I'll probably need to eventually add pagination but rendering the text into
 	// lines was plenty for my brain for now...
-	pub fn popup_msg(&mut self, title: &str, text: &str) -> Option<char> {
+	pub fn popup_msg(&mut self, title: &str, text: &str, sbi: Option<&SidebarInfo>) -> Option<char> {
+		self.canvas.clear();		
+		self.draw_frame(&"", sbi, false);
 		self.write_line(0, "", false);
 
 		let line_width = 45; // eventually this probably shouldn't be hardcoded here
@@ -616,10 +618,11 @@ impl<'a, 'b> GameUI<'a, 'b> {
 		self.write_sidebar_line(&s, fov_w, 21, white, 0);		
 	}
 
-	fn draw_frame(&mut self, msg: &str, sbi: Option<&SidebarInfo>) {
-		self.canvas.set_draw_color(BLACK);
-		self.canvas.clear();
-
+	fn draw_frame(&mut self, msg: &str, sbi: Option<&SidebarInfo>, render: bool) {
+		if render {
+			self.canvas.set_draw_color(BLACK);
+			self.canvas.clear();
+		}
 		self.write_line(0, msg, false);
 
 		// I wonder if, since I've got rid of write_sq() and am generating a bunch of textures here,
@@ -669,7 +672,9 @@ impl<'a, 'b> GameUI<'a, 'b> {
 			self.write_sidebar(sidebar);
 		}
 
-		self.canvas.present();
+		if render {
+			self.canvas.present();
+		}
 	}
 
 	pub fn write_screen(&mut self, msgs: &VecDeque<String>, sbi: Option<&SidebarInfo>) {
@@ -697,7 +702,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 				if msg.len() + word.len() + 1 >=  SCREEN_WIDTH as usize - 9 {
 					words.push_front(word);
 					msg.push_str("--More--");
-					self.draw_frame(&msg, sbi);
+					self.draw_frame(&msg, sbi, true);
 					self.pause_for_more();
 					msg = String::from("");
 				} else {
@@ -709,7 +714,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 			msg = self.msg_line.clone();
 		}
 
-		self.draw_frame(&msg, sbi);
+		self.draw_frame(&msg, sbi, true);
 		if !msg.is_empty() {			
 			self.msg_line = msg;
 		}

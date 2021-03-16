@@ -133,6 +133,7 @@ pub struct NPC {
     pub active_behaviour: Behaviour,
     pub inactive_behaviour: Behaviour,
     pub level: u8,
+    pub last_inventory: u32,
 }
 
 impl NPC {
@@ -141,7 +142,7 @@ impl NPC {
         let npc = NPC { name, ac: 10, curr_hp: 8, max_hp: 8, attitude: Attitude::Stranger, facts_known: Vec::new(), home, plan: VecDeque::new(), 
             voice: String::from(voice), schedule: Vec::new(), mode: NPCPersonality::Villager, attack_mod: 2, dmg_dice: 1, dmg_die: 3, dmg_bonus: 0, edc: 12,
             attributes: MA_OPEN_DOORS | MA_UNLOCK_DOORS, curr_loc: (-1, -1, -1), alive: true, xp_value: 0, inventory: Vec::new(),
-            active: true, active_behaviour: Behaviour::Idle, inactive_behaviour: Behaviour::Idle, level: 0, 
+            active: true, active_behaviour: Behaviour::Idle, inactive_behaviour: Behaviour::Idle, level: 0, last_inventory: 0,
         };
 
         let obj = GameObject::new(game_objs.next_id(), &npc_name, location, '@', display::LIGHT_GREY, display::LIGHT_GREY, 
@@ -584,7 +585,7 @@ impl MonsterFactory {
         let mut npc = NPC { name: String::from(name), ac: stats.0, curr_hp: stats.1, max_hp: stats.1, attitude: Attitude::Indifferent, facts_known: Vec::new(), home: None, 
             plan: VecDeque::new(), voice: String::from("monster"), schedule: Vec::new(), mode: stats.4, attack_mod: stats.5, dmg_dice: stats.6, dmg_die: stats.7, 
             dmg_bonus: stats.8, edc: self.calc_dc(stats.9), attributes: stats.10, curr_loc: loc, alive: true, xp_value: stats.11, inventory: Vec::new(),
-            active: stats.12, active_behaviour: stats.13, inactive_behaviour: stats.14, level: stats.9, 
+            active: stats.12, active_behaviour: stats.13, inactive_behaviour: stats.14, level: stats.9, last_inventory: 0,
         };
 
         let mut rng = rand::thread_rng();

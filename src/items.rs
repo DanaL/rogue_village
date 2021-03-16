@@ -38,6 +38,7 @@ pub enum ItemType {
 	Armour,
     Light,
     Note,
+    Bottle,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -57,19 +58,20 @@ pub struct Item {
     pub charges: u16,
     pub aura: u8,
     pub text: Option<(String, String)>,
-    pub dmg_type: DamageType, 
+    pub dmg_type: DamageType,
+    pub value: u16,
 }
 
 impl Item {    
-    fn new(item_type: ItemType, weight: u8, stackable: bool) -> Item {
+    fn new(item_type: ItemType, weight: u8, stackable: bool, value: u16) -> Item {
 		Item { item_type, weight, stackable, slot: '\0', dmg_die: 1, dmg_dice: 1, attack_bonus: 0, ac_bonus: 0, range: 0, equiped: false, 
-                attributes: 0, active: false, charges: 0, aura: 0, text: None, dmg_type: DamageType::Bludgeoning }								
+                attributes: 0, active: false, charges: 0, aura: 0, text: None, dmg_type: DamageType::Bludgeoning, value, }								
 	}
     
     pub fn get_item(game_objs: &mut GameObjects, name: &str) -> Option<GameObject> {
         match name {
             "longsword" => {
-                let mut i = Item::new(ItemType::Weapon, 3, false);
+                let mut i = Item::new(ItemType::Weapon, 3, false, 15);
                 i.dmg_die = 8;
                 i.dmg_type = DamageType::Slashing;
                 let obj = GameObject::new(game_objs.next_id(), name, (0, 0, 0), ')', display::WHITE, display::GREY, None, Some(i) , None, None, None, false);
@@ -77,7 +79,7 @@ impl Item {
                 Some(obj)
             },
             "dagger" => {
-                let mut i = Item::new(ItemType::Weapon, 1, false);
+                let mut i = Item::new(ItemType::Weapon, 1, false, 2);
                 i.dmg_die = 4;
                 i.dmg_type = DamageType::Slashing;
                 let obj = GameObject::new(game_objs.next_id(), name, (0, 0, 0), ')', display::WHITE, display::GREY, None, Some(i) , None, None, None, false);
@@ -85,7 +87,7 @@ impl Item {
                 Some(obj)
             },
             "spear" => {
-                let mut i = Item::new(ItemType::Weapon, 2, false);
+                let mut i = Item::new(ItemType::Weapon, 2, false, 2);
                 i.dmg_die = 6;
                 i.dmg_type = DamageType::Piercing;
                 let obj = GameObject::new(game_objs.next_id(), name, (0, 0, 0), ')', display::WHITE, display::GREY, None, Some(i) , None, None, None, false);
@@ -93,7 +95,7 @@ impl Item {
                 Some(obj)
             },
             "staff" => {
-                let mut i = Item::new(ItemType::Weapon, 1, false);
+                let mut i = Item::new(ItemType::Weapon, 1, false, 2);
                 i.dmg_die = 6;
                 i.dmg_type = DamageType::Bludgeoning;
                 let obj = GameObject::new(game_objs.next_id(), name, (0, 0, 0), ')', display::LIGHT_BROWN, display::BROWN, None, Some(i) , None, None, None, false);
@@ -101,7 +103,7 @@ impl Item {
                 Some(obj)
             },
             "ringmail" => {
-                let mut i = Item::new(ItemType::Armour, 10, false);
+                let mut i = Item::new(ItemType::Armour, 10, false, 30);
                 i.ac_bonus = 3;
                 i.attributes |= IA_MED_ARMOUR;
                 let obj = GameObject::new(game_objs.next_id(), name, (0, 0, 0), '[', display::GREY, display::DARK_GREY, None, Some(i) , None, None, None, false);
@@ -109,15 +111,22 @@ impl Item {
                 Some(obj)
             },            
             "torch" => {
-                let mut i = Item::new(ItemType::Light, 1, true);
+                let mut i = Item::new(ItemType::Light, 1, true, 1);
                 i.charges = 1000;
                 i.aura = 5;
                 
                 let obj = GameObject::new(game_objs.next_id(), name, (0, 0, 0), '(', display::LIGHT_BROWN, display::BROWN, None, Some(i) , None, None, None, false);
                 Some(obj)
             },
+            "wineskin" => {
+                let mut w = Item::new(ItemType::Bottle, 1, false, 1);
+                w.charges = 0;
+
+                let obj = GameObject::new(game_objs.next_id(), name, (0, 0, 0), '(', display::LIGHT_BROWN, display::BROWN, None, Some(w) , None, None, None, false);
+                Some(obj)
+            },
             "note" => {
-                let i = Item::new(ItemType::Note, 0, false);
+                let i = Item::new(ItemType::Note, 0, false, 0);
                 let obj = GameObject::new(game_objs.next_id(), name, (0, 0, 0), '?', display::WHITE, display::LIGHT_GREY, None, Some(i) , None, None, None, false);            
                 
                 Some(obj)
@@ -126,14 +135,23 @@ impl Item {
         }
     }
 
-    pub fn desc(&self,) -> String {
+    pub fn desc(&self) -> String {
         // Will I ever want an item that's both equiped AND active??
         if self.equiped {
             return match self.item_type {
                 ItemType::Weapon =>  String::from("(in hand)"),
-                ItemType::Armour => String::from("(being worn)"),                
+                ItemType::Armour => String::from("(being worn)"),
+                ItemType::Bottle => {
+                    if self.charges == 1 {
+                        String::from("(half full")
+                    } else if self.charges == 2 {
+                        String::from("(full)")
+                    } else {
+                        String::from("empty")
+                    }
+                }
                 _ => "".to_string(),
-            }
+            }        
         } else if self.active {
             return "(lit)".to_string()
         }

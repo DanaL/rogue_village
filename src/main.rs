@@ -690,7 +690,7 @@ fn read_item(state: &mut GameState, game_objs: &mut GameObjects, gui: &mut GameU
         let obj = player.inv_item_in_slot(ch).unwrap();
         if obj.item.is_some() {                
             if let Some(text) = &obj.item.as_ref().unwrap().text {
-                gui.popup_msg(&text.0.with_indef_article().capitalize(), &text.1);
+                gui.popup_msg(&text.0.with_indef_article().capitalize(), &text.1, Some(&sbi));
             } else {
                 state.write_msg_buff("There's nothing written on it.");
             }
@@ -1089,6 +1089,7 @@ fn do_move(state: &mut GameState, game_objs: &mut GameObjects, dir: &str, gui: &
 }
 
 fn chat_with(state: &mut GameState, gui: &mut GameUI, loc: (i32, i32, i8), game_objs: &mut GameObjects, dialogue: &DialogueLibrary) -> f32 {
+    let sbi = state.curr_sidebar_info(game_objs);
     if let Some(obj_id) = game_objs.npc_at(&loc) {
         let npc = game_objs.get_mut(obj_id).unwrap();
 
@@ -1103,9 +1104,9 @@ fn chat_with(state: &mut GameState, gui: &mut GameUI, loc: (i32, i32, i8), game_
             _ => {
                 let line = npc.npc.as_mut().unwrap().talk_to(state, dialogue, npc.location, None);
                 state.add_to_msg_history(&line);
-                gui.popup_msg(&npc.get_npc_name(true).capitalize(), &line);
+                gui.popup_msg(&npc.get_npc_name(true).capitalize(), &line, Some(&sbi));
             },
-        }       
+        }           
     } else {
         if let Tile::Door(_) = state.map[&loc] {
             state.write_msg_buff("The door is ignoring you.");
