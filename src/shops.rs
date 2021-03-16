@@ -34,7 +34,7 @@ fn inventory_menu(inventory: &Vec<GameObject>) -> Vec<(String, char, u8, u16)> {
     for obj in inventory.iter() {
         let mut found = false;
         for j in 0..items.len() {
-            if obj.item.as_ref().unwrap().stackable() && obj.get_fullname() == items[j].0 {
+            if obj.item.as_ref().unwrap().stackable() && obj.name == items[j].0 {
                 items[j].2 += 1;
                 found = true;
                 break;
@@ -42,7 +42,8 @@ fn inventory_menu(inventory: &Vec<GameObject>) -> Vec<(String, char, u8, u16)> {
         }
 
         if !found {
-            items.push((obj.get_fullname(), curr_slot, 1, obj.item.as_ref().unwrap().value));
+            let name = obj.name.clone();
+            items.push((name, curr_slot, 1, obj.item.as_ref().unwrap().value));
             curr_slot = (curr_slot as u8 + 1) as char;
         }
     }
