@@ -49,11 +49,12 @@ pub struct Template {
     pub sqs: Vec<char>,
     pub width: usize,
     pub height: usize,
+    pub no_rotate: bool,
 }
 
 impl Template {
-    pub fn new(width: usize, height: usize) -> Template {
-        Template { width, height, sqs: Vec::new() }
+    pub fn new(width: usize, height: usize, no_rotate: bool) -> Template {
+        Template { width, height, sqs: Vec::new(), no_rotate }
     }
 }
 
@@ -128,35 +129,33 @@ fn draw_building(map: &mut Map, loc: (i32, i32), town: (i32, i32), template: &Te
     let mut building_sqs = HashSet::new();
     let is_wood = rng.gen_range(0.0, 1.0) < 0.7;
 
-    let building = match cat {
-        BuildingType::Tavern => template.sqs.clone(),
-        _ => {
-            // if the building isn't the tavern, we might want to rotate it
-            let centre_row = loc.0 + template.height as i32 / 2;
-            let centre_col = loc.1 + template.width as i32 / 2;
-            let mut sqs = template.sqs.clone();
-            
-            let quarter = TOWN_HEIGHT / 4;
-            let north_quarter = town.0 + quarter;
-            let south_quarter = town.0 + quarter + quarter;
-            let mid = town.1 + TOWN_WIDTH / 2;
+    let building = if template.no_rotate {
+        template.sqs.clone()
+    } else {
+        let centre_row = loc.0 + template.height as i32 / 2;
+        let centre_col = loc.1 + template.width as i32 / 2;
+        let mut sqs = template.sqs.clone();
+        
+        let quarter = TOWN_HEIGHT / 4;
+        let north_quarter = town.0 + quarter;
+        let south_quarter = town.0 + quarter + quarter;
+        let mid = town.1 + TOWN_WIDTH / 2;
 
-            if centre_row >= south_quarter { 
-                // rotate doors to face north
-                sqs = rotate(&sqs);
-                sqs = rotate(&sqs);
-            } else if centre_row > north_quarter && centre_col < mid {
-                // rotate doors to face east
-                sqs = rotate(&sqs);
-            } else if centre_row > north_quarter && centre_col > mid {
-                // rotate doors to face west
-                sqs = rotate(&sqs);
-                sqs = rotate(&sqs);
-                sqs = rotate(&sqs);
-            }
+        if centre_row >= south_quarter { 
+            // rotate doors to face north
+            sqs = rotate(&sqs);
+            sqs = rotate(&sqs);
+        } else if centre_row > north_quarter && centre_col < mid {
+            // rotate doors to face east
+            sqs = rotate(&sqs);
+        } else if centre_row > north_quarter && centre_col > mid {
+            // rotate doors to face west
+            sqs = rotate(&sqs);
+            sqs = rotate(&sqs);
+            sqs = rotate(&sqs);
+        }
 
-            sqs
-        },
+        sqs
     };
     
     for r in 0..template.height {
@@ -613,10 +612,11 @@ pub fn create_town(map: &mut Map, game_objs: &mut GameObjects) -> WorldInfo {
     let mut width: usize = 0;
     let mut sqs: Vec<char> = Vec::new();
     let mut rows: usize = 0;
+    let mut no_rotate = false;
     for line in lines {
         if line.starts_with('%') {            
             if !curr_building.is_empty() {
-                let mut template = Template::new(width, rows);
+                let mut template = Template::new(width, rows, no_rotate);
                 template.sqs = sqs.clone();
                 buildings.insert(curr_building.to_string(), template);
             }
@@ -624,13 +624,16 @@ pub fn create_town(map: &mut Map, game_objs: &mut GameObjects) -> WorldInfo {
             curr_building = line[1..].to_string();
             rows = 0;
             sqs = Vec::new();
+            no_rotate = false;
+        } else if line == "no rotate" {
+            no_rotate = true;
         } else {
             width = line.len();
             sqs.extend(line.chars());
             rows += 1;
         }
     }
-    let mut template = Template::new(width, rows);
+    let mut template = Template::new(width, rows, no_rotate);
     template.sqs = sqs.clone();
     buildings.insert(curr_building.to_string(), template);
 
