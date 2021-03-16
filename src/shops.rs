@@ -18,9 +18,11 @@ use std::collections::HashSet;
 use rand::Rng;
 
 use super::{GameState, Status};
-use crate::game_obj::GameObjects;
+use crate::actor::Attitude;
 use crate::dialogue::DialogueLibrary;
 use crate::display::GameUI;
+use crate::game_obj::GameObjects;
+use crate::player::Ability;
 use crate::util::StringUtils;
 
 // Is it worth preventing the character from renting a room if it's early in the day?
@@ -55,16 +57,65 @@ fn buy_drink(state: &mut GameState, game_objs: &mut GameObjects) {
     }
 }
 
-pub fn talk_to_innkeeper(state: &mut GameState, obj_id: usize, loc: (i32, i32, i8), game_objs: &mut GameObjects, dialogue: &DialogueLibrary,gui: &mut GameUI) {
-    let npc = game_objs.get_mut(obj_id).unwrap();
+fn buy_round(state: &mut GameState, game_objs: &mut GameObjects, patrons: &Vec<usize>) {
+    let player = game_objs.player_details();
+
+    if player.purse < patrons.len() as u32 {
+        state.write_msg_buff("You can't afford to pay for everyone!");
+        return;
+    } 
+
+    state.write_msg_buff("You a round for everyone in the bar.");
+    player.purse -= patrons.len() as u32;
+
+    let mut made_friend = false;
+        
+    for npc_id in patrons {
+        let p = game_objs.player_details();
+        let persuasion = p.ability_check(Ability::Chr);
+
+        if persuasion >= 13 {
+            let patron = game_objs.get_mut(*npc_id).unwrap();
+            patron.npc.as_mut().unwrap().attitude = Attitude::Friendly;
+            made_friend = true;
+        }
+    }
+
+    if made_friend {
+        state.write_msg_buff("Cheers!!");
+    }
+}
+
+fn inn_patrons(state: &GameState, game_objs: &mut GameObjects, innkeeper_id: usize) -> Vec<usize> {
+    let mut patrons = Vec::new();
+    if let Some(buildings) = &state.world_info.town_buildings {
+        for sq in buildings.tavern.iter() {
+            if let Some(npc_id) = game_objs.npc_at(&sq) {
+                patrons.push(npc_id);
+            }
+        }
+    }
+
+    patrons.retain(|p| *p != innkeeper_id);
+
+    patrons
+}
+
+pub fn talk_to_innkeeper(state: &mut GameState, innkeeper_id: usize, game_objs: &mut GameObjects, 
+        dialogue: &DialogueLibrary, gui: &mut GameUI) {
+    let patrons = inn_patrons(state, game_objs, innkeeper_id);
+    let npc = game_objs.get_mut(innkeeper_id).unwrap();
     let mut msg = npc.npc.as_mut().unwrap().talk_to(state, dialogue, npc.location);
     state.add_to_msg_history(&msg);
-
+    
     msg.push('\n');
     msg.push('\n');
     msg.push_str("a) buy a drink (1$)\n");
     msg.push_str("b) rent a room (10$)\n");
-    msg.push_str("c) buy a round for the bar (X$)");
+    if !patrons.is_empty() {
+        let s = format!("c) buy a round for the bar ({}$)", patrons.len());
+        msg.push_str(&s);
+    }
 
     let name = format!("{}, the innkeeper", npc.get_npc_name(true).capitalize());
     let options: HashSet<char> = vec!['a', 'b', 'c'].into_iter().collect();
@@ -75,6 +126,8 @@ pub fn talk_to_innkeeper(state: &mut GameState, obj_id: usize, loc: (i32, i32, i
             buy_drink(state, game_objs);
         } else if ch == 'b' {
             rent_room(state, game_objs);
+        } else if ch == 'c' {
+            buy_round(state, game_objs, &patrons);
         }
     } else {
         let x = rand::thread_rng().gen_range(0, 3);

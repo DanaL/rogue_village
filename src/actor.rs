@@ -156,6 +156,7 @@ impl NPC {
             passable.insert(Tile::Grass, 1.0);
             passable.insert(Tile::Dirt, 1.0);
             passable.insert(Tile::Tree, 1.0);
+            passable.insert(Tile::Bridge, 1.0);
             passable.insert(Tile::Door(DoorState::Open), 1.0);
             passable.insert(Tile::Door(DoorState::Broken), 1.0);
             passable.insert(Tile::Gate(DoorState::Open), 1.0);

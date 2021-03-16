@@ -1096,7 +1096,7 @@ fn chat_with(state: &mut GameState, gui: &mut GameUI, loc: (i32, i32, i8), game_
         let venue = &npc.npc.as_ref().unwrap().home;
         match venue {
             Some(Venue::Tavern) => { 
-                shops::talk_to_innkeeper(state, obj_id, loc, game_objs, dialogue, gui);
+                shops::talk_to_innkeeper(state, obj_id, game_objs, dialogue, gui);
             },
             _ => {
                 let line = npc.npc.as_mut().unwrap().talk_to(state, dialogue, npc.location);
