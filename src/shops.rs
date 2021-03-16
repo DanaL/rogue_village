@@ -224,8 +224,39 @@ fn check_grocer_inventory(state: &mut GameState, grocer_id: usize, game_objs: &m
         grocer.npc.as_mut().unwrap().inventory = objs;
         grocer.npc.as_mut().unwrap().last_inventory = state.turn;
     } else if curr_day - last_inventory_day >= 2  {        
-        // update inventory
-        println!("Time to change up inventory {} {} {}", state.turn, curr_day, last_inventory_day);
+        // Update inventory every couple of days.
+        
+        // For any item in their current inventory, there's a 25% chance it's been purchases while the 
+        // player's been away
+        let grocer = game_objs.get_mut(grocer_id).unwrap();
+        let inv = &mut grocer.npc.as_mut().unwrap().inventory;
+        let mut to_remove = Vec::new();
+        for j in 0..inv.len() {
+            if rand::thread_rng().gen_range(0.0, 1.0) <= 0.2 {
+                to_remove.push(j);
+            }
+        }
+        to_remove.sort();
+        to_remove.reverse();
+        for j in to_remove {
+            inv.remove(j);
+        }
+
+        let mut new_stock = Vec::new();
+        for _ in 0..rand::thread_rng().gen_range(0, 4) {
+            let t = Item::get_item(game_objs, "torch").unwrap();
+            new_stock.push(t);
+        }
+        for _ in 0..rand::thread_rng().gen_range(0, 2) {
+            let t = Item::get_item(game_objs, "wineskin").unwrap();
+            new_stock.push(t);
+        }
+
+        let grocer = game_objs.get_mut(grocer_id).unwrap();
+        grocer.npc.as_mut().unwrap().last_inventory = state.turn;
+        for obj in new_stock {
+            grocer.npc.as_mut().unwrap().inventory.push(obj);
+        }
     }
 }
 
