@@ -140,20 +140,19 @@ impl Item {
         if self.equiped {
             return match self.item_type {
                 ItemType::Weapon =>  String::from("(in hand)"),
-                ItemType::Armour => String::from("(being worn)"),
-                ItemType::Bottle => {
-                    if self.charges == 1 {
-                        String::from("(half full")
-                    } else if self.charges == 2 {
-                        String::from("(full)")
-                    } else {
-                        String::from("empty")
-                    }
-                }
+                ItemType::Armour => String::from("(being worn)"),                
                 _ => "".to_string(),
             }        
         } else if self.active {
             return "(lit)".to_string()
+        } else if self.item_type == ItemType::Bottle {
+            return if self.charges == 1 {
+                String::from("(half full")
+            } else if self.charges == 2 {
+                String::from("(full)")
+            } else {
+                String::from("(empty)")
+            };      
         }
 
 		"".to_string()

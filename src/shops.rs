@@ -18,7 +18,7 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use rand::Rng;
 
 use super::{GameState, Status};
-use crate::actor::Attitude;
+use crate::{actor::Attitude, items::ItemType};
 use crate::dialogue::DialogueLibrary;
 use crate::display::GameUI;
 use crate::game_obj::{GameObject, GameObjects};
@@ -82,6 +82,38 @@ fn buy_drink(state: &mut GameState, game_objs: &mut GameObjects) {
     }
 }
 
+fn fill_flask(state: &mut GameState, game_objs: &mut GameObjects) {
+    let player = game_objs.player_details();
+
+    let mut full = false;
+    for obj in &mut player.inventory {
+        let mut item = obj.item.as_mut().unwrap();
+        if item.item_type == ItemType::Bottle {
+            if item.charges == 2 {
+                full = true;
+            } else if player.purse < 2 {
+                state.write_msg_buff("\"You're a bit short, I'm afraid.\"");
+                return;
+            } else {
+                item.charges = 2;
+                player.purse -= 2;
+                if rand::thread_rng().gen_range(0, 2) == 0 {
+                    state.write_msg_buff("\"There you are! Enjoy!\"");
+                } else {
+                    state.write_msg_buff("\"Please drink and adventure responsibly!\"");
+                }
+                return;
+            }
+        }
+    }
+
+    if full {
+        state.write_msg_buff("\"Yours is already full!\"");
+    } else {
+        state.write_msg_buff("\"You don't have anything to carry it in.\"");
+    }
+}
+
 fn buy_round(state: &mut GameState, game_objs: &mut GameObjects, patrons: &Vec<usize>) {
     let player = game_objs.player_details();
 
@@ -138,8 +170,9 @@ pub fn talk_to_innkeeper(state: &mut GameState, innkeeper_id: usize, game_objs: 
     msg.push('\n');
     msg.push_str("a) buy a drink (1$)\n");
     msg.push_str("b) rent a room (10$)\n");
+    msg.push_str("c) fill a wineskin (2$)\n");
     if !patrons.is_empty() {
-        let s = format!("c) buy a round for the bar ({}$)", patrons.len());
+        let s = format!("d) buy a round for the bar ({}$)", patrons.len());
         msg.push_str(&s);
     }
 
@@ -153,6 +186,8 @@ pub fn talk_to_innkeeper(state: &mut GameState, innkeeper_id: usize, game_objs: 
         } else if ch == 'b' {
             rent_room(state, game_objs);
         } else if ch == 'c' {
+            fill_flask(state, game_objs);
+        } else if ch == 'd' {
             buy_round(state, game_objs, &patrons);
         }
     } else {
@@ -168,10 +203,10 @@ pub fn talk_to_innkeeper(state: &mut GameState, innkeeper_id: usize, game_objs: 
 }
 
 fn check_grocer_inventory(state: &mut GameState, grocer_id: usize, game_objs: &mut GameObjects, ) {
-    let curr_day = state.turn % 8640;
+    let curr_day = state.turn / 8640;
     let grocer = game_objs.get_mut(grocer_id).unwrap();
     let attitude = grocer.npc.as_ref().unwrap().attitude;
-    let last_inventory_day = grocer.npc.as_ref().unwrap().last_inventory % 8640;
+    let last_inventory_day = grocer.npc.as_ref().unwrap().last_inventory / 8640;
 
     let mut objs = Vec::new();
     if attitude == Attitude::Stranger {
@@ -186,8 +221,10 @@ fn check_grocer_inventory(state: &mut GameState, grocer_id: usize, game_objs: &m
 
         let grocer = game_objs.get_mut(grocer_id).unwrap();
         grocer.npc.as_mut().unwrap().inventory = objs;
-    } else if curr_day - last_inventory_day >= 2  {
+        grocer.npc.as_mut().unwrap().last_inventory = state.turn;
+    } else if curr_day - last_inventory_day >= 2  {        
         // update inventory
+        println!("Time to change up inventory {} {} {}", state.turn, curr_day, last_inventory_day);
     }
 }
 
@@ -214,7 +251,7 @@ pub fn talk_to_grocer(state: &mut GameState, grocer_id: usize, game_objs: &mut G
     let mut msg = grocer.npc.as_mut().unwrap().talk_to(state, dialogue, grocer.location, Some(extra_info));
     state.add_to_msg_history(&msg);
 
-
+    let mut made_purchase = false;
     loop {
         let sbi = state.curr_sidebar_info(game_objs);
         let grocer = game_objs.get_mut(grocer_id).unwrap();
@@ -239,12 +276,12 @@ pub fn talk_to_grocer(state: &mut GameState, grocer_id: usize, game_objs: &mut G
                 s.push_str(&item.2.to_string());
                 s.push_str("), ");
                 s.push_str(&item.3.to_string());
-                s.push_str("gp each")
+                s.push_str("$ each")
             }
             else {
                 s.push_str(", ");
                 s.push_str(&item.3.to_string());
-                s.push_str("gp");
+                s.push_str("$");
             }
             store_menu.push_str(&s);            
         }
@@ -261,11 +298,16 @@ pub fn talk_to_grocer(state: &mut GameState, grocer_id: usize, game_objs: &mut G
                         let p = game_objs.player_details();
                         p.purse -= item.3 as u32;
                         p.add_to_inv(obj);
+                        made_purchase = true;
                     }
                 }
             }          
         } else {
             break;
         }                
+    }
+
+    if made_purchase {
+        state.write_msg_buff("\"Thank you for supporting small businesses!\"");
     }
 }
