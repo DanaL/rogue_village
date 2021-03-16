@@ -417,7 +417,7 @@ fn decorate_levels(world_info: &mut WorldInfo, map: &mut Map, deepest_level: i8,
 fn populate_levels(_world_info: &mut WorldInfo, deepest_level: i8, floor_sqs: &HashMap<usize, HashSet<(i32, i32, i8)>>,
             game_objs: &mut GameObjects, monster_fac: &MonsterFactory) {
     let mut curr_level = deepest_level;
-    let mut rng = rand::thread_rng();
+    //let mut rng = rand::thread_rng();
     while curr_level > 0 {
         let level_index = curr_level as usize - 1;
 

@@ -586,7 +586,10 @@ fn create_innkeeper(tb: &TownBuildings, used_names: &HashSet<String>, game_objs:
     let loc = inn_sqs.iter().nth(j).unwrap();
 
     let voice = dialogue::rnd_innkeeper_voice();
-    NPC::villager(actor::pick_villager_name(used_names), *loc, Some(Venue::Tavern), &voice, game_objs)
+    let mut innkeeper = NPC::villager(actor::pick_villager_name(used_names), *loc, Some(Venue::Tavern), &voice, game_objs);
+    innkeeper.npc.as_mut().unwrap().schedule.push(AgendaItem::new((0, 0), (23, 59), 0, Venue::Tavern));
+
+    innkeeper
 }
 
 fn add_well(map: &mut Map, world_info: &WorldInfo) {
