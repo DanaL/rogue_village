@@ -504,13 +504,21 @@ impl<'a, 'b> GameUI<'a, 'b> {
 		line
 	}
 
-	// pub fn popup_menu(&mut self, title: &str, text: &str) {
-
-	// }
+	pub fn popup_menu(&mut self, title: &str, text: &str, options: HashSet<char>) -> Option<char> {
+		loop {
+			if let Some(ch) = self.popup_msg(title, text) {
+				if options.contains(&ch) {
+					return Some(ch);
+				}
+			} else {
+				return None;
+			}			
+		}
+	}
 
 	// I'll probably need to eventually add pagination but rendering the text into
 	// lines was plenty for my brain for now...
-	pub fn popup_msg(&mut self, title: &str, text: &str) {
+	pub fn popup_msg(&mut self, title: &str, text: &str) -> Option<char> {
 		self.write_line(0, "", false);
 
 		let line_width = 45; // eventually this probably shouldn't be hardcoded here
@@ -565,7 +573,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 		}
 
 		self.canvas.present();
-		self.wait_for_key_input();
+		self.wait_for_key_input()
 	}
 
 	fn write_sidebar_line(&mut self, line: &str, start_x: i32, row: usize, colour: sdl2::pixels::Color, indent: u8) {
