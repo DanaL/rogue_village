@@ -284,6 +284,14 @@ impl NPC {
                     self.random_adj_sq(state, game_objs, loc);
                 }
             },
+            Venue::Market => {
+                let market = &state.world_info.town_buildings.as_ref().unwrap().market;
+                if !in_location(state, loc, &market, true) {
+                    self.go_to_place(state, game_objs, market, loc);
+                } else {
+                    self.random_adj_sq(state, game_objs, loc);
+                }
+            },
             Venue::TownSquare => {
                 let ts = &state.world_info.town_square;
                 if !in_location(state, loc, ts, false) {
@@ -321,8 +329,6 @@ impl NPC {
             } else {
                 self.random_adj_sq(state, game_objs, my_loc);
             }
-
-            
         } else {
             let item = &items[0].clone();
             self.check_agenda_item(state, game_objs, item, my_loc);
