@@ -54,7 +54,6 @@ use game_obj::{GameObject, GameObjects};
 use items::{GoldPile, ItemType};
 use map::{DoorState, ShrineType, Tile};
 use player::{Ability, Player};
-use shops::talk_to_innkeeper;
 use util::StringUtils;
 use world::WorldInfo;
 
@@ -1098,8 +1097,11 @@ fn chat_with(state: &mut GameState, gui: &mut GameUI, loc: (i32, i32, i8), game_
             Some(Venue::Tavern) => { 
                 shops::talk_to_innkeeper(state, obj_id, game_objs, dialogue, gui);
             },
+            Some(Venue::Market) => {
+                shops::talk_to_grocer(state, obj_id, game_objs, dialogue, gui);
+            },
             _ => {
-                let line = npc.npc.as_mut().unwrap().talk_to(state, dialogue, npc.location);
+                let line = npc.npc.as_mut().unwrap().talk_to(state, dialogue, npc.location, None);
                 state.add_to_msg_history(&line);
                 gui.popup_msg(&npc.get_npc_name(true).capitalize(), &line);
             },

@@ -55,6 +55,7 @@ pub enum Venue {
     Favourite((i32, i32, i8)),
     Visit(i32),
     Home(usize),
+    Market,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -63,11 +64,12 @@ pub struct AgendaItem {
     pub to: (u16, u16),
     pub priority: u8,
     pub place: Venue,
+    pub label: String,
 }
 
 impl AgendaItem {
-    pub fn new(from: (u16, u16), to: (u16, u16), priority: u8, place: Venue) -> AgendaItem {
-        AgendaItem { from, to, priority, place, }
+    pub fn new(from: (u16, u16), to: (u16, u16), priority: u8, place: Venue, label: String) -> AgendaItem {
+        AgendaItem { from, to, priority, place, label, }
     }
 }
 
@@ -478,14 +480,14 @@ impl NPC {
         }   
     }
 
-    pub fn talk_to(&mut self, state: &mut GameState, dialogue: &DialogueLibrary, my_loc: (i32, i32, i8)) -> String {
+    pub fn talk_to(&mut self, state: &mut GameState, dialogue: &DialogueLibrary, my_loc: (i32, i32, i8), extra_info: Option<HashMap<String, String>>) -> String {
         if self.voice == "monster" {
             let s = format!("{} growls.", self.name.with_def_article().capitalize());
             return s;
         }
 
-        let line = dialogue::parse_voice_line(&dialogue::pick_voice_line(dialogue, &self.voice, self.attitude), &state.world_info,
-            &self.name, my_loc);
+        let line = dialogue::parse_voice_line(&dialogue::pick_voice_line(dialogue, &self.voice, self.attitude), &state,
+            &self.name, my_loc, extra_info);
         if self.attitude == Attitude::Stranger {
             // Perhaps a charisma check to possibly jump straight to friendly?
             self.attitude = Attitude::Indifferent;

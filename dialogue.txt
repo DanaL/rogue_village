@@ -39,8 +39,19 @@ Indifferent
 - I don't do tabs.
 - {inn-name} at your service.
 Friendly
-- Welcome back, {plyaername}! Pull up a chair.
+- Welcome back, {plyaer-name}! Pull up a chair.
 - Would you like to hear the specials?
 - {inn-name} at your service!
 Hostile
 - Get out of my establishment.
+voice:shopkeeper1
+Stranger
+- Welcome traveller, here you'll find #goods#.
+- For all your #goods# needs!
+Indifferent
+- {time-greeting}, how can I help you?
+Friendly
+- Welcome back, {player-name}.
+- You're close to earning a rewards stamp!
+Hostile
+- Get out of my shop!

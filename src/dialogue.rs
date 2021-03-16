@@ -18,9 +18,9 @@ use std::fs;
 
 use rand::{Rng, thread_rng};
 
-use crate::actor::{Attitude};
+use super::GameState;
+use crate::actor::Attitude;
 use crate::util::StringUtils;
-use crate::world::{WorldInfo};
 
 pub type DialogueLibrary = HashMap<String, HashMap<Attitude, Vec<String>>>;
 
@@ -98,21 +98,42 @@ pub fn calc_direction(start: (i32, i32, i8), dest: (i32, i32, i8)) -> String {
     }
 }
 
-pub fn parse_voice_line(line: &str, world_info: &WorldInfo, speaker: &str, speaker_loc: (i32, i32, i8)) -> String {
+pub fn parse_voice_line(line: &str, state: &GameState, speaker: &str, speaker_loc: (i32, i32, i8), extra_info: Option<HashMap<String, String>>) -> String {
     // this is a dead stupid implementation but at the moment my dialogue lines are pretty simple
-    let mut s = line.replace("{village}", &world_info.town_name);
-    s = s.replace("{player-name}", &world_info.player_name);
+    let mut s = line.replace("{village}", &state.world_info.town_name);
+    s = s.replace("{player-name}", &state.world_info.player_name);
     s = s.replace("{name}", speaker);
-    s = s.replace("{inn-name}", &world_info.tavern_name);
+    s = s.replace("{inn-name}", &state.world_info.tavern_name);
 
     if line.contains("{dungeon-dir}") {
-        for fact in &world_info.facts {
+        for fact in &state.world_info.facts {
             if fact.detail == "dungeon location" {
                 let dir = calc_direction(speaker_loc, fact.location);
                 s = s.replace("{dungeon-dir}", &dir);
                 break;
             }
         }        
+    }
+
+    if line.contains("{time-greeting}") {
+        let time = state.curr_time();
+        if time.0 >= 6 && time.0 < 12 {
+            s = s.replace("{time-greeting}", "good morning");
+        } else if time.0 >= 12 && time.0 < 21 {
+            s = s.replace("{time-greeting}", "good evening");
+        } else {
+            s = s.replace("{time-greeting}", "*yawn*");
+        }
+    }
+
+    if let Some(extra_info) = extra_info {
+        let keys: Vec<String> = extra_info.keys().map(|s| s.to_string()).collect();
+
+        for key in keys {
+            if line.contains(&key) {
+                s = s.replace(&key, &extra_info[&key]);
+            }
+        }
     }
 
     s.capitalize()

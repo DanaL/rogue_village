@@ -24,7 +24,7 @@ use serde::{Serialize, Deserialize};
 
 use super::{EventType, Map};
 
-use crate::actor::{self};
+use crate::actor::{self, pick_villager_name};
 use crate::actor::{AgendaItem, Venue, NPC};
 use crate::dialogue;
 use crate::game_obj::{GameObject, GameObjects};
@@ -42,6 +42,7 @@ enum BuildingType {
     Shrine,
     Home,
     Tavern,
+    Market,
 }
 
 #[derive(Debug)]
@@ -62,13 +63,15 @@ impl Template {
 pub struct TownBuildings {
     pub shrine: HashSet<(i32, i32, i8)>,
     pub tavern: HashSet<(i32, i32, i8)>,
+    pub market: HashSet<(i32, i32, i8)>,
     pub homes: Vec<HashSet<(i32, i32, i8)>>,
     pub taken_homes: Vec<usize>,
 }
 
 impl TownBuildings {
     pub fn new() -> TownBuildings {
-        TownBuildings { shrine: HashSet::new(), tavern: HashSet::new(), homes: Vec::new(), taken_homes: Vec::new() }
+        TownBuildings { shrine: HashSet::new(), tavern: HashSet::new(), homes: Vec::new(), taken_homes: Vec::new(),
+            market: HashSet::new(), }
     }
 
     pub fn vacant_home(&self) -> Option<usize> {
@@ -187,6 +190,7 @@ fn draw_building(map: &mut Map, loc: (i32, i32), town: (i32, i32), template: &Te
         BuildingType::Shrine => buildings.shrine = building_sqs,
         BuildingType::Home => buildings.homes.push(building_sqs),
         BuildingType::Tavern => buildings.tavern = building_sqs,
+        BuildingType::Market => buildings.market = building_sqs,
     }   
 }
 
@@ -459,7 +463,15 @@ fn place_town_buildings(map: &mut Map, town_r: i32, town_c: i32,
 
     // Start by placing the tavern since it's the largest building and the hardest to fit
     place_tavern(map, town_r, town_c, templates, buildings);
-    
+
+    let cottages: Vec<String> = templates.keys()
+        .filter(|k| k.starts_with("cottage"))
+        .map(|k| k.to_string()).collect();
+
+    // create the town's market
+    let j = rng.gen_range(0, cottages.len());
+    place_building(map, town_r, town_c, &templates[&cottages[j]], buildings, BuildingType::Market);
+
     // The town will have only 1 shrine. (Maybe in the future I can implement religious rivalries...)
     if rng.gen_range(0, 2) == 0 {
         place_building(map, town_r, town_c, &templates["shrine 1"], buildings, BuildingType::Shrine);
@@ -467,13 +479,9 @@ fn place_town_buildings(map: &mut Map, town_r: i32, town_c: i32,
         place_building(map, town_r, town_c, &templates["shrine 2"], buildings, BuildingType::Shrine);
     }
 
-    for _ in 0..8 {
-        let template = if rng.gen_range(0.0, 1.0) < 0.5 {
-            &templates["cottage 1"]
-        } else {
-            &templates["cottage 2"]
-        };
-        if !place_building(map, town_r, town_c, template, buildings, BuildingType::Home) {
+    for _ in 0..7 {
+        let j = rng.gen_range(0, cottages.len());
+        if !place_building(map, town_r, town_c, &templates[&cottages[j]], buildings, BuildingType::Home) {
             break;
         }
     }
@@ -570,11 +578,11 @@ fn create_villager(voice: &str, tb: &mut TownBuildings, used_names: &HashSet<Str
     tb.taken_homes.push(home_id);
     
     if voice.starts_with("mayor") {
-        villager.npc.as_mut().unwrap().schedule.push(AgendaItem::new((9, 0), (21, 0), 0, Venue::TownSquare));
-        villager.npc.as_mut().unwrap().schedule.push(AgendaItem::new((12, 0), (13, 0), 10, Venue::Tavern));
+        villager.npc.as_mut().unwrap().schedule.push(AgendaItem::new((9, 0), (21, 0), 0, Venue::TownSquare, "idle".to_string()));
+        villager.npc.as_mut().unwrap().schedule.push(AgendaItem::new((12, 0), (13, 0), 10, Venue::Tavern, "supper".to_string()));
     } else {
-        villager.npc.as_mut().unwrap().schedule.push(AgendaItem::new((11, 0), (14, 0), 10, Venue::Tavern));
-        villager.npc.as_mut().unwrap().schedule.push(AgendaItem::new((18, 0), (22, 0), 10, Venue::Tavern));
+        villager.npc.as_mut().unwrap().schedule.push(AgendaItem::new((11, 0), (14, 0), 10, Venue::Tavern, "lunch".to_string()));
+        villager.npc.as_mut().unwrap().schedule.push(AgendaItem::new((18, 0), (22, 0), 10, Venue::Tavern, "supper".to_string()));
     }
 
     villager
@@ -587,9 +595,23 @@ fn create_innkeeper(tb: &TownBuildings, used_names: &HashSet<String>, game_objs:
 
     let voice = dialogue::rnd_innkeeper_voice();
     let mut innkeeper = NPC::villager(actor::pick_villager_name(used_names), *loc, Some(Venue::Tavern), &voice, game_objs);
-    innkeeper.npc.as_mut().unwrap().schedule.push(AgendaItem::new((0, 0), (23, 59), 0, Venue::Tavern));
+    innkeeper.npc.as_mut().unwrap().schedule.push(AgendaItem::new((0, 0), (23, 59), 0, Venue::Tavern, "inn".to_string()));
 
     innkeeper
+}
+
+fn create_grocer(tb: &TownBuildings, used_names: &HashSet<String>, game_objs: &mut GameObjects) -> GameObject {
+    let market_sqs: Vec<(i32, i32, i8)> = tb.market.iter().map(|s| *s).collect();
+    let j = rand::thread_rng().gen_range(0, market_sqs.len());
+    let loc = market_sqs.iter().nth(j).unwrap();
+
+    let mut grocer = NPC::villager(actor::pick_villager_name(used_names), *loc, Some(Venue::Market), "shopkeeper1", game_objs);
+    grocer.npc.as_mut().unwrap().schedule.push(AgendaItem::new((8, 0), (12, 29), 0, Venue::Market, "working".to_string()));
+    grocer.npc.as_mut().unwrap().schedule.push(AgendaItem::new((12, 30), (12, 59), 0, Venue::Tavern, "lunch".to_string()));
+    grocer.npc.as_mut().unwrap().schedule.push(AgendaItem::new((13, 0), (18, 59), 0, Venue::Market, "working".to_string()));
+    grocer.npc.as_mut().unwrap().schedule.push(AgendaItem::new((19, 00), (21, 00), 0, Venue::Tavern, "supper".to_string()));
+
+    grocer
 }
 
 fn add_well(map: &mut Map, world_info: &WorldInfo) {
@@ -704,6 +726,11 @@ pub fn create_town(map: &mut Map, game_objs: &mut GameObjects) -> WorldInfo {
     let ik = create_innkeeper(&tb, &used_names, game_objs);
     let obj_id = ik.object_id;
     game_objs.add(ik);
+    game_objs.listeners.insert((obj_id, EventType::TakeTurn));
+
+    let g = create_grocer(&tb, &used_names, game_objs);
+    let obj_id = g.object_id;
+    game_objs.add(g);
     game_objs.listeners.insert((obj_id, EventType::TakeTurn));
 
     world_info.town_buildings = Some(tb);

@@ -13,7 +13,7 @@
 // You should have received a copy of the GNU General Public License
 // along with RogueVillage.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use rand::Rng;
 
@@ -105,7 +105,7 @@ pub fn talk_to_innkeeper(state: &mut GameState, innkeeper_id: usize, game_objs: 
         dialogue: &DialogueLibrary, gui: &mut GameUI) {
     let patrons = inn_patrons(state, game_objs, innkeeper_id);
     let npc = game_objs.get_mut(innkeeper_id).unwrap();
-    let mut msg = npc.npc.as_mut().unwrap().talk_to(state, dialogue, npc.location);
+    let mut msg = npc.npc.as_mut().unwrap().talk_to(state, dialogue, npc.location, None);
     state.add_to_msg_history(&msg);
     
     msg.push('\n');
@@ -139,4 +139,17 @@ pub fn talk_to_innkeeper(state: &mut GameState, innkeeper_id: usize, game_objs: 
             state.write_msg_buff("\"No outside food or drink.\"");
         }
     }
+}
+
+pub fn talk_to_grocer(state: &mut GameState, grocer_id: usize, game_objs: &mut GameObjects,
+        dialogue: &DialogueLibrary, gui: &mut GameUI) {
+    let grocer = game_objs.get_mut(grocer_id).unwrap();
+
+    let mut extra_info = HashMap::new();
+    extra_info.insert("#goods#".to_string(), "adventuring supplies".to_string());
+    let mut msg = grocer.npc.as_mut().unwrap().talk_to(state, dialogue, grocer.location, Some(extra_info));
+    state.add_to_msg_history(&msg);
+
+    let name = format!("{}, the grocer", grocer.get_npc_name(true).capitalize());
+    gui.popup_msg(&name, &msg);
 }
