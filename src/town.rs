@@ -103,24 +103,29 @@ fn count_water_sqs(map: &Map, start_r: i32, start_c: i32, lot_r: i32, lot_c: i32
     sum
 }
 
-fn rotate(building: &Vec<char>) -> Vec<char> {
-    let mut rotated = building.clone();
+// This requires that templates be squares. I think I understand how I could
+// modify that but it seems much simpler to just make all my templates 
+// squares (even if the building within is not)
+fn rotate(building: &Vec<char>, width: usize) -> Vec<char> {
+    let mut indices = vec![0; width * width];
+    let mut rotated = vec!['`'; width * width];
 
-    for r in 0..9 {
-        for c in 0..9 {
-            let nr = -(c as i32 - 4) + 4;
-            let nc = r as i32;
+    for i in 0..width * width {
+        indices[i] = if i < width {
+             i * width + width - 1
+        } else {
+            indices[i - width] - 1
+        }        
+    };
 
-            let i = (r * 9 + c) as usize;
-            let ni = (nr * 9 + nc) as usize;
-            if building[i] == '|' {
-                rotated[ni] = '-';
-            } else if building[i] == '-' {
-                rotated[ni] = '|';
-            } else {
-                rotated[ni] = building[i];
-            }
-        }
+    for i in indices.iter().map(|i| *i) {
+        rotated[indices[i]] = if building[i] == '|' {
+            '-'
+        } else if building[i] == '-' {
+            '|'
+        } else {
+            building[i]
+        };         
     }
 
     rotated
@@ -146,16 +151,16 @@ fn draw_building(map: &mut Map, loc: (i32, i32), town: (i32, i32), template: &Te
 
         if centre_row >= south_quarter { 
             // rotate doors to face north
-            sqs = rotate(&sqs);
-            sqs = rotate(&sqs);
+            sqs = rotate(&sqs, template.width);
+            sqs = rotate(&sqs, template.width);
         } else if centre_row > north_quarter && centre_col < mid {
             // rotate doors to face east
-            sqs = rotate(&sqs);
+            sqs = rotate(&sqs, template.width);
+            sqs = rotate(&sqs, template.width);
+            sqs = rotate(&sqs, template.width);
         } else if centre_row > north_quarter && centre_col > mid {
             // rotate doors to face west
-            sqs = rotate(&sqs);
-            sqs = rotate(&sqs);
-            sqs = rotate(&sqs);
+            sqs = rotate(&sqs, template.width);            
         }
 
         sqs
