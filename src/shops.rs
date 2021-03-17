@@ -164,7 +164,8 @@ pub fn talk_to_innkeeper(state: &mut GameState, innkeeper_id: usize, game_objs: 
     let sbi = state.curr_sidebar_info(game_objs);
     let patrons = inn_patrons(state, game_objs, innkeeper_id);
     let npc = game_objs.get_mut(innkeeper_id).unwrap();
-    let mut msg = npc.npc.as_mut().unwrap().talk_to(state, dialogue, npc.location, None);
+    let mut ei = HashMap::new();
+    let mut msg = npc.npc.as_mut().unwrap().talk_to(state, dialogue, npc.location, &mut ei);
     state.add_to_msg_history(&msg);
     
     msg.push('\n');
@@ -275,13 +276,22 @@ fn get_item_from_invetory(grocer_id: usize, name: &str, game_objs: &mut GameObje
 
 pub fn talk_to_grocer(state: &mut GameState, grocer_id: usize, game_objs: &mut GameObjects,
         dialogue: &DialogueLibrary, gui: &mut GameUI) {
+    let sbi = state.curr_sidebar_info(game_objs);
     check_grocer_inventory(state, grocer_id, game_objs);
     let grocer = game_objs.get_mut(grocer_id).unwrap();
-
+    
     let mut extra_info = HashMap::new();
-    extra_info.insert("#goods#".to_string(), "adventuring supplies".to_string());
-    let mut msg = grocer.npc.as_mut().unwrap().talk_to(state, dialogue, grocer.location, Some(extra_info));
+    extra_info.insert("#goods#".to_string(), "adventuring supply".to_string());
+    let mut msg = grocer.npc.as_mut().unwrap().talk_to(state, dialogue, grocer.location, &mut extra_info);
     state.add_to_msg_history(&msg);
+
+    if let Some(agenda) = grocer.npc.as_ref().unwrap().curr_agenda_item(state) {
+        if agenda.label != "working" {            
+            let name = format!("{}, the grocer", grocer.get_npc_name(true).capitalize());
+            gui.popup_msg(&name, &msg, Some(&sbi));
+            return;
+        }
+    }
 
     let mut made_purchase = false;
     loop {

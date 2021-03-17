@@ -1102,7 +1102,8 @@ fn chat_with(state: &mut GameState, gui: &mut GameUI, loc: (i32, i32, i8), game_
                 shops::talk_to_grocer(state, obj_id, game_objs, dialogue, gui);
             },
             _ => {
-                let line = npc.npc.as_mut().unwrap().talk_to(state, dialogue, npc.location, None);
+                let mut ei = HashMap::new();
+                let line = npc.npc.as_mut().unwrap().talk_to(state, dialogue, npc.location, &mut ei);
                 state.add_to_msg_history(&line);
                 gui.popup_msg(&npc.get_npc_name(true).capitalize(), &line, Some(&sbi));
             },

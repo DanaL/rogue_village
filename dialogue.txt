@@ -1,57 +1,44 @@
 voice:mayor1
-Stranger
-- {player-name} is it? Call me {name}. Here in {village} you can find respite from your adventures. Relax in the tavern! Spread a little of that adventurer gold around!
-Indifferent
-- Hello, {player-name}. Staying out of trouble?
-- The old ruins? You'll find them in the mountains away to the {dungeon-dir}.
-Friendly
-- How are you feeling? Getting enough rest? Not pushing yourself too hard?
-Hostile
-- Get out of {village} before we through you out.
+Stranger||{player-name} is it? Call me {name}. Here in {village} you can find respite from your adventures. Relax in the tavern! Spread a little of that adventurer gold around! 
+Indifferent||Hello, {player-name}. Staying out of trouble?
+Indifferent||The old ruins? You'll find them in the mountains away to the {dungeon-dir}.
+Friendly||How are you feeling? Getting enough rest? Not pushing yourself too hard?
+Hostile||Get out of {village} before we through you out.
 #
 voice:mayor2
-Stranger
-- Welcome to {village}. Hope you're not here to stir up trouble.
-Indifferent
-- Adventurers are storm crows. Ill winds follow them.
-Friendly
-- If you truly think you can help, I've heard the dungeon is off {dungeon-dir} of town.
-Hostile
-- Get out of {village} before we through you out.
+Stranger||Welcome to {village}. Hope you're not here to stir up trouble.
+Indifferent||Adventurers are storm crows. Ill winds follow them.
+Friendly||If you truly think you can help, I've heard the dungeon is off {dungeon-dir} of town.
+Hostile||Get out of {village} before we through you out.
+#
 voice:villager1
-Stranger
-- Another one, is it? You look brave enough now, but then you haven't been into the dungeon yet.
-Indifferent
-- Not dead yet, I see.
-- Are you one of those types who spends their time in the tavern and just talks about adventure?
-Friendly
-- Well met, {player-name}, how goes your quest?
-- Let's hear some of your tales!
-Hostile
-- You're no longer welcome in {village}
+Stranger||Another one, is it? You look brave enough now, but then you haven't been into the dungeon yet.
+Indifferent||Not dead yet, I see.
+Indifferent||Are you one of those types who spends their time in the tavern and just talks about adventure?
+Friendly||Well met, {player-name}, how goes your quest?
+Friendly||Let's hear some of your tales!
+Hostile||You're no longer welcome in {village}.
 #
 voice:innkeeper1
-Stranger
-- Welcome to {inn-name}!
-- Going to be staying awhile?
-Indifferent
-- What'll it be?
-- I don't do tabs.
-- {inn-name} at your service.
-Friendly
-- Welcome back, {plyaer-name}! Pull up a chair.
-- Would you like to hear the specials?
-- {inn-name} at your service!
-Hostile
-- Get out of my establishment.
+Stranger||Welcome to {inn-name}!
+Stranger||Going to be staying awhile?
+Indifferent||What'll it be?
+Indifferent||I don't do tabs.
+Indifferent||{inn-name} at your service.
+Friendly||Welcome back, {plyaer-name}! Pull up a chair.
+Friendly||Would you like to hear the specials?
+Friendly||{inn-name} at your service!
+Hostile||Get out of my establishment.
+#
 voice:shopkeeper1
-Stranger
-- Welcome traveller, here you'll find #goods#.
-- For all your #goods# needs!
-Indifferent
-- {time-greeting}, how can I help you?
-Friendly
-- Welcome back, {player-name}.
-- You're close to earning a rewards stamp!
-Hostile
-- Get out of my shop!
+Stranger|working|Welcome traveller, here you'll find #goods#.
+Stranger|working|For all your #goods# needs!
+Stranger||Come see me when my shop is open.
+Indifferent|working|{time-greeting}, how can I help you?
+Indifferent||Hello {player-name}, keeping well?
+Indifferent||I'm on #meal# break, {player-name}.
+Friendly|working|Welcome back, {player-name}.
+Friendly|working|You're close to earning a rewards stamp!
+Friendly||Come see me when the shot is open and I'll fix you up!
+Hostile|working|Get out of my shop!
+Hostile||Stay away from me!

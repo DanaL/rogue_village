@@ -306,17 +306,27 @@ impl NPC {
         }
     }
 
-    fn villager_schedule(&mut self, state: &GameState, game_objs: &GameObjects, my_loc: (i32, i32, i8)) {
+    // Select the current, highest priority agenda item from the schedule
+    pub fn curr_agenda_item(&self, state: &GameState) -> Option<AgendaItem> {
         let ct = state.curr_time();
         let minutes = ct.0 * 60 + ct.1;
-        
-        // Select the current, highest priority agenda item from the schedule
+
         let mut items: Vec<&AgendaItem> = self.schedule.iter()
-                     .filter(|i| i.from.0 * 60 + i.from.1 <= minutes && minutes <= i.to.0 * 60 + i.to.1)
-                     .collect();
+            .filter(|i| i.from.0 * 60 + i.from.1 <= minutes && minutes <= i.to.0 * 60 + i.to.1)
+            .collect();
         items.sort_by(|a, b| b.priority.cmp(&a.priority));
-        
-        if items.len() == 0 {
+
+        if items.is_empty() {
+            None
+        } else {
+            Some(items[0].clone())
+        }
+    }
+
+    fn villager_schedule(&mut self, state: &GameState, game_objs: &GameObjects, my_loc: (i32, i32, i8)) {       
+        if let Some(curr_item) = self.curr_agenda_item(state) {
+            self.check_agenda_item(state, game_objs, &curr_item, my_loc);
+        } else {
             // The default behaviour is to go home if nothing on the agenda.
             let b = &state.world_info.town_buildings.as_ref().unwrap();
             
@@ -329,10 +339,7 @@ impl NPC {
             } else {
                 self.random_adj_sq(state, game_objs, my_loc);
             }
-        } else {
-            let item = &items[0].clone();
-            self.check_agenda_item(state, game_objs, item, my_loc);
-        }
+        } 
     }
 
     // Generally, when I have an NPC go a building/place, I assume it doesn't matter too much if 
@@ -487,13 +494,27 @@ impl NPC {
         }   
     }
 
-    pub fn talk_to(&mut self, state: &mut GameState, dialogue: &DialogueLibrary, my_loc: (i32, i32, i8), extra_info: Option<HashMap<String, String>>) -> String {
+    pub fn talk_to(&mut self, state: &mut GameState, dialogue: &DialogueLibrary, my_loc: (i32, i32, i8), extra_info: &mut HashMap<String, String>) -> String {
         if self.voice == "monster" {
             let s = format!("{} growls.", self.name.with_def_article().capitalize());
             return s;
         }
 
-        let line = dialogue::parse_voice_line(&dialogue::pick_voice_line(dialogue, &self.voice, self.attitude), &state,
+        let context = if let Some(curr_agenda) = self.curr_agenda_item(state) {
+            // Eventually maybe voice lines for every context?
+            if curr_agenda.label == "working" {
+                curr_agenda.label.to_string()
+            } else if curr_agenda.label == "supper" || curr_agenda.label == "lunch" {
+                extra_info.insert("#meal#".to_string(), curr_agenda.label);
+                "".to_string()
+            } else {
+                "".to_string()
+            }
+        } else {
+            "".to_string()
+        };
+
+        let line = dialogue::parse_voice_line(&dialogue::pick_voice_line(dialogue, &self.voice, self.attitude, &context), &state,
             &self.name, my_loc, extra_info);
         if self.attitude == Attitude::Stranger {
             // Perhaps a charisma check to possibly jump straight to friendly?

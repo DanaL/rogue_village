@@ -22,17 +22,7 @@ use super::GameState;
 use crate::actor::Attitude;
 use crate::util::StringUtils;
 
-pub type DialogueLibrary = HashMap<String, HashMap<Attitude, Vec<String>>>;
-
-fn init_lines_hashmap() -> HashMap<Attitude, Vec<String>> {
-    let mut lines = HashMap::new();
-    lines.insert(Attitude::Stranger, Vec::new());
-    lines.insert(Attitude::Indifferent, Vec::new());
-    lines.insert(Attitude::Friendly, Vec::new());
-    lines.insert(Attitude::Hostile, Vec::new());
-
-    lines
-}
+pub type DialogueLibrary = HashMap<String, Vec<(Attitude, String, String)>>;
 
 // Not doing any error checking yet; assuming a well-formed dialogue file...
 pub fn read_dialogue_lib() -> DialogueLibrary {
@@ -42,35 +32,43 @@ pub fn read_dialogue_lib() -> DialogueLibrary {
         .expect("Unable to find dialogue file!");
     
     let mut curr_voice = "";
-    let mut curr_attitude = Attitude::Stranger;
     for line in contents.split('\n') {        
         if line.starts_with("voice:") {
             let pieces: Vec<&str> = line.split(':').collect();
             curr_voice = pieces[1];
-            dl.insert(String::from(curr_voice), init_lines_hashmap());
-        } else if line.starts_with("-") {
-            let v = dl.get_mut(curr_voice).unwrap();
-            let a = v.get_mut(&curr_attitude).unwrap();
-            a.push(line[2..].to_string());
+            dl.insert(String::from(curr_voice), Vec::new());
+            continue;
         } else if line.starts_with('#') {
-            continue;   
-        } else {
-            curr_attitude = match line {
-                "Indifferent" => Attitude::Indifferent,
-                "Friendly" => Attitude::Friendly,
-                "Hostile" => Attitude::Hostile,
-                _ => Attitude::Stranger,
-            };
+            continue;
         }
+
+        let pieces: Vec<&str> = line.split('|').collect();
+        let attitude = match pieces[0] {
+            "Indifferent" => Attitude::Indifferent,
+            "Friendly" => Attitude::Friendly,
+            "Hostile" => Attitude::Hostile,
+            "Stranger" => Attitude::Stranger,
+            _ => panic!("Unknown atttitude in dialogue.txt"),
+        };
+        let context = pieces[1].to_string();
+        let line = pieces[2].trim().to_string();
+        dl.get_mut(curr_voice).unwrap().push((attitude, context, line));
     }
 
     dl
 }
 
-pub fn pick_voice_line(lib: &DialogueLibrary, voice: &str, attitude: Attitude) -> String {
-    let j = thread_rng().gen_range(0, lib[voice][&attitude].len());
+pub fn pick_voice_line(lib: &DialogueLibrary, voice: &str, attitude: Attitude, context: &str) -> String {
+    let mut lines = Vec::new();
+    for line in lib.get(voice).unwrap().iter() {
+        if line.0 == attitude && line.1 == context {
+            lines.push(line.2.to_string());
+        }
+    }
+
+    let j = thread_rng().gen_range(0, lines.len());
     
-    String::from(&lib[voice][&attitude][j])
+    String::from(lines[j].to_string())
 }
 
 pub fn calc_direction(start: (i32, i32, i8), dest: (i32, i32, i8)) -> String {
@@ -98,7 +96,7 @@ pub fn calc_direction(start: (i32, i32, i8), dest: (i32, i32, i8)) -> String {
     }
 }
 
-pub fn parse_voice_line(line: &str, state: &GameState, speaker: &str, speaker_loc: (i32, i32, i8), extra_info: Option<HashMap<String, String>>) -> String {
+pub fn parse_voice_line(line: &str, state: &GameState, speaker: &str, speaker_loc: (i32, i32, i8), extra_info: &HashMap<String, String>) -> String {
     // this is a dead stupid implementation but at the moment my dialogue lines are pretty simple
     let mut s = line.replace("{village}", &state.world_info.town_name);
     s = s.replace("{player-name}", &state.world_info.player_name);
@@ -126,7 +124,7 @@ pub fn parse_voice_line(line: &str, state: &GameState, speaker: &str, speaker_lo
         }
     }
 
-    if let Some(extra_info) = extra_info {
+    if !extra_info.is_empty() {
         let keys: Vec<String> = extra_info.keys().map(|s| s.to_string()).collect();
 
         for key in keys {
