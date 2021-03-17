@@ -312,7 +312,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 								Some(loc) => return Cmd::Chat(loc),
 								None => { },
 							}
-						} else if val == "U" {
+						} else if val == "a" {
                             return Cmd::Use;
                         } else if val == "?" {
 							return Cmd::Help;

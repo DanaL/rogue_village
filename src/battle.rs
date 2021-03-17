@@ -43,8 +43,7 @@ pub fn player_attacks(state: &mut GameState, opponent_id: usize, game_objs: &mut
     let mut rng = rand::thread_rng();
 
     // Fetch the attack bonuses for the player's weapon. Do it here so that Player needs to know
-    // less about GameObject and such. Am mildly regretting my great idea to treat the player's
-    // inventory like it's a special location in game_objs
+    // less about GameObject and such. 
     let weapon_attack_bonus;
     let weapon_dmg_dice;
     let num_dmg_die;

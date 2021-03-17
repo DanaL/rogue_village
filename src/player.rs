@@ -484,11 +484,10 @@ impl Player {
         roll + stat_to_mod(self.str)    
     }
 
-    pub fn add_hp(&mut self, amt: u8) {
-        self.curr_hp += amt;
-
-        if self.curr_hp > self.max_hp {
-            self.curr_hp = self.max_hp;
+    // The player will regain HP on their own every X turns (see the game loop in main.rs)
+    pub fn recover(&mut self) {
+        if self.curr_hp < self.max_hp {
+            self.curr_hp += 1;
         }
     }
 
@@ -522,7 +521,10 @@ impl Player {
             hp_roll = 1;
         }
         self.max_hp += hp_roll as u8;
-        self.add_hp(hp_roll as u8);
+        self.curr_hp += hp_roll as u8;
+        if self.curr_hp > self.max_hp {
+            self.curr_hp = self.max_hp;
+        }
         
         let s = format!("Welcome to level {}!", self.level);
         state.write_msg_buff(&s);
@@ -538,6 +540,15 @@ impl Person for Player {
         } else {
             self.curr_hp -= amount;
         }
+    }
+
+    fn get_hp(&self) -> (u8, u8) {
+        (self.curr_hp, self.max_hp)
+    }
+
+    fn add_hp(&mut self, state: &mut GameState, amt: u8) {
+        self.curr_hp += amt;
+        state.write_msg_buff("You feel better!");
     }
 }
 

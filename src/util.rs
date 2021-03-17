@@ -185,18 +185,36 @@ impl StringUtils for String {
 		}
 	}
 
-	// English is a mess and I am pretty sure this isn't this function's
-	// final form...
+	// English is such a mess...
 	fn pluralize(&self) -> String {
-		let mut result = String::from("");
-		result.push_str(self);	
-		if self.ends_with('s') || self.ends_with('x') || self.ends_with("ch") {
-			result.push_str("es");
+		// quick n' dirty way of handling turning potion of healing into potions of healing
+		if self.contains(" of ") {
+			let words: Vec<&str> = self.split(' ').collect();
+			let mut result = String::from("");
+			result.push_str(words[0]);
+			if result.ends_with('s') || result.ends_with('x') || result.ends_with("ch") {
+				result.push_str("es");
+			} else {
+				result.push('s');
+			}
+
+			for j in 1..words.len() {
+				result.push(' ');
+				result.push_str(words[j]);
+			}
+
+			result
 		} else {
-			result.push('s');
-		}
-		
-		result
+			let mut result = String::from("");
+			result.push_str(self);	
+			if self.ends_with('s') || self.ends_with('x') || self.ends_with("ch") {
+				result.push_str("es");
+			} else {
+				result.push('s');
+			}
+
+			result
+		} 		
 	}
 
 	fn with_def_article(&self) -> String {

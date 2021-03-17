@@ -565,6 +565,16 @@ impl Person for NPC {
             self.curr_hp -= adjusted_dmg;
         }
     }
+
+    fn get_hp(&self) -> (u8, u8) {
+        (self.curr_hp, self.max_hp)
+    }
+
+    fn add_hp(&mut self, state: &mut GameState, amt: u8) {
+        self.curr_hp += amt;
+        let s = format!("{} looks better!", self.npc_name(false).capitalize());
+        state.write_msg_buff(&s);
+    }
 }
 
 fn in_location(state: &GameState, loc: (i32, i32, i8), sqs: &HashSet<(i32, i32, i8)>, indoors: bool) -> bool {

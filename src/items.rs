@@ -21,6 +21,7 @@ use super::{EventResponse, EventType, GameState, GameObjects, PLAYER_INV};
 
 use crate::battle::DamageType;
 use crate::display;
+use crate::effects;
 use crate::fov;
 use crate::game_obj::{GameObject};
 
@@ -40,6 +41,7 @@ pub enum ItemType {
     Light,
     Note,
     Bottle,
+    Potion,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -61,12 +63,13 @@ pub struct Item {
     pub text: Option<(String, String)>,
     pub dmg_type: DamageType,
     pub value: u16,
+    pub effects: u128,
 }
 
 impl Item {    
     fn new(item_type: ItemType, weight: u8, stackable: bool, value: u16) -> Item {
 		Item { item_type, weight, stackable, slot: '\0', dmg_die: 1, dmg_dice: 1, attack_bonus: 0, ac_bonus: 0, range: 0, equiped: false, 
-                attributes: 0, active: false, charges: 0, aura: 0, text: None, dmg_type: DamageType::Bludgeoning, value, }								
+                attributes: 0, active: false, charges: 0, aura: 0, text: None, dmg_type: DamageType::Bludgeoning, value, effects: 0 }								
 	}
     
     pub fn get_item(game_objs: &mut GameObjects, name: &str) -> Option<GameObject> {
@@ -132,6 +135,14 @@ impl Item {
                 
                 Some(obj)
             }
+            "potion of healing" => {
+                let mut i = Item::new(ItemType::Potion, 1, true, 10);
+                i.attributes |= IA_CONSUMABLE;
+                i.effects |= effects::EF_MINOR_HEAL;
+                let obj = GameObject::new(game_objs.next_id(), name, (0, 0, 0), '!', display::WHITE, display::LIGHT_GREY, None, Some(i) , None, None, None, false);            
+                
+                Some(obj)
+            }
             _ => None,
         }
     }
@@ -172,7 +183,7 @@ impl Item {
     }
 
     pub fn useable(&self) -> bool {
-        self.item_type == ItemType::Light
+        self.item_type == ItemType::Light || self.item_type == ItemType::Potion
     }
 
     pub fn stackable(&self) -> bool {

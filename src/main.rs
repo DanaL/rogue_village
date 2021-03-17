@@ -24,6 +24,7 @@ mod battle;
 mod dialogue;
 mod display;
 mod dungeon;
+mod effects;
 mod game_obj;
 mod fov;
 mod items;
@@ -51,7 +52,7 @@ use actor::{Attitude, MonsterFactory, Venue};
 use dialogue::DialogueLibrary;
 use display::{GameUI, SidebarInfo, WHITE};
 use game_obj::{GameObject, GameObjects};
-use items::{GoldPile, ItemType};
+use items::{GoldPile, IA_CONSUMABLE, ItemType};
 use map::{DoorState, ShrineType, Tile};
 use player::{Ability, Player};
 use util::StringUtils;
@@ -719,43 +720,35 @@ fn use_item(state: &mut GameState, game_objs: &mut GameObjects, gui: &mut GameUI
             return 0.0;
         }
         
-        let next_slot = player.next_slot; // We might need to give the item a new inventory slot
-        let was_in_stack = player.inv_count_in_slot(ch) > 1;
         let obj = player.inv_item_in_slot(ch).unwrap();
         let obj_id = obj.object_id;
-        let name = obj.get_fullname();
-        let useable = if obj.item.is_some() {
-            obj.item.as_ref().unwrap().useable()
-        } else {
-            false
-        };
-
+        let item = obj.item.as_ref().unwrap();
+        let useable = item.useable();
+        let item_type = item.item_type;
+        let consumable = item.attributes & IA_CONSUMABLE > 0;
+        let effects = item.effects;
+        
         if useable {
-            let item = obj.item.as_mut().unwrap();
-            let s = if item.active { 
-                format!("You extinguish {}.", name.with_def_article())
-            } else {
-                format!("{} blazes brightly!", name.with_def_article().capitalize())
-            };
-            state.write_msg_buff(&s);
+            if item_type == ItemType::Light {
+                let (item_id, active) = use_light(state, ch, game_objs);
 
-            item.active = !item.active;
-            let active = item.active;
-            item.stackable = false;
-            if was_in_stack {
-                item.slot = next_slot;
+                if active {
+                    game_objs.listeners.insert((item_id, EventType::Update));
+                    game_objs.listeners.insert((item_id, EventType::EndOfTurn));
+                } else {
+                    game_objs.listeners.remove(&(item_id, EventType::Update));
+                    game_objs.listeners.remove(&(item_id, EventType::EndOfTurn));
+                }
             }
 
-            if was_in_stack {
-                player.inc_next_slot();
+            if effects > 0 {
+                let player = game_objs.player_details();
+                effects::apply_effects(state, player, effects)
             }
-            
-            if active {
-                game_objs.listeners.insert((obj_id, EventType::Update));
-                game_objs.listeners.insert((obj_id, EventType::EndOfTurn));
-            } else {
-                game_objs.listeners.remove(&(obj_id, EventType::Update));
-                game_objs.listeners.remove(&(obj_id, EventType::EndOfTurn));
+
+            if consumable {
+                let player = game_objs.player_details();
+                player.inv_remove(obj_id);
             }
 
             return 1.0;
@@ -767,6 +760,36 @@ fn use_item(state: &mut GameState, game_objs: &mut GameObjects, gui: &mut GameUI
     }
 
     0.0
+}
+
+fn use_light(state: &mut GameState, slot: char,game_objs: &mut GameObjects) -> (usize, bool) {
+    let player = game_objs.player_details();
+    let next_slot = player.next_slot; // We might need to give the item a new inventory slot
+    let was_in_stack = player.inv_count_in_slot(slot) > 1;
+
+    let obj = player.inv_item_in_slot(slot).unwrap();
+    let obj_id = obj.object_id;
+    let name = obj.get_fullname();
+    let item = obj.item.as_mut().unwrap();
+    let s = if item.active { 
+        format!("You extinguish {}.", name.with_def_article())
+    } else {
+        format!("{} blazes brightly!", name.with_def_article().capitalize())
+    };
+    state.write_msg_buff(&s);
+
+    item.active = !item.active;
+    item.stackable = false;
+    if was_in_stack {
+        item.slot = next_slot;
+    }
+    let active = item.active;
+
+    if was_in_stack {
+        player.inc_next_slot();
+    }
+
+    (obj_id, active)
 }
 
 fn get_move_tuple(mv: &str) -> (i32, i32) {
@@ -1019,7 +1042,7 @@ fn do_move(state: &mut GameState, game_objs: &mut GameObjects, dir: &str, gui: &
             },
             Tile::DeepWater => {
                 if start_tile != Tile::DeepWater {
-                    state.write_msg_buff("You begin to swim.");				
+                    state.write_msg_buff("You wade into the flow.");				
                 }
             },
             Tile::Well => state.write_msg_buff("A well."),
@@ -1226,6 +1249,11 @@ fn wiz_command(state: &mut GameState, gui: &mut GameUI, game_objs: &mut GameObje
 
         if result == "loc" {
             println!("{:?}", player_loc);
+        } else if result == "!heal" {
+            let loc = (player_loc.0, player_loc.1, player_loc.2);
+            let mut poh = items::Item::get_item(game_objs,"potion of healing").unwrap();
+            poh.location = loc;
+            game_objs.add(poh);
         } else if result == "goblin" {
             let loc = (player_loc.0, player_loc.1 - 1, player_loc.2);
             mf.add_monster("goblin", loc, game_objs);
@@ -1477,7 +1505,7 @@ fn run(gui: &mut GameUI, state: &mut GameState, game_objs: &mut GameObjects, dia
         let p = game_objs.player_details();
         p.energy += p.energy_restore;
         if state.turn % 25 == 0 {
-            p.add_hp(1);
+            p.recover();
         }
 
         state.turn += 1;

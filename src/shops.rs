@@ -212,15 +212,19 @@ fn check_grocer_inventory(state: &mut GameState, grocer_id: usize, game_objs: &m
 
     let mut objs = Vec::new();
     if attitude == Attitude::Stranger {
+        // The initial inventory when the player first meets the shopkeeper
         for _ in 0..rand::thread_rng().gen_range(3, 6) {
             let t = Item::get_item(game_objs, "torch").unwrap();
             objs.push(t);
         }
         for _ in 0..rand::thread_rng().gen_range(1, 3) {
-            let t = Item::get_item(game_objs, "wineskin").unwrap();
-            objs.push(t);
+            let w = Item::get_item(game_objs, "wineskin").unwrap();
+            objs.push(w);
         }
-
+        for _ in 0..rand::thread_rng().gen_range(1, 4) {
+            let p = Item::get_item(game_objs, "potion of healing").unwrap();
+            objs.push(p);
+        }
         let grocer = game_objs.get_mut(grocer_id).unwrap();
         grocer.npc.as_mut().unwrap().inventory = objs;
         grocer.npc.as_mut().unwrap().last_inventory = state.turn;
@@ -249,10 +253,14 @@ fn check_grocer_inventory(state: &mut GameState, grocer_id: usize, game_objs: &m
             new_stock.push(t);
         }
         for _ in 0..rand::thread_rng().gen_range(0, 2) {
-            let t = Item::get_item(game_objs, "wineskin").unwrap();
-            new_stock.push(t);
+            let w = Item::get_item(game_objs, "wineskin").unwrap();
+            new_stock.push(w);
         }
-
+        for _ in 0..rand::thread_rng().gen_range(1, 4) {
+            let p = Item::get_item(game_objs, "potion of healing").unwrap();
+            objs.push(p);
+        }
+        
         let grocer = game_objs.get_mut(grocer_id).unwrap();
         grocer.npc.as_mut().unwrap().last_inventory = state.turn;
         for obj in new_stock {
