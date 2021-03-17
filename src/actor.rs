@@ -25,11 +25,12 @@ use serde::{Serialize, Deserialize};
 
 use super::{EventType, GameObjects, GameState};
 
-use crate::{battle};
+use crate::battle;
+use crate::battle::DamageType;
 use crate::dialogue;
 use crate::dialogue::DialogueLibrary;
 use crate::display;
-use crate::game_obj::GameObject;
+use crate::game_obj::{GameObject, Person};
 use crate::items::GoldPile;
 use crate::map::{Tile, DoorState};
 use crate::pathfinding::find_path;
@@ -533,6 +534,35 @@ impl NPC {
             self.name.with_indef_article()
         } else {
             self.name.with_def_article()
+        }
+    }
+
+    fn death_msg(&self, assailant_id: usize) -> String {
+        if assailant_id == 0 {
+            format!("You kill {}!", self.npc_name(false))        
+        } else {
+            format!("{} dies!", self.npc_name(false).capitalize())        
+        }
+    }
+}
+
+impl Person for NPC {
+    fn damaged(&mut self, state: &mut GameState, amount: u8, dmg_type: DamageType, assailant_id: usize, _assailant_name: &str) {
+        let mut adjusted_dmg = amount;
+        match dmg_type {
+            DamageType::Slashing => if self.attributes & MA_RESIST_SLASH != 0 { adjusted_dmg /= 2; },
+            DamageType::Piercing => if self.attributes & MA_RESIST_PIERCE != 0 { adjusted_dmg /= 2; },
+            _ => { },
+        }
+
+        let curr_hp = self.curr_hp;
+
+        if adjusted_dmg >= curr_hp {
+            self.alive = false;
+            state.write_msg_buff(&self.death_msg(assailant_id));
+            
+        } else {
+            self.curr_hp -= adjusted_dmg;
         }
     }
 }

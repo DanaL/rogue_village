@@ -26,9 +26,10 @@ use crate::game_obj::{GameObject};
 
 // Some bitmasks so that I can store various extra item attributes beyond
 // just the item type enum. (Ie., heavy armour, two-handed, etc)
-pub const IA_LIGHT_ARMOUR: u32 = 0b00000001;
-pub const IA_MED_ARMOUR:   u32 = 0b00000010;
-pub const IA_HEAVY_ARMOUR: u32 = 0b00000100;
+pub const IA_LIGHT_ARMOUR: u128 = 0x00000001;
+pub const IA_MED_ARMOUR: u128   = 0x00000002;
+pub const IA_HEAVY_ARMOUR: u128 = 0x00000004;
+pub const IA_CONSUMABLE: u128   = 0x00000008;
 
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ItemType {
@@ -53,7 +54,7 @@ pub struct Item {
     pub ac_bonus: i8,
 	pub range: u8,
 	pub equiped: bool,
-    pub attributes: u32,
+    pub attributes: u128,
     pub active: bool,
     pub charges: u16,
     pub aura: u8,

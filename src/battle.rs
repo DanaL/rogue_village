@@ -24,7 +24,7 @@ use crate::actor;
 use crate::actor::NPC;
 use crate::player;
 use crate::player::Player;
-use crate::game_obj::{GameObject, GameObjects};
+use crate::game_obj::{GameObject, GameObjects, Person};
 use crate::util::StringUtils;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
@@ -37,38 +37,6 @@ pub enum DamageType {
     Electricity,
     Acid,
     Poison,
-}
-
-fn monster_death_msg(monster: &GameObject, assailant_id: usize) -> String {
-    if assailant_id == 0 {
-        format!("You kill {}!", monster.get_npc_name(false))        
-    } else {
-        format!("{} dies!", monster.get_npc_name(false).capitalize())        
-    }
-}
-
-// Eventually here will go checks for special damage and immunities. I'm going to need a damage type 
-// enum sooner or later. How to indicate assailant_id for non-player/npc, like traps and environments?
-// Maybe I'll reserve usize::MAX to indicate that sort of thing?
-fn monster_damaged(state: &mut GameState, monster: &mut GameObject, dmg_total: u8, dmg_type: DamageType, assailant_id: usize) {
-    let attr = monster.npc.as_ref().unwrap().attributes;
-
-    let mut adjusted_dmg = dmg_total;
-    match dmg_type {
-        DamageType::Slashing => if attr & actor::MA_RESIST_SLASH != 0 { adjusted_dmg /= 2; },
-        DamageType::Piercing => if attr & actor::MA_RESIST_PIERCE != 0 { adjusted_dmg /= 2; },
-        _ => { },
-    }
-
-    let curr_hp = monster.npc.as_ref().unwrap().curr_hp;
-
-    if adjusted_dmg >= curr_hp {
-        monster.npc.as_mut().unwrap().alive = false;
-        state.write_msg_buff(&monster_death_msg(monster, assailant_id));
-        
-    } else {
-        monster.npc.as_mut().unwrap().curr_hp -= adjusted_dmg;
-    }
 }
 
 pub fn player_attacks(state: &mut GameState, opponent_id: usize, game_objs: &mut GameObjects) {
@@ -109,7 +77,8 @@ pub fn player_attacks(state: &mut GameState, opponent_id: usize, game_objs: &mut
         let dmg_roll: u8 = (0..num_dmg_die).map(|_| rng.gen_range(1, weapon_dmg_dice + 1)).sum();
         let dmg_total = dmg_roll as i8 + weapon_attack_bonus + str_mod;    
         if dmg_total > 0 {
-            monster_damaged(state, npc, dmg_total as u8, dmg_type, 0);
+            let monster = npc.npc.as_mut().unwrap();
+            monster.damaged(state, dmg_total as u8, dmg_type, 0, "player");
 
             // I don't know if this is the best spot for this? But for now, if the monsters is no longer
             // alive after the player must have killed it so award xp
@@ -128,17 +97,7 @@ pub fn player_attacks(state: &mut GameState, opponent_id: usize, game_objs: &mut
     }
 }
 
-fn player_damaged(state: &mut GameState, player: &mut Player, dmg_total: u8, assailant_name: &str) {
-    if dmg_total >= player.curr_hp {
-        // Oh no the player has been killed :O
-        player.curr_hp = 0;
-        state.queued_events.push_front((EventType::PlayerKilled, (0, 0, 0), 0, Some(String::from(assailant_name))));
-    } else {
-        player.curr_hp -= dmg_total;
-    }
-}
-
-pub fn monster_attacks_player(state: &mut GameState, monster: &mut NPC, _monster_id: usize, game_objs: &mut GameObjects) {
+pub fn monster_attacks_player(state: &mut GameState, monster: &mut NPC, monster_id: usize, game_objs: &mut GameObjects) {
     let mut rng = rand::thread_rng();
 
     let attack_roll = rng.gen_range(1, 21) + monster.attack_mod;
@@ -150,7 +109,8 @@ pub fn monster_attacks_player(state: &mut GameState, monster: &mut NPC, _monster
         let dmg_roll: u8 = (0..monster.dmg_dice).map(|_| rng.gen_range(1, monster.dmg_die + 1)).sum();
         let dmg_total = (dmg_roll + monster.dmg_bonus) as i8;
         if dmg_total > 0 {
-            player_damaged(state, player, dmg_total as u8, &monster.npc_name(true));
+            // I'm not yet assigning damage types to monsters so just sending Piercing as a good default
+            player.damaged(state, dmg_total as u8, DamageType::Piercing, monster_id, &monster.npc_name(true));
         }
     } else {
         let s = format!("{} misses you!", monster.npc_name(false).capitalize());

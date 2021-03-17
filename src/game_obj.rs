@@ -20,10 +20,16 @@ use std::collections::{HashMap, HashSet, VecDeque};
 
 use super::{EventResponse, EventType, GameState, PLAYER_INV};
 use crate::actor::NPC;
+use crate::battle::DamageType;
 use crate::items::{Item, ItemType, GoldPile};
 use crate::map::{SpecialSquare, Tile};
 use crate::player::Player;
 use crate::util::StringUtils;
+
+// Any sort of entity that has HPs, feelings, career ambitions... (ie., the Player and the NPCs)
+pub trait Person {
+    fn damaged(&mut self, state: &mut GameState, amount: u8, dmg_type: DamageType, assailant_id: usize, assailant_name: &str);
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct GameObject {

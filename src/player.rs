@@ -20,9 +20,10 @@ use rand::Rng;
 use serde::{Serialize, Deserialize};
 
 use super::{GameState, Status};
+use crate::battle::DamageType;
 use crate::display;
 use crate::{EventType, items};
-use crate::game_obj::{GameObject, GameObjects};
+use crate::game_obj::{GameObject, GameObjects, Person};
 use crate::items::{Item, ItemType};
 use crate::util::StringUtils;
 
@@ -356,7 +357,7 @@ impl Player {
         menu
     }
 
-    pub fn ac_mods_from_gear(&self) -> (i8, u32) {
+    pub fn ac_mods_from_gear(&self) -> (i8, u128) {
         let mut sum = 0;
         let mut attributes = 0;
         for obj in self.inventory.iter() {
@@ -525,6 +526,18 @@ impl Player {
         
         let s = format!("Welcome to level {}!", self.level);
         state.write_msg_buff(&s);
+    }
+}
+
+impl Person for Player {
+    fn damaged(&mut self, state: &mut GameState, amount: u8, _dmg_type: DamageType, _assailant_id: usize, assailant_name: &str) {
+        if amount >= self.curr_hp {
+            // Oh no the player has been killed :O
+            self.curr_hp = 0;
+            state.queued_events.push_front((EventType::PlayerKilled, (0, 0, 0), 0, Some(String::from(assailant_name))));
+        } else {
+            self.curr_hp -= amount;
+        }
     }
 }
 
