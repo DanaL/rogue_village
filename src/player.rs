@@ -53,7 +53,7 @@ impl Role {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug)]
 pub struct Player {
     pub base_info: GameObjectBase,
     pub max_hp: u8,
@@ -73,7 +73,7 @@ pub struct Player {
     pub readied_weapon: String,
     pub energy: f32,
     pub energy_restore: f32,
-    pub inventory: Vec<XGameObject>,
+    pub inventory: Vec<GameObjects>,
     pub next_slot: char,
     pub hit_die: u8,
     pub stealth_score: u8,
@@ -132,7 +132,7 @@ impl Player {
             (stats[4], stats[3])
         };
 
-        let mut p = Player { base_info: GameObjectBase::new(0, (-1, -1, -1), false, '@', display::WHITE, display::WHITE, true, name),     
+        let mut p = Player { base_info: GameObjectBase::new(0, (-1, -1, -1), false, '@', display::WHITE, display::WHITE, true, name),
                 max_hp: (15 + stat_to_mod(stats[1])) as u8, curr_hp: (15 + stat_to_mod(stats[1])) as u8,
                 vision_radius: default_vision_radius, str: stats[0], con: stats[1], dex: stats[2], chr, apt, role: Role::Warrior, xp: 0, level: 1, max_depth: 0, 
                 ac: 10, purse: 20, readied_weapon: "".to_string(), energy: 1.0, energy_restore: 1.0, inventory: Vec::new(), next_slot: 'a', hit_die: 10,
@@ -141,28 +141,32 @@ impl Player {
         
         // Warrior starting equipment
 
-        /*
-        let mut spear = Item::get_item(game_objs, "spear").unwrap();        
-        spear.item.as_mut().unwrap().equiped = true;
-        p.add_to_inv(spear);
+        if let Some(GameObjects::Item(mut spear)) = Item::get_item(game_obj_db, "spear") {
+            spear.equiped = true;
+            p.add_to_inv(GameObjects::Item(spear));
+        }
+
+        if let Some(GameObjects::Item(mut armour)) = Item::get_item(game_obj_db, "ringmail") {
+            armour.equiped = true;
+            p.add_to_inv(GameObjects::Item(armour));
+        }
+
+        if let Some(GameObjects::Item(dagger)) = Item::get_item(game_obj_db, "dagger") {
+            p.add_to_inv(GameObjects::Item(dagger));
+        }
                 
-        let mut armour = Item::get_item(game_objs, "ringmail").unwrap();
-        armour.item.as_mut().unwrap().equiped = true;
-        p.add_to_inv(armour);
-        
-        let dagger = Item::get_item(game_objs, "dagger").unwrap();
-        p.add_to_inv(dagger);
-        
         for _ in 0..5 {
-            let torch = Item::get_item(game_objs, "torch").unwrap();
-            p.add_to_inv(torch);
+            if let Some(GameObjects::Item(torch)) = Item::get_item(game_obj_db, "torch") {
+                p.add_to_inv(GameObjects::Item(torch));
+            }
         }
 
         for _ in 0..3 {
-            let scroll = Item::get_item(game_objs, "scroll of blink").unwrap();
-            p.add_to_inv(scroll);
+            if let Some(GameObjects::Item(scroll)) = Item::get_item(game_obj_db, "scroll of blink") {
+                p.add_to_inv(GameObjects::Item(scroll));
+            }
         }
-        */
+        
         p.calc_gear_effects();
 
         game_obj_db.add(GameObjects::Player(p));
@@ -196,25 +200,37 @@ impl Player {
     */
 
     pub fn inv_slots_used(&self) -> HashSet<char> {
-        self.inventory.iter()
-            .map(|i| i.item.as_ref().unwrap().slot)
-            .collect::<HashSet<char>>()
-    }
-
-    pub fn inv_item_in_slot(&mut self, slot: char) -> Option<&mut XGameObject> {
-        for j in 0..self.inventory.len() {
-            if self.inventory[j].item.as_ref().unwrap().slot == slot {
-                let obj = self.inventory.get_mut(j);
-                return obj;
+        let mut slots = HashSet::new();
+        for i in self.inventory.iter() {
+            if let GameObjects::Item(item) = i {
+                slots.insert(item.slot);
             }
         }
 
-        None
+        slots
     }
 
-    pub fn inv_obj_of_id(&mut self, id: usize) -> Option<&mut XGameObject> {
+    pub fn inv_item_in_slot(&mut self, slot: char) -> Option<&mut GameObjects> {
+        let mut index = - 1;
         for j in 0..self.inventory.len() {
-            if self.inventory[j].object_id == id {
+            if let GameObjects::Item(item) = &self.inventory[j] {
+                if item.slot == slot {
+                    index = j as i32;
+                }
+            }            
+        }
+
+        if index >= 0 {
+            let obj = self.inventory.get_mut(index as usize);
+            obj
+        } else {
+            None
+        }
+    }
+
+    pub fn inv_obj_of_id(&mut self, id: usize) -> Option<&mut GameObjects> {
+        for j in 0..self.inventory.len() {
+            if self.inventory[j].obj_id() == id {
                 let obj = self.inventory.get_mut(j);
                 return obj;
             }
@@ -223,9 +239,9 @@ impl Player {
         None
     }
 
-    pub fn inv_remove(&mut self, id: usize) -> Option<XGameObject> {
+    pub fn inv_remove(&mut self, id: usize) -> Option<GameObjects> {
         for j in 0..self.inventory.len() {
-            if self.inventory[j].object_id == id {
+            if self.inventory[j].obj_id() == id {
                 let obj = self.inventory.remove(j);
                 return Some(obj);
             }
@@ -235,7 +251,7 @@ impl Player {
     }
 
     // // Caller should check if the slot exists before calling this...
-    pub fn inv_remove_from_slot(&mut self, slot: char, amt: u32) -> Result<Vec<XGameObject>, String>  {
+    pub fn inv_remove_from_slot(&mut self, slot: char, amt: u32) -> Result<Vec<GameObjects>, String>  {
         let mut removed = Vec::new();
 
         let mut count = 0;
@@ -244,21 +260,21 @@ impl Player {
                 break;
             }
 
-            let obj_id = self.inventory[j].object_id;
-            let details = self.inventory[j].item.as_ref().unwrap();
-            let item_slot = details.slot;
-            let equiped = details.equiped;
-            let i_type = details.item_type;
-            if item_slot == slot {
-                if equiped && i_type == ItemType::Armour {
-                    return Err("You're wearing that!".to_string());
+            let obj_id = self.inventory[j].obj_id();
+            if let GameObjects::Item(item) = &self.inventory[j] {
+                let item_slot = item.slot;
+                let equiped = item.equiped;
+                let i_type = item.item_type;
+                if item_slot == slot {
+                    if equiped && i_type == ItemType::Armour {
+                        return Err("You're wearing that!".to_string());
+                    }
+                    
+                    let obj = self.inv_remove(obj_id).unwrap();
+                    removed.push(obj);
+                    count += 1;            
                 }
-                
-                let obj = self.inv_remove(obj_id).unwrap();
-                removed.push(obj);
-                count += 1;            
             }
-            
         }     
 
         Ok(removed)
@@ -267,9 +283,10 @@ impl Player {
     pub fn readied_obj_ids_of_type(&self, item_type: ItemType) -> Vec<usize> {
         let mut ids = Vec::new();
         for obj in self.inventory.iter() {
-            let item = obj.item.as_ref().unwrap();
-            if item.item_type == item_type && item.equiped {
-                ids.push(obj.object_id);
+            if let GameObjects::Item(item) = obj {
+                if item.item_type == item_type && item.equiped {
+                    ids.push(item.obj_id());
+                }
             }
         }
 
@@ -298,34 +315,46 @@ impl Player {
         }
     }
 
-    pub fn add_to_inv(&mut self, mut obj: XGameObject) {
+    pub fn add_to_inv(&mut self, mut obj: GameObjects) {
         // If the item is stackable and there's another like it, they share a slot
-        if obj.item.as_ref().unwrap().stackable() {
-            for other in self.inventory.iter() {
-                let other_item = other.item.as_ref().unwrap();
-                if obj.name == other.name && other_item.stackable {
-                    obj.item.as_mut().unwrap().slot = other_item.slot;
-                    self.inventory.push(obj);
-                    return;
+        let mut slot_to_use = '\0';
+        if let GameObjects::Item(item) = &obj {
+            if item.stackable() {
+                for other in self.inventory.iter() {
+                    if let GameObjects::Item(other_item) = &other {
+                        if item.base_info.name == other_item.base_info.name && other_item.stackable() {
+                            slot_to_use = other_item.slot;
+                            break;
+                        }
+                    }                    
                 }
             }
         }
+        
+        if let GameObjects::Item(item) = &mut obj {
+            if slot_to_use == '\0' {
+                let used = self.inv_slots_used();
+                slot_to_use = item.slot;
+                if slot_to_use == '\0' || used.contains(&slot_to_use) {
+                    slot_to_use = self.next_slot;
+                    self.inc_next_slot();
+                } 
+            }
 
-        let used = self.inv_slots_used();
-        let curr_slot = obj.item.as_ref().unwrap().slot;
-        if curr_slot == '\0' || used.contains(&curr_slot) {
-            obj.item.as_mut().unwrap().slot = self.next_slot;
-            self.inc_next_slot();
+            item.slot = slot_to_use;
         }
+        
         self.inventory.push(obj);
     }
 
     pub fn inv_count_in_slot(&self, slot: char) -> usize {
         let mut count = 0;
         for obj in self.inventory.iter() {
-            if obj.item.as_ref().unwrap().slot == slot {
-                count += 1;
-            }
+            if let GameObjects::Item(i) = obj {
+                if i.slot == slot {
+                    count += 1;
+                }
+            }            
         }
 
         count
@@ -334,8 +363,10 @@ impl Player {
     pub fn inv_menu(&self) -> Vec<String> {
         let mut items = Vec::new();
         for obj in self.inventory.iter() {
-            let name = obj.get_fullname();
-            items.push((obj.item.as_ref().unwrap().slot, name));
+            if let GameObjects::Item(i) = obj {
+                let name = i.get_fullname();
+                items.push((i.slot, name));
+            }            
         }
         
         let mut menu = Vec::new();
@@ -368,10 +399,11 @@ impl Player {
         let mut sum = 0;
         let mut attributes = 0;
         for obj in self.inventory.iter() {
-            let item = obj.item.as_ref().unwrap();
-            if item.equiped && item.ac_bonus > 0 {
-                sum += item.ac_bonus;
-                attributes |= item.attributes;                 
+            if let GameObjects::Item(item) = obj {
+                if item.equiped && item.ac_bonus > 0 {
+                    sum += item.ac_bonus;
+                    attributes |= item.attributes;                 
+                }
             }
         }
         
@@ -380,10 +412,11 @@ impl Player {
 
     pub fn readied_weapon(&self) -> Option<(&Item, String)> {
         for j in 0..self.inventory.len() {
-            let name = self.inventory[j].get_fullname();
-            let item = self.inventory[j].item.as_ref().unwrap();
-            if item.equiped && item.item_type == ItemType::Weapon {
-                return Some((item, name))
+            if let GameObjects::Item(item) = &self.inventory[j] {
+                let name = item.get_fullname();
+                if item.equiped && item.item_type == ItemType::Weapon {
+                    return Some((&item, name))
+                }
             }
         }
 

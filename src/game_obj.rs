@@ -59,14 +59,19 @@ pub trait GameObject {
     fn receive_event(&mut self, event: EventType, state: &mut GameState, player_loc: (i32, i32, i8)) -> Option<EventResponse>;
 }
 
+#[derive(Debug)]
 pub enum GameObjects {
     Player(Player),
+    Item(Item),
+    GoldPile(GoldPile),
 }
 
 impl GameObject for GameObjects {
     fn blocks(&self) -> bool {
         match self {
             GameObjects::Player(_) => true,
+            GameObjects::Item(i) => i.blocks(),
+            GameObjects::GoldPile(g) => g.blocks(),
         };
 
         false
@@ -75,54 +80,72 @@ impl GameObject for GameObjects {
     fn get_loc(&self) -> (i32, i32, i8) {
         match self {
             GameObjects::Player(player) => player.get_loc(),
+            GameObjects::Item(i) => i.get_loc(),
+            GameObjects::GoldPile(g) => g.get_loc(),
         }
     }
 
     fn set_loc(&mut self, loc: (i32, i32, i8)) {
         match self {
             GameObjects::Player(player) => player.set_loc(loc),
+            GameObjects::Item(i) => i.set_loc(loc),
+            GameObjects::GoldPile(g) => g.set_loc(loc),
         }
     }
 
     fn get_fullname(&self) -> String {
         match self {
             GameObjects::Player(player) => player.get_fullname(),
+            GameObjects::Item(i) => i.get_fullname(),
+            GameObjects::GoldPile(g) => g.get_fullname(),
         }
     }
 
     fn obj_id(&self) -> usize {
         match self {
             GameObjects::Player(player) => player.obj_id(),
+            GameObjects::Item(i) => i.obj_id(),
+            GameObjects::GoldPile(g) => g.obj_id(),
         }
     }
 
     fn get_tile(&self) -> Tile {
         match self {
             GameObjects::Player(player) => player.get_tile(),
+            GameObjects::Item(i) => i.get_tile(),
+            GameObjects::GoldPile(g) => g.get_tile(),
         }
     }
 
     fn hidden(&self) -> bool {
         match self {
             GameObjects::Player(player) => player.hidden(),
+            GameObjects::Item(i) => i.hidden(),
+            GameObjects::GoldPile(g) => g.hidden(),
         }
     }
 
     fn hide(&mut self) {
         match self {
             GameObjects::Player(player) => player.hide(),
+            GameObjects::Item(i) => i.hide(),
+            GameObjects::GoldPile(g) => g.hide(),
         }
     }
 
     fn reveal(&mut self) {
         match self {
             GameObjects::Player(player) => player.reveal(),
+            GameObjects::Item(i) => i.reveal(),
+            GameObjects::GoldPile(g) => g.reveal(),
         }
     }
 
     fn receive_event(&mut self, event: EventType, state: &mut GameState, player_loc: (i32, i32, i8)) -> Option<EventResponse> {
         match self {
             GameObjects::Player(player) => player.receive_event(event, state, player_loc),
+            GameObjects::Item(i) => i.receive_event(event, state, player_loc),
+            GameObjects::GoldPile(g) => g.receive_event(event, state, player_loc),
         }
     }
 }
@@ -284,7 +307,7 @@ pub trait Person {
     fn add_hp(&mut self, state: &mut GameState, amt: u8);
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug)]
 pub struct XGameObject {
     pub object_id: usize,
     pub location: (i32, i32, i8),
@@ -294,7 +317,7 @@ pub struct XGameObject {
     pub unlit_colour: (u8, u8, u8),
     pub npc: Option<NPC>,
     pub item: Option<Item>,
-    pub gold_pile: Option<GoldPile>,
+    //pub gold_pile: Option<GoldPile>,
     pub special_sq: Option<SpecialSquare>,
     pub player: Option<Player>,
     blocks: bool,
@@ -303,10 +326,10 @@ pub struct XGameObject {
 
 impl XGameObject {
     pub fn new(object_id: usize, name: &str, location: (i32, i32, i8), symbol: char, lit_colour: (u8, u8, u8), 
-        unlit_colour: (u8, u8, u8), npc: Option<NPC>, item: Option<Item>, gold_pile: Option<GoldPile>, 
+        unlit_colour: (u8, u8, u8), npc: Option<NPC>, item: Option<Item>, 
             special_sq: Option<SpecialSquare>, player: Option<Player>, blocks: bool) -> Self {
             XGameObject { object_id, name: String::from(name), location, hidden: false, symbol, lit_colour, 
-                unlit_colour, npc, item, gold_pile, special_sq, player, blocks, }
+                unlit_colour, npc, item, special_sq, player, blocks, }
         }
 
     pub fn blocks(&self) -> bool {
@@ -318,14 +341,15 @@ impl XGameObject {
     }
 
     pub fn get_fullname(&self) -> String {
-        if self.item.is_some() {
-            let s = format!("{} {}", self.name, self.item.as_ref().unwrap().desc());
-            s.trim().to_string()
-        } else if self.gold_pile.is_some() {
-            self.gold_pile.as_ref().unwrap().get_fullname()
-        } else {
-            self.name.clone()
-        }
+        // if self.item.is_some() {
+        //     let s = format!("{} {}", self.name, self.item.as_ref().unwrap().desc());
+        //     s.trim().to_string()
+        // } else if self.gold_pile.is_some() {
+        //     self.gold_pile.as_ref().unwrap().get_fullname()
+        // } else {
+        //     self.name.clone()
+        // }
+        "".to_string()
     }
 
     // NPCs are slightly more complicated because I want to say in places sometimes
@@ -355,17 +379,18 @@ impl XGameObject {
     }
 
     fn receive_event(&mut self, event: EventType, state: &mut GameState, player_loc: (i32, i32, i8)) -> Option<EventResponse> {
-        if self.item.is_some() {
-            self.item.as_mut().unwrap().receive_event(event, state, self.location, player_loc, self.name.clone(), self.object_id)
-        } else if self.special_sq.is_some() {
-            self.special_sq.as_mut().unwrap().receive_event(event, state, self.location, self.object_id)
-        } else {
-            None
-        }
+        // if self.item.is_some() {
+        //     self.item.as_mut().unwrap().receive_event(event, state, self.location, player_loc, self.name.clone(), self.object_id)
+        // } else if self.special_sq.is_some() {
+        //     self.special_sq.as_mut().unwrap().receive_event(event, state, self.location, self.object_id)
+        // } else {
+        //     None
+        // }
+        None
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug)]
 pub struct XGameObjects {
     next_obj_id: usize,
     pub obj_locs: HashMap<(i32, i32, i8), VecDeque<usize>>,
@@ -395,17 +420,17 @@ impl XGameObjects {
         // are any there before we insert. For items where there won't be too many of
         // (like torches) that can stack, I don't bother. But storing gold as individual
         // items might have meant 10s of thousands of objects
-        if obj.gold_pile.is_some() && self.obj_locs.contains_key(&loc) {
-            let amt = obj.gold_pile.as_ref().unwrap().amount;
-            let ids: Vec<usize> = self.obj_locs[&loc].iter().map(|i| *i).collect();
-            for id in ids {
-                let obj = self.get_mut(id).unwrap();
-                if obj.gold_pile.is_some() {
-                    obj.gold_pile.as_mut().unwrap().amount += amt;
-                    return;
-                }
-            }            
-        }
+        // if obj.gold_pile.is_some() && self.obj_locs.contains_key(&loc) {
+        //     let amt = obj.gold_pile.as_ref().unwrap().amount;
+        //     let ids: Vec<usize> = self.obj_locs[&loc].iter().map(|i| *i).collect();
+        //     for id in ids {
+        //         let obj = self.get_mut(id).unwrap();
+        //         if obj.gold_pile.is_some() {
+        //             obj.gold_pile.as_mut().unwrap().amount += amt;
+        //             return;
+        //         }
+        //     }            
+        // }
 
         self.set_to_loc(obj_id, loc);
         self.objects.insert(obj_id, obj);        
@@ -506,7 +531,7 @@ impl XGameObjects {
             } else {
                 let p = self.player_details();
                 if let Some(obj) = p.inv_obj_of_id(obj_id) {
-                    obj.location = PLAYER_INV;
+                    //obj.location = PLAYER_INV;
                     match obj.receive_event(event_type, state, ploc) {
                         Some(response) => {
                             if response.event_type == EventType::LightExpired {
@@ -711,13 +736,13 @@ impl XGameObjects {
                         || self.objects[&id].player.is_some() {
                     continue;
                 }
-                if self.objects[&id].gold_pile.is_some() {
-                    let amt = self.objects[&id].gold_pile.as_ref().unwrap().amount;
-                    let s = format!("{} gold pieces", amt);
-                    menu.push((s, id));
-                } else {
-                    menu.push((self.objects[&id].get_fullname().with_indef_article(), id));
-                }
+                // if self.objects[&id].gold_pile.is_some() {
+                //     let amt = self.objects[&id].gold_pile.as_ref().unwrap().amount;
+                //     let s = format!("{} gold pieces", amt);
+                //     menu.push((s, id));
+                // } else {
+                //     menu.push((self.objects[&id].get_fullname().with_indef_article(), id));
+                // }
             }            
         }
 

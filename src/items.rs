@@ -19,11 +19,12 @@ use serde::{Serialize, Deserialize};
 
 use super::{EventResponse, EventType, GameState, PLAYER_INV};
 
-use crate::battle::DamageType;
+use crate::{battle::DamageType, display::YELLOW_ORANGE};
 use crate::display;
 use crate::effects;
 use crate::fov;
-use crate::game_obj::{XGameObject, GameObjectDB, XGameObjects};
+use crate::game_obj::{GameObject, GameObjectBase, GameObjectDB, GameObjects};
+use crate::map::Tile;
 
 // Some bitmasks so that I can store various extra item attributes beyond
 // just the item type enum. (Ie., heavy armour, two-handed, etc)
@@ -47,8 +48,9 @@ pub enum ItemType {
     Scroll,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Item {
+    pub base_info: GameObjectBase,
     pub item_type: ItemType,
 	pub weight: u8,
 	pub stackable: bool,
@@ -70,121 +72,108 @@ pub struct Item {
 }
 
 impl Item {    
-    fn new(item_type: ItemType, weight: u8, stackable: bool, value: u16) -> Item {
-		Item { item_type, weight, stackable, slot: '\0', dmg_die: 1, dmg_dice: 1, attack_bonus: 0, ac_bonus: 0, range: 0, equiped: false, 
+    fn new(object_id: usize, symbol: char, lit_colour: (u8, u8, u8), unlit_colour: (u8, u8, u8), name: &str, item_type: ItemType, weight: u8, stackable: bool, value: u16) -> Item {
+		Item { base_info: GameObjectBase::new(object_id, (-1, -1, -1), false, symbol, lit_colour, unlit_colour, false, name),
+             item_type, weight, stackable, slot: '\0', dmg_die: 1, dmg_dice: 1, attack_bonus: 0, ac_bonus: 0, range: 0, equiped: false, 
                 attributes: 0, active: false, charges: 0, aura: 0, text: None, dmg_type: DamageType::Bludgeoning, value, effects: 0 }								
 	}
     
-    pub fn get_item(game_objs: &mut XGameObjects, name: &str) -> Option<XGameObject> {
+    pub fn get_item(game_obj_db: &mut GameObjectDB, name: &str) -> Option<GameObjects> {
         match name {
             "longsword" => {
-                let mut i = Item::new(ItemType::Weapon, 3, false, 15);
+                let mut i = Item::new(game_obj_db.next_id(), ')',display::WHITE, display::GREY, name, ItemType::Weapon, 3, false, 15);
                 i.dmg_die = 8;
                 i.dmg_type = DamageType::Slashing;
-                let obj = XGameObject::new(game_objs.next_id(), name, (0, 0, 0), ')', display::WHITE, display::GREY, None, Some(i) , None, None, None, false);
-
-                Some(obj)
+                
+                Some(GameObjects::Item(i))
             },
             "dagger" => {
-                let mut i = Item::new(ItemType::Weapon, 1, false, 2);
+                let mut i = Item::new(game_obj_db.next_id(), ')',display::WHITE, display::GREY, name, ItemType::Weapon, 1, true, 2);
                 i.dmg_die = 4;
                 i.dmg_type = DamageType::Slashing;
-                let obj = XGameObject::new(game_objs.next_id(), name, (0, 0, 0), ')', display::WHITE, display::GREY, None, Some(i) , None, None, None, false);
-
-                Some(obj)
+                
+                Some(GameObjects::Item(i))
             },
             "spear" => {
-                let mut i = Item::new(ItemType::Weapon, 2, false, 2);
+                let mut i = Item::new(game_obj_db.next_id(), ')',display::WHITE, display::GREY, name, ItemType::Weapon, 2, false, 2);
                 i.dmg_die = 6;
                 i.dmg_type = DamageType::Piercing;
-                let obj = XGameObject::new(game_objs.next_id(), name, (0, 0, 0), ')', display::WHITE, display::GREY, None, Some(i) , None, None, None, false);
-
-                Some(obj)
+                
+                Some(GameObjects::Item(i))
             },
             "two-handed sword" => {
-                let mut i = Item::new(ItemType::Weapon, 6, false, 30);
+                let mut i = Item::new(game_obj_db.next_id(), ')',display::WHITE, display::GREY, name, ItemType::Weapon, 6, false, 30);
                 i.dmg_die = 12;
                 i.dmg_type = DamageType::Slashing;
                 i.attributes |= IA_TWO_HANDED;
-                let obj = XGameObject::new(game_objs.next_id(), name, (0, 0, 0), ')', display::WHITE, display::GREY, None, Some(i) , None, None, None, false);
-
-                Some(obj)
+                
+                Some(GameObjects::Item(i))
             },
             "staff" => {
-                let mut i = Item::new(ItemType::Weapon, 1, false, 2);
+                let mut i = Item::new(game_obj_db.next_id(), ')',display::LIGHT_BROWN, display::BROWN, name, ItemType::Weapon, 2, false, 2);
                 i.dmg_die = 6;
                 i.dmg_type = DamageType::Bludgeoning;
-                let obj = XGameObject::new(game_objs.next_id(), name, (0, 0, 0), ')', display::LIGHT_BROWN, display::BROWN, None, Some(i) , None, None, None, false);
-
-                Some(obj)
+                
+                Some(GameObjects::Item(i))
             },
             "ringmail" => {
-                let mut i = Item::new(ItemType::Armour, 10, false, 30);
+                let mut i = Item::new(game_obj_db.next_id(), '[',display::GREY, display::DARK_GREY, name, ItemType::Armour, 10, false, 30);
                 i.ac_bonus = 3;
                 i.attributes |= IA_MED_ARMOUR;
-                let obj = XGameObject::new(game_objs.next_id(), name, (0, 0, 0), '[', display::GREY, display::DARK_GREY, None, Some(i) , None, None, None, false);
                 
-                Some(obj)
+                Some(GameObjects::Item(i))
             },
             "leather armour" => {
-                let mut i = Item::new(ItemType::Armour, 5, false, 5);
+                let mut i = Item::new(game_obj_db.next_id(), '[',display::BROWN, display::DARK_BROWN, name, ItemType::Armour, 5, false, 5);
                 i.ac_bonus = 1;
                 i.attributes |= IA_LIGHT_ARMOUR;
-                let obj = XGameObject::new(game_objs.next_id(), name, (0, 0, 0), '[', display::BROWN, display::DARK_BROWN, None, Some(i) , None, None, None, false);
                 
-                Some(obj)
+                Some(GameObjects::Item(i))
             },
             "chainmail" => {
-                let mut i = Item::new(ItemType::Armour, 15, false, 75);
+                let mut i = Item::new(game_obj_db.next_id(), '[',display::GREY, display::DARK_GREY, name, ItemType::Armour, 15, false, 75);
                 i.ac_bonus = 5;
                 i.attributes |= IA_MED_ARMOUR;
-                let obj = XGameObject::new(game_objs.next_id(), name, (0, 0, 0), '[', display::GREY, display::DARK_GREY, None, Some(i) , None, None, None, false);
                 
-                Some(obj)
+                Some(GameObjects::Item(i))
             },
             "shield" => {
-                let mut i = Item::new(ItemType::Shield, 5, false, 10);
+                let mut i = Item::new(game_obj_db.next_id(), '[',display::GREY, display::DARK_GREY, name, ItemType::Shield, 5, false, 10);
                 i.ac_bonus = 1;
-                let obj = XGameObject::new(game_objs.next_id(), name, (0, 0, 0), '[', display::GREY, display::DARK_GREY, None, Some(i) , None, None, None, false);
                 
-                Some(obj)
+                Some(GameObjects::Item(i))
             },         
             "torch" => {
-                let mut i = Item::new(ItemType::Light, 1, true, 1);
+                let mut i = Item::new(game_obj_db.next_id(), '(',display::LIGHT_BROWN, display::BROWN, name, ItemType::Armour, 1, true, 1);
                 i.charges = 1000;
                 i.aura = 5;
                 
-                let obj = XGameObject::new(game_objs.next_id(), name, (0, 0, 0), '(', display::LIGHT_BROWN, display::BROWN, None, Some(i) , None, None, None, false);
-                Some(obj)
+                Some(GameObjects::Item(i))
             },
             "wineskin" => {
-                let mut w = Item::new(ItemType::Bottle, 1, false, 1);
+                let mut w = Item::new(game_obj_db.next_id(), '(',display::LIGHT_BROWN, display::BROWN, name, ItemType::Bottle, 1, false, 2);
                 w.charges = 0;
 
-                let obj = XGameObject::new(game_objs.next_id(), name, (0, 0, 0), '(', display::LIGHT_BROWN, display::BROWN, None, Some(w) , None, None, None, false);
-                Some(obj)
+                Some(GameObjects::Item(w))
             },
             "note" => {
-                let i = Item::new(ItemType::Note, 0, false, 0);
-                let obj = XGameObject::new(game_objs.next_id(), name, (0, 0, 0), '?', display::WHITE, display::LIGHT_GREY, None, Some(i) , None, None, None, false);            
+                let i = Item::new(game_obj_db.next_id(), '?',display::WHITE, display::LIGHT_GREY, name, ItemType::Note, 0, false, 0);
                 
-                Some(obj)
+                Some(GameObjects::Item(i))
             },
             "potion of healing" => {
-                let mut i = Item::new(ItemType::Potion, 1, true, 10);
+                let mut i = Item::new(game_obj_db.next_id(), '!',display::WHITE, display::LIGHT_GREY, name, ItemType::Potion, 2, true, 10);
                 i.attributes |= IA_CONSUMABLE;
                 i.effects |= effects::EF_MINOR_HEAL;
-                let obj = XGameObject::new(game_objs.next_id(), name, (0, 0, 0), '!', display::WHITE, display::LIGHT_GREY, None, Some(i) , None, None, None, false);            
                 
-                Some(obj)
+                Some(GameObjects::Item(i))
             },
             "scroll of blink" => {
-                let mut i = Item::new(ItemType::Scroll, 1, true, 20);
+                let mut i = Item::new(game_obj_db.next_id(), '?',display::WHITE, display::LIGHT_GREY, name, ItemType::Scroll, 1, true, 20);
                 i.attributes |= IA_CONSUMABLE;
                 i.effects |= effects::EF_BLINK;
-                let obj = XGameObject::new(game_objs.next_id(), name, (0, 0, 0), '?', display::WHITE, display::LIGHT_GREY, None, Some(i) , None, None, None, false);            
                 
-                Some(obj)
+                Some(GameObjects::Item(i))
             }
             _ => None,
         }
@@ -251,48 +240,84 @@ impl Item {
 			state.lit_sqs.insert(sq);			
 		}		
 	}
+}
 
-    pub fn receive_event(&mut self, event: EventType, state: &mut GameState, 
-                loc: (i32, i32, i8), player_loc: (i32, i32, i8),
-                name: String, obj_id: usize) -> Option<EventResponse> {
-		match event {
+impl GameObject for Item {
+    fn blocks(&self) -> bool {
+        true
+    }
+
+    fn get_loc(&self) -> (i32, i32, i8) {
+        self.base_info.location
+    }
+
+    fn set_loc(&mut self, loc: (i32, i32, i8)) {
+        self.base_info.location = loc;
+    }
+
+    fn get_fullname(&self) -> String {
+        let s = format!("{} {}", self.base_info.name, self.desc());
+        s
+    }
+
+    fn obj_id(&self) -> usize {
+        self.base_info.object_id
+    }
+
+    fn get_tile(&self) -> Tile {
+        Tile::Thing(self.base_info.lit_colour, self.base_info.unlit_colour, self.base_info.symbol)
+    }
+
+    fn hidden(&self) -> bool {
+        self.base_info.hidden
+    }
+
+    fn hide(&mut self) {
+        self.base_info.hidden = true;
+    }
+    fn reveal(&mut self) {
+        self.base_info.hidden = false;
+    }
+
+    fn receive_event(&mut self, event: EventType, state: &mut GameState, player_loc: (i32, i32, i8)) -> Option<EventResponse> {
+        match event {
             EventType::Update => {
                 // right now light sources are the only things in the game which times like this
 				// This'll mark squares that are lit independent of the player's vision. Don't bother
 				// with the calculation if the light source is on another level of the dungeon
                 // Note this currently isn't working for a monster carrying a lit light source (or, eventually
                 // other items that may have charges)
-                if self.charges > 0 && (loc == PLAYER_INV || loc.2 == player_loc.2) {
-                    self.mark_lit_sqs(state, loc, player_loc);
+                if self.charges > 0 && (self.get_loc() == PLAYER_INV || self.get_loc().2 == player_loc.2) {
+                    self.mark_lit_sqs(state, self.get_loc(), player_loc);
 				}                
             },
 			EventType::EndOfTurn => {
 				self.charges -= 1;
                 
 				if self.charges == 150 {
-					let s = if loc == PLAYER_INV {
-						format!("Your {} flickers.", name)					
+					let s = if self.get_loc() == PLAYER_INV {
+						format!("Your {} flickers.", self.base_info.name)					
 					} else {
-						format!("The {} flickers.", name)
+						format!("The {} flickers.", self.base_info.name)
 					};
 					self.aura -= 2;
 					state.write_msg_buff(&s);
 				} else if self.charges == 25 {
-					let s = if loc == PLAYER_INV {
-						format!("Your {} seems about to go out.", name)					
+					let s = if self.get_loc() == PLAYER_INV {
+						format!("Your {} seems about to go out.", self.base_info.name)					
 					} else {
-						format!("The {} seems about to out.", name)
+						format!("The {} seems about to out.", self.base_info.name)
 					};
 					state.write_msg_buff(&s);
 				} else if self.charges == 0 {
-					let s = if loc == PLAYER_INV {
-						format!("Your {} has gone out!", name)					
+					let s = if self.get_loc() == PLAYER_INV {
+						format!("Your {} has gone out!", self.base_info.name)					
 					} else {
-						format!("The {} has gone out!", name)
+						format!("The {} has gone out!", self.base_info.name)
 					};
 					state.write_msg_buff(&s);
 
-                    let er = EventResponse::new(obj_id, EventType::LightExpired);
+                    let er = EventResponse::new(self.obj_id(), EventType::LightExpired);
 					return Some(er);
 				}
 			},
@@ -306,23 +331,63 @@ impl Item {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct GoldPile {
+    base_info: GameObjectBase,
     pub amount: u32,    
 }
 
 impl GoldPile {
-    pub fn make(game_objs: &mut XGameObjects, amount: u32, loc: (i32, i32, i8)) -> XGameObject {
-        let g = GoldPile { amount };
-        XGameObject::new(game_objs.next_id(), "zorkmids", loc, '$', display::GOLD, display::YELLOW_ORANGE, None, None , Some(g), None, None, false)
+    pub fn make(game_obj_db: &mut GameObjectDB, amount: u32, loc: (i32, i32, i8)) -> GameObjects {
+        let g = GoldPile { base_info: GameObjectBase::new(game_obj_db.next_id(), loc, false, '$', display::GOLD,
+            display::YELLOW_ORANGE, false, "zorkmids"), amount };
+            
+        GameObjects::GoldPile(g)
+    }
+}
+
+impl GameObject for GoldPile {
+    fn blocks(&self) -> bool {
+        true
     }
 
-    pub fn get_fullname(&self) -> String {
+    fn get_loc(&self) -> (i32, i32, i8) {
+        self.base_info.location
+    }
+
+    fn set_loc(&mut self, loc: (i32, i32, i8)) {
+        self.base_info.location = loc;
+    }
+
+    fn get_fullname(&self) -> String {
         if self.amount == 1 {
             String::from("1 gold piece")
         } else {
             let s = format!("{} gold pieces", self.amount);
             s
         }
+    }
+
+    fn obj_id(&self) -> usize {
+        self.base_info.object_id
+    }
+
+    fn get_tile(&self) -> Tile {
+        Tile::Thing(self.base_info.lit_colour, self.base_info.unlit_colour, self.base_info.symbol)
+    }
+
+    fn hidden(&self) -> bool {
+        self.base_info.hidden
+    }
+
+    fn hide(&mut self) {
+        self.base_info.hidden = true;
+    }
+    fn reveal(&mut self) {
+        self.base_info.hidden = false;
+    }
+
+    fn receive_event(&mut self, event: EventType, state: &mut GameState, player_loc: (i32, i32, i8)) -> Option<EventResponse> {
+        None
     }
 }

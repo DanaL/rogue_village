@@ -123,7 +123,7 @@ impl SpecialSquare {
 	pub fn make(tile: Tile, location: (i32, i32, i8), active: bool, radius: u8, game_objs: &mut XGameObjects) -> XGameObject {
 		let sq = SpecialSquare { tile,  radius, target: None, active };
 
-		let mut obj = XGameObject::new(game_objs.next_id(), "special sq", location, ' ', display::BLACK, display::BLACK, None, None , None, Some(sq), None, false);
+		let mut obj = XGameObject::new(game_objs.next_id(), "special sq", location, ' ', display::BLACK, display::BLACK, None, None ,  Some(sq), None,  false);
 		obj.hidden = true;
 
 		obj
@@ -132,7 +132,7 @@ impl SpecialSquare {
 	pub fn teleport_trap(location: (i32, i32, i8), game_objs: &mut XGameObjects) -> XGameObject {
 		let sq = SpecialSquare { tile: Tile::TeleportTrap,  radius: 0, target: None, active: true };
 
-		let mut obj = XGameObject::new(game_objs.next_id(), "teleport trap", location, '^', display::PINK, display::PURPLE, None, None , None, Some(sq), None, false);
+		let mut obj = XGameObject::new(game_objs.next_id(), "teleport trap", location, '^', display::PINK, display::PURPLE, None, None ,  Some(sq), None, false);
 		obj.hidden = true;
 
 		obj

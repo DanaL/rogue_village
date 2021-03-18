@@ -108,7 +108,7 @@ pub enum Behaviour {
     Defend(usize),
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug)]
 pub struct NPC {
     pub name: String,
     pub ac: u8,
@@ -148,7 +148,7 @@ impl NPC {
         };
 
         let obj = XGameObject::new(game_objs.next_id(), &npc_name, location, '@', display::LIGHT_GREY, display::LIGHT_GREY, 
-            Some(npc), None , None, None, None, true);
+            Some(npc), None , None, None,  true);
 		obj
     }
     
@@ -645,11 +645,11 @@ impl MonsterFactory {
 
         let mut rng = rand::thread_rng();
         let amt = rng.gen_range(1, 6);
-        let gold = GoldPile::make(game_objs, amt, loc);
-        npc.inventory.push(gold);
+        // let gold = GoldPile::make(game_objs, amt, loc);
+        // npc.inventory.push(gold);
 
         let monster = XGameObject::new(game_objs.next_id(), &monster_name, loc, sym, stats.3, stats.3, 
-            Some(npc), None , None, None, None, true);
+            Some(npc), None , None, None,  true);
 		let obj_id = monster.object_id;
         game_objs.add(monster);
         game_objs.listeners.insert((obj_id, EventType::TakeTurn));

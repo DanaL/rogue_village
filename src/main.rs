@@ -182,17 +182,15 @@ impl GameState {
     }
 
     pub fn curr_sidebar_info(&self, game_obj_db: &mut GameObjectDB) -> SidebarInfo {
-        // let loc = game_objs.player_location();
-        // let player = game_objs.player_details();
-        // let weapon_name = match player.readied_weapon() {
-        //     Some(res) => res.1.capitalize(),
-        //     None => "Empty handed".to_string(),
-        // };
+        let player = game_obj_db.player().unwrap();
+        let loc = player.get_loc();
+        let weapon_name = match player.readied_weapon() {
+            Some(res) => res.1.capitalize(),
+            None => "Empty handed".to_string(),
+        };
         
-        // SidebarInfo::new(player.name.to_string(), player.curr_hp, player.max_hp, self.turn, player.ac,
-        // player.purse, weapon_name, loc.2 as u8)
-        SidebarInfo::new("Foo".to_string(), 17, 23, self.turn, 13,
-        4, "sword".to_string(), 3 as u8)
+        SidebarInfo::new(player.get_fullname(), player.curr_hp, player.max_hp, self.turn, player.ac,
+        player.purse, weapon_name, loc.2 as u8)
     }
 
     // I made life difficult for myself by deciding that Turn 0 of the game is 8:00am T_T
@@ -1210,28 +1208,28 @@ fn show_character_sheet(gui: &mut GameUI, player: &Player) {
     gui.write_long_msg(&lines, true);
 }
 
-fn show_inventory(gui: &mut GameUI, state: &mut GameState, game_objs: &mut GameObjects) {
-    // let p = game_objs.player_details();        
-    // let menu = p.inv_menu();
-    // let purse = p.purse;
+fn show_inventory(gui: &mut GameUI, state: &mut GameState, game_obj_db: &mut GameObjectDB) {
+    let p = game_obj_db.player().unwrap();
+    let menu = p.inv_menu();
+    let purse = p.purse;
 
-    // let money = if purse == 1 {
-    //     String::from("$) a single zorkmid to your name")
-    // } else {
-    //     let s = format!("$) {} gold pieces", purse);
-    //     s
-    // };
+    let money = if purse == 1 {
+        String::from("$) a single zorkmid to your name")
+    } else {
+        let s = format!("$) {} gold pieces", purse);
+        s
+    };
 
-    // if menu.is_empty() && purse == 0 {
-    //     state.write_msg_buff("You are empty-handed.");
-    // } else {
-    //     let mut m: Vec<&str> = menu.iter().map(AsRef::as_ref).collect();        
-    //     m.insert(0, "You are carrying:");
-    //     if purse > 0 {
-    //         m.insert(1, &money);
-    //     }
-    //     gui.write_long_msg(&m, true);
-    // }
+    if menu.is_empty() && purse == 0 {
+        state.write_msg_buff("You are empty-handed.");
+    } else {
+        let mut m: Vec<&str> = menu.iter().map(AsRef::as_ref).collect();        
+        m.insert(0, "You are carrying:");
+        if purse > 0 {
+            m.insert(1, &money);
+        }
+        gui.write_long_msg(&m, true);
+    }
 }
 
 fn dump_level(state: &GameState, level: i8) {
@@ -1477,9 +1475,9 @@ fn run(gui: &mut GameUI, state: &mut GameState, game_obj_db: &mut GameObjectDB, 
                     energy_cost = 1.0;
                 },
                 Cmd::Pass => {
-                    //let p = game_objs.player_details();
-                    //energy_cost = p.energy;
-                    },
+                    let p = game_obj_db.player().unwrap();
+                    energy_cost = p.energy;
+                },
                 // Cmd::PickUp => energy_cost = pick_up(state, game_objs, gui),
                 // Cmd::Read => energy_cost = read_item(state, game_objs, gui),
                 // Cmd::Save => save_and_exit(state, game_objs, gui)?,
@@ -1492,7 +1490,7 @@ fn run(gui: &mut GameUI, state: &mut GameState, game_obj_db: &mut GameObjectDB, 
                         show_character_sheet(gui, p);
                     }
                 },
-                //Cmd::ShowInventory => show_inventory(gui, state, game_objs),
+                Cmd::ShowInventory => show_inventory(gui, state, game_obj_db),
                 //Cmd::ToggleEquipment => energy_cost = toggle_equipment(state, game_objs, gui),
                 //Cmd::Use => energy_cost = use_item(state, game_objs, gui),
                 Cmd::Quit => confirm_quit(state, gui, game_obj_db)?,
