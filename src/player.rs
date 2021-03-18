@@ -151,17 +151,6 @@ impl Player {
         let dagger = Item::get_item(game_objs, "dagger").unwrap();
         p.add_to_inv(dagger);
         
-        let shield = Item::get_item(game_objs, "shield").unwrap();
-        p.add_to_inv(shield);
-        
-        let tsword = Item::get_item(game_objs, "two-handed sword").unwrap();
-        p.add_to_inv(tsword);
-        
-        for _ in 0..5 {
-            let t = Item::get_item(game_objs, "torch").unwrap();
-            p.add_to_inv(t);
-        }
-        
         p.calc_gear_effects();
 
         let player_obj = GameObject::new(0, &name, (0, 0, 0), '@', display::WHITE, display::WHITE, 

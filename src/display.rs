@@ -605,7 +605,40 @@ impl<'a, 'b> GameUI<'a, 'b> {
 		self.write_sidebar_line("$", fov_w, 4, gold, 0);
 		let s = format!(": {}", sbi.zorkmids);
 		self.write_sidebar_line(&s, fov_w, 4, white, 1);
-		self.write_sidebar_line(&sbi.weapon, fov_w, 5, white, 0);
+
+		if sbi.weapon.len() < 20 {
+			self.write_sidebar_line(&sbi.weapon, fov_w, 5, white, 0);
+		} else {
+			// Dear Future Dana: please clean up this gross mess
+			let words: Vec<&str> = sbi.weapon.split(' ').collect();
+			let mut s = String::from(words[0]);
+			let mut j = 1;
+			while j < words.len() {
+				if s.len() + words[j].len() + 1 < 20 {
+					s.push(' ');
+					s.push_str(words[j]);
+				} else {
+					break;
+				}
+				j += 1;
+			}
+			self.write_sidebar_line(&s, fov_w, 5, white, 0);
+
+			if j < words.len() - 1 {
+				let mut s = String::from(words[j]);
+				j += 1;
+				while j < words.len() {
+					if s.len() + words[j].len() + 1 < 20 {
+						s.push(' ');
+						s.push_str(words[j]);
+					} else {
+						break;
+					}
+					j += 1;
+				}
+				self.write_sidebar_line(&s, fov_w, 6, white, 0);
+			}
+		}
 
 		let s = if sbi.curr_level == 0 {
 			"On the surface".to_string()
