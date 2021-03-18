@@ -57,6 +57,7 @@ pub enum Venue {
     Visit(i32),
     Home(usize),
     Market,
+    Smithy,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -276,34 +277,19 @@ impl NPC {
     // }
 
     fn check_agenda_item(&mut self, state: &GameState, game_objs: &GameObjects, item: &AgendaItem, loc: (i32, i32, i8)) {        
-        match item.place {
-            Venue::Tavern => {
-                let tavern = &state.world_info.town_buildings.as_ref().unwrap().tavern;
-                if !in_location(state, loc, &tavern, true) {
-                    self.go_to_place(state, game_objs, tavern, loc);
-                } else {
-                    self.random_adj_sq(state, game_objs, loc);
-                }
-            },
-            Venue::Market => {
-                let market = &state.world_info.town_buildings.as_ref().unwrap().market;
-                if !in_location(state, loc, &market, true) {
-                    self.go_to_place(state, game_objs, market, loc);
-                } else {
-                    self.random_adj_sq(state, game_objs, loc);
-                }
-            },
-            Venue::TownSquare => {
-                let ts = &state.world_info.town_square;
-                if !in_location(state, loc, ts, false) {
-                    self.go_to_place(state, game_objs, ts, loc);
-                } else {
-                    self.random_adj_sq(state, game_objs, loc);
-                }
-            },
-            _ => {
-                // Eventually I'll implement the other venues...
-            },
+        let venue =
+            match item.place {
+                Venue::Tavern => &state.world_info.town_buildings.as_ref().unwrap().tavern,
+                Venue::Market => &state.world_info.town_buildings.as_ref().unwrap().market,
+                Venue::Smithy => &state.world_info.town_buildings.as_ref().unwrap().smithy,
+                Venue::TownSquare => &state.world_info.town_square,
+                _ => panic!("Haven't implemented that venue yet!"),
+            };
+
+        if !venue.is_empty() && !in_location(state, loc, &venue, true) {
+            self.go_to_place(state, game_objs, &venue, loc);
+        } else {
+            self.random_adj_sq(state, game_objs, loc);
         }
     }
 

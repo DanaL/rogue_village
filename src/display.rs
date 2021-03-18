@@ -998,6 +998,13 @@ fn sq_info_for_tile(tile: &map::Tile, lit: bool) -> (char, sdl2::pixels::Color) 
 				('#', tuple_to_sdl2_color(&DULL_RED))
 			}
 		},
+		map::Tile::Forge => {
+			if lit {
+				('^', tuple_to_sdl2_color(&BRIGHT_RED))
+			} else {
+				('^', tuple_to_sdl2_color(&DULL_RED))
+			}
+		},
 		map::Tile::Floor => {
 			if lit {
 				('.', tuple_to_sdl2_color(&BEIGE))

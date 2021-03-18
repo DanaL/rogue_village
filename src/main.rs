@@ -1143,6 +1143,9 @@ fn chat_with(state: &mut GameState, gui: &mut GameUI, loc: (i32, i32, i8), game_
             Some(Venue::Market) => {
                 shops::talk_to_grocer(state, obj_id, game_objs, dialogue, gui);
             },
+            Some(Venue::Smithy) => {
+                shops::talk_to_smith(state, obj_id, game_objs, dialogue, gui);
+            },
             _ => {
                 let mut ei = HashMap::new();
                 let line = npc.npc.as_mut().unwrap().talk_to(state, dialogue, npc.location, &mut ei);

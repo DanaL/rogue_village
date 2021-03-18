@@ -43,6 +43,7 @@ enum BuildingType {
     Home,
     Tavern,
     Market,
+    Smithy,
 }
 
 #[derive(Debug)]
@@ -64,6 +65,7 @@ pub struct TownBuildings {
     pub shrine: HashSet<(i32, i32, i8)>,
     pub tavern: HashSet<(i32, i32, i8)>,
     pub market: HashSet<(i32, i32, i8)>,
+    pub smithy: HashSet<(i32, i32, i8)>,
     pub homes: Vec<HashSet<(i32, i32, i8)>>,
     pub taken_homes: Vec<usize>,
 }
@@ -71,7 +73,7 @@ pub struct TownBuildings {
 impl TownBuildings {
     pub fn new() -> TownBuildings {
         TownBuildings { shrine: HashSet::new(), tavern: HashSet::new(), homes: Vec::new(), taken_homes: Vec::new(),
-            market: HashSet::new(), }
+            market: HashSet::new(), smithy: HashSet::new(), }
     }
 
     pub fn vacant_home(&self) -> Option<usize> {
@@ -196,6 +198,7 @@ fn draw_building(map: &mut Map, loc: (i32, i32), town: (i32, i32), template: &Te
         BuildingType::Home => buildings.homes.push(building_sqs),
         BuildingType::Tavern => buildings.tavern = building_sqs,
         BuildingType::Market => buildings.market = building_sqs,
+        BuildingType::Smithy => buildings.smithy = building_sqs,
     }   
 }
 
@@ -452,6 +455,22 @@ fn place_building(map: &mut Map, town_r: i32, town_c: i32, template: &Template, 
     false
 }
 
+fn good_spot_for_forge(map: &Map, loc: &(i32, i32, i8)) -> bool {
+    if map[&loc] != Tile::StoneFloor {
+        return false;
+    }
+
+    for adj in util::ADJ.iter() {
+        let n = (loc.0 + adj.0, loc.1 + adj.1, loc.2);
+        match map[&n] {
+            Tile::Door(_) => { return false; }
+            _ => { continue; }
+        }
+    }
+
+    true
+}
+
 // Town is laid out with 5x3 lots, each lot being 12x12 squares
 fn place_town_buildings(map: &mut Map, town_r: i32, town_c: i32, 
             templates: &HashMap<String, Template>, buildings: &mut TownBuildings) {   
@@ -477,6 +496,16 @@ fn place_town_buildings(map: &mut Map, town_r: i32, town_c: i32,
     let j = rng.gen_range(0, cottages.len());
     place_building(map, town_r, town_c, &templates[&cottages[j]], buildings, BuildingType::Market);
 
+    // and the smithy
+    let j = rng.gen_range(0, cottages.len());
+    place_building(map, town_r, town_c, &templates[&cottages[j]], buildings, BuildingType::Smithy);
+    loop {
+        let loc = buildings.smithy.iter().choose(&mut rng).unwrap();
+        if good_spot_for_forge(map, &loc) {
+            map.insert(*loc, Tile::Forge);
+            break;
+        }
+    }
     // The town will have only 1 shrine. (Maybe in the future I can implement religious rivalries...)
     if rng.gen_range(0, 2) == 0 {
         place_building(map, town_r, town_c, &templates["shrine 1"], buildings, BuildingType::Shrine);
@@ -484,7 +513,7 @@ fn place_town_buildings(map: &mut Map, town_r: i32, town_c: i32,
         place_building(map, town_r, town_c, &templates["shrine 2"], buildings, BuildingType::Shrine);
     }
 
-    for _ in 0..7 {
+    for _ in 0..6 {
         let j = rng.gen_range(0, cottages.len());
         if !place_building(map, town_r, town_c, &templates[&cottages[j]], buildings, BuildingType::Home) {
             break;
@@ -619,6 +648,20 @@ fn create_grocer(tb: &TownBuildings, used_names: &HashSet<String>, game_objs: &m
     grocer
 }
 
+fn create_smith(tb: &TownBuildings, used_names: &HashSet<String>, game_objs: &mut GameObjects) -> GameObject {
+    let smith_sqs: Vec<(i32, i32, i8)> = tb.smithy.iter().map(|s| *s).collect();
+    let j = rand::thread_rng().gen_range(0, smith_sqs.len());
+    let loc = smith_sqs.iter().nth(j).unwrap();
+
+    let mut smith = NPC::villager(actor::pick_villager_name(used_names), *loc, Some(Venue::Smithy), "smith1", game_objs);
+    smith.npc.as_mut().unwrap().schedule.push(AgendaItem::new((8, 0), (11, 59), 0, Venue::Smithy, "working".to_string()));
+    smith.npc.as_mut().unwrap().schedule.push(AgendaItem::new((12, 0), (12, 59), 0, Venue::Tavern, "lunch".to_string()));
+    smith.npc.as_mut().unwrap().schedule.push(AgendaItem::new((13, 0), (18, 59), 0, Venue::Smithy, "working".to_string()));
+    smith.npc.as_mut().unwrap().schedule.push(AgendaItem::new((19, 00), (21, 00), 0, Venue::Tavern, "supper".to_string()));
+
+    smith
+}
+
 fn add_well(map: &mut Map, world_info: &WorldInfo) {
     let mut rng = rand::thread_rng();
     let mut sqs = world_info.town_square.iter().map(|s| *s).collect::<Vec<(i32, i32, i8)>>();
@@ -736,6 +779,11 @@ pub fn create_town(map: &mut Map, game_objs: &mut GameObjects) -> WorldInfo {
     let g = create_grocer(&tb, &used_names, game_objs);
     let obj_id = g.object_id;
     game_objs.add(g);
+    game_objs.listeners.insert((obj_id, EventType::TakeTurn));
+
+    let s = create_smith(&tb, &used_names, game_objs);
+    let obj_id = s.object_id;
+    game_objs.add(s);
     game_objs.listeners.insert((obj_id, EventType::TakeTurn));
 
     world_info.town_buildings = Some(tb);

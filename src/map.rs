@@ -65,6 +65,7 @@ pub enum Tile {
 	Bullet(char),
 	Lava,
 	FirePit,
+	Forge,
 	OldFirePit(u8),
 	Floor,
 	Window(char),

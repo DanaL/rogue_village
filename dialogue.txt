@@ -42,3 +42,14 @@ Friendly|working|You're close to earning a rewards stamp!
 Friendly||Come see me when the shot is open and I'll fix you up!
 Hostile|working|Get out of my shop!
 Hostile||Stay away from me!
+#
+voice:smith1
+Stranger|working|Welcome to my forge.
+Stranger||Come see me when I'm in the smithy.
+Indifferent|working|{time-greeting}, looking for some armour or weapons?
+Indifferent||Hello {player-name}, eyeing up a new sword?
+Indifferent||I'm on #meal# break, {player-name}.
+Friendly|working|Welcome back, {player-name}.
+Friendly||A cold drink sooths the throat after hours at the forge!
+Hostile|working|Get out of my forge!
+Hostile||Stay away from me!
