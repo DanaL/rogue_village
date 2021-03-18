@@ -31,6 +31,7 @@ pub const IA_LIGHT_ARMOUR: u128 = 0x00000001;
 pub const IA_MED_ARMOUR: u128   = 0x00000002;
 pub const IA_HEAVY_ARMOUR: u128 = 0x00000004;
 pub const IA_CONSUMABLE: u128   = 0x00000008;
+pub const IA_TWO_HANDED: u128   = 0x00000016;
 
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ItemType {
@@ -42,6 +43,7 @@ pub enum ItemType {
     Note,
     Bottle,
     Potion,
+    Shield,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -98,6 +100,15 @@ impl Item {
 
                 Some(obj)
             },
+            "two-handed sword" => {
+                let mut i = Item::new(ItemType::Weapon, 6, false, 30);
+                i.dmg_die = 12;
+                i.dmg_type = DamageType::Slashing;
+                i.attributes |= IA_TWO_HANDED;
+                let obj = GameObject::new(game_objs.next_id(), name, (0, 0, 0), ')', display::WHITE, display::GREY, None, Some(i) , None, None, None, false);
+
+                Some(obj)
+            },
             "staff" => {
                 let mut i = Item::new(ItemType::Weapon, 1, false, 2);
                 i.dmg_die = 6;
@@ -113,7 +124,30 @@ impl Item {
                 let obj = GameObject::new(game_objs.next_id(), name, (0, 0, 0), '[', display::GREY, display::DARK_GREY, None, Some(i) , None, None, None, false);
                 
                 Some(obj)
-            },            
+            },
+            "leather armour" => {
+                let mut i = Item::new(ItemType::Armour, 5, false, 5);
+                i.ac_bonus = 1;
+                i.attributes |= IA_LIGHT_ARMOUR;
+                let obj = GameObject::new(game_objs.next_id(), name, (0, 0, 0), '[', display::BROWN, display::DARK_BROWN, None, Some(i) , None, None, None, false);
+                
+                Some(obj)
+            },
+            "chainmail" => {
+                let mut i = Item::new(ItemType::Armour, 15, false, 75);
+                i.ac_bonus = 5;
+                i.attributes |= IA_MED_ARMOUR;
+                let obj = GameObject::new(game_objs.next_id(), name, (0, 0, 0), '[', display::GREY, display::DARK_GREY, None, Some(i) , None, None, None, false);
+                
+                Some(obj)
+            },
+            "shield" => {
+                let mut i = Item::new(ItemType::Shield, 5, false, 10);
+                i.ac_bonus = 1;
+                let obj = GameObject::new(game_objs.next_id(), name, (0, 0, 0), '[', display::GREY, display::DARK_GREY, None, Some(i) , None, None, None, false);
+                
+                Some(obj)
+            },         
             "torch" => {
                 let mut i = Item::new(ItemType::Light, 1, true, 1);
                 i.charges = 1000;
@@ -152,7 +186,8 @@ impl Item {
         if self.equiped {
             return match self.item_type {
                 ItemType::Weapon =>  String::from("(in hand)"),
-                ItemType::Armour => String::from("(being worn)"),                
+                ItemType::Armour => String::from("(being worn)"),
+                ItemType::Shield => String::from("(on your arm)"),
                 _ => "".to_string(),
             }        
         } else if self.active {
@@ -179,7 +214,7 @@ impl Item {
     }
 
     pub fn equipable(&self) -> bool {
-        matches!(self.item_type, ItemType::Armour | ItemType::Weapon)
+        matches!(self.item_type, ItemType::Armour | ItemType::Weapon | ItemType::Shield)
     }
 
     pub fn useable(&self) -> bool {

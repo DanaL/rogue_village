@@ -291,7 +291,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 							return Cmd::ShowInventory
 						} else if val == "@" {
 							return Cmd::ShowCharacterSheet;	
-						} else if val == "w" {
+						} else if val == "e" {
 							return Cmd::ToggleEquipment;
 						} else if val == "." {
 							return Cmd::Pass;

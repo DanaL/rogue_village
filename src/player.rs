@@ -140,9 +140,9 @@ impl Player {
         };
         
         // Warrior starting equipment
-        let mut sword = Item::get_item(game_objs, "longsword").unwrap();        
-        sword.item.as_mut().unwrap().equiped = true;
-        p.add_to_inv(sword);
+        let mut spear = Item::get_item(game_objs, "spear").unwrap();        
+        spear.item.as_mut().unwrap().equiped = true;
+        p.add_to_inv(spear);
                 
         let mut armour = Item::get_item(game_objs, "ringmail").unwrap();
         armour.item.as_mut().unwrap().equiped = true;
@@ -150,6 +150,12 @@ impl Player {
         
         let dagger = Item::get_item(game_objs, "dagger").unwrap();
         p.add_to_inv(dagger);
+        
+        let shield = Item::get_item(game_objs, "shield").unwrap();
+        p.add_to_inv(shield);
+        
+        let tsword = Item::get_item(game_objs, "two-handed sword").unwrap();
+        p.add_to_inv(tsword);
         
         for _ in 0..5 {
             let t = Item::get_item(game_objs, "torch").unwrap();

@@ -125,7 +125,7 @@ fn rotate(building: &Vec<char>, width: usize) -> Vec<char> {
             '|'
         } else {
             building[i]
-        };         
+        };
     }
 
     rotated

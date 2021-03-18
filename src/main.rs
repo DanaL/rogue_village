@@ -597,6 +597,7 @@ fn toggle_item(state: &mut GameState, player: &mut Player, slot: char) -> f32 {
     let item_details = obj.item.as_ref().unwrap();
     let equipable = item_details.equipable();
     let item_type = item_details.item_type;
+    let attributes = item_details.attributes;
 
     if !equipable {
             state.write_msg_buff("You cannot wear or wield that!");
@@ -605,6 +606,11 @@ fn toggle_item(state: &mut GameState, player: &mut Player, slot: char) -> f32 {
     
     let mut swapping = false;
     if item_type == ItemType::Weapon {
+        if attributes & items::IA_TWO_HANDED > 0 && player.readied_obj_ids_of_type(ItemType::Shield).len() > 0 {
+            state.write_msg_buff("You cannot wield that while using a shield.");
+            return 0.0;
+        }
+
         let readied = player.readied_obj_ids_of_type(ItemType::Weapon);
         if !readied.is_empty() && readied[0] != obj_id {
             swapping = true;
@@ -616,7 +622,20 @@ fn toggle_item(state: &mut GameState, player: &mut Player, slot: char) -> f32 {
         if !readied.is_empty() && readied[0] != obj_id {
             state.write_msg_buff("You're already wearing armour.");
             return 0.0;             
-        }        
+        }
+    } else if item_type == ItemType::Shield {
+        let readied = player.readied_obj_ids_of_type(ItemType::Shield);
+        if !readied.is_empty() && readied[0] != obj_id {
+            state.write_msg_buff("You're already wielding a shield.");
+            return 0.0;
+        }
+
+        if let Some((weapon, _)) = player.readied_weapon() {
+            if weapon.attributes & items::IA_TWO_HANDED > 0 {
+                state.write_msg_buff("You cannot equip that along with a two-handed weapon!");
+                return 0.0;
+            }
+        }
     }
 
     // // Alright, so at this point we can toggle the item in the slot.
