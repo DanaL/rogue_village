@@ -351,12 +351,9 @@ fn start_new_game(state: &GameState, game_obj_db: &mut GameObjectDB, gui: &mut G
 }
 
 fn drop_zorkmids(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mut GameUI) -> f32 {
-    let mut player_loc = (0, 0, 0);
-    let mut purse = 0;
-    if let Some(GameObjects::Player(p)) = game_obj_db.get(0) {
-        player_loc = p.get_loc();
-        purse = p.purse;
-    }
+    let player = game_obj_db.player().unwrap();
+    let player_loc = player.get_loc();
+    let mut purse = player.purse;
     
     if purse == 0 {
         state.write_msg_buff("You have no money!");
@@ -364,125 +361,126 @@ fn drop_zorkmids(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mu
     }
     
     let sbi = state.curr_sidebar_info(game_obj_db);
-    // let amt = gui.query_natural_num("How much?", Some(&sbi)).unwrap();
-    // if amt == 0 {
-    //     state.write_msg_buff("Never mind.");
-    //     return 0.0;
-    // } else {
-    //     let tile = &state.map[&player_loc];                        
-    //     let into_well = *tile == Tile::Well;
-    //     if amt >= purse {
-    //         if into_well {
-    //             state.write_msg_buff("You hear faint tinkling splashes.");
-    //         } else {
-    //             state.write_msg_buff("You drop all your money.");
-    //             let zorkmids = GoldPile::make(game_objs, purse, player_loc);
-    //             game_objs.add(zorkmids);
-    //         }                
-    //         purse = 0;
-    //     } else if amt > 1 {
-    //         if into_well {
-    //             state.write_msg_buff("You hear faint tinkling splashes.");
-    //         } else {
-    //             let s = format!("You drop {} gold pieces.", amt);
-    //             state.write_msg_buff(&s);
-    //             let zorkmids = GoldPile::make(game_objs, amt, player_loc);
-    //             game_objs.add(zorkmids);
-    //         }
-    //         purse -= amt;
-    //     } else {
-    //         if into_well {
-    //             state.write_msg_buff("You hear a faint splash.");
-    //         } else {
-    //             state.write_msg_buff("You drop a gold piece.");
-    //             let zorkmids = GoldPile::make(game_objs, 1, player_loc);
-    //             game_objs.add(zorkmids);                    
-    //         }
-    //         purse -= 1;
-    //     }
-    // }
+    let amt = gui.query_natural_num("How much?", Some(&sbi)).unwrap();
+    if amt == 0 {
+        state.write_msg_buff("Never mind.");
+        return 0.0;
+    } else {
+        let tile = &state.map[&player_loc];                        
+        let into_well = *tile == Tile::Well;
+        if amt >= purse {
+            if into_well {
+                state.write_msg_buff("You hear faint tinkling splashes.");
+            } else {
+                state.write_msg_buff("You drop all your money.");
+                let zorkmids = GoldPile::make(game_obj_db, purse, player_loc);
+                game_obj_db.add(zorkmids);
+            }                
+            purse = 0;
+        } else if amt > 1 {
+            if into_well {
+                state.write_msg_buff("You hear faint tinkling splashes.");
+            } else {
+                let s = format!("You drop {} gold pieces.", amt);
+                state.write_msg_buff(&s);
+                let zorkmids = GoldPile::make(game_obj_db, amt, player_loc);
+                game_obj_db.add(zorkmids);
+            }
+            purse -= amt;
+        } else {
+            if into_well {
+                state.write_msg_buff("You hear a faint splash.");
+            } else {
+                state.write_msg_buff("You drop a gold piece.");
+                let zorkmids = GoldPile::make(game_obj_db, 1, player_loc);
+                game_obj_db.add(zorkmids);                    
+            }
+            purse -= 1;
+        }
+    }
 
-    // let player = game_objs.player_details();
-    // player.purse = purse;
+    let player = game_obj_db.player().unwrap();
+    player.purse = purse;
+
     1.0
 }
 
 fn item_hits_ground(mut obj: GameObjects, loc: (i32, i32, i8), game_obj_db: &mut GameObjectDB) {
-    // obj.item.as_mut().unwrap().equiped = false;
-    // obj.location = loc;
-    // game_objs.add(obj);
+    obj.set_loc(loc);
+    if let GameObjects::Item(item) = &mut obj {
+        item.equiped = false;
+    }
+    game_obj_db.add(obj);
 }
 
 fn drop_stack(state: &mut GameState, game_obj_db: &mut GameObjectDB, loc: (i32, i32, i8), slot: char, count: u32) -> f32 {
-    // let player = game_objs.player_details();
-    // let result = player.inv_remove_from_slot(slot, count);
+    let player = game_obj_db.player().unwrap();
+    let result = player.inv_remove_from_slot(slot, count);
 
-    // match result {
-    //     Ok(pile) => {
-    //         if !pile.is_empty() {
-    //             for obj in pile {                        
-    //                 let s = format!("You drop {}.", &obj.get_fullname().with_def_article());
-    //                 state.write_msg_buff(&s);
-    //                 item_hits_ground(obj, loc, game_objs);
-    //             }
-    //             return 1.0; // Really, dropping several items should take several turns...
-    //         }
-    //     },
-    //     Err(msg) => state.write_msg_buff(&msg),
-    // }
+    match result {
+        Ok(pile) => {
+            if !pile.is_empty() {
+                for obj in pile {                        
+                    let s = format!("You drop {}.", &obj.get_fullname().with_def_article());
+                    state.write_msg_buff(&s);
+                    item_hits_ground(obj, loc, game_obj_db);
+                }
+                return 1.0; // Really, dropping several items should take several turns...
+            }
+        },
+        Err(msg) => state.write_msg_buff(&msg),
+    }
     
     0.0
 }
 
 fn drop_item(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mut GameUI) -> f32 {    
-    // let sbi = state.curr_sidebar_info(game_objs);
-    // let player_loc = game_objs.player_location();
-    // let player = game_objs.player_details();
+    let sbi = state.curr_sidebar_info(game_obj_db);
+    let player = game_obj_db.player().unwrap();
+    let player_loc = player.get_loc();
 
-    // if player.purse == 0 && player.inventory.is_empty() {
-    //     state.write_msg_buff("You are empty handed.");
-    //     return 0.0;
-    // }
+    if player.purse == 0 && player.inventory.is_empty() {
+        state.write_msg_buff("You are empty handed.");
+        return 0.0;
+    }
     
-    // let mut cost = 0.0;
-    // if let Some(ch) = gui.query_single_response("Drop what?", Some(&sbi)) {
-    //     if ch == '$' {
-    //         return drop_zorkmids(state, game_objs, gui);
-    //     } else {
-    //         let count = player.inv_count_in_slot(ch);
-    //         if count == 0 {
-    //             state.write_msg_buff("You do not have that item.");
-    //         } else if count > 1 {
-    //             match gui.query_natural_num("Drop how many?", Some(&sbi)) {
-    //                 Some(v) => {
-    //                     cost = drop_stack(state, game_objs, player_loc, ch, v);
-    //                 },
-    //                 None => state.write_msg_buff("Nevermind"),
-    //             }
-    //         } else {
-    //             let result = player.inv_remove_from_slot(ch, 1);
-    //             match result {
-    //                 Ok(mut items) => {
-    //                     let obj = items.remove(0);
-    //                     let s = format!("You drop {}.", &obj.get_fullname().with_def_article());
-    //                     state.write_msg_buff(&s);
-    //                     item_hits_ground(obj, player_loc, game_objs);
-    //                     cost = 1.0;
-    //                 },
-    //                 Err(msg) => state.write_msg_buff(&msg),
-    //             }                    
-    //         }
-    //     }
-    // } else {
-    //     state.write_msg_buff("Nevermind.");            
-    // }
+    let mut cost = 0.0;
+    if let Some(ch) = gui.query_single_response("Drop what?", Some(&sbi)) {
+        if ch == '$' {
+            return drop_zorkmids(state, game_obj_db, gui);
+        } else {
+            let count = player.inv_count_in_slot(ch);
+            if count == 0 {
+                state.write_msg_buff("You do not have that item.");
+            } else if count > 1 {
+                match gui.query_natural_num("Drop how many?", Some(&sbi)) {
+                    Some(v) => {
+                        cost = drop_stack(state, game_obj_db, player_loc, ch, v);
+                    },
+                    None => state.write_msg_buff("Nevermind"),
+                }
+            } else {
+                let result = player.inv_remove_from_slot(ch, 1);
+                match result {
+                    Ok(mut items) => {
+                        let obj = items.remove(0);
+                        let s = format!("You drop {}.", &obj.get_fullname().with_def_article());
+                        state.write_msg_buff(&s);
+                        item_hits_ground(obj, player_loc, game_obj_db);
+                        cost = 1.0;
+                    },
+                    Err(msg) => state.write_msg_buff(&msg),
+                }                    
+            }
+        }
+    } else {
+        state.write_msg_buff("Nevermind.");            
+    }
     
-    // let player = game_objs.player_details();
-    // player.calc_gear_effects();
+    let player = game_obj_db.player().unwrap();
+    player.calc_gear_effects();
 
-    // cost
-
-    0.0
+    cost    
 }
 
 fn search_loc(state: &mut GameState, roll: u8, loc: (i32, i32, i8), game_objs: &mut GameObjects) {
@@ -1099,17 +1097,17 @@ fn do_move(state: &mut GameState, game_obj_db: &mut GameObjectDB, dir: &str, gui
             },            
         }
 
-        // let items = game_objs.descs_at_loc(&next_loc);
-        // let item_count = items.len();                        
-        // if item_count == 1 {
-        //     let s = format!("You see {} here.", items[0]);
-        //     state.write_msg_buff(&s);
-        // } else if item_count == 2 {
-        //     let s = format!("You see {} and {} here.", items[0], items[1]);
-        //     state.write_msg_buff(&s);
-        // } else if item_count > 2 {
-        //     state.write_msg_buff("There are several items here.");
-        // }
+        let items = game_obj_db.descs_at_loc(&next_loc);
+        let item_count = items.len();                        
+        if item_count == 1 {
+            let s = format!("You see {} here.", items[0]);
+            state.write_msg_buff(&s);
+        } else if item_count == 2 {
+            let s = format!("You see {} and {} here.", items[0], items[1]);
+            state.write_msg_buff(&s);
+        } else if item_count > 2 {
+            state.write_msg_buff("There are several items here.");
+        }
         
         game_obj_db.set_to_loc(0, next_loc);
         
@@ -1467,7 +1465,7 @@ fn run(gui: &mut GameUI, state: &mut GameState, game_obj_db: &mut GameObjectDB, 
                     energy_cost = 1.0;
                 },
                 Cmd::Down => energy_cost = take_stairs(state, game_obj_db, true),
-                //Cmd::DropItem => energy_cost = drop_item(state, game_objs, gui),  
+                Cmd::DropItem => energy_cost = drop_item(state, game_obj_db, gui),  
                 Cmd::Move(dir) => energy_cost = do_move(state, game_obj_db, &dir, gui),
                 Cmd::MsgHistory => show_message_history(state, gui),
                 Cmd::Open(loc) => { 

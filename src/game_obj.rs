@@ -195,18 +195,20 @@ impl GameObjectDB {
         // are any there before we insert. For items where there won't be too many of
         // (like torches) that can stack, I don't bother. But storing gold as individual
         // items might have meant 10s of thousands of objects
-        // if obj.gold_pile.is_some() && self.obj_locs.contains_key(&loc) {
-        //     let amt = obj.gold_pile.as_ref().unwrap().amount;
-        //     let ids: Vec<usize> = self.obj_locs[&loc].iter().map(|i| *i).collect();
-        //     for id in ids {
-        //         let obj = self.get_mut(id).unwrap();
-        //         if obj.gold_pile.is_some() {
-        //             obj.gold_pile.as_mut().unwrap().amount += amt;
-        //             return;
-        //         }
-        //     }            
-        // }
-
+        if let GameObjects::GoldPile(zorkmids) = &obj {
+            if self.obj_locs.contains_key(&loc) {
+                let amt = zorkmids.amount;
+                let ids: Vec<usize> = self.obj_locs[&loc].iter().map(|i| *i).collect();
+                for id in ids {
+                    let obj = self.get_mut(id).unwrap();
+                    if let GameObjects::GoldPile(other) = obj {
+                        other.amount += amt;
+                        return;
+                    }                    
+                }            
+            }
+        }
+        
         self.set_to_loc(obj_id, loc);
         self.objects.insert(obj_id, obj);        
     }
@@ -229,21 +231,32 @@ impl GameObjectDB {
         q.retain(|v| *v != obj_id);
     }
 
+    // Select which tile should be should be on top, ie., which one is shown
+    // to the player. The bool in the tuple returned is whether or not the tile should
+    // be remembered. Items should be but not the player or the NPCs since they will move
+    // around anyhow.
     pub fn tile_at(&self, loc: &(i32, i32, i8)) -> Option<(Tile, bool)> {
-        // if self.obj_locs.contains_key(&loc) && !self.obj_locs[&loc].is_empty() {
-        //     for obj_id in self.obj_locs[&loc].iter() {
-        //         if self.objects[&obj_id].blocks() {
-        //             return Some((self.objects[&obj_id].get_tile(), 
-        //                 self.objects[&obj_id].npc.is_some() || self.objects[&obj_id].player.is_some()));
-        //         }
-        //     }
+        if self.obj_locs.contains_key(&loc) && !self.obj_locs[&loc].is_empty() {
+            for obj_id in self.obj_locs[&loc].iter() {                
+                if self.objects[&obj_id].blocks() {
+                    let remember = if let GameObjects::Player(_) = self.objects[&obj_id] {
+                        false
+                    //} else if let GameObjects::NPC(_) = self.objects[&obj_id] {
+                    //    false
+                    } else {
+                        true
+                    };
 
-        //     // I think this actually should be looking for the first non-hidden tile?
-        //     let obj_id = self.obj_locs[&loc].front().unwrap();
-        //     if !self.objects[obj_id].hidden() {
-        //         return Some((self.objects[obj_id].get_tile(), false));
-        //     }
-        // }
+                    return Some((self.objects[&obj_id].get_tile(), remember));
+                }
+            }
+
+            // I think this actually should be looking for the first non-hidden tile?
+            let obj_id = self.obj_locs[&loc].front().unwrap();
+            if !self.objects[obj_id].hidden() {
+                return Some((self.objects[obj_id].get_tile(), false));
+            }
+        }
 
         None
     }
@@ -297,6 +310,36 @@ impl GameObjectDB {
         } else {
             None
         }        
+    }
+
+    // Okay to make life difficult I want to return stackable items described as
+    // "X things" instead of having 4 of them in the list
+    pub fn descs_at_loc(&self, loc: &(i32, i32, i8)) -> Vec<String> {
+        let mut v = Vec::new();
+        
+        let mut items = HashMap::new();
+        if self.obj_locs.contains_key(loc) {
+            for j in 0..self.obj_locs[&loc].len() {                
+                let obj_id = self.obj_locs[&loc][j];
+                if self.objects[&obj_id].hidden() {
+                    continue;
+                }
+                let name = self.objects[&obj_id].get_fullname();
+                let i = items.entry(name).or_insert(0);
+                *i += 1;                
+            }
+        }
+
+        for (key, value) in items {
+            if value == 1 {
+                v.push(key.with_indef_article());
+            } else {
+                let s = format!("{} {}", value, key.pluralize());
+                v.push(s);
+            }            
+        }
+        
+        v
     }
 }
 
@@ -785,35 +828,5 @@ impl XGameObjects {
         } else {
             Vec::new()
         }
-    }
-
-    // Okay to make life difficult I want to return stackable items described as
-    // "X things" instead of having 4 of them in the list
-    pub fn descs_at_loc(&self, loc: &(i32, i32, i8)) -> Vec<String> {
-        let mut v = Vec::new();
-        
-        let mut items = HashMap::new();
-        if self.obj_locs.contains_key(loc) {
-            for j in 0..self.obj_locs[&loc].len() {                
-                let obj_id = self.obj_locs[&loc][j];
-                if self.objects[&obj_id].hidden() {
-                    continue;
-                }
-                let name = self.objects[&obj_id].get_fullname();
-                let i = items.entry(name).or_insert(0);
-                *i += 1;                
-            }
-        }
-
-        for (key, value) in items {
-            if value == 1 {
-                v.push(key.with_indef_article());
-            } else {
-                let s = format!("{} {}", value, key.pluralize());
-                v.push(s);
-            }            
-        }
-        
-        v
     }
 }

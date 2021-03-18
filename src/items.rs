@@ -257,7 +257,7 @@ impl GameObject for Item {
 
     fn get_fullname(&self) -> String {
         let s = format!("{} {}", self.base_info.name, self.desc());
-        s
+        s.trim().to_string()
     }
 
     fn obj_id(&self) -> usize {
