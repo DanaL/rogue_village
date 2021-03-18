@@ -255,12 +255,12 @@ impl Player {
         let mut removed = Vec::new();
 
         let mut count = 0;
+        let mut to_remove = Vec::new();
         for j in 0..self.inventory.len() {
             if count >= amt {
                 break;
             }
 
-            let obj_id = self.inventory[j].obj_id();
             if let GameObjects::Item(item) = &self.inventory[j] {
                 let item_slot = item.slot;
                 let equiped = item.equiped;
@@ -269,14 +269,17 @@ impl Player {
                     if equiped && i_type == ItemType::Armour {
                         return Err("You're wearing that!".to_string());
                     }
-                    
-                    let obj = self.inv_remove(obj_id).unwrap();
-                    removed.push(obj);
+                    to_remove.push(item.obj_id());
                     count += 1;            
                 }
-            }
-        }     
-
+            }           
+        }
+        
+        for id in to_remove.iter() {
+            let obj = self.inv_remove(*id).unwrap();
+            removed.push(obj);
+        }
+        
         Ok(removed)
     }    
 
