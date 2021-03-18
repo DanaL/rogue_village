@@ -341,6 +341,17 @@ impl GameObjectDB {
         
         v
     }
+
+    pub fn hidden_at_loc(&self, loc: (i32, i32, i8)) -> Vec<usize> {
+        if self.obj_locs.contains_key(&loc) {
+            let ids = self.obj_locs[&loc]
+                .iter().copied();
+            
+            ids.filter(|id| self.objects[&id].hidden()).collect()
+        } else {
+            Vec::new()
+        }
+    }
 }
 
 // Any sort of entity that has HPs, feelings, career ambitions... (ie., the Player and the NPCs)
@@ -800,17 +811,6 @@ impl XGameObjects {
             ids.filter(|id| !self.objects[&id].hidden 
                      && self.objects[&id].special_sq.is_none()
                      && self.objects[&id].player.is_none()).collect()
-        } else {
-            Vec::new()
-        }
-    }
-
-    pub fn hidden_at_loc(&self, loc: (i32, i32, i8)) -> Vec<usize> {
-        if self.obj_locs.contains_key(&loc) {
-            let ids = self.obj_locs[&loc]
-                .iter().copied();
-            
-            ids.filter(|id| self.objects[&id].hidden).collect()
         } else {
             Vec::new()
         }

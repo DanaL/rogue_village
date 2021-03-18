@@ -483,29 +483,30 @@ fn drop_item(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mut Ga
     cost    
 }
 
-fn search_loc(state: &mut GameState, roll: u8, loc: (i32, i32, i8), game_objs: &mut GameObjects) {
-    // let things:Vec<usize> = game_objs.hidden_at_loc(loc);
+fn search_loc(state: &mut GameState, roll: u8, loc: (i32, i32, i8), game_obj_db: &mut GameObjectDB) {
+    let things:Vec<usize> = game_obj_db.hidden_at_loc(loc);
 
-    // for obj_id in &things {
-    //     if roll >= 15 {
-    //         let t = game_objs.get_mut(*obj_id).unwrap();
-    //         let s = format!("You find {}!", t.get_fullname().with_indef_article());
-    //         state.write_msg_buff(&s);            
-    //         t.reveal();
-    //     }
-    // }
+    for obj_id in &things {
+        if roll >= 15 {
+            let t = game_obj_db.get_mut(*obj_id).unwrap();
+            let s = format!("You find {}!", t.get_fullname().with_indef_article());
+            state.write_msg_buff(&s);            
+            t.reveal();
+        }
+    }
 }
 
-fn search(state: &mut GameState, game_objs: &mut GameObjects) {
-    // let ploc = game_objs.player_location();
-    // let player = game_objs.player_details();
-    // let roll = player.ability_check(Ability::Apt);
+fn search(state: &mut GameState, game_obj_db: &mut GameObjectDB) {
+    let player = game_obj_db.player().unwrap();
+    let ploc = player.get_loc();
     
-    // search_loc(state, roll, ploc, game_objs);
-    // for adj in util::ADJ.iter() {
-    //     let loc = (ploc.0 + adj.0, ploc.1 + adj.1, ploc.2);
-    //     search_loc(state, roll, loc, game_objs);
-    // }
+    let roll = player.ability_check(Ability::Apt);
+    
+    search_loc(state, roll, ploc, game_obj_db);
+    for adj in util::ADJ.iter() {
+        let loc = (ploc.0 + adj.0, ploc.1 + adj.1, ploc.2);
+        search_loc(state, roll, loc, game_obj_db);
+    }
 }
 
 // Not yet handling when there are no inventory slots yet
@@ -1479,10 +1480,10 @@ fn run(gui: &mut GameUI, state: &mut GameState, game_obj_db: &mut GameObjectDB, 
                 // Cmd::PickUp => energy_cost = pick_up(state, game_objs, gui),
                 // Cmd::Read => energy_cost = read_item(state, game_objs, gui),
                 // Cmd::Save => save_and_exit(state, game_objs, gui)?,
-                // Cmd::Search => {
-                //     search(state, game_objs);
-                //     energy_cost = 1.0;
-                // },
+                Cmd::Search => {
+                    search(state, game_obj_db);
+                    energy_cost = 1.0;
+                },
                 Cmd::ShowCharacterSheet => {
                     if let Some(GameObjects::Player(p)) = game_obj_db.get(0) {
                         show_character_sheet(gui, p);
