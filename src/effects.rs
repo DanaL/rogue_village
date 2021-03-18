@@ -15,12 +15,14 @@
 
 extern crate rand;
 
-use rand::Rng;
+use rand::{Rng, prelude::SliceRandom};
 
 use super::GameState;
-use crate::game_obj::Person;
+use crate::game_obj::{GameObject, GameObjects, Person};
+use crate::util;
 
 pub const EF_MINOR_HEAL: u128 = 0x00000001;
+pub const EF_BLINK: u128      = 0x00000002;
 
 // Minor healing can boost the entity's HP above their max,
 // but it if's already at or over max it will have no further effect
@@ -33,9 +35,41 @@ fn minor_healing(state: &mut GameState, user: &mut dyn Person) {
     } 
 }
 
-pub fn apply_effects(state: &mut GameState, user: &mut dyn Person, effects: u128) {
+// Short range, untargeted teleport
+fn blink(state: &mut GameState, obj_id: usize, game_objs: &mut GameObjects) {
+    let obj = game_objs.get_mut(obj_id).unwrap();
+    let loc = obj.location;
+
+    let mut sqs = Vec::new();
+    for radius in 5..11 {
+        let circle = util::bresenham_circle(loc.0, loc.1, radius);
+        for pt in circle {
+            let nloc = (pt.0, pt.1, loc.2);
+            if state.map[&nloc].passable() && !game_objs.blocking_obj_at(&nloc) {
+                sqs.push(nloc);
+            }
+        }
+    }
+
+    let mut rng = rand::thread_rng();
+    if sqs.is_empty() {
+        state.write_msg_buff("The magic fizzles.");
+    } else {
+        let landing_spot = sqs.choose(&mut rng).unwrap();
+        game_objs.set_to_loc(obj_id, *landing_spot);
+    }
+}
+
+pub fn apply_effects(state: &mut GameState, obj_id: usize, game_objs: &mut GameObjects, effects: u128) {
     if effects & EF_MINOR_HEAL > 0 {
-        minor_healing(state, user);
+        let user = game_objs.get_mut(obj_id).unwrap();
+        if user.player.is_some() {
+            let p = user.player.as_mut().unwrap();
+            minor_healing(state, p);
+        }
+    }
+    if effects & EF_BLINK > 0 {
+        blink(state, obj_id, game_objs);
     }
 }
 

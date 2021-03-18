@@ -761,8 +761,8 @@ fn use_item(state: &mut GameState, game_objs: &mut GameObjects, gui: &mut GameUI
             }
 
             if effects > 0 {
-                let player = game_objs.player_details();
-                effects::apply_effects(state, player, effects)
+                let player = game_objs.get_mut(0).unwrap();
+                effects::apply_effects(state, 0, game_objs, effects)
             }
 
             if consumable {
@@ -1312,11 +1312,11 @@ fn pick_player_start_loc(state: &GameState) -> (i32, i32, i8) {
     let x = thread_rng().gen_range(0, 4);
     let b = state.world_info.town_boundary;
 
-    // for fact in &state.world_info.facts {
-    //     if fact.detail == "dungeon location" {
-    //         return fact.location;
-    //     }
-    // }
+    for fact in &state.world_info.facts {
+        if fact.detail == "dungeon location" {
+            return fact.location;
+        }
+    }
     
     if x == 0 {
         (b.0 - 5, thread_rng().gen_range(b.1, b.3), 0)

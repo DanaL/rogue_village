@@ -44,6 +44,7 @@ pub enum ItemType {
     Bottle,
     Potion,
     Shield,
+    Scroll,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -168,12 +169,20 @@ impl Item {
                 let obj = GameObject::new(game_objs.next_id(), name, (0, 0, 0), '?', display::WHITE, display::LIGHT_GREY, None, Some(i) , None, None, None, false);            
                 
                 Some(obj)
-            }
+            },
             "potion of healing" => {
                 let mut i = Item::new(ItemType::Potion, 1, true, 10);
                 i.attributes |= IA_CONSUMABLE;
                 i.effects |= effects::EF_MINOR_HEAL;
                 let obj = GameObject::new(game_objs.next_id(), name, (0, 0, 0), '!', display::WHITE, display::LIGHT_GREY, None, Some(i) , None, None, None, false);            
+                
+                Some(obj)
+            },
+            "scroll of blink" => {
+                let mut i = Item::new(ItemType::Scroll, 1, true, 20);
+                i.attributes |= IA_CONSUMABLE;
+                i.effects |= effects::EF_BLINK;
+                let obj = GameObject::new(game_objs.next_id(), name, (0, 0, 0), '?', display::WHITE, display::LIGHT_GREY, None, Some(i) , None, None, None, false);            
                 
                 Some(obj)
             }
@@ -218,7 +227,8 @@ impl Item {
     }
 
     pub fn useable(&self) -> bool {
-        self.item_type == ItemType::Light || self.item_type == ItemType::Potion
+        self.item_type == ItemType::Light || self.item_type == ItemType::Potion ||
+            self.item_type == ItemType::Scroll
     }
 
     pub fn stackable(&self) -> bool {

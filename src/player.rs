@@ -151,6 +151,16 @@ impl Player {
         let dagger = Item::get_item(game_objs, "dagger").unwrap();
         p.add_to_inv(dagger);
         
+        for _ in 0..5 {
+            let torch = Item::get_item(game_objs, "torch").unwrap();
+            p.add_to_inv(torch);
+        }
+
+        for _ in 0..3 {
+            let scroll = Item::get_item(game_objs, "scroll of blink").unwrap();
+            p.add_to_inv(scroll);
+        }
+        
         p.calc_gear_effects();
 
         let player_obj = GameObject::new(0, &name, (0, 0, 0), '@', display::WHITE, display::WHITE, 
