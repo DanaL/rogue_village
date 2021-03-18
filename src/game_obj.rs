@@ -15,6 +15,7 @@
 
 extern crate serde;
 
+use sdl2::cpuinfo::system_ram;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet, VecDeque};
 
@@ -26,6 +27,256 @@ use crate::map::{SpecialSquare, Tile};
 use crate::player::Player;
 use crate::util::StringUtils;
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct GameObjectBase {
+    pub object_id: usize,
+    pub location: (i32, i32, i8),
+    pub hidden: bool,
+    pub symbol: char,
+	pub lit_colour: (u8, u8, u8),
+    pub unlit_colour: (u8, u8, u8),
+    pub blocks: bool,
+    pub name: String,
+}
+
+impl GameObjectBase {
+    pub fn new(object_id: usize, location: (i32, i32, i8), hidden: bool, symbol: char, lit_colour: (u8, u8, u8),
+                    unlit_colour: (u8, u8, u8), blocks: bool, name: &str) -> GameObjectBase {
+        GameObjectBase { object_id, location, hidden, symbol, lit_colour, unlit_colour, blocks, name: String::from(name) }
+    }
+}
+
+pub trait GameObject {
+    fn blocks(&self) -> bool;
+    fn get_loc(&self) -> (i32, i32, i8);
+    fn set_loc(&mut self, loc: (i32, i32, i8));
+    fn get_fullname(&self) -> String;
+    fn obj_id(&self) -> usize;
+    fn get_tile(&self) -> Tile;
+    fn hidden(&self) -> bool;
+    fn hide(&mut self);
+    fn reveal(&mut self);
+    fn receive_event(&mut self, event: EventType, state: &mut GameState, player_loc: (i32, i32, i8)) -> Option<EventResponse>;
+}
+
+pub enum GameObjects {
+    Player(Player),
+}
+
+impl GameObject for GameObjects {
+    fn blocks(&self) -> bool {
+        match self {
+            GameObjects::Player(_) => true,
+        };
+
+        false
+    }
+
+    fn get_loc(&self) -> (i32, i32, i8) {
+        match self {
+            GameObjects::Player(player) => player.get_loc(),
+        }
+    }
+
+    fn set_loc(&mut self, loc: (i32, i32, i8)) {
+        match self {
+            GameObjects::Player(player) => player.set_loc(loc),
+        }
+    }
+
+    fn get_fullname(&self) -> String {
+        match self {
+            GameObjects::Player(player) => player.get_fullname(),
+        }
+    }
+
+    fn obj_id(&self) -> usize {
+        match self {
+            GameObjects::Player(player) => player.obj_id(),
+        }
+    }
+
+    fn get_tile(&self) -> Tile {
+        match self {
+            GameObjects::Player(player) => player.get_tile(),
+        }
+    }
+
+    fn hidden(&self) -> bool {
+        match self {
+            GameObjects::Player(player) => player.hidden(),
+        }
+    }
+
+    fn hide(&mut self) {
+        match self {
+            GameObjects::Player(player) => player.hide(),
+        }
+    }
+
+    fn reveal(&mut self) {
+        match self {
+            GameObjects::Player(player) => player.reveal(),
+        }
+    }
+
+    fn receive_event(&mut self, event: EventType, state: &mut GameState, player_loc: (i32, i32, i8)) -> Option<EventResponse> {
+        match self {
+            GameObjects::Player(player) => player.receive_event(event, state, player_loc),
+        }
+    }
+}
+
+pub struct GameObjectDB {
+    next_obj_id: usize,
+    pub obj_locs: HashMap<(i32, i32, i8), VecDeque<usize>>,
+    pub objects: HashMap<usize, GameObjects>,
+    pub listeners: HashSet<(usize, EventType)>,
+}
+
+impl GameObjectDB {
+    pub fn new() -> GameObjectDB {
+        // start at 1 because we assume the player is object 0
+        GameObjectDB { next_obj_id: 1, obj_locs: HashMap::new(), objects: HashMap::new(),
+            listeners: HashSet::new(), }
+    }
+
+    pub fn next_id(&mut self) -> usize {
+        let c = self.next_obj_id;
+        self.next_obj_id += 1;
+
+        c
+    }
+
+    pub fn get(&self, obj_id: usize) -> Option<&GameObjects> {
+        if !self.objects.contains_key(&obj_id) {
+            None
+        } else {
+            self.objects.get(&obj_id)
+        }
+    }
+
+    pub fn get_mut(&mut self, obj_id: usize) -> Option<&mut GameObjects> {
+        if !self.objects.contains_key(&obj_id) {
+            None
+        } else {
+            self.objects.get_mut(&obj_id)
+        }
+    }
+
+    pub fn add(&mut self, obj: GameObjects) {
+        let loc = obj.get_loc();
+        let obj_id = obj.obj_id();
+
+        // I want to merge stacks of gold so check the location to see if there 
+        // are any there before we insert. For items where there won't be too many of
+        // (like torches) that can stack, I don't bother. But storing gold as individual
+        // items might have meant 10s of thousands of objects
+        // if obj.gold_pile.is_some() && self.obj_locs.contains_key(&loc) {
+        //     let amt = obj.gold_pile.as_ref().unwrap().amount;
+        //     let ids: Vec<usize> = self.obj_locs[&loc].iter().map(|i| *i).collect();
+        //     for id in ids {
+        //         let obj = self.get_mut(id).unwrap();
+        //         if obj.gold_pile.is_some() {
+        //             obj.gold_pile.as_mut().unwrap().amount += amt;
+        //             return;
+        //         }
+        //     }            
+        // }
+
+        self.set_to_loc(obj_id, loc);
+        self.objects.insert(obj_id, obj);        
+    }
+
+    pub fn set_to_loc(&mut self, obj_id: usize, loc: (i32, i32, i8)) {
+        if !self.obj_locs.contains_key(&loc) {
+            self.obj_locs.insert(loc, VecDeque::new());
+        } 
+
+        self.obj_locs.get_mut(&loc).unwrap().push_front(obj_id);
+        if self.objects.contains_key(&obj_id) {
+            let prev_loc = self.objects[&obj_id].get_loc();
+            self.remove_from_loc(obj_id, prev_loc);
+            self.objects.get_mut(&obj_id).unwrap().set_loc(loc);
+        }
+    }
+
+    pub fn remove_from_loc(&mut self, obj_id: usize, loc: (i32, i32, i8)) {
+        let q = self.obj_locs.get_mut(&loc).unwrap();
+        q.retain(|v| *v != obj_id);
+    }
+
+    pub fn tile_at(&self, loc: &(i32, i32, i8)) -> Option<(Tile, bool)> {
+        // if self.obj_locs.contains_key(&loc) && !self.obj_locs[&loc].is_empty() {
+        //     for obj_id in self.obj_locs[&loc].iter() {
+        //         if self.objects[&obj_id].blocks() {
+        //             return Some((self.objects[&obj_id].get_tile(), 
+        //                 self.objects[&obj_id].npc.is_some() || self.objects[&obj_id].player.is_some()));
+        //         }
+        //     }
+
+        //     // I think this actually should be looking for the first non-hidden tile?
+        //     let obj_id = self.obj_locs[&loc].front().unwrap();
+        //     if !self.objects[obj_id].hidden() {
+        //         return Some((self.objects[obj_id].get_tile(), false));
+        //     }
+        // }
+
+        None
+    }
+
+    pub fn blocking_obj_at(&self, loc: &(i32, i32, i8)) -> bool {
+        if self.obj_locs.contains_key(&loc) && !self.obj_locs[&loc].is_empty() {
+            for obj_id in self.obj_locs[&loc].iter() {
+                if !self.objects.contains_key(obj_id) {
+                    let s = format!("Should find obj_id {}!", obj_id);
+                    panic!(s);
+                }
+                if self.objects[&obj_id].blocks() {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    pub fn stepped_on_event(&mut self, state: &mut GameState, loc: (i32, i32, i8)) {
+        let ploc = self.objects[&0].get_loc();
+
+        let listeners: Vec<usize> = self.listeners.iter()
+            .filter(|l| l.1 == EventType::SteppedOn)
+            .map(|l| l.0).collect();
+
+        for obj_id in listeners {
+            let obj = self.get_mut(obj_id).unwrap();
+            if obj.get_loc() == loc {
+                if let Some(result) = obj.receive_event(EventType::SteppedOn, state, ploc) {
+                    match result.event_type {
+                        EventType::TrapRevealed => {
+                            let target = self.objects.get_mut(&obj_id).unwrap();
+                            target.reveal();
+                        },
+                        EventType::Triggered => {                            
+                            let target = self.objects.get_mut(&obj_id).unwrap();
+                            target.receive_event(EventType::Triggered, state, ploc);
+                        },
+                        _ => { /* Should maybe panic! here? */ },
+                    }
+                }                
+            }            
+        }
+    }
+
+    pub fn player(&mut self) -> Option<&mut Player> {
+        if let Some(GameObjects::Player(p)) = self.get_mut(0) {
+            Some(p)
+        } else {
+            None
+        }        
+    }
+}
+
 // Any sort of entity that has HPs, feelings, career ambitions... (ie., the Player and the NPCs)
 pub trait Person {
     fn damaged(&mut self, state: &mut GameState, amount: u8, dmg_type: DamageType, assailant_id: usize, assailant_name: &str);
@@ -34,7 +285,7 @@ pub trait Person {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct GameObject {
+pub struct XGameObject {
     pub object_id: usize,
     pub location: (i32, i32, i8),
     pub hidden: bool,
@@ -50,11 +301,11 @@ pub struct GameObject {
     pub name: String,
 }
 
-impl GameObject {
+impl XGameObject {
     pub fn new(object_id: usize, name: &str, location: (i32, i32, i8), symbol: char, lit_colour: (u8, u8, u8), 
         unlit_colour: (u8, u8, u8), npc: Option<NPC>, item: Option<Item>, gold_pile: Option<GoldPile>, 
             special_sq: Option<SpecialSquare>, player: Option<Player>, blocks: bool) -> Self {
-            GameObject { object_id, name: String::from(name), location, hidden: false, symbol, lit_colour, 
+            XGameObject { object_id, name: String::from(name), location, hidden: false, symbol, lit_colour, 
                 unlit_colour, npc, item, gold_pile, special_sq, player, blocks, }
         }
 
@@ -115,17 +366,17 @@ impl GameObject {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct GameObjects {
+pub struct XGameObjects {
     next_obj_id: usize,
     pub obj_locs: HashMap<(i32, i32, i8), VecDeque<usize>>,
-    pub objects: HashMap<usize, GameObject>,
+    pub objects: HashMap<usize, XGameObject>,
     pub listeners: HashSet<(usize, EventType)>,
 }
 
-impl GameObjects {
-    pub fn new() -> GameObjects {
+impl XGameObjects {
+    pub fn new() -> XGameObjects {
         // start at 1 because we assume the player is object 0
-        GameObjects { next_obj_id: 1, obj_locs: HashMap::new(), objects: HashMap::new(),
+        XGameObjects { next_obj_id: 1, obj_locs: HashMap::new(), objects: HashMap::new(),
             listeners: HashSet::new(), }
     }
 
@@ -136,7 +387,7 @@ impl GameObjects {
         c
     }
 
-    pub fn add(&mut self, obj: GameObject) {
+    pub fn add(&mut self, obj: XGameObject) {
         let loc = obj.location;
         let obj_id = obj.get_object_id();
 
@@ -160,7 +411,7 @@ impl GameObjects {
         self.objects.insert(obj_id, obj);        
     }
 
-    pub fn get(&self, obj_id: usize) -> Option<&GameObject> {
+    pub fn get(&self, obj_id: usize) -> Option<&XGameObject> {
         if !self.objects.contains_key(&obj_id) {
             None
         } else {
@@ -168,7 +419,7 @@ impl GameObjects {
         }
     }
 
-    pub fn get_mut(&mut self, obj_id: usize) -> Option<&mut GameObject> {
+    pub fn get_mut(&mut self, obj_id: usize) -> Option<&mut XGameObject> {
         if !self.objects.contains_key(&obj_id) {
             None
         } else {
@@ -184,7 +435,7 @@ impl GameObjects {
         self.objects[&0].location
     }
 
-    pub fn remove(&mut self, obj_id: usize) -> GameObject {  
+    pub fn remove(&mut self, obj_id: usize) -> XGameObject {  
         let obj = self.objects.get(&obj_id).unwrap();
         let loc = obj.location;
 
@@ -497,12 +748,12 @@ impl GameObjects {
         }
     }
 
-    pub fn special_sqs_at_loc(&self, loc: &(i32, i32, i8)) -> Vec<&GameObject> {
+    pub fn special_sqs_at_loc(&self, loc: &(i32, i32, i8)) -> Vec<&XGameObject> {
         if self.obj_locs.contains_key(&loc) {
             let ids = self.obj_locs[&loc]
                 .iter().copied();
 
-            let specials: Vec<&GameObject> = ids.filter(|id| self.objects[&id].special_sq.is_some())
+            let specials: Vec<&XGameObject> = ids.filter(|id| self.objects[&id].special_sq.is_some())
                 .map(|id| self.objects.get(&id).unwrap())
                 .collect();
             specials

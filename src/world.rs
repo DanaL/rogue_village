@@ -21,11 +21,12 @@ use rand::{prelude::{IteratorRandom}, thread_rng};
 use rand::Rng;
 use serde::{Serialize, Deserialize};
 
-use super::{EventType, GameObjects, Map};
+use super::{EventType, Map};
 
 use crate::actor::MonsterFactory;
 use crate::dungeon;
 use crate::dungeon::Vault;
+use crate::game_obj::GameObjectDB;
 use crate::items::{GoldPile, Item};
 use crate::map::{DoorState, ShrineType, SpecialSquare, Tile};
 use crate::town;
@@ -265,173 +266,173 @@ fn random_open_adj(open: &HashSet<(i32, i32, i8)>, loc: (i32, i32, i8)) -> Optio
     }
 }
 
-fn add_fire_pit(level: usize, map: &mut Map, floor_sqs: &mut HashMap<usize, HashSet<(i32, i32, i8)>>, game_objs: &mut GameObjects) {
-    let mut rng = rand::thread_rng();
-    let loc = random_sq(&floor_sqs[&(level - 1)]);
-    map.insert(loc, Tile::OldFirePit(rng.gen_range(0, 5)));
-    floor_sqs.get_mut(&(level -1))
-             .unwrap()
-             .remove(&loc);
-    if let Some(adj) = random_open_adj(&floor_sqs[&(level - 1)], loc) {
-        let mut note = Item::get_item(game_objs, "note").unwrap();
-        note.item.as_mut().unwrap().text = Some(("burnt scrap".to_string(), "Is there no end to the swarms of kobolds?".to_string()));
-        note.location = adj;
-        game_objs.add(note);
-    }
-    let amt = rng.gen_range(4, 11);
-    let mut pile = GoldPile::make(game_objs, amt, loc);
-    pile.hide();
-    game_objs.add(pile);
-}
+// fn add_fire_pit(level: usize, map: &mut Map, floor_sqs: &mut HashMap<usize, HashSet<(i32, i32, i8)>>, game_objs: &mut GameObjects) {
+//     let mut rng = rand::thread_rng();
+//     let loc = random_sq(&floor_sqs[&(level - 1)]);
+//     map.insert(loc, Tile::OldFirePit(rng.gen_range(0, 5)));
+//     floor_sqs.get_mut(&(level -1))
+//              .unwrap()
+//              .remove(&loc);
+//     if let Some(adj) = random_open_adj(&floor_sqs[&(level - 1)], loc) {
+//         let mut note = Item::get_item(game_objs, "note").unwrap();
+//         note.item.as_mut().unwrap().text = Some(("burnt scrap".to_string(), "Is there no end to the swarms of kobolds?".to_string()));
+//         note.location = adj;
+//         game_objs.add(note);
+//     }
+//     let amt = rng.gen_range(4, 11);
+//     let mut pile = GoldPile::make(game_objs, amt, loc);
+//     pile.hide();
+//     game_objs.add(pile);
+// }
 
-fn add_teleport_trap(level: usize, floor_sqs: &mut HashMap<usize, HashSet<(i32, i32, i8)>>, game_objs: &mut GameObjects) {
-    let loc = random_sq(&floor_sqs[&(level - 1)]);
-    let trap = SpecialSquare::teleport_trap(loc, game_objs);
-    game_objs.listeners.insert((trap.object_id, EventType::SteppedOn));
-    game_objs.add(trap);
-    println!("Trap loc: {:?}", loc);
-    floor_sqs.get_mut(&(level - 1))
-            .unwrap()
-            .remove(&loc);
-}
+// fn add_teleport_trap(level: usize, floor_sqs: &mut HashMap<usize, HashSet<(i32, i32, i8)>>, game_objs: &mut GameObjects) {
+//     let loc = random_sq(&floor_sqs[&(level - 1)]);
+//     let trap = SpecialSquare::teleport_trap(loc, game_objs);
+//     game_objs.listeners.insert((trap.object_id, EventType::SteppedOn));
+//     game_objs.add(trap);
+//     println!("Trap loc: {:?}", loc);
+//     floor_sqs.get_mut(&(level - 1))
+//             .unwrap()
+//             .remove(&loc);
+// }
 
-fn add_shrine(world_info: &mut WorldInfo, level: usize, map: &mut Map, floor_sqs: &mut HashMap<usize, HashSet<(i32, i32, i8)>>, game_objs: &mut GameObjects) {
-    let loc = random_sq(&floor_sqs[&(level - 1)]);
-    let shrine = SpecialSquare::make(Tile::Shrine(ShrineType::Woden), loc, true, 3, game_objs);
-    game_objs.listeners.insert((shrine.object_id, EventType::Update));
-    game_objs.add(shrine);
+// fn add_shrine(world_info: &mut WorldInfo, level: usize, map: &mut Map, floor_sqs: &mut HashMap<usize, HashSet<(i32, i32, i8)>>, game_objs: &mut GameObjects) {
+//     let loc = random_sq(&floor_sqs[&(level - 1)]);
+//     let shrine = SpecialSquare::make(Tile::Shrine(ShrineType::Woden), loc, true, 3, game_objs);
+//     game_objs.listeners.insert((shrine.object_id, EventType::Update));
+//     game_objs.add(shrine);
 
-    map.insert(loc, Tile::Shrine(ShrineType::Woden));
-    floor_sqs.get_mut(&(level - 1))
-            .unwrap()
-            .remove(&loc);
-    let fact = Fact::new(String::from("shrine to woden"), 0, loc);
-    world_info.facts.push(fact);
-}
+//     map.insert(loc, Tile::Shrine(ShrineType::Woden));
+//     floor_sqs.get_mut(&(level - 1))
+//             .unwrap()
+//             .remove(&loc);
+//     let fact = Fact::new(String::from("shrine to woden"), 0, loc);
+//     world_info.facts.push(fact);
+// }
 
 fn loc_in_vault(vault: &Vault, loc: (i32, i32, i8)) -> bool {
     loc.0 >= vault.r1 && loc.0 <= vault.r2 && loc.1 >= vault.c1 && loc.1 <= vault.c2
 }
 
-fn place_simple_triggered_gate(_world_info: &mut WorldInfo, map: &mut Map, game_objs: &mut GameObjects, trigger_loc: (i32, i32, i8),
-        vault_loc: (i32, i32, i8)) {
-    map.insert(trigger_loc, Tile::Trigger);
-    map.insert(vault_loc, Tile::Gate(DoorState::Closed));
-    let gate = SpecialSquare::make(Tile::Gate(DoorState::Closed), vault_loc, true, 0, game_objs);
-    let gate_id = gate.object_id;
-    game_objs.add(gate);
+// fn place_simple_triggered_gate(_world_info: &mut WorldInfo, map: &mut Map, game_objs: &mut GameObjects, trigger_loc: (i32, i32, i8),
+//         vault_loc: (i32, i32, i8)) {
+//     map.insert(trigger_loc, Tile::Trigger);
+//     map.insert(vault_loc, Tile::Gate(DoorState::Closed));
+//     let gate = SpecialSquare::make(Tile::Gate(DoorState::Closed), vault_loc, true, 0, game_objs);
+//     let gate_id = gate.object_id;
+//     game_objs.add(gate);
 
-    let mut trigger = SpecialSquare::make(Tile::Trigger, trigger_loc, false, 0, game_objs);
-    let trigger_id = trigger.get_object_id();
-    trigger.special_sq.as_mut().unwrap().target = Some(gate_id);
-    game_objs.add(trigger);
-    game_objs.listeners.insert((trigger_id, EventType::SteppedOn));
-}
+//     let mut trigger = SpecialSquare::make(Tile::Trigger, trigger_loc, false, 0, game_objs);
+//     let trigger_id = trigger.get_object_id();
+//     trigger.special_sq.as_mut().unwrap().target = Some(gate_id);
+//     game_objs.add(trigger);
+//     game_objs.listeners.insert((trigger_id, EventType::SteppedOn));
+// }
 
-fn simple_triggered_gate(world_info: &mut WorldInfo, map: &mut Map, floors: &mut HashSet<(i32, i32, i8)>,
-        game_objs: &mut GameObjects, vault: &Vault, level: i8) {
-    // Find a place for the trigger. Probably need a bail out option after X iterations in case it's some
-    // weird dungeon layout where a trigger can't be placed.
-    let mut delta = 2;
-    loop {
-        let loc = (vault.entrance.0 + delta, vault.entrance.1, level);
-        let vault_entrance = (vault.entrance.0, vault.entrance.1, level);
-        if floors.contains(&loc) && !loc_in_vault(vault, loc) {
-            place_simple_triggered_gate(world_info, map, game_objs, loc, vault_entrance);
-            floors.remove(&loc);
-            floors.remove(&vault_entrance);
-            break;
-        }
-        let loc = (vault.entrance.0 - delta, vault.entrance.1, level);
-        if floors.contains(&loc) && !loc_in_vault(vault, loc) {
-            place_simple_triggered_gate(world_info, map, game_objs, loc, vault_entrance);
-            floors.remove(&loc);
-            floors.remove(&vault_entrance);
-            break;
-        }
-        let loc = (vault.entrance.0, vault.entrance.1 + delta, level);
-        if floors.contains(&loc) && !loc_in_vault(vault, loc) {
-            place_simple_triggered_gate(world_info, map, game_objs, loc, vault_entrance);
-            floors.remove(&loc);
-            floors.remove(&vault_entrance);
-            break;
-        }
-        let loc = (vault.entrance.0, vault.entrance.1 - delta, level);
-        if floors.contains(&loc) && !loc_in_vault(vault, loc) {
-            place_simple_triggered_gate(world_info, map, game_objs, loc, vault_entrance);
-            floors.remove(&loc);
-            floors.remove(&vault_entrance);
-            break;
-        }
-        delta += 1;
-    }
-}
+// fn simple_triggered_gate(world_info: &mut WorldInfo, map: &mut Map, floors: &mut HashSet<(i32, i32, i8)>,
+//         game_objs: &mut GameObjects, vault: &Vault, level: i8) {
+//     // Find a place for the trigger. Probably need a bail out option after X iterations in case it's some
+//     // weird dungeon layout where a trigger can't be placed.
+//     let mut delta = 2;
+//     loop {
+//         let loc = (vault.entrance.0 + delta, vault.entrance.1, level);
+//         let vault_entrance = (vault.entrance.0, vault.entrance.1, level);
+//         if floors.contains(&loc) && !loc_in_vault(vault, loc) {
+//             place_simple_triggered_gate(world_info, map, game_objs, loc, vault_entrance);
+//             floors.remove(&loc);
+//             floors.remove(&vault_entrance);
+//             break;
+//         }
+//         let loc = (vault.entrance.0 - delta, vault.entrance.1, level);
+//         if floors.contains(&loc) && !loc_in_vault(vault, loc) {
+//             place_simple_triggered_gate(world_info, map, game_objs, loc, vault_entrance);
+//             floors.remove(&loc);
+//             floors.remove(&vault_entrance);
+//             break;
+//         }
+//         let loc = (vault.entrance.0, vault.entrance.1 + delta, level);
+//         if floors.contains(&loc) && !loc_in_vault(vault, loc) {
+//             place_simple_triggered_gate(world_info, map, game_objs, loc, vault_entrance);
+//             floors.remove(&loc);
+//             floors.remove(&vault_entrance);
+//             break;
+//         }
+//         let loc = (vault.entrance.0, vault.entrance.1 - delta, level);
+//         if floors.contains(&loc) && !loc_in_vault(vault, loc) {
+//             place_simple_triggered_gate(world_info, map, game_objs, loc, vault_entrance);
+//             floors.remove(&loc);
+//             floors.remove(&vault_entrance);
+//             break;
+//         }
+//         delta += 1;
+//     }
+// }
 
-fn light_triggered_gate(_world_info: &mut WorldInfo, map: &mut Map, floors: &mut HashSet<(i32, i32, i8)>,
-        game_objs: &mut GameObjects, vault: &Vault, level: i8) {
-    let vault_loc = (vault.entrance.0, vault.entrance.1, level);
-    map.insert(vault_loc, Tile::Gate(DoorState::Closed));
-    let gate = SpecialSquare::make(Tile::Gate(DoorState::Closed), vault_loc, true, 0, game_objs);
-    let gate_id = gate.object_id;
-    game_objs.add(gate);
-    game_objs.listeners.insert((gate_id, EventType::LitUp));
-    floors.remove(&vault_loc);
-}
+// fn light_triggered_gate(_world_info: &mut WorldInfo, map: &mut Map, floors: &mut HashSet<(i32, i32, i8)>,
+//         game_objs: &mut GameObjects, vault: &Vault, level: i8) {
+//     let vault_loc = (vault.entrance.0, vault.entrance.1, level);
+//     map.insert(vault_loc, Tile::Gate(DoorState::Closed));
+//     let gate = SpecialSquare::make(Tile::Gate(DoorState::Closed), vault_loc, true, 0, game_objs);
+//     let gate_id = gate.object_id;
+//     game_objs.add(gate);
+//     game_objs.listeners.insert((gate_id, EventType::LitUp));
+//     floors.remove(&vault_loc);
+// }
 
-fn add_vault(world_info: &mut WorldInfo, map: &mut Map, floors: &mut HashSet<(i32, i32, i8)>,
-            game_objs: &mut GameObjects, vaults: &Vec<Vault>, level: i8) {
-    // In the real game, I want to make sure I never create a gated vault in a room with the upstairs 
-    // because that would result in a dungeon where the player probably can't progress without magic
-    let mut rng = rand::thread_rng();
-    let vault_num = rng.gen_range(0, vaults.len());
-    let vault = &vaults[vault_num];
+// fn add_vault(world_info: &mut WorldInfo, map: &mut Map, floors: &mut HashSet<(i32, i32, i8)>,
+//             game_objs: &mut GameObjects, vaults: &Vec<Vault>, level: i8) {
+//     // In the real game, I want to make sure I never create a gated vault in a room with the upstairs 
+//     // because that would result in a dungeon where the player probably can't progress without magic
+//     let mut rng = rand::thread_rng();
+//     let vault_num = rng.gen_range(0, vaults.len());
+//     let vault = &vaults[vault_num];
     
-    //simple_triggered_gate(world_info, map, floors, game_objs, vault, level);
-    light_triggered_gate(world_info, map, floors, game_objs, vault, level);
-}
+//     //simple_triggered_gate(world_info, map, floors, game_objs, vault, level);
+//     light_triggered_gate(world_info, map, floors, game_objs, vault, level);
+// }
 
-fn decorate_levels(world_info: &mut WorldInfo, map: &mut Map, deepest_level: i8, floor_sqs: &mut HashMap<usize, HashSet<(i32, i32, i8)>>,
-            game_objs: &mut GameObjects, vaults: HashMap<usize, Vec<Vault>>) {
-    //let mut rng = rand::thread_rng();
-    let mut curr_level = deepest_level;
-    while curr_level > 0 {
-        if curr_level < 3 {
-            add_fire_pit(curr_level as usize, map, floor_sqs, game_objs)             
-        }
+// fn decorate_levels(world_info: &mut WorldInfo, map: &mut Map, deepest_level: i8, floor_sqs: &mut HashMap<usize, HashSet<(i32, i32, i8)>>,
+//             game_objs: &mut GameObjects, vaults: HashMap<usize, Vec<Vault>>) {
+//     //let mut rng = rand::thread_rng();
+//     let mut curr_level = deepest_level;
+//     while curr_level > 0 {
+//         if curr_level < 3 {
+//             add_fire_pit(curr_level as usize, map, floor_sqs, game_objs)             
+//         }
 
-        if curr_level == 1 {
-            add_shrine(world_info, curr_level as usize, map, floor_sqs, game_objs)
-        }
+//         if curr_level == 1 {
+//             add_shrine(world_info, curr_level as usize, map, floor_sqs, game_objs)
+//         }
 
-        if !vaults[&(curr_level as usize - 1)].is_empty() {
-            let floors = floor_sqs.get_mut(&(curr_level as usize - 1)).unwrap();
-            add_vault(world_info, map, floors, game_objs, &vaults[&(curr_level as usize - 1)], curr_level);
-        }
+//         if !vaults[&(curr_level as usize - 1)].is_empty() {
+//             let floors = floor_sqs.get_mut(&(curr_level as usize - 1)).unwrap();
+//             add_vault(world_info, map, floors, game_objs, &vaults[&(curr_level as usize - 1)], curr_level);
+//         }
 
-        add_teleport_trap(curr_level as usize, floor_sqs, game_objs);
+//         add_teleport_trap(curr_level as usize, floor_sqs, game_objs);
         
-        curr_level -= 1;
-    }
-}
+//         curr_level -= 1;
+//     }
+// }
 
-fn populate_levels(_world_info: &mut WorldInfo, deepest_level: i8, floor_sqs: &HashMap<usize, HashSet<(i32, i32, i8)>>,
-            game_objs: &mut GameObjects, monster_fac: &MonsterFactory) {
-    let mut curr_level = deepest_level;
-    //let mut rng = rand::thread_rng();
-    while curr_level > 0 {
-        let level_index = curr_level as usize - 1;
+// fn populate_levels(_world_info: &mut WorldInfo, deepest_level: i8, floor_sqs: &HashMap<usize, HashSet<(i32, i32, i8)>>,
+//             game_objs: &mut GameObjects, monster_fac: &MonsterFactory) {
+//     let mut curr_level = deepest_level;
+//     //let mut rng = rand::thread_rng();
+//     while curr_level > 0 {
+//         let level_index = curr_level as usize - 1;
 
-        for _ in 0..10 {
-            let loc = random_sq(&floor_sqs[&level_index]);
-            //if rng.gen_range(0.0, 1.0) < 0.5 {
-                monster_fac.add_monster("skeleton", loc, game_objs);
-            // } else {
-            //     monster_fac.add_monster("goblin", loc, game_objs);
-            // }
-        }
-        curr_level -= 1;
-    }
-}
+//         for _ in 0..10 {
+//             let loc = random_sq(&floor_sqs[&level_index]);
+//             //if rng.gen_range(0.0, 1.0) < 0.5 {
+//                 monster_fac.add_monster("skeleton", loc, game_objs);
+//             // } else {
+//             //     monster_fac.add_monster("goblin", loc, game_objs);
+//             // }
+//         }
+//         curr_level -= 1;
+//     }
+// }
 
 fn find_room_id(rooms: &Vec<HashSet<(i32, i32)>>, pt: &(i32, i32)) -> Option<usize> {
     for room_id in 0..rooms.len() {
@@ -706,7 +707,7 @@ fn add_river_to_level(tiles: &mut Vec<Tile>, height: usize, width: usize, top:bo
     }
 }
 
-fn build_dungeon(world_info: &mut WorldInfo, map: &mut Map, entrance: (i32, i32, i8), game_objs: &mut GameObjects, monster_fac: &MonsterFactory) {
+fn build_dungeon(world_info: &mut WorldInfo, map: &mut Map, entrance: (i32, i32, i8), game_obj_db: &mut GameObjectDB, monster_fac: &MonsterFactory) {
     let mut rng = rand::thread_rng();
     let width = 125;
     let height = 40;
@@ -769,17 +770,17 @@ fn build_dungeon(world_info: &mut WorldInfo, map: &mut Map, entrance: (i32, i32,
         }
     }
 
-    decorate_levels(world_info, map, max_level as i8, &mut floor_sqs, game_objs, vaults);
-    populate_levels(world_info, max_level as i8, &floor_sqs, game_objs, monster_fac);
+    // decorate_levels(world_info, map, max_level as i8, &mut floor_sqs, game_objs, vaults);
+    // populate_levels(world_info, max_level as i8, &floor_sqs, game_objs, monster_fac);
 }
 
-pub fn generate_world(game_objs: &mut GameObjects, monster_fac: &MonsterFactory, player_name: &str) -> (Map, WorldInfo) {
+pub fn generate_world(game_obj_db: &mut GameObjectDB, monster_fac: &MonsterFactory, player_name: &str) -> (Map, WorldInfo) {
     let map_start = Instant::now();
     let mut map = wilderness::gen_wilderness_map();
     let map_end = map_start.elapsed();
     println!("Time to make world map: {:?}", map_end);
 
-    let mut world_info = town::create_town(&mut map, game_objs);
+    let mut world_info = town::create_town(&mut map, game_obj_db);
     world_info.player_name = player_name.to_string();
 
     let valleys = find_all_valleys(&map);
@@ -799,7 +800,7 @@ pub fn generate_world(game_objs: &mut GameObjects, monster_fac: &MonsterFactory,
     let dungeon_entrance = find_good_dungeon_entrance(&map, &valleys[max_id]);
     
     let dungeon_start = Instant::now();
-    build_dungeon(&mut world_info, &mut map, dungeon_entrance, game_objs, monster_fac);
+    build_dungeon(&mut world_info, &mut map, dungeon_entrance, game_obj_db, monster_fac);
     let dungeon_end = dungeon_start.elapsed();
     println!("Time to make dungeon: {:?}", dungeon_end);
 

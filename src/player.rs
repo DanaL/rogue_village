@@ -19,12 +19,13 @@ use std::collections::{HashMap, HashSet};
 use rand::Rng;
 use serde::{Serialize, Deserialize};
 
-use super::{GameState, Status};
+use super::{EventResponse, GameState, Status};
 use crate::battle::DamageType;
 use crate::display;
 use crate::{EventType, items};
-use crate::game_obj::{GameObject, GameObjects, Person};
+use crate::game_obj::{XGameObject, GameObject, GameObjectDB, GameObjectBase, GameObjects, Person};
 use crate::items::{Item, ItemType};
+use crate::map::Tile;
 use crate::util::StringUtils;
 
 const XP_CHART: [u32; 19] = [20, 40, 80, 160, 320, 640, 1280, 2560, 5210, 10_000, 15_000, 21_000, 28_000, 36_000, 44_000, 52_000, 60_000, 68_000, 76_000];
@@ -54,9 +55,8 @@ impl Role {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Player {
-    pub object_id: usize,
-	pub name: String,
-	pub max_hp: u8,
+    pub base_info: GameObjectBase,
+    pub max_hp: u8,
 	pub curr_hp: u8,
 	pub vision_radius: u8,
     pub str: u8,
@@ -73,7 +73,7 @@ pub struct Player {
     pub readied_weapon: String,
     pub energy: f32,
     pub energy_restore: f32,
-    pub inventory: Vec<GameObject>,
+    pub inventory: Vec<XGameObject>,
     pub next_slot: char,
     pub hit_die: u8,
     pub stealth_score: u8,
@@ -121,7 +121,7 @@ impl Player {
         }
     }
 
-    pub fn new_warrior(game_objs: &mut GameObjects, name: String) {
+    pub fn new_warrior(game_obj_db: &mut GameObjectDB, name: &str) {
         let default_vision_radius = 99;
         let stats = roll_stats();
         
@@ -132,14 +132,16 @@ impl Player {
             (stats[4], stats[3])
         };
 
-        let mut p = Player {            
-            object_id: 0, name: name.clone(), max_hp: (15 + stat_to_mod(stats[1])) as u8, curr_hp: (15 + stat_to_mod(stats[1])) as u8,
+        let mut p = Player { base_info: GameObjectBase::new(0, (-1, -1, -1), false, '@', display::WHITE, display::WHITE, true, name),     
+                max_hp: (15 + stat_to_mod(stats[1])) as u8, curr_hp: (15 + stat_to_mod(stats[1])) as u8,
                 vision_radius: default_vision_radius, str: stats[0], con: stats[1], dex: stats[2], chr, apt, role: Role::Warrior, xp: 0, level: 1, max_depth: 0, 
                 ac: 10, purse: 20, readied_weapon: "".to_string(), energy: 1.0, energy_restore: 1.0, inventory: Vec::new(), next_slot: 'a', hit_die: 10,
                 stealth_score: 10, statuses: Vec::new(),
         };
         
         // Warrior starting equipment
+
+        /*
         let mut spear = Item::get_item(game_objs, "spear").unwrap();        
         spear.item.as_mut().unwrap().equiped = true;
         p.add_to_inv(spear);
@@ -160,15 +162,14 @@ impl Player {
             let scroll = Item::get_item(game_objs, "scroll of blink").unwrap();
             p.add_to_inv(scroll);
         }
-        
+        */
         p.calc_gear_effects();
 
-        let player_obj = GameObject::new(0, &name, (0, 0, 0), '@', display::WHITE, display::WHITE, 
-            None, None , None, None, Some(p), true);
-        game_objs.add(player_obj);
+        game_obj_db.add(GameObjects::Player(p));
     }
 
-    pub fn new_rogue(game_objs: &mut GameObjects, name: String) {
+    /*
+    pub fn new_rogue(game_objs: &mut XGameObjects, name: String) {
         let default_vision_radius = 99;
         let stats = roll_stats();
 
@@ -188,10 +189,11 @@ impl Player {
 
         p.calc_gear_effects();
         
-        let player_obj = GameObject::new(0, &name, (0, 0, 0), '@', display::WHITE, display::WHITE, 
+        let player_obj = XGameObject::new(0, &name, (0, 0, 0), '@', display::WHITE, display::WHITE, 
             None, None , None, None, Some(p), true);
         game_objs.add(player_obj);
     }
+    */
 
     pub fn inv_slots_used(&self) -> HashSet<char> {
         self.inventory.iter()
@@ -199,7 +201,7 @@ impl Player {
             .collect::<HashSet<char>>()
     }
 
-    pub fn inv_item_in_slot(&mut self, slot: char) -> Option<&mut GameObject> {
+    pub fn inv_item_in_slot(&mut self, slot: char) -> Option<&mut XGameObject> {
         for j in 0..self.inventory.len() {
             if self.inventory[j].item.as_ref().unwrap().slot == slot {
                 let obj = self.inventory.get_mut(j);
@@ -210,7 +212,7 @@ impl Player {
         None
     }
 
-    pub fn inv_obj_of_id(&mut self, id: usize) -> Option<&mut GameObject> {
+    pub fn inv_obj_of_id(&mut self, id: usize) -> Option<&mut XGameObject> {
         for j in 0..self.inventory.len() {
             if self.inventory[j].object_id == id {
                 let obj = self.inventory.get_mut(j);
@@ -221,7 +223,7 @@ impl Player {
         None
     }
 
-    pub fn inv_remove(&mut self, id: usize) -> Option<GameObject> {
+    pub fn inv_remove(&mut self, id: usize) -> Option<XGameObject> {
         for j in 0..self.inventory.len() {
             if self.inventory[j].object_id == id {
                 let obj = self.inventory.remove(j);
@@ -233,7 +235,7 @@ impl Player {
     }
 
     // // Caller should check if the slot exists before calling this...
-    pub fn inv_remove_from_slot(&mut self, slot: char, amt: u32) -> Result<Vec<GameObject>, String>  {
+    pub fn inv_remove_from_slot(&mut self, slot: char, amt: u32) -> Result<Vec<XGameObject>, String>  {
         let mut removed = Vec::new();
 
         let mut count = 0;
@@ -296,7 +298,7 @@ impl Player {
         }
     }
 
-    pub fn add_to_inv(&mut self, mut obj: GameObject) {
+    pub fn add_to_inv(&mut self, mut obj: XGameObject) {
         // If the item is stackable and there's another like it, they share a slot
         if obj.item.as_ref().unwrap().stackable() {
             for other in self.inventory.iter() {
@@ -554,6 +556,47 @@ impl Person for Player {
     fn add_hp(&mut self, state: &mut GameState, amt: u8) {
         self.curr_hp += amt;
         state.write_msg_buff("You feel better!");
+    }
+}
+
+impl GameObject for Player {
+    fn blocks(&self) -> bool {
+        true
+    }
+
+    fn get_loc(&self) -> (i32, i32, i8) {
+        self.base_info.location
+    }
+
+    fn set_loc(&mut self, loc: (i32, i32, i8)) {
+        self.base_info.location = loc;
+    }
+
+    fn get_fullname(&self) -> String {
+        self.base_info.name.clone()
+    }
+
+    fn obj_id(&self) -> usize {
+        self.base_info.object_id
+    }
+
+    fn get_tile(&self) -> Tile {
+        Tile::Thing(self.base_info.lit_colour, self.base_info.unlit_colour, self.base_info.symbol)
+    }
+
+    fn hidden(&self) -> bool {
+        self.base_info.hidden
+    }
+
+    fn hide(&mut self) {
+        self.base_info.hidden = true;
+    }
+    fn reveal(&mut self) {
+        self.base_info.hidden = false;
+    }
+
+    fn receive_event(&mut self, event: EventType, state: &mut GameState, player_loc: (i32, i32, i8)) -> Option<EventResponse> {
+        None
     }
 }
 
