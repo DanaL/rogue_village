@@ -213,6 +213,15 @@ impl GameObjectDB {
         self.objects.insert(obj_id, obj);        
     }
 
+    pub fn remove(&mut self, obj_id: usize) -> GameObjects {  
+        let obj = self.objects.get(&obj_id).unwrap();
+        let loc = obj.get_loc();
+
+        self.listeners.retain(|l| l.0 != obj_id);
+        self.remove_from_loc(obj_id, loc);
+        self.objects.remove(&obj_id).unwrap()        
+    }
+
     pub fn set_to_loc(&mut self, obj_id: usize, loc: (i32, i32, i8)) {
         if !self.obj_locs.contains_key(&loc) {
             self.obj_locs.insert(loc, VecDeque::new());
@@ -351,6 +360,43 @@ impl GameObjectDB {
         } else {
             Vec::new()
         }
+    }
+
+    pub fn things_at_loc(&self, loc: (i32, i32, i8)) -> Vec<usize> {
+        if self.obj_locs.contains_key(&loc) {
+            let ids = self.obj_locs[&loc]
+                          .iter().copied();
+            
+            ids.filter(|id| !self.objects[&id].hidden() 
+                     //&& self.objects[&id].special_sq.is_none()
+                     && *id != 0).collect()
+        } else {
+            Vec::new()
+        }
+    }
+
+    pub fn get_pickup_menu(&self, loc: (i32, i32, i8)) -> Vec<(String, usize)> {
+        let mut menu = Vec::new();
+
+        if self.obj_locs.contains_key(&loc) {
+            let obj_ids = self.obj_locs[&loc].iter().copied();
+            for id in obj_ids {
+                if self.objects[&id].hidden() 
+                        //|| self.objects[&id].special_sq.is_some() 
+                        || id == 0 {
+                    continue;
+                }
+                if let GameObjects::GoldPile(zorkmids) = &self.objects[&id] {
+                    let amt = zorkmids.amount;
+                    let s = format!("{} gold pieces", amt);
+                    menu.push((s, id));
+                } else {
+                    menu.push((self.objects[&id].get_fullname().with_indef_article(), id));
+                }
+            }            
+        }
+
+        menu
     }
 }
 
@@ -512,15 +558,6 @@ impl XGameObjects {
 
     pub fn player_location(&self) -> (i32, i32, i8) {
         self.objects[&0].location
-    }
-
-    pub fn remove(&mut self, obj_id: usize) -> XGameObject {  
-        let obj = self.objects.get(&obj_id).unwrap();
-        let loc = obj.location;
-
-        self.listeners.retain(|l| l.0 != obj_id);
-        self.remove_from_loc(obj_id, loc);
-        self.objects.remove(&obj_id).unwrap()        
     }
 
     pub fn set_to_loc(&mut self, obj_id: usize, loc: (i32, i32, i8)) {
@@ -688,6 +725,39 @@ impl XGameObjects {
         }
     }
 
+    pub fn hidden_at_loc(&self, loc: (i32, i32, i8)) -> Vec<usize> {
+        if self.obj_locs.contains_key(&loc) {
+            let ids = self.obj_locs[&loc]
+                .iter().copied();
+            
+            ids.filter(|id| self.objects[&id].hidden()).collect()
+        } else {
+            Vec::new()
+        }
+    }
+
+    pub fn things_at_loc(&self, loc: (i32, i32, i8)) -> Vec<usize> {
+        if self.obj_locs.contains_key(&loc) {
+            let ids = self.obj_locs[&loc]
+                          .iter().copied();
+            
+            ids.filter(|id| !self.objects[&id].hidden() 
+                     //&& self.objects[&id].special_sq.is_none()
+                     && *id != 0).collect()
+        } else {
+            Vec::new()
+        }
+    }
+  
+    pub fn remove(&mut self, obj_id: usize) -> XGameObject {  
+        // let obj = self.objects.get(&obj_id).unwrap();
+        // let loc = obj.get_loc();
+
+        // self.listeners.retain(|l| l.0 != obj_id);
+        // self.remove_from_loc(obj_id, loc);
+        self.objects.remove(&14).unwrap()        
+    }
+
     pub fn do_npc_turns(&mut self, state: &mut GameState) {
         let actors = self.listeners.iter()
                                    .filter(|i| i.1 == EventType::TakeTurn)
@@ -801,19 +871,6 @@ impl XGameObjects {
         }
 
         menu
-    }
-
-    pub fn things_at_loc(&self, loc: (i32, i32, i8)) -> Vec<usize> {
-        if self.obj_locs.contains_key(&loc) {
-            let ids = self.obj_locs[&loc]
-                          .iter().copied();
-            
-            ids.filter(|id| !self.objects[&id].hidden 
-                     && self.objects[&id].special_sq.is_none()
-                     && self.objects[&id].player.is_none()).collect()
-        } else {
-            Vec::new()
-        }
     }
 
     pub fn special_sqs_at_loc(&self, loc: &(i32, i32, i8)) -> Vec<&XGameObject> {
