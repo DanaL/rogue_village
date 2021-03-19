@@ -985,33 +985,39 @@ fn firepit_msg(num: u8) -> &'static str {
 }
 
 fn maybe_fight(state: &mut GameState, game_obj_db: &mut GameObjectDB, loc: (i32, i32, i8), gui: &mut GameUI) -> f32 {
-    // if let Some(npc_id) = game_objs.npc_at(&loc) {
-    //     let npc = game_objs.get_mut(npc_id).unwrap();
-    //     let npc_name = npc.get_npc_name(false);
-    //     let attitude = npc.npc.as_ref().unwrap().attitude;
-    //     match attitude {
-    //         Attitude::Hostile => {
-    //             battle::player_attacks(state, npc_id, game_objs);
-    //             return 1.0;
-    //         },
-    //         Attitude::Indifferent | Attitude::Stranger => {
-    //             let sbi = state.curr_sidebar_info(game_objs);
-    //             let s = format!("Really attack {}? (y/n)", npc_name);
-    //             if let 'y' = gui.query_yes_no(&s, Some(&sbi)) {
-    //                 let npc = game_objs.get_mut(npc_id).unwrap();
-    //                 npc.npc.as_mut().unwrap().attitude = Attitude::Hostile;
-    //                 npc.npc.as_mut().unwrap().active = true;
-    //                 battle::player_attacks(state, npc_id, game_objs);
-    //                 return 1.0;
-    //             }                    
-    //         },
-    //         _ => {
-    //             let s = format!("{} is in your way!", npc_name.capitalize());
-    //             state.write_msg_buff(&s);
-    //             return 1.0;
-    //         }
-    //     }
-    // }
+    if let Some(npc_id) = game_obj_db.npc_at(&loc) {
+        let npc = game_obj_db.get_mut(npc_id).unwrap();
+        let (npc_name, attitude) = if let GameObjects::NPC(other) = npc {
+            (other.npc_name(false), other.attitude)
+        } else {
+            ("".to_string(), Attitude::Indifferent)
+        };
+        
+        match attitude {
+            Attitude::Hostile => {
+                battle::player_attacks(state, npc_id, game_obj_db);
+                return 1.0;
+            },
+            Attitude::Indifferent | Attitude::Stranger => {
+                let sbi = state.curr_sidebar_info(game_obj_db);
+                let s = format!("Really attack {}? (y/n)", npc_name);
+                if let 'y' = gui.query_yes_no(&s, Some(&sbi)) {
+                    let npc = game_obj_db.get_mut(npc_id).unwrap();
+                    if let GameObjects::NPC(foe) = npc {
+                        foe.attitude = Attitude::Hostile;
+                        foe.active = true;
+                    }                    
+                    battle::player_attacks(state, npc_id, game_obj_db);
+                    return 1.0;
+                }                    
+            },
+            _ => {
+                let s = format!("{} is in your way!", npc_name.capitalize());
+                state.write_msg_buff(&s);
+                return 1.0;
+            }
+        }
+    }
 
     0.0
 }
@@ -1060,7 +1066,7 @@ fn do_move(state: &mut GameState, game_obj_db: &mut GameObjectDB, dir: &str, gui
     // it is difficult terrain to move out of lava
 
     if game_obj_db.blocking_obj_at(&next_loc) {
-        //return maybe_fight(state, game_objs, next_loc, gui);            
+        return maybe_fight(state, game_obj_db, next_loc, gui);            
     } else if tile.passable() {
         // Rubble is difficult terrain and requires a dex check to mvoe off of.
         // (If you designate more terrain types as difficult terrain, probably make a function)

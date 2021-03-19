@@ -419,24 +419,24 @@ fn decorate_levels(world_info: &mut WorldInfo, map: &mut Map, deepest_level: i8,
     }
 }
 
-// fn populate_levels(_world_info: &mut WorldInfo, deepest_level: i8, floor_sqs: &HashMap<usize, HashSet<(i32, i32, i8)>>,
-//             game_objs: &mut GameObjects, monster_fac: &MonsterFactory) {
-//     let mut curr_level = deepest_level;
-//     //let mut rng = rand::thread_rng();
-//     while curr_level > 0 {
-//         let level_index = curr_level as usize - 1;
+fn populate_levels(_world_info: &mut WorldInfo, deepest_level: i8, floor_sqs: &HashMap<usize, HashSet<(i32, i32, i8)>>,
+            game_obj_db: &mut GameObjectDB, monster_fac: &MonsterFactory) {
+    let mut curr_level = deepest_level;
+    //let mut rng = rand::thread_rng();
+    while curr_level > 0 {
+        let level_index = curr_level as usize - 1;
 
-//         for _ in 0..10 {
-//             let loc = random_sq(&floor_sqs[&level_index]);
-//             //if rng.gen_range(0.0, 1.0) < 0.5 {
-//                 monster_fac.add_monster("skeleton", loc, game_objs);
-//             // } else {
-//             //     monster_fac.add_monster("goblin", loc, game_objs);
-//             // }
-//         }
-//         curr_level -= 1;
-//     }
-// }
+        for _ in 0..10 {
+            let loc = random_sq(&floor_sqs[&level_index]);
+            //if rng.gen_range(0.0, 1.0) < 0.5 {
+                monster_fac.add_monster("skeleton", loc, game_obj_db);
+            // } else {
+            //     monster_fac.add_monster("goblin", loc, game_objs);
+            // }
+        }
+        curr_level -= 1;
+    }
+}
 
 fn find_room_id(rooms: &Vec<HashSet<(i32, i32)>>, pt: &(i32, i32)) -> Option<usize> {
     for room_id in 0..rooms.len() {
@@ -775,7 +775,7 @@ fn build_dungeon(world_info: &mut WorldInfo, map: &mut Map, entrance: (i32, i32,
     }
 
     decorate_levels(world_info, map, max_level as i8, &mut floor_sqs, game_obj_db, vaults);
-    //populate_levels(world_info, max_level as i8, &floor_sqs, game_obj_db, monster_fac);
+    populate_levels(world_info, max_level as i8, &floor_sqs, game_obj_db, monster_fac);
 }
 
 pub fn generate_world(game_obj_db: &mut GameObjectDB, monster_fac: &MonsterFactory, player_name: &str) -> (Map, WorldInfo) {

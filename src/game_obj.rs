@@ -327,7 +327,15 @@ impl GameObjectDB {
             Some(p)
         } else {
             None
-        }        
+        }
+    }
+
+    pub fn npc(&mut self, obj_id: usize) -> Option<&mut NPC> {
+        if let Some(GameObjects::NPC(p)) = self.get_mut(obj_id) {
+            Some(p)
+        } else {
+            None
+        }
     }
 
     // Okay to make life difficult I want to return stackable items described as
