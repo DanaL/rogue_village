@@ -269,7 +269,40 @@ fn check_smith_inventory(state: &mut GameState, smith_id: usize, game_obj_db: &m
         }
     } else if curr_day - last_inventory_day >= 2  {        
         // Update inventory every couple of days.
+        println!("Checkin' stock");
+        // First, generate the new stock
+        let mut new_stock = Vec::new();
+
+        if rand::thread_rng().gen_range(0, 2) == 0 {
+            let ls = Item::get_item(game_obj_db, "longsword").unwrap();
+            new_stock.push(ls);
+        }
+
+        if rand::thread_rng().gen_range(0, 2) == 0 {
+            let d = Item::get_item(game_obj_db, "dagger").unwrap();
+            new_stock.push(d);
+        }
+
+        if rand::thread_rng().gen_range(0, 3) == 0 {
+            let ts = Item::get_item(game_obj_db, "two-handed sword").unwrap();
+            new_stock.push(ts);
+        }
         
+        if rand::thread_rng().gen_range(0, 2) == 0 {
+            let s = Item::get_item(game_obj_db, "spear").unwrap();
+            new_stock.push(s);
+        }
+
+        if rand::thread_rng().gen_range(0, 2) == 0 {
+            let ch = Item::get_item(game_obj_db, "chainmail").unwrap();
+            new_stock.push(ch);
+        }
+
+        if rand::thread_rng().gen_range(0, 2) == 0 {
+            let sh = Item::get_item(game_obj_db, "shield").unwrap();
+            new_stock.push(sh);
+        }
+
         // For any item in their current inventory, there's a 25% chance it's been purchases while the 
         // player's been away
         let smith = game_obj_db.get_mut(smith_id).unwrap();
@@ -285,39 +318,7 @@ fn check_smith_inventory(state: &mut GameState, smith_id: usize, game_obj_db: &m
             for j in to_remove {
                 npc.inventory.remove(j);
             }
-
-            let mut new_stock = Vec::new();
-
-            // if rand::thread_rng().gen_range(0, 2) == 0 {
-            //     let ls = Item::get_item(game_obj_db, "longsword").unwrap();
-            //     new_stock.push(ls);
-            // }
-
-            // if rand::thread_rng().gen_range(0, 2) == 0 {
-            //     let d = Item::get_item(game_obj_db, "dagger").unwrap();
-            //     new_stock.push(d);
-            // }
-
-            // if rand::thread_rng().gen_range(0, 3) == 0 {
-            //     let ts = Item::get_item(game_obj_db, "two-handed sword").unwrap();
-            //     new_stock.push(ts);
-            // }
-            
-            // if rand::thread_rng().gen_range(0, 2) == 0 {
-            //     let s = Item::get_item(game_obj_db, "spear").unwrap();
-            //     new_stock.push(s);
-            // }
-
-            // if rand::thread_rng().gen_range(0, 2) == 0 {
-            //     let ch = Item::get_item(game_obj_db, "chainmail").unwrap();
-            //     new_stock.push(ch);
-            // }
-
-            // if rand::thread_rng().gen_range(0, 2) == 0 {
-            //     let sh = Item::get_item(game_obj_db, "shield").unwrap();
-            //     new_stock.push(sh);
-            // }
-
+        
             npc.last_inventory = state.turn;            
             for obj in new_stock {
                 npc.inventory.push(obj);
@@ -497,59 +498,62 @@ fn repair_gear(state: &mut GameState, _game_obj_db: &mut GameObjectDB) {
 fn purchase_from_smith(state: &mut GameState, smith_id: usize, name: String, preamble: &str, game_obj_db: &mut GameObjectDB, gui: &mut GameUI) -> bool {
     let mut msg = preamble.to_string();
     let mut made_purchase = false;
-    // loop {
-    //     let sbi = state.curr_sidebar_info(game_obj_db);
-    //     let smith = game_obj_db.get_mut(smith_id).unwrap();
-    //     let inv = &smith.npc.as_ref().unwrap().inventory;
-    //     let menu_items = inventory_menu(&inv);
-    //     let options: HashSet<char> = menu_items.iter().map(|i| i.1).collect();
-    //     if menu_items.is_empty() {
-    //         msg.push_str("\n\nI seem to be all out of stock!");
+    loop {
+        let sbi = state.curr_sidebar_info(game_obj_db);
+        let smith = game_obj_db.get_mut(smith_id).unwrap();
+        let menu_items = if let GameObjects::NPC(npc) = smith {
+            inventory_menu(&npc.inventory)
+        } else {
+            Vec::new()
+        };
+        let options: HashSet<char> = menu_items.iter().map(|i| i.1).collect();
+        if menu_items.is_empty() {
+            msg.push_str("\n\nI seem to be all out of stock!");
 
-    //         let name = format!("{}, the smith", name);
-    //         gui.popup_msg(&name, &msg, Some(&sbi));
-    //         break;
-    //     } 
+            let name = format!("{}, the smith", name);
+            gui.popup_msg(&name, &msg, Some(&sbi));
+            break;
+        } 
         
-    //     let mut store_menu = msg.clone();
-    //     store_menu.push_str("\n\nWhat would you like:\n");        
-    //     for item in &menu_items {
-    //         store_menu.push('\n');
-    //         let mut s = format!("{}) {}", item.1, item.0);
-    //         if item.2 > 1 {
-    //             s.push_str(" (");
-    //             s.push_str(&item.2.to_string());
-    //             s.push_str("), ");
-    //             s.push_str(&item.3.to_string());
-    //             s.push_str("$ each")
-    //         }
-    //         else {
-    //             s.push_str(", ");
-    //             s.push_str(&item.3.to_string());
-    //             s.push_str("$");
-    //         }
-    //         store_menu.push_str(&s);            
-    //     }
+        let mut store_menu = msg.clone();
+        store_menu.push_str("\n\nWhat would you like:\n");        
+        for item in &menu_items {
+            store_menu.push('\n');
+            let mut s = format!("{}) {}", item.1, item.0);
+            if item.2 > 1 {
+                s.push_str(" (");
+                s.push_str(&item.2.to_string());
+                s.push_str("), ");
+                s.push_str(&item.3.to_string());
+                s.push_str("$ each")
+            }
+            else {
+                s.push_str(", ");
+                s.push_str(&item.3.to_string());
+                s.push_str("$");
+            }
+            store_menu.push_str(&s);            
+        }
         
-    //     if let Some(answer) = gui.popup_menu(&name, &store_menu, &options, Some(&sbi)) {
-    //         for item in &menu_items {
-    //             if item.1 == answer {                    
-    //                 let p = game_obj_db.player().unwrap();
-    //                 if p.purse < item.3 as u32 {
-    //                     gui.popup_msg(&name, "Hey! You can't afford that!", Some(&sbi));
-    //                 } else {
-    //                     let obj = get_item_from_invetory(smith_id, &item.0, game_objs).unwrap();
-    //                     let p = game_obj_db.player().unwrap();
-    //                     p.purse -= item.3 as u32;
-    //                     p.add_to_inv(obj);
-    //                     made_purchase = true;
-    //                 }
-    //             }
-    //         }          
-    //     } else {
-    //         break;
-    //     }                
-    // }
+        if let Some(answer) = gui.popup_menu(&name, &store_menu, &options, Some(&sbi)) {
+            for item in &menu_items {
+                if item.1 == answer {                    
+                    let p = game_obj_db.player().unwrap();
+                    if p.purse < item.3 as u32 {
+                        gui.popup_msg(&name, "Hey! You can't afford that!", Some(&sbi));
+                    } else {
+                        let obj = get_item_from_invetory(smith_id, &item.0, game_obj_db).unwrap();
+                        let p = game_obj_db.player().unwrap();
+                        p.purse -= item.3 as u32;
+                        p.add_to_inv(obj);
+                        made_purchase = true;
+                    }
+                }
+            }          
+        } else {
+            break;
+        }                
+    }
 
     made_purchase
 }
@@ -558,41 +562,44 @@ pub fn talk_to_smith(state: &mut GameState, smith_id: usize, game_obj_db: &mut G
     let sbi = state.curr_sidebar_info(game_obj_db);
     check_smith_inventory(state, smith_id, game_obj_db);
     let smith = game_obj_db.get_mut(smith_id).unwrap();
-    // let name = format!("{}, the smith", smith.get_npc_name(true).capitalize());
+    let mut msg = "".to_string();
+    let mut name = "".to_string();
+    if let GameObjects::NPC(npc) = smith {
+        name = format!("{}, the smith", npc.npc_name(true).capitalize());
+        let mut extra_info = HashMap::new();
+        msg = npc.talk_to(state, dialogue, &mut extra_info);
 
-    // let mut extra_info = HashMap::new();
-    // let mut msg = smith.npc.as_mut().unwrap().talk_to(state, dialogue, smith.location, &mut extra_info);
-    // let preamble = msg.clone();
-    // state.add_to_msg_history(&msg);
+        if let Some(agenda) = npc.curr_agenda_item(state) {
+            if agenda.label != "working" {            
+                let name = format!("{}, the smith", name);
+                gui.popup_msg(&name, &msg, Some(&sbi));
+                return;
+            }
+        }
+    }
+    let preamble = msg.clone();
+    state.add_to_msg_history(&msg);
 
-    // if let Some(agenda) = smith.npc.as_ref().unwrap().curr_agenda_item(state) {
-    //     if agenda.label != "working" {            
-    //         let name = format!("{}, the smith", smith.get_npc_name(true).capitalize());
-    //         gui.popup_msg(&name, &msg, Some(&sbi));
-    //         return;
-    //     }
-    // }
-
-    // // First choice, purchase or repair gear
-    // msg.push('\n');
-    // msg.push('\n');
-    // msg.push_str("a) see my wares\n");
-    // msg.push_str("b) repair your gear\n");
+    // First choice, purchase or repair gear
+    msg.push('\n');
+    msg.push('\n');
+    msg.push_str("a) see my wares\n");
+    msg.push_str("b) repair your gear\n");
     
-    // let options: HashSet<char> = vec!['a', 'b'].into_iter().collect();
-    // let mut made_purchase = false;
-    // let answer = gui.popup_menu(&name, &msg, &options, Some(&sbi));
-    // if let Some(ch) = answer {
-    //     if ch == 'a' {
-    //         made_purchase = purchase_from_smith(state, smith_id, name.clone(), &preamble, game_obj_db, gui);
-    //     } else if ch == 'b' {
-    //         repair_gear(state, game_obj_db);
-    //     } 
-    // } else {
-    //     state.write_msg_buff("\"Nevermind.\"");
-    // }
+    let options: HashSet<char> = vec!['a', 'b'].into_iter().collect();
+    let mut made_purchase = false;
+    let answer = gui.popup_menu(&name, &msg, &options, Some(&sbi));
+    if let Some(ch) = answer {
+        if ch == 'a' {
+            made_purchase = purchase_from_smith(state, smith_id, name.clone(), &preamble, game_obj_db, gui);
+        } else if ch == 'b' {
+            repair_gear(state, game_obj_db);
+        } 
+    } else {
+        state.write_msg_buff("\"Nevermind.\"");
+    }
 
-    // if made_purchase {
-    //     state.write_msg_buff("\"I hope that serves you well!\"");
-    // }
+    if made_purchase {
+        state.write_msg_buff("\"I hope that serves you well!\"");
+    }
 }

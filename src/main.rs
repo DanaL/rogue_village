@@ -1290,40 +1290,40 @@ fn dump_level(state: &GameState, level: i8) {
     }        
 }
 
-fn wiz_command(state: &mut GameState, gui: &mut GameUI, game_objs: &mut GameObjects, mf: &MonsterFactory)  {
-    // let player_loc = game_objs.player_location();
-    // let sbi = state.curr_sidebar_info(game_objs);
-    // if let Some(result) = gui.query_user(":", 20, Some(&sbi)) {
-    //     let pieces: Vec<&str> = result.trim().split('=').collect();
+fn wiz_command(state: &mut GameState, gui: &mut GameUI, game_obj_db: &mut GameObjectDB, mf: &MonsterFactory)  {
+    let player_loc = game_obj_db.get(0).unwrap().get_loc();
+    let sbi = state.curr_sidebar_info(game_obj_db);
+    if let Some(result) = gui.query_user(":", 20, Some(&sbi)) {
+        let pieces: Vec<&str> = result.trim().split('=').collect();
 
-    //     if result == "loc" {
-    //         println!("{:?}", player_loc);
-    //     } else if result == "!heal" {
-    //         let loc = (player_loc.0, player_loc.1, player_loc.2);
-    //         let mut poh = items::Item::get_item(game_objs,"potion of healing").unwrap();
-    //         poh.location = loc;
-    //         game_objs.add(poh);
-    //     } else if result == "goblin" {
-    //         let loc = (player_loc.0, player_loc.1 - 1, player_loc.2);
-    //         mf.add_monster("goblin", loc, game_objs);
-    //     } else if result == "dump level" {
-    //         if player_loc.2 == 0 {
-    //             state.write_msg_buff("Uhh the wilderness is too big to dump.");
-    //         } else {
-    //             dump_level(state, player_loc.2);
-    //         }
-    //     } else if pieces.len() != 2 {
-    //         state.write_msg_buff("Invalid wizard command");
-    //     } else if pieces[0] == "turn" {
-    //         let num = pieces[1].parse::<u32>();
-    //         match num {
-    //             Ok(v) => state.turn = v,
-    //             Err(_) => state.write_msg_buff("Invalid wizard command"),
-    //         }
-    //     } else {
-    //         state.write_msg_buff("Invalid wizard command");
-    //     }
-    // }
+        if result == "loc" {
+            println!("{:?}", player_loc);
+        } else if result == "!heal" {
+            let loc = (player_loc.0, player_loc.1, player_loc.2);
+            let mut poh = items::Item::get_item(game_obj_db,"potion of healing").unwrap();
+            poh.set_loc(loc);
+            game_obj_db.add(poh);
+        } else if result == "goblin" {
+            let loc = (player_loc.0, player_loc.1 - 1, player_loc.2);
+            mf.add_monster("goblin", loc, game_obj_db);
+        } else if result == "dump level" {
+            if player_loc.2 == 0 {
+                state.write_msg_buff("Uhh the wilderness is too big to dump.");
+            } else {
+                dump_level(state, player_loc.2);
+            }
+        } else if pieces.len() != 2 {
+            state.write_msg_buff("Invalid wizard command");
+        } else if pieces[0] == "turn" {
+            let num = pieces[1].parse::<u32>();
+            match num {
+                Ok(v) => state.turn = v,
+                Err(_) => state.write_msg_buff("Invalid wizard command"),
+            }
+        } else {
+            state.write_msg_buff("Invalid wizard command");
+        }
+    }
 }
 
 fn confirm_quit(state: &GameState, gui: &mut GameUI, game_obj_db: &mut GameObjectDB) -> Result<(), ExitReason> {
@@ -1509,7 +1509,7 @@ fn run(gui: &mut GameUI, state: &mut GameState, game_obj_db: &mut GameObjectDB, 
                 Cmd::Use => energy_cost = use_item(state, game_obj_db, gui),
                 Cmd::Quit => confirm_quit(state, gui, game_obj_db)?,
                 Cmd::Up => energy_cost = take_stairs(state, game_obj_db, false),
-                //Cmd::WizardCommand => wiz_command(state, gui, game_objs, monster_fac),
+                Cmd::WizardCommand => wiz_command(state, gui, game_obj_db, monster_fac),
                 _ => continue,
             }
             
