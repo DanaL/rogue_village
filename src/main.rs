@@ -707,39 +707,37 @@ fn toggle_equipment(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: 
     cost
 }
 
+// This should probably be merged in with use_item()
 fn read_item(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mut GameUI) -> f32 {
-    // let sbi = state.curr_sidebar_info(game_objs);
-    // let player = game_objs.player_details();
-    // let inv = player.inv_slots_used();
-    // let slots: HashSet<char> = inv.iter().map(|i| *i).collect();
+    let sbi = state.curr_sidebar_info(game_obj_db);
+    let player = game_obj_db.player().unwrap();
+    let inv = player.inv_slots_used();
+    let slots: HashSet<char> = inv.iter().map(|i| *i).collect();
 
-    // if slots.is_empty() {
-    //     state.write_msg_buff("You are empty handed.");
-    //     return 0.0;
-    // }
+    if slots.is_empty() {
+        state.write_msg_buff("You are empty handed.");
+        return 0.0;
+    }
 
-    // if let Some(ch) = gui.query_single_response("Read what?", Some(&sbi)) {
-    //     if !slots.contains(&ch) {
-    //         state.write_msg_buff("You do not have that item!");
-    //         return 0.0;
-    //     }
+    if let Some(ch) = gui.query_single_response("Read what?", Some(&sbi)) {
+        if !slots.contains(&ch) {
+            state.write_msg_buff("You do not have that item!");
+            return 0.0;
+        }
         
-    //     let obj = player.inv_item_in_slot(ch).unwrap();
-    //     if obj.item.is_some() {                
-    //         if let Some(text) = &obj.item.as_ref().unwrap().text {
-    //             gui.popup_msg(&text.0.with_indef_article().capitalize(), &text.1, Some(&sbi));
-    //         } else {
-    //             state.write_msg_buff("There's nothing written on it.");
-    //         }
-    //     }
+        if let Some(GameObjects::Item(item)) = player.inv_item_in_slot(ch) {
+            if let Some(text) = &item.text {
+                gui.popup_msg(&text.0.with_indef_article().capitalize(), &text.1, Some(&sbi));
+            } else {
+                state.write_msg_buff("There's nothing written on it.");
+            }
+        }
         
-    //     1.0
-    // } else {
-    //     state.write_msg_buff("Nevermind.");
-    //     0.0
-    // }
-
-    0.0
+        1.0
+    } else {
+        state.write_msg_buff("Nevermind.");
+        0.0
+    }
 }
 
 fn use_item(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mut GameUI) -> f32 {
