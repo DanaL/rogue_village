@@ -1528,7 +1528,7 @@ fn run(gui: &mut GameUI, state: &mut GameState, game_obj_db: &mut GameObjectDB, 
                 // I should queue an event "Monster killed" and then check the event queue. That way I don't
                 // have to loop over the entire structure of GameObjects looking to see if there are any
                 // dead ones.
-                // game_obj_db.check_for_dead_npcs();
+                game_obj_db.check_for_dead_npcs();
                 game_obj_db.update_listeners(state, EventType::Update);
                 if !skip_turn || !state.msg_buff.is_empty() {
                     update_view(state, game_obj_db, gui);
