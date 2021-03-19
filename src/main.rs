@@ -1517,18 +1517,18 @@ fn run(gui: &mut GameUI, state: &mut GameState, game_obj_db: &mut GameObjectDB, 
                 // have to loop over the entire structure of GameObjects looking to see if there are any
                 // dead ones.
                 // game_obj_db.check_for_dead_npcs();
-                // game_obj_db.update_listeners(state, EventType::Update);
+                game_obj_db.update_listeners(state, EventType::Update);
                 if !skip_turn || !state.msg_buff.is_empty() {
                     update_view(state, game_obj_db, gui);
                 }
             }
         }
 
-        // check_player_statuses(state, game_objs);
+        //check_player_statuses(state, game_objs);
 
         // game_objs.do_npc_turns(state);
-        // game_objs.update_listeners(state, EventType::Update);
-        // game_objs.update_listeners(state, EventType::EndOfTurn);
+        game_obj_db.update_listeners(state, EventType::Update);
+        game_obj_db.update_listeners(state, EventType::EndOfTurn);
         
         // // Are there any accumulated events we need to deal with?
         // while !state.queued_events.is_empty() {

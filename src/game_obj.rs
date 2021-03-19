@@ -424,6 +424,67 @@ impl GameObjectDB {
 
         None
     }
+
+    pub fn update_listeners(&mut self, state: &mut GameState, event_type: EventType) {
+        let ploc = self.get(0).unwrap().get_loc();
+        let listeners: Vec<usize> = self.listeners.iter()
+            .filter(|l| l.1 == event_type)
+            .map(|l| l.0).collect();
+
+        let mut to_remove = Vec::new();
+
+        if event_type == EventType::Update {
+            state.lit_sqs.clear();
+            state.aura_sqs.clear();
+        }
+        for obj_id in listeners {
+            // Awkward because some items might be on the floor in the dungeon
+            // (and thus in the GameObjs structure) while some mgiht be in the player's
+            // inventory.
+            if let Some(obj) = self.get_mut(obj_id) {        
+                match obj.receive_event(event_type, state, ploc) {
+                    Some(response) => {
+                        if response.event_type == EventType::LightExpired {
+                            to_remove.push((obj_id, false));                        
+                        }
+                    },
+                    _ => { },
+                }
+            } else {
+                let p = self.player().unwrap();
+                if let Some(obj) = p.inv_obj_of_id(obj_id) {
+                    obj.set_loc(PLAYER_INV);
+                    match obj.receive_event(event_type, state, ploc) {
+                        Some(response) => {
+                            if response.event_type == EventType::LightExpired {
+                                to_remove.push((obj_id, true));                        
+                            }
+                        },
+                        _ => { },
+                    }
+                }
+            }
+        }
+
+        for item in to_remove {
+            if item.1 {
+                let p = self.player().unwrap();
+                p.inv_remove(item.0);
+            } else {
+                self.remove(item.0);
+            }
+        }
+
+        // Now that we've updated which squares are lit, let any listeners know
+        let listeners: Vec<usize> = self.listeners.iter()
+            .filter(|l| l.1 == EventType::LitUp)
+            .map(|l| l.0).collect();
+
+        for obj_id in listeners {
+            let obj = self.get_mut(obj_id).unwrap();
+            obj.receive_event(EventType::LitUp, state, ploc);            
+        }
+    }
 }
 
 // Any sort of entity that has HPs, feelings, career ambitions... (ie., the Player and the NPCs)
