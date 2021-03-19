@@ -606,70 +606,73 @@ fn pick_up(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mut Game
 }
 
 fn toggle_item(state: &mut GameState, player: &mut Player, slot: char) -> f32 {
-    // let obj = player.inv_item_in_slot(slot).unwrap();
-    // let obj_id = obj.object_id;
-    // let item_details = obj.item.as_ref().unwrap();
-    // let equipable = item_details.equipable();
-    // let item_type = item_details.item_type;
-    // let attributes = item_details.attributes;
+    let obj = player.inv_item_in_slot(slot).unwrap();
+    let obj_id = obj.obj_id();
+    let (equipable, item_type, attributes) = if let GameObjects::Item(item) = &obj {
+        (item.equipable(), item.item_type, item.attributes)
+    } else {
+        (false, ItemType::Note, 0)
+    };
 
-    // if !equipable {
-    //         state.write_msg_buff("You cannot wear or wield that!");
-    //         return 0.0;
-    // }
+    if !equipable {
+            state.write_msg_buff("You cannot wear or wield that!");
+            return 0.0;
+    }
     
-    // let mut swapping = false;
-    // if item_type == ItemType::Weapon {
-    //     if attributes & items::IA_TWO_HANDED > 0 && player.readied_obj_ids_of_type(ItemType::Shield).len() > 0 {
-    //         state.write_msg_buff("You cannot wield that while using a shield.");
-    //         return 0.0;
-    //     }
+    let mut swapping = false;
+    if item_type == ItemType::Weapon {
+        if attributes & items::IA_TWO_HANDED > 0 && player.readied_obj_ids_of_type(ItemType::Shield).len() > 0 {
+            state.write_msg_buff("You cannot wield that while using a shield.");
+            return 0.0;
+        }
 
-    //     let readied = player.readied_obj_ids_of_type(ItemType::Weapon);
-    //     if !readied.is_empty() && readied[0] != obj_id {
-    //         swapping = true;
-    //         let other = player.inv_obj_of_id(readied[0]).unwrap();
-    //         other.item.as_mut().unwrap().equiped = false;
-    //     }        
-    // } else if item_type == ItemType::Armour {
-    //     let readied = player.readied_obj_ids_of_type(ItemType::Armour);
-    //     if !readied.is_empty() && readied[0] != obj_id {
-    //         state.write_msg_buff("You're already wearing armour.");
-    //         return 0.0;             
-    //     }
-    // } else if item_type == ItemType::Shield {
-    //     let readied = player.readied_obj_ids_of_type(ItemType::Shield);
-    //     if !readied.is_empty() && readied[0] != obj_id {
-    //         state.write_msg_buff("You're already wielding a shield.");
-    //         return 0.0;
-    //     }
+        let readied = player.readied_obj_ids_of_type(ItemType::Weapon);
+        if !readied.is_empty() && readied[0] != obj_id {
+            swapping = true;
+            if let Some(GameObjects::Item(other)) = player.inv_obj_of_id(readied[0]) {
+                other.equiped = false;
+            }
+        }        
+    } else if item_type == ItemType::Armour {
+        let readied = player.readied_obj_ids_of_type(ItemType::Armour);
+        if !readied.is_empty() && readied[0] != obj_id {
+            state.write_msg_buff("You're already wearing armour.");
+            return 0.0;             
+        }
+    } else if item_type == ItemType::Shield {
+        let readied = player.readied_obj_ids_of_type(ItemType::Shield);
+        if !readied.is_empty() && readied[0] != obj_id {
+            state.write_msg_buff("You're already wielding a shield.");
+            return 0.0;
+        }
 
-    //     if let Some((weapon, _)) = player.readied_weapon() {
-    //         if weapon.attributes & items::IA_TWO_HANDED > 0 {
-    //             state.write_msg_buff("You cannot equip that along with a two-handed weapon!");
-    //             return 0.0;
-    //         }
-    //     }
-    // }
+        if let Some((weapon, _)) = player.readied_weapon() {
+            if weapon.attributes & items::IA_TWO_HANDED > 0 {
+                state.write_msg_buff("You cannot equip that along with a two-handed weapon!");
+                return 0.0;
+            }
+        }
+    }
 
-    // // // Alright, so at this point we can toggle the item in the slot.
-    // let obj = player.inv_obj_of_id(obj_id).unwrap();
-    // let equiped = obj.item.as_ref().unwrap().equiped;
-    // obj.item.as_mut().unwrap().equiped = !equiped;
+    // // Alright, so at this point we can toggle the item in the slot.
+    if let Some(GameObjects::Item(item)) = &mut player.inv_obj_of_id(obj_id) {
+        let equiped = item.equiped;
+        item.equiped = !equiped;
+
+        let mut s = String::from("You ");
+        if swapping {
+            s.push_str("are now wielding ");
+        } else if !equiped {
+            s.push_str("equip ");
+        } else {
+            s.push_str("unequip ");
+        }
+        s.push_str(&item.get_fullname().with_def_article());
+        s.push('.');
+        state.write_msg_buff(&s);
+    }
     
-    // let mut s = String::from("You ");
-    // if swapping {
-    //     s.push_str("are now wielding ");
-    // } else if !equiped {
-    //     s.push_str("equip ");
-    // } else {
-    //     s.push_str("unequip ");
-    // }
-    // s.push_str(&obj.get_fullname().with_def_article());
-    // s.push('.');
-    // state.write_msg_buff(&s);
-
-    // player.calc_gear_effects();
+    player.calc_gear_effects();
 
     // let readied = player.readied_obj_ids_of_type(ItemType::Weapon);
     // if item_type == ItemType::Weapon && readied.is_empty() {
@@ -680,30 +683,28 @@ fn toggle_item(state: &mut GameState, player: &mut Player, slot: char) -> f32 {
 }
 
 fn toggle_equipment(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mut GameUI) -> f32 {
-    // let sbi = state.curr_sidebar_info(game_objs);    
-    // let player = game_objs.player_details();
-    // let slots = player.inv_slots_used();
+    let sbi = state.curr_sidebar_info(game_obj_db);    
+    let player = game_obj_db.player().unwrap();
+    let slots = player.inv_slots_used();
     
-    // if slots.is_empty() {
-    //     state.write_msg_buff("You are empty handed.");
-    //     return 0.0;
-    // }
+    if slots.is_empty() {
+        state.write_msg_buff("You are empty handed.");
+        return 0.0;
+    }
 
-    // let cost = if let Some(ch) = gui.query_single_response("Ready/unready what?", Some(&sbi)) {
-    //     if !slots.contains(&ch) {
-    //         state.write_msg_buff("You do not have that item!");
-    //         0.0
-    //     } else {
-    //         toggle_item(state, player, ch)
-    //     }
-    // } else {
-    //     state.write_msg_buff("Nevermind.");
-    //     0.0
-    // };
+    let cost = if let Some(ch) = gui.query_single_response("Ready/unready what?", Some(&sbi)) {
+        if !slots.contains(&ch) {
+            state.write_msg_buff("You do not have that item!");
+            0.0
+        } else {
+            toggle_item(state, player, ch)
+        }
+    } else {
+        state.write_msg_buff("Nevermind.");
+        0.0
+    };
 
-    // cost
-
-    0.0
+    cost
 }
 
 fn read_item(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mut GameUI) -> f32 {
@@ -1500,7 +1501,7 @@ fn run(gui: &mut GameUI, state: &mut GameState, game_obj_db: &mut GameObjectDB, 
                     }
                 },
                 Cmd::ShowInventory => show_inventory(gui, state, game_obj_db),
-                //Cmd::ToggleEquipment => energy_cost = toggle_equipment(state, game_objs, gui),
+                Cmd::ToggleEquipment => energy_cost = toggle_equipment(state, game_obj_db, gui),
                 //Cmd::Use => energy_cost = use_item(state, game_objs, gui),
                 Cmd::Quit => confirm_quit(state, gui, game_obj_db)?,
                 Cmd::Up => energy_cost = take_stairs(state, game_obj_db, false),
