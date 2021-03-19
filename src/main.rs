@@ -41,6 +41,7 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use std::io::prelude::*;
 use std::fs;
 use std::fs::File;
+//use std::time::Duration;
 use std::path::Path;
 
 use std::time::Instant;
@@ -1345,11 +1346,11 @@ fn pick_player_start_loc(state: &GameState) -> (i32, i32, i8) {
     let x = thread_rng().gen_range(0, 4);
     let b = state.world_info.town_boundary;
 
-    for fact in &state.world_info.facts {
-        if fact.detail == "dungeon location" {
-            return fact.location;
-        }
-    }
+    // for fact in &state.world_info.facts {
+    //     if fact.detail == "dungeon location" {
+    //         return fact.location;
+    //     }
+    // }
     
     if x == 0 {
         (b.0 - 5, thread_rng().gen_range(b.1, b.3), 0)
@@ -1422,36 +1423,31 @@ fn kill_screen(state: &mut GameState, gui: &mut GameUI, game_obj_db: &mut GameOb
 }
 
 fn check_player_statuses(state: &mut GameState, game_obj_db: &mut GameObjectDB) {
-    // let p = game_objs.player_details();
+    let p = game_obj_db.player().unwrap();
+    let mut j = 0;
+    while j < p.statuses.len() {
+        match p.statuses[j] {
+            Status::PassUntil(time) => {
+                if time <= state.turn {
+                    p.statuses.remove(j);
+                    continue;
+                }
+            },
+            Status::RestAtInn(time) => {
+                if time <= state.turn {
+                    p.statuses.remove(j);
+                    state.write_msg_buff("You awake feeling refreshed!");
+                    continue;
+                }
+            },
+        }
 
-    // let mut j = 0;
-    // while j < p.statuses.len() {
-    //     match p.statuses[j] {
-    //         Status::PassUntil(time) => {
-    //             if time <= state.turn {
-    //                 p.statuses.remove(j);
-    //                 continue;
-    //             }
-    //         },
-    //         Status::RestAtInn(time) => {
-    //             if time <= state.turn {
-    //                 p.statuses.remove(j);
-    //                 state.write_msg_buff("You awake feeling refreshed!");
-    //                 continue;
-    //             }
-    //         },
-    //     }
-
-    //     j += 1;
-    // }
+        j += 1;
+    }
 }
 
 // Herein lies the main gampe loop
 fn run(gui: &mut GameUI, state: &mut GameState, game_obj_db: &mut GameObjectDB, dialogue: &DialogueLibrary, monster_fac: &MonsterFactory) -> Result<(), ExitReason> {    
-    // let visible = fov::visible_sqs(state, player.location, player.vision_radius, false);
-    // gui.v_matrix = fov_to_tiles(state, game_objs, &visible);
-    // let sbi = state.curr_sidebar_info(player);
-    // gui.write_screen(&mut state.msg_buff, Some(&sbi));
     update_view(state, game_obj_db, gui);
     state.msg_buff.clear();
 
@@ -1467,8 +1463,8 @@ fn run(gui: &mut GameUI, state: &mut GameState, game_obj_db: &mut GameObjectDB, 
             if let Some(GameObjects::Player(p)) = game_obj_db.get(0) {
                 for status in &p.statuses {
                     match status {
-                        Status::PassUntil(time) => skip_turn = true,
-                        Status::RestAtInn(time) => skip_turn = true,
+                        Status::PassUntil(_) => skip_turn = true,
+                        Status::RestAtInn(_) => skip_turn = true,
                     }                
                 }
             }
@@ -1499,7 +1495,7 @@ fn run(gui: &mut GameUI, state: &mut GameState, game_obj_db: &mut GameObjectDB, 
                     energy_cost = p.energy;
                 },
                 Cmd::PickUp => energy_cost = pick_up(state, game_obj_db, gui),
-                // Cmd::Read => energy_cost = read_item(state, game_objs, gui),
+                Cmd::Read => energy_cost = read_item(state, game_obj_db, gui),
                 // Cmd::Save => save_and_exit(state, game_objs, gui)?,
                 Cmd::Search => {
                     search(state, game_obj_db);
@@ -1536,7 +1532,7 @@ fn run(gui: &mut GameUI, state: &mut GameState, game_obj_db: &mut GameObjectDB, 
             }
         }
 
-        //check_player_statuses(state, game_objs);
+        check_player_statuses(state, game_obj_db);
 
         game_obj_db.do_npc_turns(state);
         game_obj_db.update_listeners(state, EventType::Update);
@@ -1570,7 +1566,12 @@ fn run(gui: &mut GameUI, state: &mut GameState, game_obj_db: &mut GameObjectDB, 
 
         if !skip_turn || !state.msg_buff.is_empty() {
             update_view(state, game_obj_db, gui);
-        }  
+        }
+
+        // if skip_turn {
+        //     // Just a little pause if skipping turns so the CPU doesn't go crazy
+        //     ::std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 60));
+        // }
     }
 }
 

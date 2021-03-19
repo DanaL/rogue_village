@@ -17,7 +17,7 @@ extern crate serde;
 
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::u128;
-use std::time::Instant;
+//use std::time::Instant;
 
 use rand::thread_rng;
 use rand::Rng;
@@ -565,7 +565,7 @@ impl GameObject for NPC {
         self.base_info.hidden = false;
     }
 
-    fn receive_event(&mut self, event: EventType, state: &mut GameState, player_loc: (i32, i32, i8)) -> Option<EventResponse> {
+    fn receive_event(&mut self, _event: EventType, _state: &mut GameState, _player_loc: (i32, i32, i8)) -> Option<EventResponse> {
         None
     }
 }

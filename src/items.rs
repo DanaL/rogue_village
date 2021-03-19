@@ -19,7 +19,7 @@ use serde::{Serialize, Deserialize};
 
 use super::{EventResponse, EventType, GameState, PLAYER_INV};
 
-use crate::{battle::DamageType, display::YELLOW_ORANGE};
+use crate::battle::DamageType;
 use crate::display;
 use crate::effects;
 use crate::fov;
@@ -387,7 +387,7 @@ impl GameObject for GoldPile {
         self.base_info.hidden = false;
     }
 
-    fn receive_event(&mut self, event: EventType, state: &mut GameState, player_loc: (i32, i32, i8)) -> Option<EventResponse> {
+    fn receive_event(&mut self, _event: EventType, _state: &mut GameState, _player_loc: (i32, i32, i8)) -> Option<EventResponse> {
         None
     }
 }

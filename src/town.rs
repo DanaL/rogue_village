@@ -24,7 +24,7 @@ use serde::{Serialize, Deserialize};
 
 use super::{EventType, Map};
 
-use crate::actor::{self, pick_villager_name};
+use crate::actor;
 use crate::actor::{AgendaItem, Venue, NPC};
 use crate::dialogue;
 use crate::game_obj::{GameObject, GameObjects, GameObjectDB};

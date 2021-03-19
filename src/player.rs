@@ -631,7 +631,7 @@ impl GameObject for Player {
         self.base_info.hidden = false;
     }
 
-    fn receive_event(&mut self, event: EventType, state: &mut GameState, player_loc: (i32, i32, i8)) -> Option<EventResponse> {
+    fn receive_event(&mut self, _event: EventType, _state: &mut GameState, _player_loc: (i32, i32, i8)) -> Option<EventResponse> {
         None
     }
 }

@@ -19,12 +19,10 @@ extern crate serde;
 use rand::Rng;
 use serde::{Serialize, Deserialize};
 
-use super::{EventType, GameState};
-use crate::actor;
+use super::GameState;
 use crate::actor::NPC;
 use crate::player;
-use crate::player::Player;
-use crate::game_obj::{GameObject, GameObjectDB, GameObjects, Person};
+use crate::game_obj::{GameObjectDB, Person};
 use crate::util::StringUtils;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
