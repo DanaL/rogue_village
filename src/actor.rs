@@ -108,7 +108,7 @@ pub enum Behaviour {
     Defend(usize),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct NPC {
     pub base_info: GameObjectBase,
     pub ac: u8,

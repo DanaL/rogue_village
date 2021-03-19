@@ -58,7 +58,7 @@ pub trait GameObject {
     fn receive_event(&mut self, event: EventType, state: &mut GameState, player_loc: (i32, i32, i8)) -> Option<EventResponse>;
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub enum GameObjects {
     Player(Player),
     Item(Item),
@@ -169,6 +169,7 @@ impl GameObject for GameObjects {
     }
 }
 
+#[derive(Debug, Serialize, Deserialize)]
 pub struct GameObjectDB {
     next_obj_id: usize,
     pub obj_locs: HashMap<(i32, i32, i8), VecDeque<usize>>,

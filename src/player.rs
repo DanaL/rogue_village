@@ -53,7 +53,7 @@ impl Role {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Player {
     pub base_info: GameObjectBase,
     pub max_hp: u8,
