@@ -729,23 +729,17 @@ fn use_item(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mut Gam
             (false, ItemType::Zorkmid, false, 0)
         };
         
-        if item_type == ItemType::Note {
-            let (desc, text) = if let GameObjects::Item(item) = &obj {
-                if let Some(text) = &item.text {
-                    (text.0.with_indef_article().capitalize(), text.1.clone())
-                } else {
-                    ("".to_string(), "".to_string())
-                }
+        let (desc, text) = if let GameObjects::Item(item) = &obj {
+            if let Some(text) = &item.text {
+                (text.0.with_indef_article().capitalize(), text.1.clone())
             } else {
                 ("".to_string(), "".to_string())
-            };
-
-            if !text.is_empty() {
-                gui.popup_msg(&desc, &text, Some(&sbi));
-            } else {
-                state.write_msg_buff("There's nothing written on it.");
-            }            
-        } else if useable {
+            }
+        } else {
+            ("".to_string(), "".to_string())
+        };
+        
+        if useable {
             if item_type == ItemType::Light {
                 let (item_id, active) = use_light(state, ch, game_obj_db);
                 
@@ -768,6 +762,8 @@ fn use_item(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mut Gam
             }
 
             return 1.0;
+        } else if !text.is_empty() {
+            gui.popup_msg(&desc, &text, Some(&sbi));
         } else {
             state.write_msg_buff("You don't know how to use that.");
         }       

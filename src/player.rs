@@ -148,6 +148,17 @@ impl Player {
 
         if let Some(GameObjects::Item(mut armour)) = Item::get_item(game_obj_db, "ringmail") {
             armour.equiped = true;
+
+            // All this for a dumb joke...
+            let r = rand::thread_rng().gen_range(0, 3);
+            let s = if r == 0 {
+                "Made in Middle-Earth.".to_string()
+            } else if r == 1 {
+                format!("Proprety of {}.", name)                
+            } else {
+                "Do not starch.".to_string()
+            };
+            armour.text = Some(("written on the label:".to_string(), s));
             p.add_to_inv(GameObjects::Item(armour));
         }
 
