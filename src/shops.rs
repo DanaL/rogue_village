@@ -359,6 +359,21 @@ fn check_grocer_inventory(state: &mut GameState, grocer_id: usize, game_obj_db: 
     } else if curr_day - last_inventory_day >= 2  {        
         // Update inventory every couple of days.
         
+        // Generate some new stock for the shopkeeper
+        let mut new_stock = Vec::new();
+        for _ in 0..rand::thread_rng().gen_range(0, 4) {
+            let t = Item::get_item(game_obj_db, "torch").unwrap();
+            new_stock.push(t);
+        }
+        for _ in 0..rand::thread_rng().gen_range(0, 2) {
+            let w = Item::get_item(game_obj_db, "wineskin").unwrap();
+            new_stock.push(w);
+        }
+        for _ in 0..rand::thread_rng().gen_range(1, 4) {
+            let p = Item::get_item(game_obj_db, "potion of healing").unwrap();
+            new_stock.push(p);
+        }
+        
         // For any item in their current inventory, there's a 25% chance it's been purchases while the 
         // player's been away
         let grocer = game_obj_db.get_mut(grocer_id).unwrap();
@@ -375,24 +390,10 @@ fn check_grocer_inventory(state: &mut GameState, grocer_id: usize, game_obj_db: 
                 npc.inventory.remove(j);
             }
 
-            // let mut new_stock = Vec::new();
-            // for _ in 0..rand::thread_rng().gen_range(0, 4) {
-            //     let t = Item::get_item(game_obj_db, "torch").unwrap();
-            //     new_stock.push(t);
-            // }
-            // for _ in 0..rand::thread_rng().gen_range(0, 2) {
-            //     let w = Item::get_item(game_obj_db, "wineskin").unwrap();
-            //     new_stock.push(w);
-            // }
-            // for _ in 0..rand::thread_rng().gen_range(1, 4) {
-            //     let p = Item::get_item(game_obj_db, "potion of healing").unwrap();
-            //     new_stock.push(p);
-            // }
-            
-            // npc.last_inventory = state.turn;
-            // for obj in new_stock {
-            //     npc.inventory.push(obj);
-            // }
+            npc.last_inventory = state.turn;
+            for obj in new_stock {
+                npc.inventory.push(obj);
+            }
         }
     }
 }
@@ -412,82 +413,89 @@ fn get_item_from_invetory(npc_id: usize, name: &str, game_obj_db: &mut GameObjec
 }
 
 pub fn talk_to_grocer(state: &mut GameState, grocer_id: usize, game_obj_db: &mut GameObjectDB, dialogue: &DialogueLibrary, gui: &mut GameUI) {
-    // let sbi = state.curr_sidebar_info(game_obj_db);
-    // check_grocer_inventory(state, grocer_id, game_obj_db);
-    // let grocer = game_obj_db.get_mut(grocer_id).unwrap();
-    
-    // let mut extra_info = HashMap::new();
-    // extra_info.insert("#goods#".to_string(), "adventuring supply".to_string());
-    // let mut msg = grocer.npc.as_mut().unwrap().talk_to(state, dialogue, grocer.location, &mut extra_info);
-    // state.add_to_msg_history(&msg);
+    let sbi = state.curr_sidebar_info(game_obj_db);
+    check_grocer_inventory(state, grocer_id, game_obj_db);
+    let grocer = game_obj_db.get_mut(grocer_id).unwrap();
+    let mut msg = "".to_string();
 
-    // if let Some(agenda) = grocer.npc.as_ref().unwrap().curr_agenda_item(state) {
-    //     if agenda.label != "working" {            
-    //         let name = format!("{}, the grocer", grocer.get_npc_name(true).capitalize());
-    //         gui.popup_msg(&name, &msg, Some(&sbi));
-    //         return;
-    //     }
-    // }
+    if let GameObjects::NPC(npc) = grocer {
+        let mut extra_info = HashMap::new();
+        extra_info.insert("#goods#".to_string(), "adventuring supply".to_string());
+        msg = npc.talk_to(state, dialogue, &mut extra_info);
 
-    // let mut made_purchase = false;
-    // loop {
-    //     let sbi = state.curr_sidebar_info(game_obj_db);
-    //     let grocer = game_obj_db.get_mut(grocer_id).unwrap();
-    //     let inv = &grocer.npc.as_ref().unwrap().inventory;
-    //     let menu_items = inventory_menu(&inv);
-    //     let options: HashSet<char> = menu_items.iter().map(|i| i.1).collect();
-    //     if menu_items.is_empty() {
-    //         msg.push_str("\n\nI seem to be all out of stock!");
+        if let Some(agenda) = npc.curr_agenda_item(state) {
+            if agenda.label != "working" {            
+                let name = format!("{}, the grocer", npc.npc_name(true).capitalize());
+                gui.popup_msg(&name, &msg, Some(&sbi));
+                return;
+            }
+        }
+    }
+    state.add_to_msg_history(&msg);
 
-    //         let name = format!("{}, the grocer", grocer.get_npc_name(true).capitalize());
-    //         gui.popup_msg(&name, &msg, Some(&sbi));
-    //         break;
-    //     }
-            
-    //     let mut store_menu = msg.clone();
-    //     store_menu.push_str("\n\nWhat would you like:\n");        
-    //     for item in &menu_items {
-    //         store_menu.push('\n');
-    //         let mut s = format!("{}) {}", item.1, item.0);
-    //         if item.2 > 1 {
-    //             s.push_str(" (");
-    //             s.push_str(&item.2.to_string());
-    //             s.push_str("), ");
-    //             s.push_str(&item.3.to_string());
-    //             s.push_str("$ each")
-    //         }
-    //         else {
-    //             s.push_str(", ");
-    //             s.push_str(&item.3.to_string());
-    //             s.push_str("$");
-    //         }
-    //         store_menu.push_str(&s);            
-    //     }
+    let mut made_purchase = false;
+    loop {
+        let sbi = state.curr_sidebar_info(game_obj_db);
+        let grocer = game_obj_db.get_mut(grocer_id).unwrap();
+        let menu_items = if let GameObjects::NPC(npc) = grocer {
+            inventory_menu(&npc.inventory)
+        } else {
+            Vec::new()
+        };
         
-    //     let name = format!("{}, the grocer", grocer.get_npc_name(true).capitalize());
-    //     if let Some(answer) = gui.popup_menu(&name, &store_menu, &options, Some(&sbi)) {
-    //         for item in &menu_items {
-    //             if item.1 == answer {                    
-    //                 let p = game_objs.player_details();
-    //                 if p.purse < item.3 as u32 {
-    //                     gui.popup_msg(&name, "Hey! You can't afford that!", Some(&sbi));
-    //                 } else {
-    //                     let obj = get_item_from_invetory(grocer_id, &item.0, game_objs).unwrap();
-    //                     let p = game_objs.player_details();
-    //                     p.purse -= item.3 as u32;
-    //                     p.add_to_inv(obj);
-    //                     made_purchase = true;
-    //                 }
-    //             }
-    //         }          
-    //     } else {
-    //         break;
-    //     }                
-    // }
+        let options: HashSet<char> = menu_items.iter().map(|i| i.1).collect();
+        if menu_items.is_empty() {
+            msg.push_str("\n\nI seem to be all out of stock!");
 
-    // if made_purchase {
-    //     state.write_msg_buff("\"Thank you for supporting small businesses!\"");
-    // }
+            let name = format!("{}, the grocer", grocer.get_fullname().capitalize());
+            gui.popup_msg(&name, &msg, Some(&sbi));
+            break;
+        }
+            
+        let mut store_menu = msg.clone();
+        store_menu.push_str("\n\nWhat would you like:\n");        
+        for item in &menu_items {
+            store_menu.push('\n');
+            let mut s = format!("{}) {}", item.1, item.0);
+            if item.2 > 1 {
+                s.push_str(" (");
+                s.push_str(&item.2.to_string());
+                s.push_str("), ");
+                s.push_str(&item.3.to_string());
+                s.push_str("$ each")
+            }
+            else {
+                s.push_str(", ");
+                s.push_str(&item.3.to_string());
+                s.push_str("$");
+            }
+            store_menu.push_str(&s);            
+        }
+        
+        let name = format!("{}, the grocer", grocer.get_fullname().capitalize());
+        if let Some(answer) = gui.popup_menu(&name, &store_menu, &options, Some(&sbi)) {
+            for item in &menu_items {
+                if item.1 == answer {                    
+                    let p = game_obj_db.player().unwrap();
+                    if p.purse < item.3 as u32 {
+                        gui.popup_msg(&name, "Hey! You can't afford that!", Some(&sbi));
+                    } else {
+                        let obj = get_item_from_invetory(grocer_id, &item.0, game_obj_db).unwrap();
+                        let p = game_obj_db.player().unwrap();
+                        p.purse -= item.3 as u32;
+                        p.add_to_inv(obj);
+                        made_purchase = true;
+                    }
+                }
+            }          
+        } else {
+            break;
+        }                
+    }
+
+    if made_purchase {
+        state.write_msg_buff("\"Thank you for supporting small businesses!\"");
+    }
 }
 
 // For when I implement rust/corrosion
