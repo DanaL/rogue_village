@@ -920,54 +920,54 @@ fn take_stairs(state: &mut GameState, game_obj_db: &mut GameObjectDB, down: bool
 }
 
 fn check_closed_gate(state: &mut GameState, game_obj_db: &mut GameObjectDB, loc: (i32, i32, i8)) {
-    // let player_loc = game_objs.player_location();
-    // let mut rng = rand::thread_rng();
-    // if player_loc == loc {
-    //     let mut options: Vec<usize> = (0..util::ADJ.len()).collect();            
-    //     options.shuffle(&mut rng);
-    //     while !options.is_empty() {
-    //         let id = options.pop().unwrap();
-    //         let landing_spot = (loc.0 + util::ADJ[id].0, loc.1 + util::ADJ[id].1, loc.2);
-    //         if !state.map[&landing_spot].passable() {
-    //             continue;
-    //         }
-    //         if !game_objs.location_occupied(&landing_spot) {
-    //             state.write_msg_buff("You are shoved out of the way by the falling gate!");
-    //             game_objs.set_to_loc(0, landing_spot);
-    //             return;
-    //         }
-    //     }
+    let player_loc = game_obj_db.get(0).unwrap().get_loc();
+    let mut rng = rand::thread_rng();
+    if player_loc == loc {
+        let mut options: Vec<usize> = (0..util::ADJ.len()).collect();            
+        options.shuffle(&mut rng);
+        while !options.is_empty() {
+            let id = options.pop().unwrap();
+            let landing_spot = (loc.0 + util::ADJ[id].0, loc.1 + util::ADJ[id].1, loc.2);
+            if !state.map[&landing_spot].passable() {
+                continue;
+            }
+            if !game_obj_db.location_occupied(&landing_spot) {
+                state.write_msg_buff("You are shoved out of the way by the falling gate!");
+                game_obj_db.set_to_loc(0, landing_spot);
+                return;
+            }
+        }
 
-    //     // If we get here there are no available landing spots. What to do?
-    //     // Just crush the player to death??           
-    // } else if let Some(obj_id) = game_objs.npc_at(&loc) {
-    //     // This is untested because I don't have NPCs aside from villagers in the game...
-    //     let mut options: Vec<usize> = (0..util::ADJ.len()).collect();            
-    //     options.shuffle(&mut rng);
-    //     while !options.is_empty() {
-    //         let id = options.pop().unwrap();                
-    //         let landing_spot = (loc.0 + util::ADJ[id].0, loc.1 + util::ADJ[id].1, loc.2);
-    //         if !state.map[&landing_spot].passable() {
-    //             continue;
-    //         }
-    //         if landing_spot != player_loc && !game_objs.location_occupied(&landing_spot) {
-    //             let npc = game_objs.get(obj_id).unwrap();
-    //             let npc_name = npc.get_fullname();
-    //             let start_loc = npc.location;
-    //             let npc_id = npc.object_id;
+        // If we get here there are no available landing spots. What to do?
+        // Just crush the player to death??           
+    } else if let Some(obj_id) = game_obj_db.npc_at(&loc) {
+        // This is untested because I don't have NPCs aside from villagers in the game...
+        let mut options: Vec<usize> = (0..util::ADJ.len()).collect();            
+        options.shuffle(&mut rng);
+        while !options.is_empty() {
+            let id = options.pop().unwrap();                
+            let landing_spot = (loc.0 + util::ADJ[id].0, loc.1 + util::ADJ[id].1, loc.2);
+            if !state.map[&landing_spot].passable() {
+                continue;
+            }
+            if landing_spot != player_loc && !game_obj_db.location_occupied(&landing_spot) {
+                let npc = game_obj_db.get(obj_id).unwrap();
+                let npc_name = npc.get_fullname();
+                let start_loc = npc.get_loc();
+                let npc_id = npc.obj_id();
                 
-    //             game_objs.set_to_loc(npc_id, landing_spot);
+                game_obj_db.set_to_loc(npc_id, landing_spot);
                 
-    //             let s = format!("{} is shoved out of the way by the falling gate!", npc_name.with_def_article());
-    //             state.write_msg_buff(&s);
+                let s = format!("{} is shoved out of the way by the falling gate!", npc_name.with_def_article());
+                state.write_msg_buff(&s);
 
-    //             game_objs.remove_from_loc(npc_id, start_loc);                    
-    //             game_objs.stepped_on_event(state, landing_spot);
+                game_obj_db.remove_from_loc(npc_id, start_loc);                    
+                game_obj_db.stepped_on_event(state, landing_spot);
 
-    //             return;
-    //         }
-    //     }
-    // }
+                return;
+            }
+        }
+    }
 }
 
 fn firepit_msg(num: u8) -> &'static str {

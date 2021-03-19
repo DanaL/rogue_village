@@ -15,7 +15,6 @@
 
 extern crate serde;
 
-use sdl2::cpuinfo::system_ram;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet, VecDeque};
 
@@ -397,6 +396,33 @@ impl GameObjectDB {
         }
 
         menu
+    }
+
+    pub fn location_occupied(&self, loc: &(i32, i32, i8)) -> bool {
+        if !self.obj_locs.contains_key(loc) {
+            return false;
+        }
+
+        for id in self.obj_locs[loc].iter() {
+            if self.objects[&id].blocks() {
+                return true;
+            }
+        }
+
+        false
+    }
+
+    pub fn npc_at(&mut self, loc: &(i32, i32, i8)) -> Option<usize> {        
+        if let Some(objs) = self.obj_locs.get(loc) {
+            for id in objs {
+                return None;
+                // if let GmaeObjects::NPC(npc) = self.objects[&id] {                
+                //     return Some(*id);
+                // }
+            }
+        }
+
+        None
     }
 }
 
