@@ -23,7 +23,7 @@ use super::{EventResponse, EventType, GameState, Map};
 
 use crate::display;
 use crate::fov;
-use crate::game_obj::{XGameObject, XGameObjects};
+use crate::game_obj::{GameObject, GameObjectBase, GameObjectDB, GameObjects};
 
 #[derive(Clone, Copy, Debug, Hash, Eq, PartialEq, Serialize, Deserialize)]
 pub enum ShrineType {
@@ -111,8 +111,9 @@ impl Tile {
 	}
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct SpecialSquare {
+	base_info: GameObjectBase,
 	tile: Tile,
 	active: bool,
 	radius: u8,
@@ -120,22 +121,18 @@ pub struct SpecialSquare {
 }
 
 impl SpecialSquare {
-	pub fn make(tile: Tile, location: (i32, i32, i8), active: bool, radius: u8, game_objs: &mut XGameObjects) -> XGameObject {
-		let sq = SpecialSquare { tile,  radius, target: None, active };
+	pub fn make(tile: Tile, location: (i32, i32, i8), active: bool, radius: u8, game_obj_db: &mut GameObjectDB) -> GameObjects {
+		let sq = SpecialSquare { base_info: GameObjectBase::new(game_obj_db.next_id(), location, true, ' ', display::BLACK,
+			display::BLACK, false, "special sq"), tile,  radius, target: None, active };
 
-		let mut obj = XGameObject::new(game_objs.next_id(), "special sq", location, ' ', display::BLACK, display::BLACK, None, None ,  Some(sq), None,  false);
-		obj.hidden = true;
-
-		obj
+		GameObjects::SpecialSquare(sq)
 	}
 
-	pub fn teleport_trap(location: (i32, i32, i8), game_objs: &mut XGameObjects) -> XGameObject {
-		let sq = SpecialSquare { tile: Tile::TeleportTrap,  radius: 0, target: None, active: true };
+	pub fn teleport_trap(location: (i32, i32, i8), game_obj_db: &mut GameObjectDB) -> GameObjects {
+		let sq = SpecialSquare { base_info: GameObjectBase::new(game_obj_db.next_id(), location, true, '^', display::PINK,
+			display::PURPLE, false, "teleport trap"), tile: Tile::TeleportTrap, radius: 0, target: None, active: true };
 
-		let mut obj = XGameObject::new(game_objs.next_id(), "teleport trap", location, '^', display::PINK, display::PURPLE, None, None ,  Some(sq), None, false);
-		obj.hidden = true;
-
-		obj
+		GameObjects::SpecialSquare(sq)		
 	}
 
 	fn mark_aura(&self, state: &mut GameState, loc: (i32, i32, i8)) {
@@ -187,8 +184,47 @@ impl SpecialSquare {
 
 		None
 	}
+}
 
-	pub fn receive_event(&mut self, event: EventType, state: &mut GameState, loc: (i32, i32, i8), obj_id: usize) -> Option<EventResponse> {
+impl GameObject for SpecialSquare {
+	fn blocks(&self) -> bool {
+		false
+	}
+
+	fn get_loc(&self) -> (i32, i32, i8) {
+		self.base_info.location
+	}
+
+	fn set_loc(&mut self, loc: (i32, i32, i8)) {
+		self.base_info.location = loc;
+	}
+
+	fn get_fullname(&self) -> String {
+		self.base_info.name.clone()
+	}
+
+	fn obj_id(&self) -> usize {
+		self.base_info.object_id
+	}
+
+	fn get_tile(&self) -> Tile {
+		self.tile
+	}
+
+	fn hidden(&self) -> bool {
+		self.base_info.hidden
+	}
+
+	fn hide(&mut self) {
+		self.base_info.hidden = true;
+	}
+	fn reveal(&mut self) {
+		self.base_info.hidden = false;
+	}
+
+	fn receive_event(&mut self, event: EventType, state: &mut GameState, _player_loc: (i32, i32, i8)) -> Option<EventResponse> {
+		let loc = self.get_loc();
+		let obj_id = self.obj_id();
 		match event {
 			EventType::Update => {
 				self.mark_aura(state, loc);
@@ -207,10 +243,6 @@ impl SpecialSquare {
 		}
 
 		None
-	}
-
-	pub fn get_tile(&self) -> Tile {
-		self.tile
 	}
 }
 

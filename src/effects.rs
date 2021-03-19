@@ -66,9 +66,8 @@ pub fn apply_effects(state: &mut GameState, obj_id: usize, game_obj_db: &mut Gam
         let user = game_obj_db.get_mut(obj_id);
         if let Some(GameObjects::Player(player)) = user {
             minor_healing(state, player);
-        // } else if user.npc.is_some() {
-        //     let npc = user.npc.as_mut().unwrap();
-        //     minor_healing(state, npc);
+        } else if let Some(GameObjects::NPC(npc)) = user {
+            minor_healing(state, npc);
         }
     }
     if effects & EF_BLINK > 0 {

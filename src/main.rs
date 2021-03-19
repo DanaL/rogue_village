@@ -1126,16 +1126,16 @@ fn do_move(state: &mut GameState, game_obj_db: &mut GameObjectDB, dir: &str, gui
         // effects so I'm going to leave it gross until it's more fixed.
         game_obj_db.stepped_on_event(state, next_loc);
 
-        // let mut teleport: bool = false;
-        // for special in game_objs.special_sqs_at_loc(&next_loc) {
-        //     if special.special_sq.as_ref().unwrap().get_tile() == Tile::TeleportTrap {
-        //         teleport = true;
-        //     }
-        // }
-        // if teleport {
-        //     let sq = random_open_sq(state, game_objs, start_loc.2);
-        //     game_objs.set_to_loc(0, sq);                
-        // }
+        let mut teleport: bool = false;
+        for special in game_obj_db.special_sqs_at_loc(&next_loc) {
+            if special.get_tile() == Tile::TeleportTrap {
+                teleport = true;
+            }
+        }
+        if teleport {
+            let sq = random_open_sq(state, game_obj_db, start_loc.2);
+            game_obj_db.set_to_loc(0, sq);                
+        }
 
         return 1.0;
     } else if tile == Tile::Door(DoorState::Closed) {
@@ -1339,11 +1339,11 @@ fn pick_player_start_loc(state: &GameState) -> (i32, i32, i8) {
     let x = thread_rng().gen_range(0, 4);
     let b = state.world_info.town_boundary;
 
-    // for fact in &state.world_info.facts {
-    //     if fact.detail == "dungeon location" {
-    //         return fact.location;
-    //     }
-    // }
+    for fact in &state.world_info.facts {
+        if fact.detail == "dungeon location" {
+            return fact.location;
+        }
+    }
     
     if x == 0 {
         (b.0 - 5, thread_rng().gen_range(b.1, b.3), 0)
@@ -1536,23 +1536,23 @@ fn run(gui: &mut GameUI, state: &mut GameState, game_obj_db: &mut GameObjectDB, 
         game_obj_db.update_listeners(state, EventType::Update);
         game_obj_db.update_listeners(state, EventType::EndOfTurn);
         
-        // // Are there any accumulated events we need to deal with?
-        // while !state.queued_events.is_empty() {
-        //     match state.queued_events.pop_front().unwrap() {
-        //         (EventType::GateClosed, loc, _, _) => {
-        //             check_closed_gate(state, game_objs, loc);
-        //         },
-        //         (EventType::PlayerKilled, _, _, Some(msg)) => {
-        //             kill_screen(state, gui, game_objs, &msg);
-        //             return Err(ExitReason::Death(String::from("Player killed")));
-        //         },
-        //         (EventType::LevelUp, _, _, _) => {
-        //             let p = game_objs.player_details();
-        //             p.level_up(state);
-        //         }
-        //         _ => { },
-        //     }                
-        // }
+        // Are there any accumulated events we need to deal with?
+        while !state.queued_events.is_empty() {
+            match state.queued_events.pop_front().unwrap() {
+                (EventType::GateClosed, loc, _, _) => {
+                    check_closed_gate(state, game_obj_db, loc);
+                },
+                (EventType::PlayerKilled, _, _, Some(msg)) => {
+                    kill_screen(state, gui, game_obj_db, &msg);
+                    return Err(ExitReason::Death(String::from("Player killed")));
+                },
+                (EventType::LevelUp, _, _, _) => {
+                    let p = game_obj_db.player().unwrap();
+                    p.level_up(state);
+                }
+                _ => { },
+            }                
+        }
 
         let p = game_obj_db.player().unwrap();
         p.energy += p.energy_restore;

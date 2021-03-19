@@ -64,6 +64,7 @@ pub enum GameObjects {
     Item(Item),
     GoldPile(GoldPile),
     NPC(NPC),
+    SpecialSquare(SpecialSquare),
 }
 
 impl GameObject for GameObjects {
@@ -73,6 +74,7 @@ impl GameObject for GameObjects {
             GameObjects::Item(i) => i.blocks(),
             GameObjects::GoldPile(g) => g.blocks(),
             GameObjects::NPC(n) => n.blocks(),
+            GameObjects::SpecialSquare(sq) => sq.blocks(),
         }
     }
 
@@ -82,6 +84,7 @@ impl GameObject for GameObjects {
             GameObjects::Item(i) => i.get_loc(),
             GameObjects::GoldPile(g) => g.get_loc(),
             GameObjects::NPC(n) => n.get_loc(),
+            GameObjects::SpecialSquare(sq) => sq.get_loc(),
         }
     }
 
@@ -91,6 +94,7 @@ impl GameObject for GameObjects {
             GameObjects::Item(i) => i.set_loc(loc),
             GameObjects::GoldPile(g) => g.set_loc(loc),
             GameObjects::NPC(n) => n.set_loc(loc),
+            GameObjects::SpecialSquare(sq) => sq.set_loc(loc),
         }
     }
 
@@ -100,6 +104,7 @@ impl GameObject for GameObjects {
             GameObjects::Item(i) => i.get_fullname(),
             GameObjects::GoldPile(g) => g.get_fullname(),
             GameObjects::NPC(n) => n.get_fullname(),
+            GameObjects::SpecialSquare(sq) => sq.get_fullname(),
         }
     }
 
@@ -109,6 +114,7 @@ impl GameObject for GameObjects {
             GameObjects::Item(i) => i.obj_id(),
             GameObjects::GoldPile(g) => g.obj_id(),
             GameObjects::NPC(n) => n.obj_id(),
+            GameObjects::SpecialSquare(sq) => sq.obj_id(),
         }
     }
 
@@ -118,6 +124,7 @@ impl GameObject for GameObjects {
             GameObjects::Item(i) => i.get_tile(),
             GameObjects::GoldPile(g) => g.get_tile(),
             GameObjects::NPC(n) => n.get_tile(),
+            GameObjects::SpecialSquare(sq) => sq.get_tile(),
         }
     }
 
@@ -127,6 +134,7 @@ impl GameObject for GameObjects {
             GameObjects::Item(i) => i.hidden(),
             GameObjects::GoldPile(g) => g.hidden(),
             GameObjects::NPC(n) => n.hidden(),
+            GameObjects::SpecialSquare(sq) => sq.hidden(),
         }
     }
 
@@ -136,6 +144,7 @@ impl GameObject for GameObjects {
             GameObjects::Item(i) => i.hide(),
             GameObjects::GoldPile(g) => g.hide(),
             GameObjects::NPC(n) => n.hide(),
+            GameObjects::SpecialSquare(sq) => sq.hide(),
         }
     }
 
@@ -145,6 +154,7 @@ impl GameObject for GameObjects {
             GameObjects::Item(i) => i.reveal(),
             GameObjects::GoldPile(g) => g.reveal(),
             GameObjects::NPC(n) => n.reveal(),
+            GameObjects::SpecialSquare(sq) => sq.reveal(),
         }
     }
 
@@ -154,6 +164,7 @@ impl GameObject for GameObjects {
             GameObjects::Item(i) => i.receive_event(event, state, player_loc),
             GameObjects::GoldPile(g) => g.receive_event(event, state, player_loc),
             GameObjects::NPC(n) => n.receive_event(event, state, player_loc),
+            GameObjects::SpecialSquare(sq) => sq.receive_event(event, state, player_loc),
         }
     }
 }
@@ -571,6 +582,22 @@ impl GameObjectDB {
             }
             self.add(obj);
         }
+    }
+
+    pub fn special_sqs_at_loc(&self, loc: &(i32, i32, i8)) -> Vec<&GameObjects> {
+        let mut specials = Vec::new();
+        if self.obj_locs.contains_key(&loc) {
+            let ids = self.obj_locs[&loc]
+                .iter().copied();
+            
+            for id in ids.into_iter() {
+                if let GameObjects::SpecialSquare(_) = &self.objects[&id]{
+                    specials.push(self.objects.get(&id).unwrap());
+                }
+            }            
+        } 
+
+        specials
     }
 }
 
