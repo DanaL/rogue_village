@@ -297,12 +297,6 @@ impl<'a, 'b> GameUI<'a, 'b> {
 							return Cmd::Pass;
 						} else if val == "q" {
 							return Cmd::Quaff;
-						} else if val == "f" {
-							return Cmd::FireGun;
-						} else if val == "r" {
-							return Cmd::Reload;						
-						} else if val == "R" {
-							return Cmd::Read;
 						} else if val == "E" {
 							return Cmd::Eat;
 						} else if val == "S" {

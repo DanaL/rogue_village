@@ -119,10 +119,7 @@ pub enum Cmd {
     Open((i32, i32, i8)),
     Close((i32, i32, i8)),
     Quaff,
-    FireGun,
-    Reload,
     Search,
-    Read,
     Eat,
     Save,
     Chat((i32, i32, i8)),
@@ -708,39 +705,6 @@ fn toggle_equipment(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: 
     cost
 }
 
-// This should probably be merged in with use_item()
-fn read_item(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mut GameUI) -> f32 {
-    let sbi = state.curr_sidebar_info(game_obj_db);
-    let player = game_obj_db.player().unwrap();
-    let inv = player.inv_slots_used();
-    let slots: HashSet<char> = inv.iter().map(|i| *i).collect();
-
-    if slots.is_empty() {
-        state.write_msg_buff("You are empty handed.");
-        return 0.0;
-    }
-
-    if let Some(ch) = gui.query_single_response("Read what?", Some(&sbi)) {
-        if !slots.contains(&ch) {
-            state.write_msg_buff("You do not have that item!");
-            return 0.0;
-        }
-        
-        if let Some(GameObjects::Item(item)) = player.inv_item_in_slot(ch) {
-            if let Some(text) = &item.text {
-                gui.popup_msg(&text.0.with_indef_article().capitalize(), &text.1, Some(&sbi));
-            } else {
-                state.write_msg_buff("There's nothing written on it.");
-            }
-        }
-        
-        1.0
-    } else {
-        state.write_msg_buff("Nevermind.");
-        0.0
-    }
-}
-
 fn use_item(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mut GameUI) -> f32 {
     let sbi = state.curr_sidebar_info(game_obj_db);        
     let player = game_obj_db.player().unwrap();
@@ -759,13 +723,29 @@ fn use_item(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mut Gam
         
         let obj = player.inv_item_in_slot(ch).unwrap();
         let obj_id = obj.obj_id();
-        let (useable, item_type, consumable, effects) =if let GameObjects::Item(item) = &obj {
+        let (useable, item_type, consumable, effects) = if let GameObjects::Item(item) = &obj {
             (item.useable(), item.item_type, item.attributes & IA_CONSUMABLE > 0, item.effects)
         } else {
-            (false, ItemType::Note, false, 0)
+            (false, ItemType::Zorkmid, false, 0)
         };
         
-        if useable {
+        if item_type == ItemType::Note {
+            let (desc, text) = if let GameObjects::Item(item) = &obj {
+                if let Some(text) = &item.text {
+                    (text.0.with_indef_article().capitalize(), text.1.clone())
+                } else {
+                    ("".to_string(), "".to_string())
+                }
+            } else {
+                ("".to_string(), "".to_string())
+            };
+
+            if !text.is_empty() {
+                gui.popup_msg(&desc, &text, Some(&sbi));
+            } else {
+                state.write_msg_buff("There's nothing written on it.");
+            }            
+        } else if useable {
             if item_type == ItemType::Light {
                 let (item_id, active) = use_light(state, ch, game_obj_db);
                 
@@ -1346,11 +1326,11 @@ fn pick_player_start_loc(state: &GameState) -> (i32, i32, i8) {
     let x = thread_rng().gen_range(0, 4);
     let b = state.world_info.town_boundary;
 
-    // for fact in &state.world_info.facts {
-    //     if fact.detail == "dungeon location" {
-    //         return fact.location;
-    //     }
-    // }
+    for fact in &state.world_info.facts {
+        if fact.detail == "dungeon location" {
+            return fact.location;
+        }
+    }
     
     if x == 0 {
         (b.0 - 5, thread_rng().gen_range(b.1, b.3), 0)
@@ -1446,7 +1426,7 @@ fn check_player_statuses(state: &mut GameState, game_obj_db: &mut GameObjectDB) 
     }
 }
 
-// Herein lies the main gampe loop
+// Herein lies the main game loop
 fn run(gui: &mut GameUI, state: &mut GameState, game_obj_db: &mut GameObjectDB, dialogue: &DialogueLibrary, monster_fac: &MonsterFactory) -> Result<(), ExitReason> {    
     update_view(state, game_obj_db, gui);
     state.msg_buff.clear();
@@ -1495,7 +1475,6 @@ fn run(gui: &mut GameUI, state: &mut GameState, game_obj_db: &mut GameObjectDB, 
                     energy_cost = p.energy;
                 },
                 Cmd::PickUp => energy_cost = pick_up(state, game_obj_db, gui),
-                Cmd::Read => energy_cost = read_item(state, game_obj_db, gui),
                 Cmd::Save => save_and_exit(state, game_obj_db, gui)?,
                 Cmd::Search => {
                     search(state, game_obj_db);
