@@ -1151,36 +1151,42 @@ fn do_move(state: &mut GameState, game_obj_db: &mut GameObjectDB, dir: &str, gui
     0.0
 }
 
-fn chat_with(state: &mut GameState, gui: &mut GameUI, loc: (i32, i32, i8), game_objs: &mut GameObjects, dialogue: &DialogueLibrary) -> f32 {
-    // let sbi = state.curr_sidebar_info(game_objs);
-    // if let Some(obj_id) = game_objs.npc_at(&loc) {
-    //     let npc = game_objs.get_mut(obj_id).unwrap();
+fn chat_with(state: &mut GameState, gui: &mut GameUI, loc: (i32, i32, i8), game_obj_db: &mut GameObjectDB, dialogue: &DialogueLibrary) -> f32 {
+    let sbi = state.curr_sidebar_info(game_obj_db);
+    if let Some(obj_id) = game_obj_db.npc_at(&loc) {
+        let npc = game_obj_db.get_mut(obj_id).unwrap();
 
-    //     let venue = &npc.npc.as_ref().unwrap().home;
-    //     match venue {
-    //         Some(Venue::Tavern) => { 
-    //             shops::talk_to_innkeeper(state, obj_id, game_objs, dialogue, gui);
-    //         },
-    //         Some(Venue::Market) => {
-    //             shops::talk_to_grocer(state, obj_id, game_objs, dialogue, gui);
-    //         },
-    //         Some(Venue::Smithy) => {
-    //             shops::talk_to_smith(state, obj_id, game_objs, dialogue, gui);
-    //         },
-    //         _ => {
-    //             let mut ei = HashMap::new();
-    //             let line = npc.npc.as_mut().unwrap().talk_to(state, dialogue, npc.location, &mut ei);
-    //             state.add_to_msg_history(&line);
-    //             gui.popup_msg(&npc.get_npc_name(true).capitalize(), &line, Some(&sbi));
-    //         },
-    //     }           
-    // } else {
-    //     if let Tile::Door(_) = state.map[&loc] {
-    //         state.write_msg_buff("The door is ignoring you.");
-    //     } else {
-    //         state.write_msg_buff("Oh no, talking to yourself?");
-    //     } 
-    // }
+        let venue = if let GameObjects::NPC(npc) = npc {
+            npc.home.as_ref()
+        } else {
+            None
+        };
+        match venue {
+            Some(Venue::Tavern) => { 
+                shops::talk_to_innkeeper(state, obj_id, game_obj_db, dialogue, gui);
+            },
+            Some(Venue::Market) => {
+                shops::talk_to_grocer(state, obj_id, game_obj_db, dialogue, gui);
+            },
+            Some(Venue::Smithy) => {
+                shops::talk_to_smith(state, obj_id, game_obj_db, dialogue, gui);
+            },
+            _ => {
+                let mut ei = HashMap::new();
+                if let GameObjects::NPC(npc) = npc {
+                    let line = npc.talk_to(state, dialogue, &mut ei);
+                    state.add_to_msg_history(&line);
+                    gui.popup_msg(&npc.npc_name(true).capitalize(), &line, Some(&sbi));
+                }
+            },
+        }           
+    } else {
+        if let Tile::Door(_) = state.map[&loc] {
+            state.write_msg_buff("The door is ignoring you.");
+        } else {
+            state.write_msg_buff("Oh no, talking to yourself?");
+        } 
+    }
 
     1.0
 }
@@ -1333,11 +1339,11 @@ fn pick_player_start_loc(state: &GameState) -> (i32, i32, i8) {
     let x = thread_rng().gen_range(0, 4);
     let b = state.world_info.town_boundary;
 
-    for fact in &state.world_info.facts {
-        if fact.detail == "dungeon location" {
-            return fact.location;
-        }
-    }
+    // for fact in &state.world_info.facts {
+    //     if fact.detail == "dungeon location" {
+    //         return fact.location;
+    //     }
+    // }
     
     if x == 0 {
         (b.0 - 5, thread_rng().gen_range(b.1, b.3), 0)
@@ -1362,7 +1368,7 @@ fn fov_to_tiles(state: &mut GameState, game_obj_db: &GameObjectDB, visible: &[((
             v_matrix[j] = (map::Tile::Player(WHITE), true);
         } else if visible[j].1 {     
             let tile = if let Some(t) = game_obj_db.tile_at(&vis.0) {
-                if !t.1 {
+                if t.1 {
                     state.tile_memory.insert(vis.0, t.0);
                 }
                 t.0
@@ -1469,7 +1475,7 @@ fn run(gui: &mut GameUI, state: &mut GameState, game_obj_db: &mut GameObjectDB, 
 
             let mut energy_cost = 0.0;
             match cmd {
-                //Cmd::Chat(loc) => energy_cost = chat_with(state, gui, loc, game_objs, dialogue),
+                Cmd::Chat(loc) => energy_cost = chat_with(state, gui, loc, game_obj_db, dialogue),
                 Cmd::Close(loc) => {
                     do_close(state, loc);
                     energy_cost = 1.0;
@@ -1526,7 +1532,7 @@ fn run(gui: &mut GameUI, state: &mut GameState, game_obj_db: &mut GameObjectDB, 
 
         //check_player_statuses(state, game_objs);
 
-        // game_objs.do_npc_turns(state);
+        game_obj_db.do_npc_turns(state);
         game_obj_db.update_listeners(state, EventType::Update);
         game_obj_db.update_listeners(state, EventType::EndOfTurn);
         

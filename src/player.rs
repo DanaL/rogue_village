@@ -23,7 +23,7 @@ use super::{EventResponse, GameState, Status};
 use crate::battle::DamageType;
 use crate::display;
 use crate::{EventType, items};
-use crate::game_obj::{XGameObject, GameObject, GameObjectDB, GameObjectBase, GameObjects, Person};
+use crate::game_obj::{GameObject, GameObjectDB, GameObjectBase, GameObjects, Person};
 use crate::items::{Item, ItemType};
 use crate::map::Tile;
 use crate::util::StringUtils;

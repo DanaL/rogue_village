@@ -24,7 +24,7 @@ use crate::actor;
 use crate::actor::NPC;
 use crate::player;
 use crate::player::Player;
-use crate::game_obj::{GameObject, GameObjects, Person};
+use crate::game_obj::{GameObject, GameObjectDB, GameObjects, Person};
 use crate::util::StringUtils;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
@@ -96,7 +96,7 @@ pub fn player_attacks(state: &mut GameState, opponent_id: usize, game_objs: &mut
     // }
 }
 
-pub fn monster_attacks_player(state: &mut GameState, monster: &mut NPC, monster_id: usize, game_objs: &mut GameObjects) {
+pub fn monster_attacks_player(state: &mut GameState, monster: &mut NPC, monster_id: usize, game_obj_db: &mut GameObjectDB) {
     // let mut rng = rand::thread_rng();
 
     // let attack_roll = rng.gen_range(1, 21) + monster.attack_mod;

@@ -27,7 +27,7 @@ use super::{EventType, Map};
 use crate::actor::{self, pick_villager_name};
 use crate::actor::{AgendaItem, Venue, NPC};
 use crate::dialogue;
-use crate::game_obj::{GameObject, GameObjectDB};
+use crate::game_obj::{GameObject, GameObjects, GameObjectDB};
 use crate::map::{DoorState, Tile};
 use crate::pathfinding;
 use crate::util;
@@ -602,65 +602,75 @@ fn random_town_name() -> String {
     String::from(*names.iter().choose(&mut rng).unwrap())
 }
 
-// fn create_villager(voice: &str, tb: &mut TownBuildings, used_names: &HashSet<String>, game_objs: &mut GameObjects) -> GameObject {
-//     let home_id = tb.vacant_home().unwrap();
-//     let home_sqs = &tb.homes[home_id];
-//     let j = rand::thread_rng().gen_range(0, home_sqs.len());    
-//     let loc = home_sqs.iter().nth(j).unwrap();
-//     let home = Some(Venue::Home(home_id));
-//     let mut villager = NPC::villager(actor::pick_villager_name(used_names), *loc, home, voice, game_objs);
-//     tb.taken_homes.push(home_id);
+fn create_villager(voice: &str, tb: &mut TownBuildings, used_names: &HashSet<String>, game_obj_db: &mut GameObjectDB) -> GameObjects {
+    let home_id = tb.vacant_home().unwrap();
+    let home_sqs = &tb.homes[home_id];
+    let j = rand::thread_rng().gen_range(0, home_sqs.len());    
+    let loc = home_sqs.iter().nth(j).unwrap();
+    let home = Some(Venue::Home(home_id));
+    let mut villager = NPC::villager(actor::pick_villager_name(used_names), *loc, home, voice, game_obj_db);
+    tb.taken_homes.push(home_id);
     
-//     if voice.starts_with("mayor") {
-//         villager.npc.as_mut().unwrap().schedule.push(AgendaItem::new((9, 0), (21, 0), 0, Venue::TownSquare, "idle".to_string()));
-//         villager.npc.as_mut().unwrap().schedule.push(AgendaItem::new((12, 0), (13, 0), 10, Venue::Tavern, "supper".to_string()));
-//     } else {
-//         villager.npc.as_mut().unwrap().schedule.push(AgendaItem::new((11, 0), (14, 0), 10, Venue::Tavern, "lunch".to_string()));
-//         villager.npc.as_mut().unwrap().schedule.push(AgendaItem::new((18, 0), (22, 0), 10, Venue::Tavern, "supper".to_string()));
-//     }
+    if voice.starts_with("mayor") {
+        if let GameObjects::NPC(npc) = &mut villager {
+            npc.schedule.push(AgendaItem::new((9, 0), (21, 0), 0, Venue::TownSquare, "idle".to_string()));
+            npc.schedule.push(AgendaItem::new((12, 0), (13, 0), 10, Venue::Tavern, "supper".to_string()));
+        }
+    } else {
+        if let GameObjects::NPC(npc) = &mut villager {
+            npc.schedule.push(AgendaItem::new((11, 0), (14, 0), 10, Venue::Tavern, "lunch".to_string()));
+            npc.schedule.push(AgendaItem::new((18, 0), (22, 0), 10, Venue::Tavern, "supper".to_string()));
+        }
+    }
 
-//     villager
-// }
+    villager
+}
 
-// fn create_innkeeper(tb: &TownBuildings, used_names: &HashSet<String>, game_objs: &mut GameObjects) -> GameObject {
-//     let inn_sqs: Vec<(i32, i32, i8)> = tb.tavern.iter().map(|s| *s).collect();
-//     let j = rand::thread_rng().gen_range(0, inn_sqs.len());    
-//     let loc = inn_sqs.iter().nth(j).unwrap();
+fn create_innkeeper(tb: &TownBuildings, used_names: &HashSet<String>, game_obj_db: &mut GameObjectDB) -> GameObjects {
+    let inn_sqs: Vec<(i32, i32, i8)> = tb.tavern.iter().map(|s| *s).collect();
+    let j = rand::thread_rng().gen_range(0, inn_sqs.len());    
+    let loc = inn_sqs.iter().nth(j).unwrap();
 
-//     let voice = dialogue::rnd_innkeeper_voice();
-//     let mut innkeeper = NPC::villager(actor::pick_villager_name(used_names), *loc, Some(Venue::Tavern), &voice, game_objs);
-//     innkeeper.npc.as_mut().unwrap().schedule.push(AgendaItem::new((0, 0), (23, 59), 0, Venue::Tavern, "inn".to_string()));
+    let voice = dialogue::rnd_innkeeper_voice();
+    let mut innkeeper = NPC::villager(actor::pick_villager_name(used_names), *loc, Some(Venue::Tavern), &voice, game_obj_db);
+    if let GameObjects::NPC(npc) = &mut innkeeper {
+        npc.schedule.push(AgendaItem::new((0, 0), (23, 59), 0, Venue::Tavern, "inn".to_string()));
+    }
 
-//     innkeeper
-// }
+    innkeeper
+}
 
-// fn create_grocer(tb: &TownBuildings, used_names: &HashSet<String>, game_objs: &mut GameObjects) -> GameObject {
-//     let market_sqs: Vec<(i32, i32, i8)> = tb.market.iter().map(|s| *s).collect();
-//     let j = rand::thread_rng().gen_range(0, market_sqs.len());
-//     let loc = market_sqs.iter().nth(j).unwrap();
+fn create_grocer(tb: &TownBuildings, used_names: &HashSet<String>, game_obj_db: &mut GameObjectDB) -> GameObjects {
+    let market_sqs: Vec<(i32, i32, i8)> = tb.market.iter().map(|s| *s).collect();
+    let j = rand::thread_rng().gen_range(0, market_sqs.len());
+    let loc = market_sqs.iter().nth(j).unwrap();
 
-//     let mut grocer = NPC::villager(actor::pick_villager_name(used_names), *loc, Some(Venue::Market), "shopkeeper1", game_objs);
-//     grocer.npc.as_mut().unwrap().schedule.push(AgendaItem::new((8, 0), (12, 29), 0, Venue::Market, "working".to_string()));
-//     grocer.npc.as_mut().unwrap().schedule.push(AgendaItem::new((12, 30), (12, 59), 0, Venue::Tavern, "lunch".to_string()));
-//     grocer.npc.as_mut().unwrap().schedule.push(AgendaItem::new((13, 0), (18, 59), 0, Venue::Market, "working".to_string()));
-//     grocer.npc.as_mut().unwrap().schedule.push(AgendaItem::new((19, 00), (21, 00), 0, Venue::Tavern, "supper".to_string()));
+    let mut grocer = NPC::villager(actor::pick_villager_name(used_names), *loc, Some(Venue::Market), "shopkeeper1", game_obj_db);
+    if let GameObjects::NPC(npc) = &mut grocer {
+        npc.schedule.push(AgendaItem::new((8, 0), (12, 29), 0, Venue::Market, "working".to_string()));
+        npc.schedule.push(AgendaItem::new((12, 30), (12, 59), 0, Venue::Tavern, "lunch".to_string()));
+        npc.schedule.push(AgendaItem::new((13, 0), (18, 59), 0, Venue::Market, "working".to_string()));
+        npc.schedule.push(AgendaItem::new((19, 00), (21, 00), 0, Venue::Tavern, "supper".to_string()));
+    }
 
-//     grocer
-// }
+    grocer
+}
 
-// fn create_smith(tb: &TownBuildings, used_names: &HashSet<String>, game_objs: &mut GameObjects) -> GameObject {
-//     let smith_sqs: Vec<(i32, i32, i8)> = tb.smithy.iter().map(|s| *s).collect();
-//     let j = rand::thread_rng().gen_range(0, smith_sqs.len());
-//     let loc = smith_sqs.iter().nth(j).unwrap();
+fn create_smith(tb: &TownBuildings, used_names: &HashSet<String>, game_obj_db: &mut GameObjectDB) -> GameObjects {
+    let smith_sqs: Vec<(i32, i32, i8)> = tb.smithy.iter().map(|s| *s).collect();
+    let j = rand::thread_rng().gen_range(0, smith_sqs.len());
+    let loc = smith_sqs.iter().nth(j).unwrap();
 
-//     let mut smith = NPC::villager(actor::pick_villager_name(used_names), *loc, Some(Venue::Smithy), "smith1", game_objs);
-//     smith.npc.as_mut().unwrap().schedule.push(AgendaItem::new((8, 0), (11, 59), 0, Venue::Smithy, "working".to_string()));
-//     smith.npc.as_mut().unwrap().schedule.push(AgendaItem::new((12, 0), (12, 59), 0, Venue::Tavern, "lunch".to_string()));
-//     smith.npc.as_mut().unwrap().schedule.push(AgendaItem::new((13, 0), (18, 59), 0, Venue::Smithy, "working".to_string()));
-//     smith.npc.as_mut().unwrap().schedule.push(AgendaItem::new((19, 00), (21, 00), 0, Venue::Tavern, "supper".to_string()));
+    let mut smith = NPC::villager(actor::pick_villager_name(used_names), *loc, Some(Venue::Smithy), "smith1", game_obj_db);
+    if let GameObjects::NPC(npc) = &mut smith {
+        npc.schedule.push(AgendaItem::new((8, 0), (11, 59), 0, Venue::Smithy, "working".to_string()));
+        npc.schedule.push(AgendaItem::new((12, 0), (12, 59), 0, Venue::Tavern, "lunch".to_string()));
+        npc.schedule.push(AgendaItem::new((13, 0), (18, 59), 0, Venue::Smithy, "working".to_string()));
+        npc.schedule.push(AgendaItem::new((19, 00), (21, 00), 0, Venue::Tavern, "supper".to_string()));
+    }
 
-//     smith
-// }
+    smith
+}
 
 fn add_well(map: &mut Map, world_info: &WorldInfo) {
     let mut rng = rand::thread_rng();
@@ -758,33 +768,33 @@ pub fn create_town(map: &mut Map, game_obj_db: &mut GameObjectDB) -> WorldInfo {
 
     add_well(map, &world_info);
     
-    // let mut used_names = HashSet::new();
-    // let v = create_villager("mayor1", &mut tb, &used_names, game_objs);
-    // used_names.insert(v.get_fullname());
-    // let obj_id = v.object_id;    
-    // game_objs.add(v);
-    // game_objs.listeners.insert((obj_id, EventType::TakeTurn));
+    let mut used_names = HashSet::new();
+    let v = create_villager("mayor1", &mut tb, &used_names, game_obj_db);
+    used_names.insert(v.get_fullname());
+    let obj_id = v.obj_id();    
+    game_obj_db.add(v);
+    game_obj_db.listeners.insert((obj_id, EventType::TakeTurn));
 
-    // let v = create_villager("villager1", &mut tb, &used_names, game_objs);
-    // used_names.insert(v.get_fullname());
-    // let obj_id = v.object_id;
-    // game_objs.add(v);
-    // game_objs.listeners.insert((obj_id, EventType::TakeTurn));
+    let v = create_villager("villager1", &mut tb, &used_names, game_obj_db);
+    used_names.insert(v.get_fullname());
+    let obj_id = v.obj_id();
+    game_obj_db.add(v);
+    game_obj_db.listeners.insert((obj_id, EventType::TakeTurn));
     
-    // let ik = create_innkeeper(&tb, &used_names, game_objs);
-    // let obj_id = ik.object_id;
-    // game_objs.add(ik);
-    // game_objs.listeners.insert((obj_id, EventType::TakeTurn));
+    let ik = create_innkeeper(&tb, &used_names, game_obj_db);
+    let obj_id = ik.obj_id();
+    game_obj_db.add(ik);
+    game_obj_db.listeners.insert((obj_id, EventType::TakeTurn));
 
-    // let g = create_grocer(&tb, &used_names, game_objs);
-    // let obj_id = g.object_id;
-    // game_objs.add(g);
-    // game_objs.listeners.insert((obj_id, EventType::TakeTurn));
+    let g = create_grocer(&tb, &used_names, game_obj_db);
+    let obj_id = g.obj_id();
+    game_obj_db.add(g);
+    game_obj_db.listeners.insert((obj_id, EventType::TakeTurn));
 
-    // let s = create_smith(&tb, &used_names, game_objs);
-    // let obj_id = s.object_id;
-    // game_objs.add(s);
-    // game_objs.listeners.insert((obj_id, EventType::TakeTurn));
+    let s = create_smith(&tb, &used_names, game_obj_db);
+    let obj_id = s.obj_id();
+    game_obj_db.add(s);
+    game_obj_db.listeners.insert((obj_id, EventType::TakeTurn));
 
     world_info.town_buildings = Some(tb);
 

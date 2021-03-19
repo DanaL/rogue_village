@@ -18,7 +18,7 @@ extern crate sdl2;
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::time::Duration;
 
-use crate::game_obj::GameObjectDB;
+use crate::game_obj::{GameObject, GameObjectDB};
 use crate::map;
 use crate::map::{Tile, DoorState};
 use crate::util;
@@ -242,20 +242,18 @@ impl<'a, 'b> GameUI<'a, 'b> {
 	}
 
 	fn select_door(&mut self, prompt: &str, state: &GameState, game_obj_db: &mut GameObjectDB, door_state: DoorState) -> Option<(i32, i32, i8)> {	
-		// let player_loc = game_objs.player_location();
-		// if let Some(d) = map::adjacent_door(&state.map, player_loc, door_state) {
-		// 	Some(d)
-		// } else {
-		// 	self.select_dir(prompt, state, game_objs)
-		// }
-		
-		Some((0, 0, 0))
+		let player_loc = game_obj_db.get(0).unwrap().get_loc();
+		if let Some(d) = map::adjacent_door(&state.map, player_loc, door_state) {
+			Some(d)
+		} else {
+			self.select_dir(prompt, state, game_obj_db)
+		}		
 	}
 
 	fn select_dir(&mut self, prompt: &str, state: &GameState, game_obj_db: &mut GameObjectDB) -> Option<(i32, i32, i8)> {
 		match self.pick_direction(prompt, Some(&state.curr_sidebar_info(game_obj_db))) {
 			Some(dir) => {
-				let loc = (0, 0, 0); // game_objs.player_location();
+				let loc = game_obj_db.get(0).unwrap().get_loc();
 				let obj_row =  loc.0 as i32 + dir.0;
 				let obj_col = loc.1 as i32 + dir.1;
 				let loc = (obj_row, obj_col, loc.2);

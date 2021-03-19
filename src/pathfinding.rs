@@ -19,7 +19,7 @@ use std::collections::HashSet;
 use std::cmp::Ordering;
 
 use super::Map;
-use crate::game_obj::XGameObjects;
+use crate::game_obj::GameObjectDB;
 use crate::map;
 use crate::util;
 
@@ -130,7 +130,7 @@ fn backtrace_path(goal_r: i32, goal_c: i32, parents: &HashMap<(i32, i32), (i32, 
 // This is based straight-up on the algorithm description on Wikipedia.
 // For now, I'm limiting pathfinding to being on the same level
 fn astar(
-		map: &Map, game_objs: Option<&XGameObjects>, stop_before: bool, start_r: i32, start_c: i32, 
+		map: &Map, game_obj_db: Option<&GameObjectDB>, stop_before: bool, start_r: i32, start_c: i32, 
 		level: i8, end_r: i32, end_c: i32, max_distance: i32,
 		passable_tiles: &HashMap<map::Tile, f64>) -> Vec<(i32, i32)> {
 	let mut queue = BinaryHeap::new();
@@ -158,8 +158,8 @@ fn astar(
 			if !map.contains_key(&(nr, nc, level)) { continue; }
 
 			if (nr, nc) != (start_r, start_c) {
-				if let Some(go) = game_objs {
-					if go.blocking_obj_at(&(nr, nc, level)) {
+				if let Some(gdb) = game_obj_db {
+					if gdb.blocking_obj_at(&(nr, nc, level)) {
 						continue;
 					}
 				}
@@ -206,7 +206,7 @@ pub fn passable_by_me(tile: &map::Tile, valid: &HashMap<map::Tile, f64>) -> bool
 }
 
 pub fn find_path(
-		map: &Map, game_objs: Option<&XGameObjects>,
+		map: &Map, game_obj_db: Option<&GameObjectDB>,
 		stop_before: bool /* stop one square before the target*/,
 		start_r: i32, start_c: i32, level: i8,
 		end_r: i32, end_c: i32, max_distance: i32,
@@ -233,5 +233,5 @@ pub fn find_path(
 	// 	goal_c = res.1;
 	// }
 
-	astar(map, game_objs, stop_before, start_r, start_c, level, goal_r, goal_c, max_distance, passable_tiles)
+	astar(map, game_obj_db, stop_before, start_r, start_c, level, goal_r, goal_c, max_distance, passable_tiles)
 }

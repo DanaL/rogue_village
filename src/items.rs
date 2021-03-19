@@ -244,7 +244,7 @@ impl Item {
 
 impl GameObject for Item {
     fn blocks(&self) -> bool {
-        true
+        false
     }
 
     fn get_loc(&self) -> (i32, i32, i8) {
@@ -348,7 +348,7 @@ impl GoldPile {
 
 impl GameObject for GoldPile {
     fn blocks(&self) -> bool {
-        true
+        false
     }
 
     fn get_loc(&self) -> (i32, i32, i8) {

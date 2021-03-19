@@ -63,6 +63,7 @@ pub enum GameObjects {
     Player(Player),
     Item(Item),
     GoldPile(GoldPile),
+    NPC(NPC),
 }
 
 impl GameObject for GameObjects {
@@ -71,9 +72,8 @@ impl GameObject for GameObjects {
             GameObjects::Player(_) => true,
             GameObjects::Item(i) => i.blocks(),
             GameObjects::GoldPile(g) => g.blocks(),
-        };
-
-        false
+            GameObjects::NPC(n) => n.blocks(),
+        }
     }
 
     fn get_loc(&self) -> (i32, i32, i8) {
@@ -81,6 +81,7 @@ impl GameObject for GameObjects {
             GameObjects::Player(player) => player.get_loc(),
             GameObjects::Item(i) => i.get_loc(),
             GameObjects::GoldPile(g) => g.get_loc(),
+            GameObjects::NPC(n) => n.get_loc(),
         }
     }
 
@@ -89,6 +90,7 @@ impl GameObject for GameObjects {
             GameObjects::Player(player) => player.set_loc(loc),
             GameObjects::Item(i) => i.set_loc(loc),
             GameObjects::GoldPile(g) => g.set_loc(loc),
+            GameObjects::NPC(n) => n.set_loc(loc),
         }
     }
 
@@ -97,6 +99,7 @@ impl GameObject for GameObjects {
             GameObjects::Player(player) => player.get_fullname(),
             GameObjects::Item(i) => i.get_fullname(),
             GameObjects::GoldPile(g) => g.get_fullname(),
+            GameObjects::NPC(n) => n.get_fullname(),
         }
     }
 
@@ -105,6 +108,7 @@ impl GameObject for GameObjects {
             GameObjects::Player(player) => player.obj_id(),
             GameObjects::Item(i) => i.obj_id(),
             GameObjects::GoldPile(g) => g.obj_id(),
+            GameObjects::NPC(n) => n.obj_id(),
         }
     }
 
@@ -113,6 +117,7 @@ impl GameObject for GameObjects {
             GameObjects::Player(player) => player.get_tile(),
             GameObjects::Item(i) => i.get_tile(),
             GameObjects::GoldPile(g) => g.get_tile(),
+            GameObjects::NPC(n) => n.get_tile(),
         }
     }
 
@@ -121,6 +126,7 @@ impl GameObject for GameObjects {
             GameObjects::Player(player) => player.hidden(),
             GameObjects::Item(i) => i.hidden(),
             GameObjects::GoldPile(g) => g.hidden(),
+            GameObjects::NPC(n) => n.hidden(),
         }
     }
 
@@ -129,6 +135,7 @@ impl GameObject for GameObjects {
             GameObjects::Player(player) => player.hide(),
             GameObjects::Item(i) => i.hide(),
             GameObjects::GoldPile(g) => g.hide(),
+            GameObjects::NPC(n) => n.hide(),
         }
     }
 
@@ -137,6 +144,7 @@ impl GameObject for GameObjects {
             GameObjects::Player(player) => player.reveal(),
             GameObjects::Item(i) => i.reveal(),
             GameObjects::GoldPile(g) => g.reveal(),
+            GameObjects::NPC(n) => n.reveal(),
         }
     }
 
@@ -145,6 +153,7 @@ impl GameObject for GameObjects {
             GameObjects::Player(player) => player.receive_event(event, state, player_loc),
             GameObjects::Item(i) => i.receive_event(event, state, player_loc),
             GameObjects::GoldPile(g) => g.receive_event(event, state, player_loc),
+            GameObjects::NPC(n) => n.receive_event(event, state, player_loc),
         }
     }
 }
@@ -245,24 +254,14 @@ impl GameObjectDB {
     // around anyhow.
     pub fn tile_at(&self, loc: &(i32, i32, i8)) -> Option<(Tile, bool)> {
         if self.obj_locs.contains_key(&loc) && !self.obj_locs[&loc].is_empty() {
-            for obj_id in self.obj_locs[&loc].iter() {                
-                if self.objects[&obj_id].blocks() {
-                    let remember = if let GameObjects::Player(_) = self.objects[&obj_id] {
-                        false
-                    //} else if let GameObjects::NPC(_) = self.objects[&obj_id] {
-                    //    false
-                    } else {
-                        true
-                    };
-
-                    return Some((self.objects[&obj_id].get_tile(), remember));
+            for obj_id in self.obj_locs[&loc].iter() {   
+                if let GameObjects::Player(_) = self.objects[&obj_id] {
+                    return Some((self.objects[&obj_id].get_tile(), false));
+                } else if let GameObjects::NPC(_) = self.objects[&obj_id] {
+                    return Some((self.objects[&obj_id].get_tile(), false));
+                } else if !self.objects[obj_id].hidden() {
+                    return Some((self.objects[&obj_id].get_tile(), true));
                 }
-            }
-
-            // I think this actually should be looking for the first non-hidden tile?
-            let obj_id = self.obj_locs[&loc].front().unwrap();
-            if !self.objects[obj_id].hidden() {
-                return Some((self.objects[obj_id].get_tile(), false));
             }
         }
 
@@ -415,10 +414,9 @@ impl GameObjectDB {
     pub fn npc_at(&mut self, loc: &(i32, i32, i8)) -> Option<usize> {        
         if let Some(objs) = self.obj_locs.get(loc) {
             for id in objs {
-                return None;
-                // if let GmaeObjects::NPC(npc) = self.objects[&id] {                
-                //     return Some(*id);
-                // }
+                if let GameObjects::NPC(_) = &self.objects[&id] {                
+                    return Some(*id);
+                }
             }
         }
 
@@ -483,6 +481,95 @@ impl GameObjectDB {
         for obj_id in listeners {
             let obj = self.get_mut(obj_id).unwrap();
             obj.receive_event(EventType::LitUp, state, ploc);            
+        }
+    }
+
+    pub fn do_npc_turns(&mut self, state: &mut GameState) {
+        let player_loc = self.get(0).unwrap().get_loc();
+        let actors = self.listeners.iter()
+                                   .filter(|i| i.1 == EventType::TakeTurn)
+                                   .map(|i| i.0).collect::<Vec<usize>>();
+        
+        for actor_id in actors {     
+            // Okay, so I need (or at any rate it's *super* convenient) to pass game_objs int othe take_turns()
+            // function for the NPC. (For things like check if squares they want to move to are occupied, etc).
+            // But the simplest way to do that I could think of is to remove the NPC GameObject from objects
+            // so that there isn't a mutual borrow situation going on. But we gotta remember to re-add it after
+            // the NPC's turn is over. (Of course if the diey or something we don't have to).
+            
+            // NB: I attempted to convert this mess to the objects table holding Rc<RefCell<GameObject>> so that I
+            // could multiple ownership and it was a bit of a disaster, but maybe something to try again another time...
+            
+            // I'm not going to remove them from listeners or obj_locs tables, although we'll have to check if their 
+            // position changed after their turn.
+            let mut actor = self.objects.remove(&actor_id).unwrap();
+            let actor_loc = actor.get_loc();
+            
+            // Has the npc died since their last turn?
+            let is_alive = if let GameObjects::NPC(npc) = &actor {
+                npc.alive
+            } else {
+                false
+            };
+                
+            if !is_alive {
+                self.listeners.retain(|l| l.0 != actor_id);
+                self.remove_from_loc(actor_id, actor_loc);
+                if let GameObjects::NPC(npc) = &mut actor {                    
+                    self.drop_npc_inventory(npc);
+                }
+                continue;   
+            }
+            
+            // I don't want to have every single monster in the game taking a turn every round, so
+            // only update monsters on the surface or on the same level as the player. (Who knows, in
+            // the end maybe it'll be fast enough to always update 100s of monsters..)
+            let curr_dungeon_level =  player_loc.2;      
+            if actor_loc.2 == 0 || actor_loc.2 == curr_dungeon_level {
+                if let GameObjects::NPC(npc) = &mut actor {
+                    npc.take_turn(state, self);
+                }
+            }
+
+            // // Was the npc killed during their turn?
+            let is_alive = if let GameObjects::NPC(npc) = &actor {
+                npc.alive
+            } else {
+                false
+            };
+                
+            if !is_alive {
+                self.listeners.retain(|l| l.0 != actor_id);
+                self.remove_from_loc(actor_id, actor_loc);
+                if let GameObjects::NPC(npc) = &mut actor {                    
+                    self.drop_npc_inventory(npc);
+                }
+                continue;
+            }
+                       
+            if actor.get_loc() != actor_loc {
+                // the NPC moved on their turn, so we need to update them in the obj_locs table and
+                // re-insert them into the objects table. 
+                self.remove_from_loc(actor_id, actor_loc);
+                actor.set_loc(actor.get_loc());
+                self.stepped_on_event(state, actor.get_loc());
+                self.add(actor);
+            } else {
+                // the NPC didn't move so we should just have to put them back into the objects table
+                self.objects.insert(actor_id, actor);
+            }
+        }
+    }
+
+    pub fn drop_npc_inventory(&mut self, npc: &mut NPC) {
+        let loc = npc.get_loc();
+        while !npc.inventory.is_empty() {
+            let mut obj = npc.inventory.remove(0);
+            obj.set_loc(loc);
+            if let GameObjects::Item(item) = &mut obj {
+                item.equiped = false;
+            }
+            self.add(obj);
         }
     }
 }
@@ -709,7 +796,7 @@ impl XGameObjects {
             } else {
                 let p = self.player_details();
                 if let Some(obj) = p.inv_obj_of_id(obj_id) {
-                    //obj.location = PLAYER_INV;
+                    obj.set_loc(PLAYER_INV);
                     match obj.receive_event(event_type, state, ploc) {
                         Some(response) => {
                             if response.event_type == EventType::LightExpired {
@@ -789,14 +876,14 @@ impl XGameObjects {
     }
 
     pub fn drop_npc_inventory(&mut self, npc: &mut NPC, loc: (i32, i32, i8)) {
-        while !npc.inventory.is_empty() {
-            let mut obj = npc.inventory.remove(0);
-            obj.location = loc;
-            if obj.item.is_some() {
-                obj.item.as_mut().unwrap().equiped = false;
-            }
-            self.add(obj);
-        }
+        // while !npc.inventory.is_empty() {
+        //     let mut obj = npc.inventory.remove(0);
+        //     obj.set_loc(loc);
+        //     if let GameObjects::Item(item) = obj {
+        //         item.equiped = false;
+        //     }
+        //     self.add(obj);
+        // }
     }
 
     pub fn check_for_dead_npcs(&mut self) {
@@ -875,16 +962,13 @@ impl XGameObjects {
                 continue;    
             }
             
-            actor.npc.as_mut().unwrap().curr_loc = actor_loc;
+            //actor.npc.as_mut().unwrap().curr_loc = actor_loc;
             
             // I don't want to have every single monster in the game taking a turn every round, so
             // only update monsters on the surface or on the same level as the player. (Who knows, in
             // the end maybe it'll be fast enough to always update 100s of monsters..)
             let curr_dungeon_level =  self.player_location().2;      
-            if actor_loc.2 == 0 || actor_loc.2 == curr_dungeon_level {
-                actor.npc.as_mut().unwrap().take_turn(actor_id, state, self, actor_loc);
-            }
-
+            
             // Was the npc killed during their turn?
             let still_alive = actor.npc.as_ref().unwrap().alive;
             if !still_alive {
@@ -895,18 +979,18 @@ impl XGameObjects {
                 continue;    
             }
 
-            if actor.npc.as_ref().unwrap().curr_loc != actor_loc {
-                let new_loc = actor.npc.as_ref().unwrap().curr_loc;
-                // the NPC moved on their turn, so we need to update them in the obj_locs table and
-                // re-insert them into the objects table. 
-                self.remove_from_loc(actor_id, actor_loc);
-                actor.location = new_loc;
-                self.stepped_on_event(state, new_loc);
-                self.add(actor);
-            } else {
-                // the NPC didn't move so we should just have to put them back into the objects table
-                self.objects.insert(actor_id, actor);
-            }
+            // if actor.npc.as_ref().unwrap().curr_loc != actor_loc {
+            //     let new_loc = actor.npc.as_ref().unwrap().curr_loc;
+            //     // the NPC moved on their turn, so we need to update them in the obj_locs table and
+            //     // re-insert them into the objects table. 
+            //     self.remove_from_loc(actor_id, actor_loc);
+            //     actor.location = new_loc;
+            //     self.stepped_on_event(state, new_loc);
+            //     self.add(actor);
+            // } else {
+            //     // the NPC didn't move so we should just have to put them back into the objects table
+            //     self.objects.insert(actor_id, actor);
+            // }
         }
     }
 
