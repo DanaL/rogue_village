@@ -144,7 +144,7 @@ impl Item {
                 Some(GameObjects::Item(i))
             },         
             "torch" => {
-                let mut i = Item::new(game_obj_db.next_id(), '(',display::LIGHT_BROWN, display::BROWN, name, ItemType::Armour, 1, true, 1);
+                let mut i = Item::new(game_obj_db.next_id(), '(',display::LIGHT_BROWN, display::BROWN, name, ItemType::Light, 1, true, 1);
                 i.charges = 1000;
                 i.aura = 5;
                 

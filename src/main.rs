@@ -743,92 +743,92 @@ fn read_item(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mut Ga
 }
 
 fn use_item(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mut GameUI) -> f32 {
-    // let sbi = state.curr_sidebar_info(game_objs);        
-    // let player = game_objs.player_details();
-    // let slots = player.inv_slots_used();
+    let sbi = state.curr_sidebar_info(game_obj_db);        
+    let player = game_obj_db.player().unwrap();
+    let slots = player.inv_slots_used();
     
-    // if slots.is_empty() {
-    //     state.write_msg_buff("You are empty handed.");
-    //     return 0.0;
-    // }
+    if slots.is_empty() {
+        state.write_msg_buff("You are empty handed.");
+        return 0.0;
+    }
     
-    // if let Some(ch) = gui.query_single_response("Use what?", Some(&sbi)) {
-    //     if !slots.contains(&ch) {
-    //         state.write_msg_buff("You do not have that item!");
-    //         return 0.0;
-    //     }
+    if let Some(ch) = gui.query_single_response("Use what?", Some(&sbi)) {
+        if !slots.contains(&ch) {
+            state.write_msg_buff("You do not have that item!");
+            return 0.0;
+        }
         
-    //     let obj = player.inv_item_in_slot(ch).unwrap();
-    //     let obj_id = obj.object_id;
-    //     let item = obj.item.as_ref().unwrap();
-    //     let useable = item.useable();
-    //     let item_type = item.item_type;
-    //     let consumable = item.attributes & IA_CONSUMABLE > 0;
-    //     let effects = item.effects;
+        let obj = player.inv_item_in_slot(ch).unwrap();
+        let obj_id = obj.obj_id();
+        let (useable, item_type, consumable, effects) =if let GameObjects::Item(item) = &obj {
+            (item.useable(), item.item_type, item.attributes & IA_CONSUMABLE > 0, item.effects)
+        } else {
+            (false, ItemType::Note, false, 0)
+        };
         
-    //     if useable {
-    //         if item_type == ItemType::Light {
-    //             let (item_id, active) = use_light(state, ch, game_objs);
+        if useable {
+            if item_type == ItemType::Light {
+                let (item_id, active) = use_light(state, ch, game_obj_db);
+                
+                if active {
+                    game_obj_db.listeners.insert((item_id, EventType::Update));
+                    game_obj_db.listeners.insert((item_id, EventType::EndOfTurn));
+                } else {
+                    game_obj_db.listeners.remove(&(item_id, EventType::Update));
+                    game_obj_db.listeners.remove(&(item_id, EventType::EndOfTurn));
+                }
+            }
 
-    //             if active {
-    //                 game_objs.listeners.insert((item_id, EventType::Update));
-    //                 game_objs.listeners.insert((item_id, EventType::EndOfTurn));
-    //             } else {
-    //                 game_objs.listeners.remove(&(item_id, EventType::Update));
-    //                 game_objs.listeners.remove(&(item_id, EventType::EndOfTurn));
-    //             }
-    //         }
+            if effects > 0 {
+                effects::apply_effects(state, 0, game_obj_db, effects)
+            }
 
-    //         if effects > 0 {
-    //             let player = game_objs.get_mut(0).unwrap();
-    //             effects::apply_effects(state, 0, game_objs, effects)
-    //         }
+            if consumable {
+                let player = game_obj_db.player().unwrap();
+                player.inv_remove(obj_id);
+            }
 
-    //         if consumable {
-    //             let player = game_objs.player_details();
-    //             player.inv_remove(obj_id);
-    //         }
-
-    //         return 1.0;
-    //     } else {
-    //         state.write_msg_buff("You don't know how to use that.");
-    //     }       
-    // } else {
-    //     state.write_msg_buff("Nevermind.");
-    // }
+            return 1.0;
+        } else {
+            state.write_msg_buff("You don't know how to use that.");
+        }       
+    } else {
+        state.write_msg_buff("Nevermind.");
+    }
 
     0.0
 }
 
 fn use_light(state: &mut GameState, slot: char,game_obj_db: &mut GameObjectDB) -> (usize, bool) {
-    // let player = game_objs.player_details();
-    // let next_slot = player.next_slot; // We might need to give the item a new inventory slot
-    // let was_in_stack = player.inv_count_in_slot(slot) > 1;
+    let player = game_obj_db.player().unwrap();
+    let next_slot = player.next_slot; // We might need to give the item a new inventory slot
+    let was_in_stack = player.inv_count_in_slot(slot) > 1;
 
-    // let obj = player.inv_item_in_slot(slot).unwrap();
-    // let obj_id = obj.object_id;
-    // let name = obj.get_fullname();
-    // let item = obj.item.as_mut().unwrap();
-    // let s = if item.active { 
-    //     format!("You extinguish {}.", name.with_def_article())
-    // } else {
-    //     format!("{} blazes brightly!", name.with_def_article().capitalize())
-    // };
-    // state.write_msg_buff(&s);
+    let obj = player.inv_item_in_slot(slot).unwrap();
+    let obj_id = obj.obj_id();
+    let name = obj.get_fullname();
 
-    // item.active = !item.active;
-    // item.stackable = false;
-    // if was_in_stack {
-    //     item.slot = next_slot;
-    // }
-    // let active = item.active;
+    let mut active = false;
+    if let GameObjects::Item(item) = obj {
+        let s = if item.active { 
+            format!("You extinguish {}.", name.with_def_article())
+        } else {
+            format!("{} blazes brightly!", name.with_def_article().capitalize())
+        };
+        state.write_msg_buff(&s);
+        item.active = !item.active;
+        item.stackable = false;
+        if was_in_stack {
+            item.slot = next_slot;
+        }
+        active = item.active;
 
-    // if was_in_stack {
-    //     player.inc_next_slot();
-    // }
-
-    // (obj_id, active)
-    (0, false)
+        if was_in_stack {
+            player.inc_next_slot();
+        }
+    }
+    
+    (obj_id, active)    
 }
 
 fn get_move_tuple(mv: &str) -> (i32, i32) {
@@ -1502,7 +1502,7 @@ fn run(gui: &mut GameUI, state: &mut GameState, game_obj_db: &mut GameObjectDB, 
                 },
                 Cmd::ShowInventory => show_inventory(gui, state, game_obj_db),
                 Cmd::ToggleEquipment => energy_cost = toggle_equipment(state, game_obj_db, gui),
-                //Cmd::Use => energy_cost = use_item(state, game_objs, gui),
+                Cmd::Use => energy_cost = use_item(state, game_obj_db, gui),
                 Cmd::Quit => confirm_quit(state, gui, game_obj_db)?,
                 Cmd::Up => energy_cost = take_stairs(state, game_obj_db, false),
                 //Cmd::WizardCommand => wiz_command(state, gui, game_objs, monster_fac),
