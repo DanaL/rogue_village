@@ -45,7 +45,7 @@ fn blink(state: &mut GameState, obj_id: usize, game_obj_db: &mut GameObjectDB) {
         let circle = util::bresenham_circle(loc.0, loc.1, radius);
         for pt in circle {
             let nloc = (pt.0, pt.1, loc.2);
-            if state.map[&nloc].passable() && !game_obj_db.blocking_obj_at(&nloc) {
+            if state.map.contains_key(&loc) && state.map[&nloc].passable() && !game_obj_db.blocking_obj_at(&nloc) {
                 sqs.push(nloc);
             }
         }
