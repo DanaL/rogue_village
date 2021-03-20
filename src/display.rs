@@ -414,19 +414,27 @@ impl<'a, 'b> GameUI<'a, 'b> {
 			.expect("Error copying message line texture to canvas!");
 	}
 
-	pub fn show_in_side_pane(&mut self, lines: &Vec<&str>) -> Option<char> {
+	pub fn show_in_side_pane(&mut self, blurb: &str, lines: &Vec<(String, bool)>) -> Option<char> {
 		self.canvas.clear();
 		self.draw_frame(&"", None, false);
+		self.write_line(0, blurb, false);
+
+		let panel_width = self.screen_height_px / 2;
 		
-		let panel_width = (FOV_WIDTH as i32 / 2) * self.font_width as i32;
-		let panel_height = (FOV_HEIGHT as i32 - 1) * self.font_height as i32;
-		
-		println!("{} {}", panel_width, panel_height);
+		// clear the side panel
+		self.canvas.set_draw_color(BLACK);
+		self.canvas.fill_rect(Rect::new(panel_width as i32, self.font_height as i32, panel_width, self.screen_height_px)).unwrap();
+
 		for j in 0..lines.len() {
-			let rect = Rect::new(panel_width, (j as i32) + 1 * self.font_height as i32, panel_width as u32, self.sm_font_height);
-			let surface = self.sm_font.render(lines[j])
-													 .shaded(WHITE, BLACK)
-													 .expect("Error rendering line!");
+			let text_colour = if lines[j].1 {
+				WHITE
+			} else {
+				DARK_GREY
+			};
+			let rect = Rect::new(panel_width as  i32, j as i32 * self.sm_font_height as i32 + self.font_height as i32, lines[j].0.len() as u32 *  self.sm_font_width, self.sm_font_height);
+			let surface = self.sm_font.render(&lines[j].0)
+									  .shaded(text_colour, BLACK)
+									  .expect("Error rendering line!");
 													 
 			let texture_creator = self.canvas.texture_creator();
 			let texture = texture_creator.create_texture_from_surface(&surface)

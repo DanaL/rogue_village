@@ -1220,13 +1220,12 @@ fn show_inventory(gui: &mut GameUI, state: &mut GameState, game_obj_db: &mut Gam
     if menu.is_empty() && purse == 0 {
         state.write_msg_buff("You are empty-handed.");
     } else {
-        let mut m: Vec<&str> = menu.iter().map(AsRef::as_ref).collect();        
-        m.insert(0, "You are carrying:");
+        let mut m: Vec<(String, bool)> = menu.iter().map(|m| (m.to_string(), true)).collect();        
         if purse > 0 {
-            m.insert(1, &money);
+            m.insert(0, (money.to_string(), true));
         }
-        //gui.write_long_msg(&m, true);
-        gui.show_in_side_pane(&m);
+        
+        gui.show_in_side_pane("You are carrying:", &m);
     }
 }
 
@@ -1576,6 +1575,8 @@ fn update_view(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mut 
 }
 
 fn main() {
+    // It bugs me aesthetically that I can't move creating the font contexts into the 
+    // constructor for GameUI. But the borrow check loses its shit whenever I try.
     let ttf_context = sdl2::ttf::init()
         .expect("Error creating ttf context on start-up!");
     let font_path: &Path = Path::new("DejaVuSansMono.ttf");
