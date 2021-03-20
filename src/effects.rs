@@ -15,25 +15,18 @@
 
 extern crate rand;
 
+use std::u128;
+
 use rand::{Rng, prelude::SliceRandom};
 
 use super::GameState;
-use crate::game_obj::{GameObject, GameObjectDB, GameObjects, Person};
+use crate::battle::DamageType;
+use crate::game_obj::{GameObject, GameObjectDB, Person};
 use crate::util;
 
-pub const EF_MINOR_HEAL: u128 = 0x00000001;
-pub const EF_BLINK: u128      = 0x00000002;
-
-// Minor healing can boost the entity's HP above their max,
-// but it if's already at or over max it will have no further effect
-fn minor_healing<P: Person>(state: &mut GameState, user: &mut P) {
-    let (curr_hp, max_hp) = user.get_hp();
-
-    let amt = rand::thread_rng().gen_range(5, 11);
-    if curr_hp < max_hp {
-        user.add_hp(state, amt);
-    } 
-}
+pub const EF_MINOR_HEAL: u128   = 0x00000001;
+pub const EF_BLINK: u128        = 0x00000002;
+pub const EF_WEAK_VENOM: u128   = 0x00000004;
 
 // Short range, untargeted teleport
 fn blink(state: &mut GameState, obj_id: usize, game_obj_db: &mut GameObjectDB) {
@@ -61,17 +54,37 @@ fn blink(state: &mut GameState, obj_id: usize, game_obj_db: &mut GameObjectDB) {
     }
 }
 
+// Minor healing can boost the entity's HP above their max,
+// but it if's already at or over max it will have no further effect
+fn minor_healing(state: &mut GameState, user: &mut dyn Person) {
+    let (curr_hp, max_hp) = user.get_hp();
+
+    let amt = rand::thread_rng().gen_range(5, 11);
+    if curr_hp < max_hp {
+        user.add_hp(state, amt);
+    } 
+}
+
+fn weak_venom(state: &mut GameState, victim: &mut dyn Person) {
+    let dmg = rand::thread_rng().gen_range(1, 5);
+    victim.damaged(state, dmg, DamageType::Poison, 0, "poison");
+}
+
 pub fn apply_effects(state: &mut GameState, obj_id: usize, game_obj_db: &mut GameObjectDB, effects: u128) {
     if effects & EF_MINOR_HEAL > 0 {
-        let user = game_obj_db.get_mut(obj_id);
-        if let Some(GameObjects::Player(player)) = user {
-            minor_healing(state, player);
-        } else if let Some(GameObjects::NPC(npc)) = user {
-            minor_healing(state, npc);
-        }
+        if let Some(user) = game_obj_db.as_person(obj_id) {
+            minor_healing(state, user);
+        }        
     }
+
     if effects & EF_BLINK > 0 {
         blink(state, obj_id, game_obj_db);
+    }
+
+    if effects & EF_WEAK_VENOM > 0 {
+        if let Some(victim) = game_obj_db.as_person(obj_id) {
+            weak_venom(state, victim);
+        }
     }
 }
 

@@ -18,7 +18,7 @@ extern crate serde;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet, VecDeque};
 
-use super::{EventResponse, EventType, GameState, PLAYER_INV};
+use super::{EventResponse, EventType, GameState, Status, PLAYER_INV};
 use crate::actor::NPC;
 use crate::battle::DamageType;
 use crate::items::{Item, GoldPile};
@@ -332,11 +332,19 @@ impl GameObjectDB {
     }
 
     pub fn npc(&mut self, obj_id: usize) -> Option<&mut NPC> {
-        if let Some(GameObjects::NPC(p)) = self.get_mut(obj_id) {
-            Some(p)
+        if let Some(GameObjects::NPC(npc)) = self.get_mut(obj_id) {
+            Some(npc)
         } else {
             None
         }
+    }
+
+    pub fn as_person(&mut self, obj_id: usize) -> Option<&mut dyn Person> {
+        match self.get_mut(obj_id).unwrap() {
+            GameObjects::Player(p) => return Some(p),
+            GameObjects::NPC(npc) => return Some(npc),
+            _ => None,
+        }      
     }
 
     // Okay to make life difficult I want to return stackable items described as
@@ -635,4 +643,6 @@ pub trait Person {
     fn damaged(&mut self, state: &mut GameState, amount: u8, dmg_type: DamageType, assailant_id: usize, assailant_name: &str);
     fn get_hp(&self) -> (u8, u8);
     fn add_hp(&mut self, state: &mut GameState, amt: u8);
+    fn add_status(&mut self, status: Status);
+    fn remove_status(&mut self, status: Status);
 }

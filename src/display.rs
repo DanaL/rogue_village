@@ -74,11 +74,12 @@ pub struct SidebarInfo {
 	zorkmids: u32,
 	weapon: String,
 	curr_level: u8,
+	poisoned: bool,
 }
 
 impl SidebarInfo {
-	pub fn new(name: String, curr_hp: u8, max_hp: u8, turn: u32, ac: u8, zorkmids: u32, weapon: String, curr_level: u8) -> SidebarInfo {
-		SidebarInfo { name, curr_hp, max_hp, turn, ac, zorkmids, weapon, curr_level }
+	pub fn new(name: String, curr_hp: u8, max_hp: u8, turn: u32, ac: u8, zorkmids: u32, weapon: String, curr_level: u8, poisoned: bool) -> SidebarInfo {
+		SidebarInfo { name, curr_hp, max_hp, turn, ac, zorkmids, weapon, curr_level, poisoned, }
 	}
 }
 
@@ -665,6 +666,10 @@ impl<'a, 'b> GameUI<'a, 'b> {
 				}
 				self.write_sidebar_line(&s, fov_w, 6, white, 0);
 			}
+		}
+
+		if sbi.poisoned {
+			self.write_sidebar_line("POISONED", fov_w, 19, tuple_to_sdl2_color(&GREEN), 0);	
 		}
 
 		let s = if sbi.curr_level == 0 {

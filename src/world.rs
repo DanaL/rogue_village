@@ -429,7 +429,7 @@ fn populate_levels(_world_info: &mut WorldInfo, deepest_level: i8, floor_sqs: &H
         for _ in 0..10 {
             let loc = random_sq(&floor_sqs[&level_index]);
             //if rng.gen_range(0.0, 1.0) < 0.5 {
-                monster_fac.add_monster("skeleton", loc, game_obj_db);
+                monster_fac.add_monster("dire rat", loc, game_obj_db);
             // } else {
             //     monster_fac.add_monster("goblin", loc, game_objs);
             // }

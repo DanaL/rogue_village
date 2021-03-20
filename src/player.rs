@@ -596,13 +596,17 @@ impl Player {
 }
 
 impl Person for Player {
-    fn damaged(&mut self, state: &mut GameState, amount: u8, _dmg_type: DamageType, _assailant_id: usize, assailant_name: &str) {
+    fn damaged(&mut self, state: &mut GameState, amount: u8, dmg_type: DamageType, _assailant_id: usize, assailant_name: &str) {
         if amount >= self.curr_hp {
             // Oh no the player has been killed :O
             self.curr_hp = 0;
             state.queued_events.push_front((EventType::PlayerKilled, (0, 0, 0), 0, Some(String::from(assailant_name))));
         } else {
             self.curr_hp -= amount;
+        }
+
+        if dmg_type == DamageType::Poison {
+            state.write_msg_buff("You feel ill.");
         }
     }
 
@@ -613,6 +617,21 @@ impl Person for Player {
     fn add_hp(&mut self, state: &mut GameState, amt: u8) {
         self.curr_hp += amt;
         state.write_msg_buff("You feel better!");
+    }
+
+    fn add_status(&mut self, status: Status) {
+        // Generally don't allow the player to have more than one status effect of the same type.
+        for s in self.statuses.iter() {
+            if *s == status {
+                return;
+            }
+        }
+
+        self.statuses.push(status);
+    }
+
+    fn remove_status(&mut self, status: Status) {
+        self.statuses.retain(|s| *s != status);
     }
 }
 

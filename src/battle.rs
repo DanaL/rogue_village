@@ -19,13 +19,15 @@ extern crate serde;
 use rand::Rng;
 use serde::{Serialize, Deserialize};
 
-use super::GameState;
+use super::{GameState, Status};
+use crate::actor;
 use crate::actor::NPC;
 use crate::player;
+use crate::player::Ability;
 use crate::game_obj::{GameObjectDB, Person};
 use crate::util::StringUtils;
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum DamageType {
     Slashing,
     Piercing,
@@ -106,6 +108,15 @@ pub fn monster_attacks_player(state: &mut GameState, monster: &mut NPC, monster_
         if dmg_total > 0 {
             // I'm not yet assigning damage types to monsters so just sending Piercing as a good default
             player.damaged(state, dmg_total as u8, DamageType::Piercing, monster_id, &monster.npc_name(true));
+
+            // Are there any relevant extra effects from the monster's attack?
+            if monster.attributes & actor::MA_WEAK_VENOMOUS > 0 {
+                let con_save = player.ability_check(Ability::Con);
+                if con_save <= monster.edc {
+                    state.write_msg_buff("You feel ill.");
+                    player.add_status(Status::WeakVenom(monster.edc));
+                }
+            }
         }
     } else {
         let s = format!("{} misses you!", monster.npc_name(false).capitalize());

@@ -23,7 +23,7 @@ use rand::thread_rng;
 use rand::Rng;
 use serde::{Serialize, Deserialize};
 
-use super::{EventResponse, EventType, GameState};
+use super::{EventResponse, EventType, GameState, Status};
 
 use crate::battle;
 use crate::battle::DamageType;
@@ -39,14 +39,14 @@ use crate::util::StringUtils;
 use crate::fov;
 
 // Some bitmasks for various monster attributes
-pub const MA_OPEN_DOORS: u128       = 0x00000001;
-pub const MA_UNLOCK_DOORS: u128     = 0x00000002;
-pub const MA_WEAK_VENOMS: u128      = 0x00000004;
-pub const MA_PACK_TACTICS: u128     = 0x00000008;
-pub const MA_FEARLESS: u128         = 0x00000010;
-pub const MA_UNDEAD: u128           = 0x00000020;
-pub const MA_RESIST_SLASH: u128     = 0x00000040;
-pub const MA_RESIST_PIERCE: u128    = 0x00000080;
+pub const MA_OPEN_DOORS: u128         = 0x00000001;
+pub const MA_UNLOCK_DOORS: u128       = 0x00000002;
+pub const MA_WEAK_VENOMOUS: u128      = 0x00000004;
+pub const MA_PACK_TACTICS: u128       = 0x00000008;
+pub const MA_FEARLESS: u128           = 0x00000010;
+pub const MA_UNDEAD: u128             = 0x00000020;
+pub const MA_RESIST_SLASH: u128       = 0x00000040;
+pub const MA_RESIST_PIERCE: u128      = 0x00000080;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum Venue {
@@ -599,6 +599,10 @@ impl Person for NPC {
         let s = format!("{} looks better!", self.npc_name(false).capitalize());
         state.write_msg_buff(&s);
     }
+
+    // Not deaing with statuses for monsters yet...
+    fn add_status(&mut self, _status: Status) { }
+    fn remove_status(&mut self, _status: Status) { }
 }
 
 fn in_location(state: &GameState, loc: (i32, i32, i8), sqs: &HashSet<(i32, i32, i8)>, indoors: bool) -> bool {
@@ -627,7 +631,7 @@ pub fn pick_villager_name(used_names: &HashSet<String>) -> String {
 // This could be in a data file and maybe one day will be but for now the compiler will help me avoid stupid typos
 // in basic monster definitions!
 pub struct MonsterFactory {
-    // AC, HP, ch, colour, mode, attack_mod, dmg_dice, dmg_die, dmg_bonus, level, attributes, xp_value,
+    // AC, HP, ch, colour, behaviour, attack_mod, dmg_dice, dmg_die, dmg_bonus, level, attributes, xp_value, active,
     // active_behaviour, inactive_behaviour
     table: HashMap<String, (u8, u8, char, (u8, u8, u8), NPCPersonality, u8, u8, u8, u8, u8, u128, u32, bool, Behaviour, Behaviour)>, 
 }
@@ -644,6 +648,8 @@ impl MonsterFactory {
             MA_OPEN_DOORS | MA_FEARLESS  | MA_UNDEAD, 5, false, Behaviour::Hunt, Behaviour::Wander));
         mf.table.insert(String::from("skeleton"), (12, 8, 's', display::WHITE, NPCPersonality::BasicUndead, 4, 1, 6, 2, 1,
             MA_OPEN_DOORS | MA_FEARLESS  | MA_UNDEAD | MA_RESIST_PIERCE | MA_RESIST_SLASH, 6, false, Behaviour::Hunt, Behaviour::Wander));
+        mf.table.insert(String::from("dire rat"), (13, 8, 'r', display::GREY, NPCPersonality::SimpleMonster, 4, 1, 4, 0, 1,
+            MA_WEAK_VENOMOUS, 5, false, Behaviour::Hunt, Behaviour::Wander));
         mf
     }
 

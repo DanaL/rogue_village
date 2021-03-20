@@ -52,7 +52,7 @@ use serde::{Serialize, Deserialize};
 use actor::{Attitude, MonsterFactory, Venue};
 use dialogue::DialogueLibrary;
 use display::{GameUI, SidebarInfo, WHITE};
-use game_obj::{GameObject, GameObjectDB, GameObjects};
+use game_obj::{GameObject, GameObjectDB, GameObjects, Person};
 use items::{GoldPile, IA_CONSUMABLE, ItemType};
 use map::{DoorState, ShrineType, Tile};
 use player::{Ability, Player};
@@ -100,10 +100,11 @@ pub enum EventType {
     TrapRevealed,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum Status {
     PassUntil(u32),
     RestAtInn(u32),
+    WeakVenom(u8),
 }
 
 pub enum Cmd {
@@ -187,8 +188,16 @@ impl GameState {
             None => "Empty handed".to_string(),
         };
         
+        let mut poisoned = false;
+        for s in player.statuses.iter() {
+            match s {
+                Status::WeakVenom(_) => { poisoned = true; },
+                _ => { },
+            }
+        }
+
         SidebarInfo::new(player.get_fullname(), player.curr_hp, player.max_hp, self.turn, player.ac,
-        player.purse, weapon_name, loc.2 as u8)
+        player.purse, weapon_name, loc.2 as u8, poisoned)
     }
 
     // I made life difficult for myself by deciding that Turn 0 of the game is 8:00am T_T
@@ -1418,6 +1427,13 @@ fn check_player_statuses(state: &mut GameState, game_obj_db: &mut GameObjectDB) 
                     continue;
                 }
             },
+            Status::WeakVenom(dc) => {
+                let save = p.ability_check(Ability::Con);
+                if save >= dc {
+                    state.write_msg_buff("You feel better.");
+                    p.remove_status(Status::WeakVenom(dc));
+                }
+            },
         }
 
         j += 1;
@@ -1435,18 +1451,28 @@ fn run(gui: &mut GameUI, state: &mut GameState, game_obj_db: &mut GameObjectDB, 
             curr_energy = player.energy;
         }
         let mut skip_turn = false;
+        let mut effects: u128 = 0;
         while curr_energy >= 1.0 {
             gui.clear_msg_buff();
 
+            // Here we look for any statuses that should have effects at the start of a player's turn.
+            // After their turn we'll check to see if the statuses have ended.
             if let Some(GameObjects::Player(p)) = game_obj_db.get(0) {
                 for status in &p.statuses {
                     match status {
                         Status::PassUntil(_) => skip_turn = true,
                         Status::RestAtInn(_) => skip_turn = true,
+                        Status::WeakVenom(_) => effects |= effects::EF_WEAK_VENOM,
                     }                
                 }
             }
 
+            if effects > 0 {
+                effects::apply_effects(state, 0, game_obj_db, effects);
+            }
+
+            check_event_queue(state, game_obj_db, gui)?;
+            
             let cmd = if skip_turn {
                 Cmd::Pass
             } else  {
@@ -1508,30 +1534,14 @@ fn run(gui: &mut GameUI, state: &mut GameState, game_obj_db: &mut GameObjectDB, 
                 }
             }
         }
-
+        
         check_player_statuses(state, game_obj_db);
 
         game_obj_db.do_npc_turns(state);
         game_obj_db.update_listeners(state, EventType::Update);
         game_obj_db.update_listeners(state, EventType::EndOfTurn);
         
-        // Are there any accumulated events we need to deal with?
-        while !state.queued_events.is_empty() {
-            match state.queued_events.pop_front().unwrap() {
-                (EventType::GateClosed, loc, _, _) => {
-                    check_closed_gate(state, game_obj_db, loc);
-                },
-                (EventType::PlayerKilled, _, _, Some(msg)) => {
-                    kill_screen(state, gui, game_obj_db, &msg);
-                    return Err(ExitReason::Death(String::from("Player killed")));
-                },
-                (EventType::LevelUp, _, _, _) => {
-                    let p = game_obj_db.player().unwrap();
-                    p.level_up(state);
-                }
-                _ => { },
-            }                
-        }
+        check_event_queue(state, game_obj_db, gui)?;
 
         let p = game_obj_db.player().unwrap();
         p.energy += p.energy_restore;
@@ -1550,6 +1560,27 @@ fn run(gui: &mut GameUI, state: &mut GameState, game_obj_db: &mut GameObjectDB, 
         //     ::std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 60));
         // }
     }
+}
+
+fn check_event_queue(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mut GameUI) -> Result<(), ExitReason> {
+    while !state.queued_events.is_empty() {
+        match state.queued_events.pop_front().unwrap() {
+            (EventType::GateClosed, loc, _, _) => {
+                check_closed_gate(state, game_obj_db, loc);
+            },
+            (EventType::PlayerKilled, _, _, Some(msg)) => {
+                kill_screen(state, gui, game_obj_db, &msg);
+                return Err(ExitReason::Death(String::from("Player killed")));
+            },
+            (EventType::LevelUp, _, _, _) => {
+                let p = game_obj_db.player().unwrap();
+                p.level_up(state);
+            }
+            _ => { },
+        }                
+    }
+
+    Ok(())
 }
 
 fn update_view(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mut GameUI) {
