@@ -690,7 +690,8 @@ fn toggle_equipment(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: 
         return 0.0;
     }
 
-    let cost = if let Some(ch) = gui.query_single_response("Ready/unready what?", Some(&sbi)) {
+    let menu = player.inv_menu(2);
+    let cost = if let Some(ch) = gui.show_in_side_pane("Equip/unequip which?", &menu) {
         if !slots.contains(&ch) {
             state.write_msg_buff("You do not have that item!");
             0.0
@@ -715,7 +716,8 @@ fn use_item(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mut Gam
         return 0.0;
     }
     
-    if let Some(ch) = gui.query_single_response("Use what?", Some(&sbi)) {
+    let menu = player.inv_menu(1);
+    if let Some(ch) = gui.show_in_side_pane("Use which?", &menu) {
         if !slots.contains(&ch) {
             state.write_msg_buff("You do not have that item!");
             return 0.0;
@@ -1207,7 +1209,7 @@ fn show_character_sheet(gui: &mut GameUI, player: &Player) {
 
 fn show_inventory(gui: &mut GameUI, state: &mut GameState, game_obj_db: &mut GameObjectDB) {
     let p = game_obj_db.player().unwrap();
-    let menu = p.inv_menu();
+    let menu = p.inv_menu(0);
     let purse = p.purse;
 
     let money = if purse == 1 {
@@ -1220,7 +1222,7 @@ fn show_inventory(gui: &mut GameUI, state: &mut GameState, game_obj_db: &mut Gam
     if menu.is_empty() && purse == 0 {
         state.write_msg_buff("You are empty-handed.");
     } else {
-        let mut m: Vec<(String, bool)> = menu.iter().map(|m| (m.to_string(), true)).collect();        
+        let mut m: Vec<(String, bool)> = menu.iter().map(|m| (m.0.to_string(), m.1)).collect();        
         if purse > 0 {
             m.insert(0, (money.to_string(), true));
         }

@@ -374,12 +374,22 @@ impl Player {
         count
     }
 
-    pub fn inv_menu(&self) -> Vec<String> {
+    // highlight: 0 is everything, 1 is useable, 2 is equipable
+    pub fn inv_menu(&self, highlight: u8) -> Vec<(String, bool)> {
         let mut items = Vec::new();
         for obj in self.inventory.iter() {
             if let GameObjects::Item(i) = obj {
                 let name = i.get_fullname();
-                items.push((i.slot, name));
+                let h = if highlight == 0 {
+                    true
+                } else if highlight == 1 && i.useable() {
+                    true
+                } else if highlight == 2 && i.equipable() {
+                    true
+                } else {
+                    false
+                };
+                items.push((i.slot, name, h));
             }            
         }
         
@@ -389,7 +399,7 @@ impl Player {
         slots.dedup();
         let mut menu_items = HashMap::new();
         for s in items {
-            let counter = menu_items.entry(s.0).or_insert((s.1, 0));
+            let counter = menu_items.entry(s.0).or_insert((s.1, 0, s.2));
             counter.1 += 1;
         }
         
@@ -403,7 +413,7 @@ impl Player {
             } else {
                 s.push_str(&format!("{} {}", i.1.to_string(), i.0.pluralize()));
             }
-            menu.push(s);
+            menu.push((s, i.2));
         }
         
         menu
