@@ -785,14 +785,12 @@ impl<'a, 'b> GameUI<'a, 'b> {
 	}
 
 	// Currently not handling a menu with more options than there are are lines on the screen...
-	pub fn menu_picker(&mut self, preamble: String, menu: &Vec<(String, char)>, single_choice: bool, small_font: bool) -> Option<HashSet<char>> {
+	pub fn side_pane_menu(&mut self, preamble: String, menu: &Vec<(String, char)>, single_choice: bool) -> Option<HashSet<char>> {
 		let mut answers: HashSet<char> = HashSet::new();
 		let possible_answers: HashSet<char> = menu.iter().map(|m| m.1).collect();
 
 		loop {
-			self.canvas.clear();
-			self.write_line(0, &preamble, small_font);
-
+			let mut menu_items = Vec::new();
 			for line in 0..menu.len() {
 				let mut s = String::from("");				
 				if answers.contains(&menu[line].1) {
@@ -801,17 +799,16 @@ impl<'a, 'b> GameUI<'a, 'b> {
 				s.push(menu[line].1);
 				s.push_str(") ");
 				s.push_str(&menu[line].0);
-				self.write_line(line as i32 + 1, &s, small_font);
+				menu_items.push((s.to_string(), true));
 			}
 	
-			self.write_line(menu.len() as i32 + 1, "", small_font);	
 			if !single_choice {
-				self.write_line(menu.len() as i32 + 2, "Select one or more options, then hit Return.", small_font);	
+				menu_items.push((" ".to_string(), true));
+				menu_items.push(("Select one or more options, then hit Return.".to_string(), true));
 			}
 
 			self.canvas.present();
-
-			let answer = self.wait_for_key_input();			
+			let answer = self.show_in_side_pane(&preamble, &menu_items);
 			if single_choice {
 				match answer {
 					None => return None, 	// Esc was pressed, propagate it. 

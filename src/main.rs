@@ -443,7 +443,8 @@ fn drop_item(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mut Ga
     }
     
     let mut cost = 0.0;
-    if let Some(ch) = gui.query_single_response("Drop what?", Some(&sbi)) {
+    let menu =  player.inv_menu(0);
+    if let Some(ch) = gui.show_in_side_pane("Drop which?", &menu) {
         if ch == '$' {
             return drop_zorkmids(state, game_obj_db, gui);
         } else {
@@ -567,7 +568,7 @@ fn pick_up(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mut Game
             answer_key.insert(ch, item.1);
         }
         
-        if let Some(answers) = gui.menu_picker("Pick up what: (* to get everything)".to_string(), &menu, false, true) {
+        if let Some(answers) = gui.side_pane_menu("Pick up what: (* to get everything)".to_string(), &menu, false) {
             let picks: Vec<usize> = answers.iter().map(|a| answer_key[a]).collect();
             for id in picks {
                 let obj = game_obj_db.get(id).unwrap();
@@ -681,7 +682,6 @@ fn toggle_item(state: &mut GameState, player: &mut Player, slot: char) -> f32 {
 }
 
 fn toggle_equipment(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mut GameUI) -> f32 {
-    let sbi = state.curr_sidebar_info(game_obj_db);    
     let player = game_obj_db.player().unwrap();
     let slots = player.inv_slots_used();
     
