@@ -1225,7 +1225,8 @@ fn show_inventory(gui: &mut GameUI, state: &mut GameState, game_obj_db: &mut Gam
         if purse > 0 {
             m.insert(1, &money);
         }
-        gui.write_long_msg(&m, true);
+        //gui.write_long_msg(&m, true);
+        gui.show_in_side_pane(&m);
     }
 }
 

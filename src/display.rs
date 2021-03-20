@@ -414,6 +414,31 @@ impl<'a, 'b> GameUI<'a, 'b> {
 			.expect("Error copying message line texture to canvas!");
 	}
 
+	pub fn show_in_side_pane(&mut self, lines: &Vec<&str>) -> Option<char> {
+		self.canvas.clear();
+		self.draw_frame(&"", None, false);
+		
+		let panel_width = (FOV_WIDTH as i32 / 2) * self.font_width as i32;
+		let panel_height = (FOV_HEIGHT as i32 - 1) * self.font_height as i32;
+		
+		println!("{} {}", panel_width, panel_height);
+		for j in 0..lines.len() {
+			let rect = Rect::new(panel_width, (j as i32) + 1 * self.font_height as i32, panel_width as u32, self.sm_font_height);
+			let surface = self.sm_font.render(lines[j])
+													 .shaded(WHITE, BLACK)
+													 .expect("Error rendering line!");
+													 
+			let texture_creator = self.canvas.texture_creator();
+			let texture = texture_creator.create_texture_from_surface(&surface)
+										 .expect("Error creating texture!");
+			self.canvas.copy(&texture, None, Some(rect))
+				.expect("Error copying to canvas!");
+		}
+
+		self.canvas.present();
+		self.wait_for_key_input()
+	}
+
 	// What I should do here but am not is make sure each line will fit on the
 	// screen without being cut off. For the moment, I just gotta make sure any
 	// lines don't have too many characterse. Something for a post 7DRL world
@@ -513,7 +538,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 	// I'll probably need to eventually add pagination but rendering the text into
 	// lines was plenty for my brain for now...
 	pub fn popup_msg(&mut self, title: &str, text: &str, sbi: Option<&SidebarInfo>) -> Option<char> {
-		self.canvas.clear();		
+		self.canvas.clear();
 		self.draw_frame(&"", sbi, false);
 		self.write_line(0, "", false);
 
