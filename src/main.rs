@@ -58,6 +58,7 @@ use map::{DoorState, ShrineType, Tile};
 use player::{Ability, Player};
 use util::StringUtils;
 use world::WorldInfo;
+use items::IA_IMMOBILE;
 
 const MSG_HISTORY_LENGTH: usize = 50;
 const FOV_WIDTH: usize = 41;
@@ -533,6 +534,13 @@ fn pick_up(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mut Game
             false
         };
 
+        if let GameObjects::Item(item) = obj {
+            if item.attributes & IA_IMMOBILE > 0 {
+                state.write_msg_buff("You cannot pick that up!");
+                return 0.0;
+            }
+        }
+
         if zorkmids {
             let obj = game_obj_db.remove(things[0]);
             let amount = if let GameObjects::GoldPile(zorkmids) = &obj {
@@ -737,7 +745,7 @@ fn use_item(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mut Gam
         let (useable, item_type, consumable, effects) = if let GameObjects::Item(item) = &obj {
             (item.useable(), item.item_type, item.attributes & IA_CONSUMABLE > 0, item.effects)
         } else {
-            (false, ItemType::Zorkmid, false, 0)
+            (false, ItemType::Weapon, false, 0)
         };
         
         let (desc, text) = if let GameObjects::Item(item) = &obj {
@@ -1297,6 +1305,11 @@ fn wiz_command(state: &mut GameState, gui: &mut GameUI, game_obj_db: &mut GameOb
             let mut poh = items::Item::get_item(game_obj_db,"potion of healing").unwrap();
             poh.set_loc(loc);
             game_obj_db.add(poh);
+        } else if result == "web" {
+                let loc = (player_loc.0, player_loc.1, player_loc.2);
+                let mut web = items::Item::get_item(game_obj_db,"web").unwrap();
+                web.set_loc(loc);
+                game_obj_db.add(web);
         } else if result == "goblin" {
             let loc = (player_loc.0, player_loc.1 - 1, player_loc.2);
             mf.add_monster("goblin", loc, game_obj_db);

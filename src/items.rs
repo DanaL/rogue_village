@@ -25,27 +25,30 @@ use crate::effects;
 use crate::fov;
 use crate::game_obj::{GameObject, GameObjectBase, GameObjectDB, GameObjects};
 use crate::map::Tile;
+use std::u128;
 
 // Some bitmasks so that I can store various extra item attributes beyond
 // just the item type enum. (Ie., heavy armour, two-handed, etc)
 pub const IA_LIGHT_ARMOUR: u128 = 0x00000001;
 pub const IA_MED_ARMOUR: u128   = 0x00000002;
 pub const IA_HEAVY_ARMOUR: u128 = 0x00000004;
-pub const IA_CONSUMABLE: u128   = 0x00000008;
-pub const IA_TWO_HANDED: u128   = 0x00000016;
+pub const IA_CONSUMABLE: u128   = 0x00000010;
+pub const IA_TWO_HANDED: u128   = 0x00000020;
+pub const IA_IMMOBILE: u128     = 0x00000040;
 
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ItemType {
 	Weapon,
-	Zorkmid,
 	Food,
 	Armour,
     Light,
+    Zorkmid,
     Note,
     Bottle,
     Potion,
     Shield,
     Scroll,
+    Web,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -69,13 +72,14 @@ pub struct Item {
     pub dmg_type: DamageType,
     pub value: u16,
     pub effects: u128,
+    pub item_dc: u8,
 }
 
 impl Item {    
     fn new(object_id: usize, symbol: char, lit_colour: (u8, u8, u8), unlit_colour: (u8, u8, u8), name: &str, item_type: ItemType, weight: u8, stackable: bool, value: u16) -> Item {
 		Item { base_info: GameObjectBase::new(object_id, (-1, -1, -1), false, symbol, lit_colour, unlit_colour, false, name),
              item_type, weight, stackable, slot: '\0', dmg_die: 1, dmg_dice: 1, attack_bonus: 0, ac_bonus: 0, range: 0, equiped: false, 
-                attributes: 0, active: false, charges: 0, aura: 0, text: None, dmg_type: DamageType::Bludgeoning, value, effects: 0 }								
+                attributes: 0, active: false, charges: 0, aura: 0, text: None, dmg_type: DamageType::Bludgeoning, value, effects: 0, item_dc: 10 }								
 	}
     
     pub fn get_item(game_obj_db: &mut GameObjectDB, name: &str) -> Option<GameObjects> {
@@ -173,6 +177,13 @@ impl Item {
                 i.attributes |= IA_CONSUMABLE;
                 i.effects |= effects::EF_BLINK;
                 
+                Some(GameObjects::Item(i))
+            }
+            "web" => {
+                let mut i = Item::new(game_obj_db.next_id(), ':',display::LIGHT_GREY, display::GREY, name, ItemType::Web, 0, false, 0);
+                i.attributes |= IA_IMMOBILE;
+                i.item_dc = 15;
+
                 Some(GameObjects::Item(i))
             }
             _ => None,

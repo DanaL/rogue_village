@@ -25,6 +25,7 @@ use crate::items::{Item, GoldPile};
 use crate::map::{SpecialSquare, Tile};
 use crate::player::Player;
 use crate::util::StringUtils;
+use crate::items;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct GameObjectBase {
@@ -390,12 +391,17 @@ impl GameObjectDB {
 
     pub fn things_at_loc(&self, loc: (i32, i32, i8)) -> Vec<usize> {
         if self.obj_locs.contains_key(&loc) {
-            let ids = self.obj_locs[&loc]
-                          .iter().copied();
+            let mut ids = Vec::new();
+            for id in self.obj_locs[&loc].iter() {
+                if *id == 0 || self.objects[&id].hidden() { continue; }
+                if let GameObjects::SpecialSquare(_) = self.objects[&id] {
+                    continue;
+                }
+
+                ids.push(*id);
+            }
             
-            ids.filter(|id| !self.objects[&id].hidden() 
-                     //&& self.objects[&id].special_sq.is_none()
-                     && *id != 0).collect()
+            ids
         } else {
             Vec::new()
         }
@@ -407,11 +413,16 @@ impl GameObjectDB {
         if self.obj_locs.contains_key(&loc) {
             let obj_ids = self.obj_locs[&loc].iter().copied();
             for id in obj_ids {
-                if self.objects[&id].hidden() 
-                        //|| self.objects[&id].special_sq.is_some() 
-                        || id == 0 {
+                if id == 0 || self.objects[&id].hidden() { continue; }
+                if let GameObjects::SpecialSquare(_) = self.objects[&id] {
                     continue;
                 }
+                if let GameObjects::Item(i) = &self.objects[&id] {
+                    if i.attributes & items::IA_IMMOBILE > 0 {
+                        continue;
+                    }
+                }
+
                 if let GameObjects::GoldPile(zorkmids) = &self.objects[&id] {
                     let amt = zorkmids.amount;
                     let s = format!("{} gold pieces", amt);
