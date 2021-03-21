@@ -17,6 +17,7 @@ extern crate serde;
 
 use std::collections::{HashMap, HashSet};
 use std::fs;
+use std::time::Instant;
 
 use rand::{Rng, prelude::SliceRandom};
 use rand::seq::IteratorRandom;
@@ -472,7 +473,7 @@ fn good_spot_for_forge(map: &Map, loc: &(i32, i32, i8)) -> bool {
 }
 
 // Town is laid out with 5x3 lots, each lot being 12x12 squares
-fn place_town_buildings(map: &mut Map, town_r: i32, town_c: i32, 
+fn  place_town_buildings(map: &mut Map, town_r: i32, town_c: i32, 
             templates: &HashMap<String, Template>, buildings: &mut TownBuildings) {   
     let mut rng = rand::thread_rng();
 
@@ -745,7 +746,10 @@ pub fn create_town(map: &mut Map, game_obj_db: &mut GameObjectDB) -> WorldInfo {
 	let start_c = rng.gen_range(WILDERNESS_SIZE /4 , WILDERNESS_SIZE / 2);
 
     let mut tb = TownBuildings::new();
+    let place_buildings_start = Instant::now();
     place_town_buildings(map, start_r as i32, start_c as i32, &buildings, &mut tb);
+    let place_buildings_elapsed = place_buildings_start.elapsed();
+    println!("Time to place buildings: {:?}", place_buildings_elapsed);
 
     let tavern_name = random_tavern_name();
     let town_name = random_town_name();
@@ -758,13 +762,17 @@ pub fn create_town(map: &mut Map, game_obj_db: &mut GameObjectDB) -> WorldInfo {
     let centre_col = start_c as i32 + TOWN_WIDTH / 2;
     for r in centre_row - 5 .. centre_row + 5 {
         for c in centre_col - 5 .. centre_col  + 5 {
-            if map[&(r, c, 0)].passable_dry_land() {
-                world_info.town_square.insert((r, c, 0));
+            let loc = (r, c, 0);
+            if map[&loc] == Tile::Grass || map[&loc] == Tile::Tree || map[&loc] == Tile::Dirt {
+                world_info.town_square.insert(loc);
             }
         }
     }
 
+    let draw_paths_start = Instant::now();
     draw_paths_in_town(map, &world_info);
+    let draw_paths_elapsed = draw_paths_start.elapsed();
+    println!("Time to draw paths: {:?}", draw_paths_elapsed);
 
     add_well(map, &world_info);
     

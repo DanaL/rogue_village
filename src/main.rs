@@ -1333,11 +1333,11 @@ fn pick_player_start_loc(state: &GameState) -> (i32, i32, i8) {
     let x = thread_rng().gen_range(0, 4);
     let b = state.world_info.town_boundary;
 
-    for fact in &state.world_info.facts {
-        if fact.detail == "dungeon location" {
-            return fact.location;
-        }
-    }
+    // for fact in &state.world_info.facts {
+    //     if fact.detail == "dungeon location" {
+    //         return fact.location;
+    //     }
+    // }
     
     if x == 0 {
         (b.0 - 5, thread_rng().gen_range(b.1, b.3), 0)

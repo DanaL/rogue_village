@@ -795,8 +795,11 @@ pub fn generate_world(game_obj_db: &mut GameObjectDB, monster_fac: &MonsterFacto
     let map_end = map_start.elapsed();
     println!("Time to make world map: {:?}", map_end);
 
+    let town_start = Instant::now();
     let mut world_info = town::create_town(&mut map, game_obj_db);
+    let town_end = town_start.elapsed();
     world_info.player_name = player_name.to_string();
+    println!("Town creation done {:?}", town_end);
 
     let valleys = find_all_valleys(&map);
     println!("Found all the valleys");
