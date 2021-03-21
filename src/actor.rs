@@ -135,6 +135,7 @@ pub struct NPC {
     pub inactive_behaviour: Behaviour,
     pub level: u8,
     pub last_inventory: u32,
+    pub recently_saw_player: bool,
 }
 
 impl NPC {
@@ -143,7 +144,7 @@ impl NPC {
             display::LIGHT_GREY, true, &name),ac: 10, curr_hp: 8, max_hp: 8, attitude: Attitude::Stranger, facts_known: Vec::new(), home, plan: VecDeque::new(), 
             voice: String::from(voice), schedule: Vec::new(), mode: NPCPersonality::Villager, attack_mod: 2, dmg_dice: 1, dmg_die: 3, dmg_bonus: 0, edc: 12,
             attributes: MA_OPEN_DOORS | MA_UNLOCK_DOORS, alive: true, xp_value: 0, inventory: Vec::new(), active: true, active_behaviour: Behaviour::Idle, 
-            inactive_behaviour: Behaviour::Idle, level: 0, last_inventory: 0,
+            inactive_behaviour: Behaviour::Idle, level: 0, last_inventory: 0, recently_saw_player: false,
         };
 
 		GameObjects::NPC(npc)
@@ -376,16 +377,32 @@ impl NPC {
         // I can ditch it. But my first ever attempt at a roguelike was in Python in 2002 and you had to be
         // careful about speed...
         if d < 169 {
+            // Is the player within the monster's FOV? If they recently saw the player or pass a perception check
+            // then they can see the player. Otherwise, not. If they player passes out of the FOV, flip the 
+            // recently saw player bit so that they have to make a new perception check if they loose track
+            // of player
+            let visible_sqs = fov::calc_fov(state, loc, 12, true);
+            let in_fov = visible_sqs.contains(&player_loc);
+            if !in_fov {
+                self.recently_saw_player = false;
+                return false;
+            }
+            
+            if in_fov && self.recently_saw_player {
+                return true;
+            }
+
             let mut rng = rand::thread_rng();
             let percept = rng.gen_range(1, 21) + self.level;
             let player_stealth = game_obj_db.player().unwrap().stealth_score;
-            if percept < player_stealth {
-                return false;
+            if percept >= player_stealth {
+                self.recently_saw_player = true;
+                return true;
             }
 
-            let visible = fov::calc_fov(state, loc, 12, true);
-            visible.contains(&player_loc)
+            false
         } else {
+            self.recently_saw_player = false;
             false
         }
     }
@@ -452,7 +469,7 @@ impl NPC {
         self.follow_plan(my_id, state, game_obj_db, my_loc);
     }
 
-    pub fn take_turn(&mut self, state: &mut GameState, game_obj_db: &mut GameObjectDB) {
+    pub fn take_turn(&mut self, state: &mut GameState, game_obj_db: &mut GameObjectDB) {        
         let curr_behaviour = if self.active {
             self.active_behaviour
         } else {
@@ -682,6 +699,7 @@ impl MonsterFactory {
             ac: stats.0, curr_hp: stats.1, max_hp: stats.1, attitude: Attitude::Indifferent, facts_known: Vec::new(), home: None, plan: VecDeque::new(), voice: String::from("monster"), 
             schedule: Vec::new(), mode: stats.4, attack_mod: stats.5, dmg_dice: stats.6, dmg_die: stats.7, dmg_bonus: stats.8, edc: self.calc_dc(stats.9), attributes: stats.10, 
             alive: true, xp_value: stats.11, inventory: Vec::new(), active: stats.12, active_behaviour: stats.13, inactive_behaviour: stats.14, level: stats.9, last_inventory: 0,
+            recently_saw_player: false,
         };
 
         let mut rng = rand::thread_rng();

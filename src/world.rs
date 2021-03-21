@@ -426,7 +426,7 @@ fn populate_levels(_world_info: &mut WorldInfo, deepest_level: i8, floor_sqs: &H
     while curr_level > 0 {
         let level_index = curr_level as usize - 1;
 
-        for _ in 0..10 {
+        for _ in 0..1 {
             let loc = random_sq(&floor_sqs[&level_index]);
             //if rng.gen_range(0.0, 1.0) < 0.5 {
                 monster_fac.add_monster("dire rat", loc, game_obj_db);
