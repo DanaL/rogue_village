@@ -378,6 +378,20 @@ impl GameObjectDB {
         v
     }
 
+    pub fn web_at_loc(&self, loc: &(i32, i32, i8)) -> Option<&Item> {
+        if self.obj_locs.contains_key(&loc) {
+            for id in self.obj_locs[&loc].iter() {
+                if let GameObjects::Item(item) = &self.objects[&id] {
+                    if item.item_type == items::ItemType::Web {
+                        return Some(&item);
+                    }
+                }
+            }
+        }
+
+        None
+    }
+
     pub fn hidden_at_loc(&self, loc: (i32, i32, i8)) -> Vec<usize> {
         if self.obj_locs.contains_key(&loc) {
             let ids = self.obj_locs[&loc]

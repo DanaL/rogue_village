@@ -1048,6 +1048,26 @@ fn land_on_location(state: &mut GameState, game_obj_db: &mut GameObjectDB, loc: 
     // }
 }
 
+fn check_for_web_on_sq(state: &mut GameState, game_obj_db: &mut GameObjectDB, loc: (i32, i32, i8)) -> f32 {
+    let web_info = if let Some(web) = game_obj_db.web_at_loc(&loc) {
+        (web.obj_id(), web.item_dc)
+    } else {
+        (0, 0)
+    };
+    if web_info.0 > 0 {
+        let p = game_obj_db.player().unwrap();         
+        if p.ability_check(Ability::Str) < web_info.1 {
+            state.write_msg_buff("You are held fast by the sticky webbing!");
+            return 1.0;
+        } else {
+            state.write_msg_buff("You tear through the web!");
+            game_obj_db.remove(web_info.0);            
+        }
+    }
+
+    0.0
+}
+
 fn do_move(state: &mut GameState, game_obj_db: &mut GameObjectDB, dir: &str, gui: &mut GameUI) -> f32 {
     let mv = get_move_tuple(dir);
 
@@ -1064,14 +1084,16 @@ fn do_move(state: &mut GameState, game_obj_db: &mut GameObjectDB, dir: &str, gui
     if game_obj_db.blocking_obj_at(&next_loc) {
         return maybe_fight(state, game_obj_db, next_loc, gui);            
     } else if tile.passable() {
+        let res = check_for_web_on_sq(state, game_obj_db, start_loc);
+        if res > 0.0 { return res; }
+
         // Rubble is difficult terrain and requires a dex check to mvoe off of.
         // (If you designate more terrain types as difficult terrain, probably make a function)
         if start_tile == Tile::Rubble {
-            if let Some(GameObjects::Player(p)) = game_obj_db.get(0) {
-                if p.ability_check(Ability::Dex) <= 12 {
-                    state.write_msg_buff("You stumble and trip over the rubble.");
-                    return 1.0;
-                }
+            let p = game_obj_db.player().unwrap();         
+            if p.ability_check(Ability::Dex) <= 12 {
+                state.write_msg_buff("You stumble and trip over the rubble.");
+                return 1.0;
             }
         }
 
