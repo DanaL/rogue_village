@@ -138,18 +138,24 @@ pub fn find_all_valleys(map: &Map) -> Vec<HashSet<(i32, i32, i8)>> {
     valleys
 }
 
-fn count_adj_mountains(map: &Map, loc: (i32, i32, i8)) -> u32 {
-    let mut adj = 0;
+fn check_entrance_candidate(map: &Map, loc: (i32, i32, i8)) -> (u8, u8) {
+    let mut adj_mountains = 0;
+    let mut adj_water = 0;
     for r in -1..2 {
         for c in -1..2 {
             let nl = (loc.0 + r, loc.1 + c, loc.2);
-            if map.contains_key(&nl) && (map[&nl] == Tile::Mountain || map[&nl] == Tile::SnowPeak) {
-                adj += 1;
+            if map.contains_key(&nl) {
+                if map[&nl] == Tile::Mountain || map[&nl] == Tile::SnowPeak {
+                    adj_mountains += 1;
+                }
+                if map[&nl] == Tile::DeepWater {
+                    adj_water += 1;
+                }
             }
         }
     }
 
-    adj
+    (adj_mountains, adj_water)
 }
 
 // We want the entrance to the main dungeon to be nicely nestled into the mountains so we'll look
@@ -158,7 +164,12 @@ fn find_good_dungeon_entrance(map: &Map, sqs: &HashSet<(i32, i32, i8)>) -> (i32,
     let mut options = Vec::new();
 
     for loc in sqs {
-        if count_adj_mountains(map, *loc) >= 4 {
+        let (adj_mountains, adj_water) = check_entrance_candidate(map, *loc);
+        if adj_mountains + adj_water > 7 {
+            continue;
+        }
+
+        if adj_mountains >= 4 {
             options.push(loc);
         }
     }
@@ -788,6 +799,7 @@ pub fn generate_world(game_obj_db: &mut GameObjectDB, monster_fac: &MonsterFacto
     world_info.player_name = player_name.to_string();
 
     let valleys = find_all_valleys(&map);
+    println!("Found all the valleys");
     // We want to place the dungeon entrance somewhere in the largest 'valley', which will be
     // the main section of the overworld
 
@@ -802,7 +814,8 @@ pub fn generate_world(game_obj_db: &mut GameObjectDB, monster_fac: &MonsterFacto
     }
 
     let dungeon_entrance = find_good_dungeon_entrance(&map, &valleys[max_id]);
-    
+    println!("Found a good dungeon entrance");
+
     let dungeon_start = Instant::now();
     build_dungeon(&mut world_info, &mut map, dungeon_entrance, game_obj_db, monster_fac);
     let dungeon_end = dungeon_start.elapsed();
