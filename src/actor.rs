@@ -31,7 +31,7 @@ use crate::dialogue;
 use crate::dialogue::DialogueLibrary;
 use crate::display;
 use crate::game_obj::{GameObject, GameObjectBase, GameObjectDB, GameObjects, Person};
-use crate::items::GoldPile;
+use crate::items::{GoldPile, Item};
 use crate::map::{Tile, DoorState};
 use crate::pathfinding::find_path;
 use crate::util;
@@ -39,14 +39,15 @@ use crate::util::StringUtils;
 use crate::fov;
 
 // Some bitmasks for various monster attributes
-pub const MA_OPEN_DOORS: u128         = 0x00000001;
-pub const MA_UNLOCK_DOORS: u128       = 0x00000002;
-pub const MA_WEAK_VENOMOUS: u128      = 0x00000004;
-pub const MA_PACK_TACTICS: u128       = 0x00000008;
-pub const MA_FEARLESS: u128           = 0x00000010;
-pub const MA_UNDEAD: u128             = 0x00000020;
-pub const MA_RESIST_SLASH: u128       = 0x00000040;
-pub const MA_RESIST_PIERCE: u128      = 0x00000080;
+pub const MA_OPEN_DOORS: u128       = 0x00000001;
+pub const MA_UNLOCK_DOORS: u128     = 0x00000002;
+pub const MA_WEAK_VENOMOUS: u128    = 0x00000004;
+pub const MA_PACK_TACTICS: u128     = 0x00000008;
+pub const MA_FEARLESS: u128         = 0x00000010;
+pub const MA_UNDEAD: u128           = 0x00000020;
+pub const MA_RESIST_SLASH: u128     = 0x00000040;
+pub const MA_RESIST_PIERCE: u128    = 0x00000080;
+pub const MA_WEBSLINGER: u128       = 0x00000100;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum Venue {
@@ -153,7 +154,7 @@ impl NPC {
     // I should be able to move calc_plan_to_move, try_to_move_to_loc, etc to generic
     // places for all Villager types since they'll be pretty same-y. The differences
     // will be in how NPCs set their plans/schedules. 
-    fn calc_plan_to_move(&mut self, state: &GameState, game_obj_db: &GameObjectDB, goal: (i32, i32, i8), stop_before: bool, my_loc: (i32, i32, i8)) {
+    fn calc_plan_to_move(&mut self, state: &GameState, game_obj_db: &GameObjectDB, goal: (i32, i32, i8), stop_before: bool) {
         if self.plan.len() == 0 {
             let mut passable = HashMap::new();
             passable.insert(Tile::Grass, 1.0);
@@ -175,6 +176,7 @@ impl NPC {
             passable.insert(Tile::Trigger, 1.0);
             passable.insert(Tile::Rubble, 1.50);
 
+            let my_loc = self.get_loc();
             let mut path = find_path(&state.map, Some(game_obj_db), stop_before, my_loc.0, my_loc.1, 
                 my_loc.2, goal.0, goal.1, 50, &passable);
             
@@ -186,7 +188,8 @@ impl NPC {
         }
     }
 
-    fn try_to_move_to_loc(&mut self, goal_loc: (i32, i32, i8), state: &mut GameState, game_obj_db: &mut GameObjectDB, my_loc: (i32, i32, i8)) {
+    fn try_to_move_to_loc(&mut self, goal_loc: (i32, i32, i8), state: &mut GameState, game_obj_db: &mut GameObjectDB) {
+        let my_loc = self.get_loc();
         if goal_loc == my_loc {
             println!("Hmm I'm trying to move to my own location...");
         }   
@@ -249,14 +252,14 @@ impl NPC {
         }
     }
 
-    fn follow_plan(&mut self, my_id: usize, state: &mut GameState, game_obj_db: &mut GameObjectDB, my_loc: (i32, i32, i8)) {
+    fn follow_plan(&mut self,state: &mut GameState, game_obj_db: &mut GameObjectDB) {
         if let Some(action) = self.plan.pop_front() {
             match action {
-                Action::Move(loc) => self.try_to_move_to_loc(loc, state, game_obj_db, my_loc),
+                Action::Move(loc) => self.try_to_move_to_loc(loc, state, game_obj_db),
                 Action::OpenDoor(loc) => self.open_door(loc, state),
                 Action::CloseDoor(loc) => self.close_door(loc, state, game_obj_db),
                 Action::Attack(_loc) => {
-                    battle::monster_attacks_player(state, self, my_id, game_obj_db);
+                    battle::monster_attacks_player(state, self, self.obj_id(), game_obj_db);
                 },
             }
         }
@@ -332,7 +335,7 @@ impl NPC {
     fn go_to_place(&mut self, state: &GameState, game_obj_db: &GameObjectDB, sqs: &HashSet<(i32, i32, i8)>, my_loc: (i32, i32, i8)) {
         let j = thread_rng().gen_range(0, &sqs.len());
         let goal_loc = &sqs.iter().nth(j).unwrap().clone(); // Clone prevents a compiler warning...
-        self.calc_plan_to_move(state, game_obj_db, *goal_loc, false, my_loc);
+        self.calc_plan_to_move(state, game_obj_db, *goal_loc, false);
     }
 
     fn random_adj_sq(&mut self, state: &GameState , game_obj_db: &GameObjectDB, loc: (i32, i32, i8)) {
@@ -341,7 +344,7 @@ impl NPC {
             let d = util::ADJ[j];
             let adj = (loc.0 + d.0, loc.1 + d.1, loc.2);
             if !game_obj_db.blocking_obj_at(&adj) && state.map[&adj].passable_dry_land() {
-                self.calc_plan_to_move(state, game_obj_db, adj, false, loc);
+                self.calc_plan_to_move(state, game_obj_db, adj, false);
             }
         }
     }
@@ -407,22 +410,56 @@ impl NPC {
         }
     }
 
-    fn hunt_player(&mut self, my_id: usize, state: &mut GameState, game_obj_db: &mut GameObjectDB, my_loc: (i32, i32, i8)) {
-        let player_loc = game_obj_db.get(0).unwrap().get_loc();
-        
-        // Am I within range of the player? (I don't have ranged monsters yet so just check if monster is adjacent to the player...)
-        let in_range = util::are_adj(my_loc, player_loc);
+    fn spin_webs(&mut self, state: &mut GameState, game_obj_db: &mut GameObjectDB, loc: (i32, i32, i8)) {
+        let s = format!("{} spins a web.", self.npc_name(false));
+        state.write_msg_buff(&s);
+        let mut web = Item::Web(game_obj_db, self.edc);
+        web.set_loc(loc);
+        game_obj_db.add(web);
 
-        if in_range {
-            self.plan.push_front(Action::Attack(player_loc));
-        } else if self.can_see_player(state, game_obj_db, my_loc, player_loc) {
-            self.calc_plan_to_move(state, game_obj_db, player_loc, true, my_loc);
-        } else {
-            let guess = self.best_guess_toward_player(state, my_loc, player_loc);
-            self.calc_plan_to_move(state, game_obj_db, guess, true, my_loc);
+        for adj in util::ADJ.iter() {
+            let adj_loc = (loc.0 + adj.0, loc.1 + adj.1, loc.2);
+            if state.map[&adj_loc].passable() && rand::thread_rng().gen_range(0.0, 1.0) < 0.66 {
+                let mut web = Item::Web(game_obj_db, self.edc);
+                web.set_loc(adj_loc);
+                game_obj_db.add(web);
+            }
+        }        
+    }
+
+    fn special_move(&mut self, state: &mut GameState, game_obj_db: &mut GameObjectDB, player_loc: (i32, i32, i8), sees_player: bool, adj: bool) -> bool {
+        let my_loc = self.get_loc();
+        if self.attributes & MA_WEBSLINGER > 0 && sees_player && !adj {
+            let d = util::distance(my_loc.0, my_loc.1, player_loc.0, player_loc.1);
+            if d < 5.0 && rand::thread_rng().gen_range(0.0, 1.0) < 0.33 {
+                self.spin_webs(state, game_obj_db, player_loc);
+                return true;
+            }
         }
 
-        self.follow_plan(my_id, state, game_obj_db, my_loc);     
+        false
+    }
+
+    fn hunt_player(&mut self, state: &mut GameState, game_obj_db: &mut GameObjectDB) {
+        let my_loc = self.get_loc();
+        let player_loc = game_obj_db.get(0).unwrap().get_loc();
+        let sees = self.can_see_player(state, game_obj_db, my_loc, player_loc);
+        let adj = util::are_adj(my_loc, player_loc);
+
+        if self.special_move(state, game_obj_db, player_loc, sees, adj) {
+            return;
+        }
+        
+        if adj {
+            self.plan.push_front(Action::Attack(player_loc));
+        } else if sees {
+            self.calc_plan_to_move(state, game_obj_db, player_loc, true);
+        } else {
+            let guess = self.best_guess_toward_player(state, my_loc, player_loc);
+            self.calc_plan_to_move(state, game_obj_db, guess, true);
+        }
+
+        self.follow_plan(state, game_obj_db);     
     }
 
     fn wander(&mut self, my_id: usize, state: &mut GameState, game_obj_db: &mut GameObjectDB, my_loc: (i32, i32, i8)) {
@@ -432,7 +469,7 @@ impl NPC {
         if self.can_see_player(state, game_obj_db, my_loc, player_loc) {
             self.attitude = Attitude::Hostile;
             self.active = true;
-            self.hunt_player(my_id, state, game_obj_db, my_loc);
+            self.hunt_player(state, game_obj_db);
             return;
         } 
 
@@ -445,12 +482,12 @@ impl NPC {
                 let c = rng.gen_range(-10, 11);
                 let n = (my_loc.0 + r, my_loc.1 + c, my_loc.2);
                 if state.map.contains_key(&n) && state.map[&n].passable_dry_land() {
-                    self.calc_plan_to_move(state, game_obj_db, n, false, my_loc);
+                    self.calc_plan_to_move(state, game_obj_db, n, false);
                 }
             }
         }
 
-        self.follow_plan(my_id, state, game_obj_db, my_loc);
+        self.follow_plan(state, game_obj_db);
     }
 
     fn idle_monster(&mut self, my_id: usize, state: &mut GameState, game_obj_db: &mut GameObjectDB, my_loc: (i32, i32, i8)) {
@@ -460,13 +497,13 @@ impl NPC {
         if self.can_see_player(state, game_obj_db, my_loc, player_loc) {
             self.attitude = Attitude::Hostile;
             self.active = true;
-            self.hunt_player(my_id, state, game_obj_db, my_loc);
+            self.hunt_player(state, game_obj_db);
             return;
         }
 
         // just pick a random adjacent square
         self.random_adj_sq(state, game_obj_db, my_loc);
-        self.follow_plan(my_id, state, game_obj_db, my_loc);
+        self.follow_plan(state, game_obj_db);
     }
 
     pub fn take_turn(&mut self, state: &mut GameState, game_obj_db: &mut GameObjectDB) {        
@@ -478,7 +515,7 @@ impl NPC {
         
         match curr_behaviour {
             Behaviour::Hunt => {
-                self.hunt_player(self.obj_id(), state, game_obj_db, self.get_loc());
+                self.hunt_player(state, game_obj_db);
             },
             Behaviour::Wander => {
                 self.wander(self.obj_id(), state, game_obj_db, self.get_loc());
@@ -486,7 +523,7 @@ impl NPC {
             Behaviour::Idle => {
                 if self.mode == NPCPersonality::Villager {
                     self.villager_schedule(state, game_obj_db, self.get_loc());
-                    self.follow_plan(self.obj_id(), state, game_obj_db, self.get_loc());
+                    self.follow_plan(state, game_obj_db);
                 } else {
                     self.idle_monster(self.obj_id(), state, game_obj_db, self.get_loc());
                 }
@@ -667,20 +704,24 @@ impl MonsterFactory {
             MA_OPEN_DOORS | MA_FEARLESS  | MA_UNDEAD | MA_RESIST_PIERCE | MA_RESIST_SLASH, 6, false, Behaviour::Hunt, Behaviour::Wander));
         mf.table.insert(String::from("dire rat"), (13, 8, 'r', display::GREY, NPCPersonality::SimpleMonster, 4, 1, 4, 0, 1,
             MA_WEAK_VENOMOUS, 5, false, Behaviour::Hunt, Behaviour::Wander));
+        mf.table.insert(String::from("giant spider"), (14, 24, 's', display::GREY, NPCPersonality::SimpleMonster, 6, 1, 8, 0, 3,
+            MA_WEAK_VENOMOUS | MA_WEBSLINGER, 8, false, Behaviour::Hunt, Behaviour::Wander));
         mf
     }
 
     fn calc_dc(&self, level: u8) -> u8 {
-        if level < 5 {
+        if level < 3 {
             12
-        } else if level < 8 {
+        } else if level < 6 {
             13
-        } else if level <  11 {
+        } else if level <  9 {
             14
-        } else if level < 14 {
+        } else if level < 12 {
             15
-        } else if level < 17 {
+        } else if level < 15 {
             16
+        } else if level < 18 {
+            17        
         } else {
             18
         }

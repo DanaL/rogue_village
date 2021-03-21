@@ -229,7 +229,7 @@ impl GameObjectDB {
                 }            
             }
         }
-        
+                
         self.set_to_loc(obj_id, loc);
         self.objects.insert(obj_id, obj);        
     }
@@ -369,6 +369,8 @@ impl GameObjectDB {
         for (key, value) in items {
             if value == 1 {
                 v.push(key.with_indef_article());
+            } else if key == "web" {
+                    v.push("some webbing".to_string());
             } else {
                 let s = format!("{} {}", value, key.pluralize());
                 v.push(s);

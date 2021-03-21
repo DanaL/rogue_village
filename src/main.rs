@@ -1054,14 +1054,22 @@ fn check_for_web_on_sq(state: &mut GameState, game_obj_db: &mut GameObjectDB, lo
     } else {
         (0, 0)
     };
+    
     if web_info.0 > 0 {
         let p = game_obj_db.player().unwrap();         
         if p.ability_check(Ability::Str) < web_info.1 {
             state.write_msg_buff("You are held fast by the sticky webbing!");
             return 1.0;
         } else {
-            state.write_msg_buff("You tear through the web!");
-            game_obj_db.remove(web_info.0);            
+            game_obj_db.remove(web_info.0);
+
+            // Is the player free or is there still more webbing?
+            if let Some(web) = game_obj_db.web_at_loc(&loc) {
+                state.write_msg_buff("You tear through some of the webbing!");
+                return 1.0;
+            } else {
+                state.write_msg_buff("You tear through the web!");
+            }            
         }
     }
 
@@ -1327,11 +1335,6 @@ fn wiz_command(state: &mut GameState, gui: &mut GameUI, game_obj_db: &mut GameOb
             let mut poh = items::Item::get_item(game_obj_db,"potion of healing").unwrap();
             poh.set_loc(loc);
             game_obj_db.add(poh);
-        } else if result == "web" {
-                let loc = (player_loc.0, player_loc.1, player_loc.2);
-                let mut web = items::Item::get_item(game_obj_db,"web").unwrap();
-                web.set_loc(loc);
-                game_obj_db.add(web);
         } else if result == "goblin" {
             let loc = (player_loc.0, player_loc.1 - 1, player_loc.2);
             mf.add_monster("goblin", loc, game_obj_db);
@@ -1368,11 +1371,11 @@ fn pick_player_start_loc(state: &GameState) -> (i32, i32, i8) {
     let x = thread_rng().gen_range(0, 4);
     let b = state.world_info.town_boundary;
 
-    // for fact in &state.world_info.facts {
-    //     if fact.detail == "dungeon location" {
-    //         return fact.location;
-    //     }
-    // }
+    for fact in &state.world_info.facts {
+        if fact.detail == "dungeon location" {
+            return fact.location;
+        }
+    }
     
     if x == 0 {
         (b.0 - 5, thread_rng().gen_range(b.1, b.3), 0)

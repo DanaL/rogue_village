@@ -179,15 +179,16 @@ impl Item {
                 
                 Some(GameObjects::Item(i))
             }
-            "web" => {
-                let mut i = Item::new(game_obj_db.next_id(), ':',display::LIGHT_GREY, display::GREY, name, ItemType::Web, 0, false, 0);
-                i.attributes |= IA_IMMOBILE;
-                i.item_dc = 15;
-
-                Some(GameObjects::Item(i))
-            }
             _ => None,
         }
+    }
+
+    pub fn Web(game_obj_db: &mut GameObjectDB, strength: u8) -> GameObjects {
+        let mut web = Item::new(game_obj_db.next_id(), ':',display::GREY, display::DARK_GREY, "web", ItemType::Web, 0, false, 0);
+        web.attributes |= IA_IMMOBILE;
+        web.item_dc = strength;
+
+        GameObjects::Item(web)
     }
 
     pub fn desc(&self) -> String {
