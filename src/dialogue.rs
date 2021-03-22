@@ -19,7 +19,7 @@ use std::fs;
 use rand::{Rng, thread_rng};
 
 use super::GameState;
-use crate::actor::Attitude;
+use crate::npc::Attitude;
 use crate::util::StringUtils;
 
 pub type DialogueLibrary = HashMap<String, Vec<(Attitude, String, String)>>;

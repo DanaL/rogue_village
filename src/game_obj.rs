@@ -19,7 +19,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet, VecDeque};
 
 use super::{EventResponse, EventType, GameState, Status, PLAYER_INV};
-use crate::actor::NPC;
+use crate::npc::NPC;
 use crate::battle::DamageType;
 use crate::items::{Item, GoldPile};
 use crate::map::{SpecialSquare, Tile};

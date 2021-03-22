@@ -18,7 +18,7 @@ use std::collections::{HashMap, HashSet};
 use rand::Rng;
 
 use super::{GameState, Status};
-use crate::actor::Attitude;
+use crate::npc::Attitude;
 use crate::game_obj::{GameObject, Person};
 use crate::dialogue::DialogueLibrary;
 use crate::display::GameUI;

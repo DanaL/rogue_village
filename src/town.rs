@@ -25,8 +25,8 @@ use serde::{Serialize, Deserialize};
 
 use super::{EventType, Map};
 
-use crate::actor;
-use crate::actor::{AgendaItem, Venue, NPC};
+use crate::npc;
+use crate::npc::{AgendaItem, Venue, NPC};
 use crate::dialogue;
 use crate::game_obj::{GameObject, GameObjects, GameObjectDB};
 use crate::map::{DoorState, Tile};
@@ -609,7 +609,7 @@ fn create_villager(voice: &str, tb: &mut TownBuildings, used_names: &HashSet<Str
     let j = rand::thread_rng().gen_range(0, home_sqs.len());    
     let loc = home_sqs.iter().nth(j).unwrap();
     let home = Some(Venue::Home(home_id));
-    let mut villager = NPC::villager(actor::pick_villager_name(used_names), *loc, home, voice, game_obj_db);
+    let mut villager = NPC::villager(npc::pick_villager_name(used_names), *loc, home, voice, game_obj_db);
     tb.taken_homes.push(home_id);
     
     if voice.starts_with("mayor") {
@@ -633,7 +633,7 @@ fn create_innkeeper(tb: &TownBuildings, used_names: &HashSet<String>, game_obj_d
     let loc = inn_sqs.iter().nth(j).unwrap();
 
     let voice = dialogue::rnd_innkeeper_voice();
-    let mut innkeeper = NPC::villager(actor::pick_villager_name(used_names), *loc, Some(Venue::Tavern), &voice, game_obj_db);
+    let mut innkeeper = NPC::villager(npc::pick_villager_name(used_names), *loc, Some(Venue::Tavern), &voice, game_obj_db);
     if let GameObjects::NPC(npc) = &mut innkeeper {
         npc.schedule.push(AgendaItem::new((0, 0), (23, 59), 0, Venue::Tavern, "inn".to_string()));
     }
@@ -646,7 +646,7 @@ fn create_grocer(tb: &TownBuildings, used_names: &HashSet<String>, game_obj_db: 
     let j = rand::thread_rng().gen_range(0, market_sqs.len());
     let loc = market_sqs.iter().nth(j).unwrap();
 
-    let mut grocer = NPC::villager(actor::pick_villager_name(used_names), *loc, Some(Venue::Market), "shopkeeper1", game_obj_db);
+    let mut grocer = NPC::villager(npc::pick_villager_name(used_names), *loc, Some(Venue::Market), "shopkeeper1", game_obj_db);
     if let GameObjects::NPC(npc) = &mut grocer {
         npc.schedule.push(AgendaItem::new((8, 0), (12, 29), 0, Venue::Market, "working".to_string()));
         npc.schedule.push(AgendaItem::new((12, 30), (12, 59), 0, Venue::Tavern, "lunch".to_string()));
@@ -662,7 +662,7 @@ fn create_smith(tb: &TownBuildings, used_names: &HashSet<String>, game_obj_db: &
     let j = rand::thread_rng().gen_range(0, smith_sqs.len());
     let loc = smith_sqs.iter().nth(j).unwrap();
 
-    let mut smith = NPC::villager(actor::pick_villager_name(used_names), *loc, Some(Venue::Smithy), "smith1", game_obj_db);
+    let mut smith = NPC::villager(npc::pick_villager_name(used_names), *loc, Some(Venue::Smithy), "smith1", game_obj_db);
     if let GameObjects::NPC(npc) = &mut smith {
         npc.schedule.push(AgendaItem::new((8, 0), (11, 59), 0, Venue::Smithy, "working".to_string()));
         npc.schedule.push(AgendaItem::new((12, 0), (12, 59), 0, Venue::Tavern, "lunch".to_string()));

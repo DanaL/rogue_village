@@ -20,8 +20,8 @@ use rand::Rng;
 use serde::{Serialize, Deserialize};
 
 use super::{GameState, Status};
-use crate::actor;
-use crate::actor::NPC;
+use crate::npc;
+use crate::npc::NPC;
 use crate::player;
 use crate::game_obj::{Ability, GameObjectDB, Person};
 use crate::util::StringUtils;
@@ -109,7 +109,7 @@ pub fn monster_attacks_player(state: &mut GameState, monster: &mut NPC, monster_
             player.damaged(state, dmg_total as u8, DamageType::Piercing, monster_id, &monster.npc_name(true));
 
             // Are there any relevant extra effects from the monster's attack?
-            if monster.attributes & actor::MA_WEAK_VENOMOUS > 0 {
+            if monster.attributes & npc::MA_WEAK_VENOMOUS > 0 {
                 let con_save = player.ability_check(Ability::Con);
                 if con_save <= monster.edc {
                     state.write_msg_buff("You feel ill.");

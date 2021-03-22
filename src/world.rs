@@ -23,7 +23,7 @@ use serde::{Serialize, Deserialize};
 
 use super::{EventType, Map};
 
-use crate::actor::MonsterFactory;
+use crate::npc::MonsterFactory;
 use crate::dungeon;
 use crate::dungeon::Vault;
 use crate::game_obj::{GameObject, GameObjects, GameObjectDB};

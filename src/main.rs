@@ -19,7 +19,7 @@ extern crate rand;
 extern crate sdl2;
 extern crate serde;
 
-mod actor;
+mod npc;
 mod battle;
 mod dialogue;
 mod display;
@@ -49,7 +49,7 @@ use std::time::Instant;
 use rand::{Rng, prelude::SliceRandom, thread_rng};
 use serde::{Serialize, Deserialize};
 
-use actor::{Attitude, MonsterFactory, Venue};
+use npc::{Attitude, MonsterFactory, Venue};
 use dialogue::DialogueLibrary;
 use display::{GameUI, SidebarInfo, WHITE};
 use game_obj::{Ability, GameObject, GameObjectDB, GameObjects, Person};
