@@ -453,7 +453,14 @@ fn drop_item(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mut Ga
     }
     
     let mut cost = 0.0;
-    let menu =  player.inv_menu(0);
+    let mut menu =  player.inv_menu(0);
+    if player.purse > 0 {
+        let mut s = format!("$) {} gold piece", player.purse);
+        if player.purse > 1 {
+            s.push('s');
+        }
+        menu.insert(0, (s, true));
+    }
     if let Some(ch) = gui.show_in_side_pane("Drop which?", &menu) {
         if ch == '$' {
             return drop_zorkmids(state, game_obj_db, gui);
@@ -1054,7 +1061,7 @@ fn check_for_web_on_sq(state: &mut GameState, game_obj_db: &mut GameObjectDB, lo
     } else {
         (0, 0)
     };
-    
+
     if web_info.0 > 0 {
         let p = game_obj_db.player().unwrap();         
         if p.ability_check(Ability::Str) < web_info.1 {
