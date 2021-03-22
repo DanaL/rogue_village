@@ -22,9 +22,8 @@ use crate::actor::Attitude;
 use crate::game_obj::{GameObject, Person};
 use crate::dialogue::DialogueLibrary;
 use crate::display::GameUI;
-use crate::game_obj::{GameObjectDB, GameObjects};
+use crate::game_obj::{Ability, GameObjectDB, GameObjects};
 use crate::items::{Item, ItemType};
-use crate::player::Ability;
 use crate::util::StringUtils;
 
 // This is similar to but not quite the same as the player inventory tool

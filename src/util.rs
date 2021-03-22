@@ -15,6 +15,8 @@
 
 // Some miscellaneous structs and functions used in a few plces
 
+use crate::game_obj::GameObjectDB;
+
 pub const ADJ: [(i32, i32); 8] = [(0, -1), (0, 1), (-1, 0), (1, 0), (-1, -1), (-1, 1), (1, -1), (1, 1)];
 
 pub fn num_to_nth(n: u8) -> String {
@@ -151,6 +153,38 @@ pub fn bresenham_circle(rc: i32, cc: i32, radius: i32) -> Vec<(i32, i32)> {
 	}
 
 	pts
+}
+
+fn conjugate(second_person: bool, verb: &str) -> String {
+	if second_person {
+		if verb == "to be" { return "are".to_string() }
+		
+		verb.to_string()
+	} else {
+		if verb == "to be" { return "is".to_string() }
+		
+		let mut c = verb.to_string();
+		c.push('s');
+		c
+	}	
+}
+
+// Simple way to make messages like "You are stuck in the web!" vs "The goblin is stuck in the web!"
+pub fn format_msg(obj_id: usize, verb: &str, msg: &str, game_obj_db: &mut GameObjectDB) -> String {
+	let mut s = String::from("");
+	if obj_id == 0 {
+		s.push_str("You ");
+	} else {
+		let m = game_obj_db.npc(obj_id).unwrap();
+		s.push_str(&m.npc_name(false));
+		s.push(' ');
+	}
+
+	s.push_str(&conjugate(obj_id == 0, verb));
+	s.push(' ');
+	s.push_str(msg);
+
+	s
 }
 
 pub trait StringUtils {

@@ -27,6 +27,14 @@ use crate::player::Player;
 use crate::util::StringUtils;
 use crate::items;
 
+pub enum Ability {
+    Str,
+    Dex,
+    Con,
+    Chr,
+    Apt,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct GameObjectBase {
     pub object_id: usize,
@@ -357,12 +365,12 @@ impl GameObjectDB {
         if self.obj_locs.contains_key(loc) {
             for j in 0..self.obj_locs[&loc].len() {                
                 let obj_id = self.obj_locs[&loc][j];
-                if self.objects[&obj_id].hidden() {
+                if obj_id == 0 || self.objects[&obj_id].hidden() {
                     continue;
                 }
                 let name = self.objects[&obj_id].get_fullname();
                 let i = items.entry(name).or_insert(0);
-                *i += 1;                
+                *i += 1;
             }
         }
 
@@ -383,6 +391,7 @@ impl GameObjectDB {
     pub fn web_at_loc(&self, loc: &(i32, i32, i8)) -> Option<&Item> {
         if self.obj_locs.contains_key(&loc) {
             for id in self.obj_locs[&loc].iter() {
+                println!("{} {:?}", id, loc);
                 if let GameObjects::Item(item) = &self.objects[&id] {
                     if item.item_type == items::ItemType::Web {
                         return Some(&item);
@@ -555,9 +564,9 @@ impl GameObjectDB {
             // NB: I attempted to convert this mess to the objects table holding Rc<RefCell<GameObject>> so that I
             // could multiple ownership and it was a bit of a disaster, but maybe something to try again another time...
             
-            // I'm not going to remove them from listeners or obj_locs tables, although we'll have to check if their 
-            // position changed after their turn.
-            let mut actor = self.objects.remove(&actor_id).unwrap();
+            // Got to remove the NPC from the objects table so I don't hit a mutual borrow situation when interacting 
+            // with other game objects
+            let mut actor = self.remove(actor_id);
             let actor_loc = actor.get_loc();
             
             // Has the npc died since their last turn?
@@ -585,6 +594,7 @@ impl GameObjectDB {
                     npc.take_turn(state, self);
                 }
             }
+            println!("fuck fuck fuck {}", actor_id);
 
             // // Was the npc killed during their turn?
             let is_alive = if let GameObjects::NPC(npc) = &actor {
@@ -601,18 +611,24 @@ impl GameObjectDB {
                 }
                 continue;
             }
-                       
-            if actor.get_loc() != actor_loc {
-                // the NPC moved on their turn, so we need to update them in the obj_locs table and
-                // re-insert them into the objects table. 
-                self.remove_from_loc(actor_id, actor_loc);
-                actor.set_loc(actor.get_loc());
-                self.stepped_on_event(state, actor.get_loc());
-                self.add(actor);
-            } else {
-                // the NPC didn't move so we should just have to put them back into the objects table
-                self.objects.insert(actor_id, actor);
-            }
+
+            // We need to reinsert the NPC into the objects table. Thank you, Rust
+            let fuck_loc = actor.get_loc();
+            self.add( actor);
+            println!("*** fuck");
+            println!("{:?}", self.obj_locs[&actor_loc]);
+            println!("{:?}", self.obj_locs[&fuck_loc]);
+            println!("fuck off {:?} {:?}", actor_loc, fuck_loc);
+            // if actor.get_loc() != actor_loc {
+            //     // the NPC moved on their turn, so we need to update them in the obj_locs table and
+            //     // re-insert them into the objects table. 
+            //     self.remove_from_loc(actor_id, actor_loc);
+            //     actor.set_loc(actor.get_loc());
+            //     self.stepped_on_event(state, actor.get_loc());
+            //     self.add(actor);
+            // } else {
+                
+            // }
         }
     }
 
@@ -672,4 +688,5 @@ pub trait Person {
     fn add_hp(&mut self, state: &mut GameState, amt: u8);
     fn add_status(&mut self, status: Status);
     fn remove_status(&mut self, status: Status);
+    fn ability_check(&self, ability: Ability) -> u8;
 }

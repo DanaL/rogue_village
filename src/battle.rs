@@ -23,8 +23,7 @@ use super::{GameState, Status};
 use crate::actor;
 use crate::actor::NPC;
 use crate::player;
-use crate::player::Ability;
-use crate::game_obj::{GameObjectDB, Person};
+use crate::game_obj::{Ability, GameObjectDB, Person};
 use crate::util::StringUtils;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

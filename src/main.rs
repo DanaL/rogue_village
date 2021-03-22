@@ -52,10 +52,10 @@ use serde::{Serialize, Deserialize};
 use actor::{Attitude, MonsterFactory, Venue};
 use dialogue::DialogueLibrary;
 use display::{GameUI, SidebarInfo, WHITE};
-use game_obj::{GameObject, GameObjectDB, GameObjects, Person};
+use game_obj::{Ability, GameObject, GameObjectDB, GameObjects, Person};
 use items::{GoldPile, IA_CONSUMABLE, ItemType};
 use map::{DoorState, ShrineType, Tile};
-use player::{Ability, Player};
+use player::{Player};
 use util::StringUtils;
 use world::WorldInfo;
 use items::IA_IMMOBILE;
@@ -1055,7 +1055,7 @@ fn land_on_location(state: &mut GameState, game_obj_db: &mut GameObjectDB, loc: 
     // }
 }
 
-fn check_for_web_on_sq(state: &mut GameState, game_obj_db: &mut GameObjectDB, loc: (i32, i32, i8)) -> f32 {
+fn check_for_web_on_sq(state: &mut GameState, game_obj_db: &mut GameObjectDB, obj_id: usize, loc: (i32, i32, i8)) -> f32 {
     let web_info = if let Some(web) = game_obj_db.web_at_loc(&loc) {
         (web.obj_id(), web.item_dc)
     } else {
@@ -1063,24 +1063,61 @@ fn check_for_web_on_sq(state: &mut GameState, game_obj_db: &mut GameObjectDB, lo
     };
 
     if web_info.0 > 0 {
-        let p = game_obj_db.player().unwrap();         
-        if p.ability_check(Ability::Str) < web_info.1 {
-            state.write_msg_buff("You are held fast by the sticky webbing!");
+        let agent = game_obj_db.as_person(obj_id).unwrap();
+        if agent.ability_check(Ability::Str) < web_info.1 {
+            state.write_msg_buff(&util::format_msg(obj_id, "to be", "held fast by the web!", game_obj_db));
             return 1.0;
         } else {
             game_obj_db.remove(web_info.0);
 
-            // Is the player free or is there still more webbing?
-            if let Some(web) = game_obj_db.web_at_loc(&loc) {
-                state.write_msg_buff("You tear through some of the webbing!");
+            // Are they free or is there still more webbing?
+            if let Some(_) = game_obj_db.web_at_loc(&loc) {                
+                state.write_msg_buff(&util::format_msg(obj_id, "tear", "through some of the webbing!", game_obj_db));
                 return 1.0;
-            } else {
-                state.write_msg_buff("You tear through the web!");
+            } else {                
+                state.write_msg_buff(&util::format_msg(obj_id, "tear", "through the web!", game_obj_db));
             }            
         }
     }
 
     0.0
+}
+
+pub fn take_step(state: &mut GameState, game_obj_db: &mut GameObjectDB, obj_id: usize, start_loc: (i32, i32, i8), next_loc: (i32, i32, i8)) -> (f32, bool) {
+    let start_tile = state.map[&start_loc];
+    
+    let cost = check_for_web_on_sq(state, game_obj_db, obj_id, start_loc);
+    if cost > 0.0 { return (cost, false); }
+
+    // Rubble is difficult terrain and requires a dex check to mvoe off of.
+    // (If you designate more terrain types as difficult terrain, probably make a function)
+    if start_tile == Tile::Rubble {
+        let agent = game_obj_db.as_person(obj_id).unwrap();
+        if agent.ability_check(Ability::Dex) <= 12 {            
+            state.write_msg_buff(&util::format_msg(obj_id, "stumble", "over the rubble!", game_obj_db));
+            return (1.0, false);
+        }
+    }
+
+    game_obj_db.set_to_loc(obj_id, next_loc);
+    
+    // This whole next section of checking for special floor effects is gross and ugly
+    // but I don't know what the final form will look like after I have more kinds of 
+    // effects so I'm going to leave it gross until it's more fixed.
+    game_obj_db.stepped_on_event(state, next_loc);
+
+    let mut teleport: bool = false;
+    for special in game_obj_db.special_sqs_at_loc(&next_loc) {
+        if special.get_tile() == Tile::TeleportTrap {
+            teleport = true;
+        }
+    }
+    if teleport {
+        let sq = random_open_sq(state, game_obj_db, start_loc.2);
+        game_obj_db.set_to_loc(obj_id, sq);                
+    }
+
+    return (1.0, true);
 }
 
 fn do_move(state: &mut GameState, game_obj_db: &mut GameObjectDB, dir: &str, gui: &mut GameUI) -> f32 {
@@ -1099,17 +1136,10 @@ fn do_move(state: &mut GameState, game_obj_db: &mut GameObjectDB, dir: &str, gui
     if game_obj_db.blocking_obj_at(&next_loc) {
         return maybe_fight(state, game_obj_db, next_loc, gui);            
     } else if tile.passable() {
-        let res = check_for_web_on_sq(state, game_obj_db, start_loc);
-        if res > 0.0 { return res; }
+        let (cost, moved) = take_step(state, game_obj_db, 0, start_loc, next_loc);
 
-        // Rubble is difficult terrain and requires a dex check to mvoe off of.
-        // (If you designate more terrain types as difficult terrain, probably make a function)
-        if start_tile == Tile::Rubble {
-            let p = game_obj_db.player().unwrap();         
-            if p.ability_check(Ability::Dex) <= 12 {
-                state.write_msg_buff("You stumble and trip over the rubble.");
-                return 1.0;
-            }
+        if !moved {
+            return cost;
         }
 
         match tile {
@@ -1138,9 +1168,7 @@ fn do_move(state: &mut GameState, game_obj_db: &mut GameObjectDB, dir: &str, gui
                 }
             },
             _ => {
-                if start_tile == map::Tile::DeepWater { 
-                    state.write_msg_buff("Whew, you stumble ashore.");
-                } else if state.aura_sqs.contains(&next_loc) && !state.aura_sqs.contains(&start_loc) {
+                if state.aura_sqs.contains(&next_loc) && !state.aura_sqs.contains(&start_loc) {
                     state.write_msg_buff("You feel a sense of peace.");
                 }
             },            
@@ -1158,25 +1186,7 @@ fn do_move(state: &mut GameState, game_obj_db: &mut GameObjectDB, dir: &str, gui
             state.write_msg_buff("There are several items here.");
         }
         
-        game_obj_db.set_to_loc(0, next_loc);
-        
-        // This whole next section of checking for special floor effects is gross and ugly
-        // but I don't know what the final form will look like after I have more kinds of 
-        // effects so I'm going to leave it gross until it's more fixed.
-        game_obj_db.stepped_on_event(state, next_loc);
-
-        let mut teleport: bool = false;
-        for special in game_obj_db.special_sqs_at_loc(&next_loc) {
-            if special.get_tile() == Tile::TeleportTrap {
-                teleport = true;
-            }
-        }
-        if teleport {
-            let sq = random_open_sq(state, game_obj_db, start_loc.2);
-            game_obj_db.set_to_loc(0, sq);                
-        }
-
-        return 1.0;
+        return cost;
     } else if tile == Tile::Door(DoorState::Closed) {
         // Bump to open doors. I might make this an option later
         do_open(state, next_loc);

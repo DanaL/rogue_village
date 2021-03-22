@@ -23,20 +23,12 @@ use super::{EventResponse, GameState, Status};
 use crate::battle::DamageType;
 use crate::display;
 use crate::{EventType, items};
-use crate::game_obj::{GameObject, GameObjectDB, GameObjectBase, GameObjects, Person};
+use crate::game_obj::{Ability, GameObject, GameObjectDB, GameObjectBase, GameObjects, Person};
 use crate::items::{Item, ItemType};
 use crate::map::Tile;
 use crate::util::StringUtils;
 
 const XP_CHART: [u32; 19] = [20, 40, 80, 160, 320, 640, 1280, 2560, 5210, 10_000, 15_000, 21_000, 28_000, 36_000, 44_000, 52_000, 60_000, 68_000, 76_000];
-
-pub enum Ability {
-    Str,
-    Dex,
-    Con,
-    Chr,
-    Apt,
-}
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum Role {
@@ -494,24 +486,6 @@ impl Player {
         };
     }
 
-    pub fn ability_check(&self, ability: Ability) -> u8 {
-        let mut rng = rand::thread_rng();
-        let roll = rng.gen_range(1, 21) + 
-            match ability {
-                Ability::Str => stat_to_mod(self.str),
-                Ability::Dex => stat_to_mod(self.dex),
-                Ability::Con => stat_to_mod(self.con),
-                Ability::Chr => stat_to_mod(self.chr),
-                Ability::Apt => stat_to_mod(self.apt),
-            };
-        
-        if roll < 0 {
-            0
-        } else {
-            roll as u8
-        }
-    }
-
     // My idea is that the roles will have differing bonuses to attack rolls. Ie.,
     // a warrior might get an extra 1d6, a rogue an extra 1d4, wizard-types no 
     // extra dice, and they get more dice as they level up.
@@ -632,6 +606,24 @@ impl Person for Player {
 
     fn remove_status(&mut self, status: Status) {
         self.statuses.retain(|s| *s != status);
+    }
+
+    fn ability_check(&self, ability: Ability) -> u8 {
+        let mut rng = rand::thread_rng();
+        let roll = rng.gen_range(1, 21) + 
+            match ability {
+                Ability::Str => stat_to_mod(self.str),
+                Ability::Dex => stat_to_mod(self.dex),
+                Ability::Con => stat_to_mod(self.con),
+                Ability::Chr => stat_to_mod(self.chr),
+                Ability::Apt => stat_to_mod(self.apt),
+            };
+        
+        if roll < 0 {
+            0
+        } else {
+            roll as u8
+        }
     }
 }
 

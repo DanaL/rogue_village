@@ -183,7 +183,7 @@ impl Item {
         }
     }
 
-    pub fn Web(game_obj_db: &mut GameObjectDB, strength: u8) -> GameObjects {
+    pub fn web(game_obj_db: &mut GameObjectDB, strength: u8) -> GameObjects {
         let mut web = Item::new(game_obj_db.next_id(), ':',display::GREY, display::DARK_GREY, "web", ItemType::Web, 0, false, 0);
         web.attributes |= IA_IMMOBILE;
         web.item_dc = strength;

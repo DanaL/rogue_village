@@ -30,7 +30,7 @@ use crate::battle::DamageType;
 use crate::dialogue;
 use crate::dialogue::DialogueLibrary;
 use crate::display;
-use crate::game_obj::{GameObject, GameObjectBase, GameObjectDB, GameObjects, Person};
+use crate::game_obj::{Ability, GameObject, GameObjectBase, GameObjectDB, GameObjects, Person};
 use crate::items::{GoldPile, Item};
 use crate::map::{Tile, DoorState};
 use crate::pathfinding::find_path;
@@ -213,19 +213,8 @@ impl NPC {
                 }
             }
 
-            // Need to fix this up so that I'm not duplicating code from do_move() in main.rs as much as possible
-            let curr_tile = state.map[&my_loc];
-            if curr_tile == Tile::Rubble {
-                let mut rng = rand::thread_rng();
-                if rng.gen_range(1, 21) < 9 {
-                    let s = format!("{} stumbles in the rubble.", self.npc_name(false).capitalize());
-                    state.write_msg_buff(&s);
-                    self.plan.push_front(Action::Move(goal_loc));
-                    return;
-                }                
-            }
-
-            self.set_loc(goal_loc);
+            println!("stupid fuck {:?} {:?}", my_loc, goal_loc);
+            super::take_step(state, game_obj_db, self.obj_id(), my_loc, goal_loc);
         }
     }
 
@@ -411,16 +400,16 @@ impl NPC {
     }
 
     fn spin_webs(&mut self, state: &mut GameState, game_obj_db: &mut GameObjectDB, loc: (i32, i32, i8)) {
-        let s = format!("{} spins a web.", self.npc_name(false));
+        let s = format!("{} spins a web.", self.npc_name(false).capitalize());
         state.write_msg_buff(&s);
-        let mut web = Item::Web(game_obj_db, self.edc);
+        let mut web = Item::web(game_obj_db, self.edc);
         web.set_loc(loc);
         game_obj_db.add(web);
 
         for adj in util::ADJ.iter() {
             let adj_loc = (loc.0 + adj.0, loc.1 + adj.1, loc.2);
             if state.map[&adj_loc].passable() && rand::thread_rng().gen_range(0.0, 1.0) < 0.66 {
-                let mut web = Item::Web(game_obj_db, self.edc);
+                let mut web = Item::web(game_obj_db, self.edc);
                 web.set_loc(adj_loc);
                 game_obj_db.add(web);
             }
@@ -657,6 +646,14 @@ impl Person for NPC {
     // Not deaing with statuses for monsters yet...
     fn add_status(&mut self, _status: Status) { }
     fn remove_status(&mut self, _status: Status) { }
+
+    // I'm not (yet) giving monsters individual stats yet, so for ability checks 
+    // just use their effect dc
+    fn ability_check(&self, _ability: Ability) -> u8 {
+        let roll = rand::thread_rng().gen_range(1, 21) + self.edc;
+
+        roll
+    }
 }
 
 fn in_location(state: &GameState, loc: (i32, i32, i8), sqs: &HashSet<(i32, i32, i8)>, indoors: bool) -> bool {
