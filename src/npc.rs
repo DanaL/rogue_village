@@ -452,7 +452,7 @@ fn follow_plan(npc_id: usize, state: &mut GameState, game_obj_db: &mut GameObjec
             Action::OpenDoor(loc) => open_door(loc, state, npc_name),
             Action::CloseDoor(loc) => close_door(loc, state, game_obj_db, npc_id, npc_name),
             Action::Attack(_loc) => {
-                //battle::monster_attacks_player(state, self, npc_id, game_obj_db);
+                battle::monster_attacks_player(state,  npc_id, game_obj_db);
             },
         }
     }

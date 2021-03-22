@@ -21,7 +21,6 @@ use serde::{Serialize, Deserialize};
 
 use super::{GameState, Status};
 use crate::npc;
-use crate::npc::NPC;
 use crate::player;
 use crate::game_obj::{Ability, GameObjectDB, Person};
 use crate::util::StringUtils;
@@ -93,32 +92,41 @@ pub fn player_attacks(state: &mut GameState, opponent_id: usize, game_obj_db: &m
     }
 }
 
-pub fn monster_attacks_player(state: &mut GameState, monster: &mut NPC, monster_id: usize, game_obj_db: &mut GameObjectDB) {
+pub fn monster_attacks_player(state: &mut GameState, monster_id: usize, game_obj_db: &mut GameObjectDB) {
     let mut rng = rand::thread_rng();
+    let npc = game_obj_db.npc(monster_id).unwrap();
+    let monster_name_indef = npc.npc_name(true);
+    let monster_name = npc.npc_name(false);
+    let attack_mod = npc.attack_mod;
+    let dmg_die = npc.dmg_die;
+    let dmg_dice = npc.dmg_dice;
+    let dmg_bonus = npc.dmg_bonus;
+    let monster_dc = npc.edc;
+    let monster_attributes = npc.attributes;
 
-    let attack_roll = rng.gen_range(1, 21) + monster.attack_mod;
+    let attack_roll = rng.gen_range(1, 21) + attack_mod;
 
     let player = game_obj_db.player().unwrap();
     if attack_roll >= player.ac {
-        let s = format!("{} hits you!", monster.npc_name(false).capitalize());
+        let s = format!("{} hits you!", monster_name.capitalize());
         state.write_msg_buff(&s);        
-        let dmg_roll: u8 = (0..monster.dmg_dice).map(|_| rng.gen_range(1, monster.dmg_die + 1)).sum();
-        let dmg_total = (dmg_roll + monster.dmg_bonus) as i8;
+        let dmg_roll: u8 = (0..dmg_dice).map(|_| rng.gen_range(1, dmg_die + 1)).sum();
+        let dmg_total = (dmg_roll + dmg_bonus) as i8;
         if dmg_total > 0 {
             // I'm not yet assigning damage types to monsters so just sending Piercing as a good default
-            player.damaged(state, dmg_total as u8, DamageType::Piercing, monster_id, &monster.npc_name(true));
+            player.damaged(state, dmg_total as u8, DamageType::Piercing, monster_id, &monster_name_indef);
 
             // Are there any relevant extra effects from the monster's attack?
-            if monster.attributes & npc::MA_WEAK_VENOMOUS > 0 {
+            if monster_attributes & npc::MA_WEAK_VENOMOUS > 0 {
                 let con_save = player.ability_check(Ability::Con);
-                if con_save <= monster.edc {
+                if con_save <= monster_dc {
                     state.write_msg_buff("You feel ill.");
-                    player.add_status(Status::WeakVenom(monster.edc));
+                    player.add_status(Status::WeakVenom(monster_dc));
                 }
             }
         }
     } else {
-        let s = format!("{} misses you!", monster.npc_name(false).capitalize());
+        let s = format!("{} misses you!", monster_name.capitalize());
         state.write_msg_buff(&s);
     }
 }

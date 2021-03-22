@@ -392,7 +392,6 @@ impl GameObjectDB {
     pub fn web_at_loc(&self, loc: &(i32, i32, i8)) -> Option<&Item> {
         if self.obj_locs.contains_key(&loc) {
             for id in self.obj_locs[&loc].iter() {
-                println!("{} {:?}", id, loc);
                 if let GameObjects::Item(item) = &self.objects[&id] {
                     if item.item_type == items::ItemType::Web {
                         return Some(&item);
