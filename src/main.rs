@@ -19,7 +19,6 @@ extern crate rand;
 extern crate sdl2;
 extern crate serde;
 
-mod npc;
 mod battle;
 mod dialogue;
 mod display;
@@ -29,6 +28,7 @@ mod game_obj;
 mod fov;
 mod items;
 mod map;
+mod npc;
 mod pathfinding;
 mod player;
 mod shops;

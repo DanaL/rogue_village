@@ -151,109 +151,6 @@ impl NPC {
 		GameObjects::NPC(npc)
     }
     
-    // I should be able to move calc_plan_to_move, try_to_move_to_loc, etc to generic
-    // places for all Villager types since they'll be pretty same-y. The differences
-    // will be in how NPCs set their plans/schedules. 
-    fn calc_plan_to_move(&mut self, state: &GameState, game_obj_db: &GameObjectDB, goal: (i32, i32, i8), stop_before: bool) {
-        if self.plan.len() == 0 {
-            let mut passable = HashMap::new();
-            passable.insert(Tile::Grass, 1.0);
-            passable.insert(Tile::Dirt, 1.0);
-            passable.insert(Tile::Tree, 1.0);
-            passable.insert(Tile::Bridge, 1.0);
-            passable.insert(Tile::Door(DoorState::Open), 1.0);
-            passable.insert(Tile::Door(DoorState::Broken), 1.0);
-            passable.insert(Tile::Gate(DoorState::Open), 1.0);
-            passable.insert(Tile::Gate(DoorState::Broken), 1.0);
-            if self.attributes & MA_OPEN_DOORS > 0 {
-                passable.insert(Tile::Door(DoorState::Closed), 2.0);
-            }
-            if self.attributes & MA_UNLOCK_DOORS > 0 {
-                passable.insert(Tile::Door(DoorState::Locked), 2.5);
-            }
-            passable.insert(Tile::StoneFloor, 1.0);
-            passable.insert(Tile::Floor, 1.0);
-            passable.insert(Tile::Trigger, 1.0);
-            passable.insert(Tile::Rubble, 1.50);
-
-            let my_loc = self.get_loc();
-            let mut path = find_path(&state.map, Some(game_obj_db), stop_before, my_loc.0, my_loc.1, 
-                my_loc.2, goal.0, goal.1, 50, &passable);
-            
-            path.pop(); // first square in path is the start location
-            while path.len() > 0 {
-                let sq = path.pop().unwrap();
-                self.plan.push_back(Action::Move((sq.0, sq.1, my_loc.2)));
-            }
-        }
-    }
-
-    fn try_to_move_to_loc(&mut self, goal_loc: (i32, i32, i8), state: &mut GameState, game_obj_db: &mut GameObjectDB) {
-        let my_loc = self.get_loc();
-        if goal_loc == my_loc {
-            println!("Hmm I'm trying to move to my own location...");
-        }   
-        if game_obj_db.blocking_obj_at(&goal_loc) {
-            match self.mode {
-                NPCPersonality::Villager => { state.write_msg_buff("\"Excuse me.\""); }
-                _ => { }
-
-            }
-            // if someone/something is blocking path, clear the current plan which should trigger 
-            // creating a new plan
-            self.plan.clear();
-        } else if state.map[&goal_loc] == Tile::Door(DoorState::Closed) {
-            self.plan.push_front(Action::Move(goal_loc));
-            self.open_door(goal_loc, state);
-        } else {
-            // Villagers will close doors after they pass through them
-            if self.mode == NPCPersonality::Villager {
-                if let Tile::Door(DoorState::Open) = state.map[&my_loc] {
-                    self.plan.push_front(Action::CloseDoor(my_loc));                
-                }
-            }
-
-            println!("stupid fuck {:?} {:?}", my_loc, goal_loc);
-            super::take_step(state, game_obj_db, self.obj_id(), my_loc, goal_loc);
-        }
-    }
-
-    fn open_door(&mut self, loc: (i32, i32, i8), state: &mut GameState) {
-        let s = format!("{} opens the door.", self.base_info.name.with_def_article().capitalize());
-        state.write_msg_buff(&s);
-        state.map.insert(loc, Tile::Door(DoorState::Open));
-    }
-
-    fn close_door(&mut self, loc: (i32, i32, i8), state: &mut GameState, game_obj_db: &mut GameObjectDB) {
-        if game_obj_db.blocking_obj_at(&loc) {
-            state.write_msg_buff("Please don't stand in the doorway.");
-            self.plan.push_front(Action::CloseDoor(loc));
-        } else {
-            if let Tile::Door(DoorState::Open) = state.map[&loc] {
-                if self.attitude == Attitude::Stranger {
-                    state.write_msg_buff("The villager closes the door.");
-                } else {
-                    let s = format!("{} closes the door.", self.base_info.name);
-                    state.write_msg_buff(&s);
-                }
-                state.map.insert(loc, Tile::Door(DoorState::Closed));
-            }
-        }
-    }
-
-    fn follow_plan(&mut self,state: &mut GameState, game_obj_db: &mut GameObjectDB) {
-        if let Some(action) = self.plan.pop_front() {
-            match action {
-                Action::Move(loc) => self.try_to_move_to_loc(loc, state, game_obj_db),
-                Action::OpenDoor(loc) => self.open_door(loc, state),
-                Action::CloseDoor(loc) => self.close_door(loc, state, game_obj_db),
-                Action::Attack(_loc) => {
-                    battle::monster_attacks_player(state, self, self.obj_id(), game_obj_db);
-                },
-            }
-        }
-    }
-
     // fn is_home_open(&self, map: &Map) -> bool {
     //     match self.entrance_location(map) {
     //         Some(loc) => 
@@ -265,23 +162,6 @@ impl NPC {
     //         _ => false
     //     }        
     // }
-
-    fn check_agenda_item(&mut self, state: &GameState, game_obj_db: &GameObjectDB, item: &AgendaItem, loc: (i32, i32, i8)) {        
-        let venue =
-            match item.place {
-                Venue::Tavern => &state.world_info.town_buildings.as_ref().unwrap().tavern,
-                Venue::Market => &state.world_info.town_buildings.as_ref().unwrap().market,
-                Venue::Smithy => &state.world_info.town_buildings.as_ref().unwrap().smithy,
-                Venue::TownSquare => &state.world_info.town_square,
-                _ => panic!("Haven't implemented that venue yet!"),
-            };
-
-        if !venue.is_empty() && !in_location(state, loc, &venue, true) {
-            self.go_to_place(state, game_obj_db, &venue, loc);
-        } else {
-            self.random_adj_sq(state, game_obj_db, loc);
-        }
-    }
 
     // Select the current, highest priority agenda item from the schedule
     pub fn curr_agenda_item(&self, state: &GameState) -> Option<AgendaItem> {
@@ -297,227 +177,6 @@ impl NPC {
             None
         } else {
             Some(items[0].clone())
-        }
-    }
-
-    fn villager_schedule(&mut self, state: &GameState, game_obj_db: &GameObjectDB, my_loc: (i32, i32, i8)) {       
-        if let Some(curr_item) = self.curr_agenda_item(state) {
-            self.check_agenda_item(state, game_obj_db, &curr_item, my_loc);
-        } else {
-            // The default behaviour is to go home if nothing on the agenda.
-            let b = &state.world_info.town_buildings.as_ref().unwrap();
-            
-            if let Some(Venue::Home(home_id)) = self.home {
-                if !in_location(state, my_loc, &b.homes[home_id], true) {
-                    self.go_to_place(state, game_obj_db, &b.homes[home_id], my_loc);
-                } else {
-                    self.random_adj_sq(state, game_obj_db, my_loc);                    
-                }
-            } else {
-                self.random_adj_sq(state, game_obj_db, my_loc);
-            }
-        } 
-    }
-
-    // Generally, when I have an NPC go a building/place, I assume it doesn't matter too much if 
-    // they go to specific square inside it, so just pick any one of them.
-    fn go_to_place(&mut self, state: &GameState, game_obj_db: &GameObjectDB, sqs: &HashSet<(i32, i32, i8)>, my_loc: (i32, i32, i8)) {
-        let j = thread_rng().gen_range(0, &sqs.len());
-        let goal_loc = &sqs.iter().nth(j).unwrap().clone(); // Clone prevents a compiler warning...
-        self.calc_plan_to_move(state, game_obj_db, *goal_loc, false);
-    }
-
-    fn random_adj_sq(&mut self, state: &GameState , game_obj_db: &GameObjectDB, loc: (i32, i32, i8)) {
-        if thread_rng().gen_range(0.0, 1.0) < 0.33 {
-            let j = thread_rng().gen_range(0, util::ADJ.len()) as usize;
-            let d = util::ADJ[j];
-            let adj = (loc.0 + d.0, loc.1 + d.1, loc.2);
-            if !game_obj_db.blocking_obj_at(&adj) && state.map[&adj].passable_dry_land() {
-                self.calc_plan_to_move(state, game_obj_db, adj, false);
-            }
-        }
-    }
-
-    // Quick, dirty guess of which adjacent, open square is closest to the player
-    fn best_guess_toward_player(&mut self, state: &GameState, loc: (i32, i32, i8), player_loc: (i32, i32, i8)) -> (i32, i32, i8) {
-        let mut nearest = i32::MAX;
-        let mut best = loc;
-        for adj in util::ADJ.iter() {            
-            let a = (loc.0 + adj.0, loc.1 + adj.1, loc.2);
-
-            // This will need to be updated when I add aquatic creatures
-            if !state.map[&a].passable_dry_land() {
-                continue;
-            }
-
-            let d = (a.0 - player_loc.0) * (a.0 - player_loc.0) + (a.1 - player_loc.1) * (a.1 - player_loc.1);
-            if d < nearest {
-                best = a;
-                nearest = d;
-            }
-        }
-
-        best
-    }
-
-    fn can_see_player(&mut self, state: &GameState, game_obj_db: &mut GameObjectDB, loc: (i32, i32, i8), player_loc: (i32, i32, i8)) -> bool {
-        let dr = loc.0 - player_loc.0;
-        let dc = loc.1 - player_loc.1;
-        let d = dr * dr + dc * dc;
-
-        // This distance check may be premature optimization. If monster fov turns out to not be a bottleneck
-        // I can ditch it. But my first ever attempt at a roguelike was in Python in 2002 and you had to be
-        // careful about speed...
-        if d < 169 {
-            // Is the player within the monster's FOV? If they recently saw the player or pass a perception check
-            // then they can see the player. Otherwise, not. If they player passes out of the FOV, flip the 
-            // recently saw player bit so that they have to make a new perception check if they loose track
-            // of player
-            let visible_sqs = fov::calc_fov(state, loc, 12, true);
-            let in_fov = visible_sqs.contains(&player_loc);
-            if !in_fov {
-                self.recently_saw_player = false;
-                return false;
-            }
-            
-            if in_fov && self.recently_saw_player {
-                return true;
-            }
-
-            let mut rng = rand::thread_rng();
-            let percept = rng.gen_range(1, 21) + self.level;
-            let player_stealth = game_obj_db.player().unwrap().stealth_score;
-            if percept >= player_stealth {
-                self.recently_saw_player = true;
-                return true;
-            }
-
-            false
-        } else {
-            self.recently_saw_player = false;
-            false
-        }
-    }
-
-    fn spin_webs(&mut self, state: &mut GameState, game_obj_db: &mut GameObjectDB, loc: (i32, i32, i8)) {
-        let s = format!("{} spins a web.", self.npc_name(false).capitalize());
-        state.write_msg_buff(&s);
-        let mut web = Item::web(game_obj_db, self.edc);
-        web.set_loc(loc);
-        game_obj_db.add(web);
-
-        for adj in util::ADJ.iter() {
-            let adj_loc = (loc.0 + adj.0, loc.1 + adj.1, loc.2);
-            if state.map[&adj_loc].passable() && rand::thread_rng().gen_range(0.0, 1.0) < 0.66 {
-                let mut web = Item::web(game_obj_db, self.edc);
-                web.set_loc(adj_loc);
-                game_obj_db.add(web);
-            }
-        }        
-    }
-
-    fn special_move(&mut self, state: &mut GameState, game_obj_db: &mut GameObjectDB, player_loc: (i32, i32, i8), sees_player: bool, adj: bool) -> bool {
-        let my_loc = self.get_loc();
-        if self.attributes & MA_WEBSLINGER > 0 && sees_player && !adj {
-            let d = util::distance(my_loc.0, my_loc.1, player_loc.0, player_loc.1);
-            if d < 5.0 && rand::thread_rng().gen_range(0.0, 1.0) < 0.33 {
-                self.spin_webs(state, game_obj_db, player_loc);
-                return true;
-            }
-        }
-
-        false
-    }
-
-    fn hunt_player(&mut self, state: &mut GameState, game_obj_db: &mut GameObjectDB) {
-        let my_loc = self.get_loc();
-        let player_loc = game_obj_db.get(0).unwrap().get_loc();
-        let sees = self.can_see_player(state, game_obj_db, my_loc, player_loc);
-        let adj = util::are_adj(my_loc, player_loc);
-
-        if self.special_move(state, game_obj_db, player_loc, sees, adj) {
-            return;
-        }
-        
-        if adj {
-            self.plan.push_front(Action::Attack(player_loc));
-        } else if sees {
-            self.calc_plan_to_move(state, game_obj_db, player_loc, true);
-        } else {
-            let guess = self.best_guess_toward_player(state, my_loc, player_loc);
-            self.calc_plan_to_move(state, game_obj_db, guess, true);
-        }
-
-        self.follow_plan(state, game_obj_db);     
-    }
-
-    fn wander(&mut self, my_id: usize, state: &mut GameState, game_obj_db: &mut GameObjectDB, my_loc: (i32, i32, i8)) {
-        let player_loc = game_obj_db.get(0).unwrap().get_loc();
-
-        // Need to give the monster a check here vs the player's 'passive stealth'
-        if self.can_see_player(state, game_obj_db, my_loc, player_loc) {
-            self.attitude = Attitude::Hostile;
-            self.active = true;
-            self.hunt_player(state, game_obj_db);
-            return;
-        } 
-
-        // Continue on its current amble, or pick a new square
-        if self.plan.is_empty() {
-            let mut rng = rand::thread_rng();
-            // try a bunch of times to find a new plae to move to.
-            for _ in 0..50 {
-                let r = rng.gen_range(-10, 11);
-                let c = rng.gen_range(-10, 11);
-                let n = (my_loc.0 + r, my_loc.1 + c, my_loc.2);
-                if state.map.contains_key(&n) && state.map[&n].passable_dry_land() {
-                    self.calc_plan_to_move(state, game_obj_db, n, false);
-                }
-            }
-        }
-
-        self.follow_plan(state, game_obj_db);
-    }
-
-    fn idle_monster(&mut self, my_id: usize, state: &mut GameState, game_obj_db: &mut GameObjectDB, my_loc: (i32, i32, i8)) {
-        let player_loc = game_obj_db.get(0).unwrap().get_loc();
-
-        // Need to give the monster a check here vs the player's 'passive stealth'
-        if self.can_see_player(state, game_obj_db, my_loc, player_loc) {
-            self.attitude = Attitude::Hostile;
-            self.active = true;
-            self.hunt_player(state, game_obj_db);
-            return;
-        }
-
-        // just pick a random adjacent square
-        self.random_adj_sq(state, game_obj_db, my_loc);
-        self.follow_plan(state, game_obj_db);
-    }
-
-    pub fn take_turn(&mut self, state: &mut GameState, game_obj_db: &mut GameObjectDB) {        
-        let curr_behaviour = if self.active {
-            self.active_behaviour
-        } else {
-            self.inactive_behaviour
-        };
-        
-        match curr_behaviour {
-            Behaviour::Hunt => {
-                self.hunt_player(state, game_obj_db);
-            },
-            Behaviour::Wander => {
-                self.wander(self.obj_id(), state, game_obj_db, self.get_loc());
-            },
-            Behaviour::Idle => {
-                if self.mode == NPCPersonality::Villager {
-                    self.villager_schedule(state, game_obj_db, self.get_loc());
-                    self.follow_plan(state, game_obj_db);
-                } else {
-                    self.idle_monster(self.obj_id(), state, game_obj_db, self.get_loc());
-                }
-            },
-            Behaviour::Guard(_) | Behaviour:: Defend(_) => panic!("These are not implemented yet!"),
         }
     }
 
@@ -653,6 +312,392 @@ impl Person for NPC {
         let roll = rand::thread_rng().gen_range(1, 21) + self.edc;
 
         roll
+    }
+}
+
+pub fn take_turn(npc_id: usize, state: &mut GameState, game_obj_db: &mut GameObjectDB) {  
+    let npc = game_obj_db.npc(npc_id).unwrap();
+    let npc_id = npc.obj_id();
+    let npc_loc = npc.get_loc();
+    let npc_mode = npc.mode;
+    let curr_behaviour = if npc.active {
+        npc.active_behaviour
+    } else {
+        npc.inactive_behaviour
+    };
+    
+    match curr_behaviour {
+        Behaviour::Hunt => {
+            hunt_player(npc_id, npc_loc, state, game_obj_db);
+        },
+        Behaviour::Wander => {
+            wander(npc_id, state, game_obj_db, npc_loc);
+        },
+        Behaviour::Idle => {
+            if npc_mode == NPCPersonality::Villager {
+                villager_schedule(npc_id, state, game_obj_db, npc_loc);
+                follow_plan(npc_id, state, game_obj_db);
+            } else {
+                idle_monster(npc_id, state, game_obj_db, npc_loc);
+            }
+        },
+        Behaviour::Guard(_) | Behaviour:: Defend(_) => panic!("These are not implemented yet!"),
+    }
+}
+
+fn wander(npc_id: usize, state: &mut GameState, game_obj_db: &mut GameObjectDB, npc_loc: (i32, i32, i8)) {
+    let player_loc = game_obj_db.get(0).unwrap().get_loc();
+
+    // Need to give the monster a check here vs the player's 'passive stealth'
+    if can_see_player(state, game_obj_db, npc_loc, player_loc, npc_id) {
+        let npc = game_obj_db.npc(npc_id).unwrap();
+        npc.attitude = Attitude::Hostile;
+        npc.active = true;
+        hunt_player(npc_id, npc_loc, state, game_obj_db);
+        return;
+    } 
+
+    // Continue on its current amble, or pick a new square
+    let npc = game_obj_db.npc(npc_id).unwrap();
+    let no_plan = npc.plan.is_empty();
+    if no_plan {
+        let mut rng = rand::thread_rng();
+        // try a bunch of times to find a new plae to move to.
+        for _ in 0..50 {
+            let r = rng.gen_range(-10, 11);
+            let c = rng.gen_range(-10, 11);
+            let n = (npc_loc.0 + r, npc_loc.1 + c, npc_loc.2);
+            if state.map.contains_key(&n) && state.map[&n].passable_dry_land() {
+                calc_plan_to_move(npc_id, state, game_obj_db, n, false);
+            }
+        }
+    }
+
+    follow_plan(npc_id, state, game_obj_db);
+}
+
+fn idle_monster(npc_id: usize, state: &mut GameState, game_obj_db: &mut GameObjectDB, npc_loc: (i32, i32, i8)) {
+    let player_loc = game_obj_db.get(0).unwrap().get_loc();
+
+    // Need to give the monster a check here vs the player's 'passive stealth'
+    if can_see_player(state, game_obj_db, npc_loc, player_loc, npc_id) {
+        let npc = game_obj_db.npc(npc_id).unwrap();
+        npc.attitude = Attitude::Hostile;
+        npc.active = true;
+        hunt_player(npc_id, npc_loc, state, game_obj_db);
+        return;
+    }
+
+    // just pick a random adjacent square
+    random_adj_sq(npc_id, state, game_obj_db, npc_loc);
+    follow_plan(npc_id, state, game_obj_db);
+}
+
+fn hunt_player(npc_id: usize, npc_loc: (i32, i32, i8), state: &mut GameState, game_obj_db: &mut GameObjectDB) {
+    let player_loc = game_obj_db.get(0).unwrap().get_loc();
+    let sees = can_see_player(state, game_obj_db, npc_loc, player_loc, npc_id);
+    let adj = util::are_adj(npc_loc, player_loc);
+
+    if special_move(npc_id, state, game_obj_db, player_loc, sees, adj) {
+        return;
+    }
+    
+    if adj {
+        let npc = game_obj_db.npc(npc_id).unwrap();
+        npc.plan.push_front(Action::Attack(player_loc));
+    } else if sees {
+        calc_plan_to_move(npc_id, state, game_obj_db, player_loc, true);
+    } else {
+        let guess = best_guess_toward_player(state, npc_loc, player_loc);
+        calc_plan_to_move(npc_id, state, game_obj_db, guess, true);
+    }
+
+    follow_plan(npc_id, state, game_obj_db);     
+}
+
+fn open_door(loc: (i32, i32, i8), state: &mut GameState, npc_name: String) {
+    let s = format!("{} opens the door.", npc_name);
+    state.write_msg_buff(&s);
+    state.map.insert(loc, Tile::Door(DoorState::Open));
+}
+
+fn close_door(loc: (i32, i32, i8), state: &mut GameState, game_obj_db: &mut GameObjectDB, npc_id: usize, npc_name: String) {
+    if game_obj_db.blocking_obj_at(&loc) {
+        state.write_msg_buff("Please don't stand in the doorway.");
+        let npc = game_obj_db.npc(npc_id).unwrap();
+        npc.plan.push_front(Action::CloseDoor(loc));
+    } else {
+        if let Tile::Door(DoorState::Open) = state.map[&loc] {
+            let npc = game_obj_db.npc(npc_id).unwrap();
+            if npc.attitude == Attitude::Stranger {
+                state.write_msg_buff("The villager closes the door.");
+            } else {
+                let s = format!("{} closes the door.", npc_name);
+                state.write_msg_buff(&s);
+            }
+            state.map.insert(loc, Tile::Door(DoorState::Closed));
+        }
+    }
+}
+
+
+fn follow_plan(npc_id: usize, state: &mut GameState, game_obj_db: &mut GameObjectDB) {
+    let npc = game_obj_db.npc(npc_id).unwrap();
+    let npc_name = npc.npc_name(false).capitalize();
+    let action = npc.plan.pop_front();
+
+    if let Some(action) = action {
+        match action {
+            Action::Move(loc) => try_to_move_to_loc(npc_id, loc, state, game_obj_db),
+            Action::OpenDoor(loc) => open_door(loc, state, npc_name),
+            Action::CloseDoor(loc) => close_door(loc, state, game_obj_db, npc_id, npc_name),
+            Action::Attack(_loc) => {
+                //battle::monster_attacks_player(state, self, npc_id, game_obj_db);
+            },
+        }
+    }
+}
+
+fn try_to_move_to_loc(npc_id: usize, goal_loc: (i32, i32, i8), state: &mut GameState, game_obj_db: &mut GameObjectDB) {
+    let blocking_object = game_obj_db.blocking_obj_at(&goal_loc);
+    let npc = game_obj_db.npc(npc_id).unwrap();
+    let npc_loc = npc.get_loc();
+    let npc_mode = npc.mode;
+    let npc_name = npc.npc_name(false).capitalize();
+
+    if goal_loc == npc_loc {
+        println!("Hmm I'm trying to move to my own location...");
+    }   
+    if blocking_object {
+        match npc_mode {
+            NPCPersonality::Villager => { state.write_msg_buff("\"Excuse me.\""); }
+            _ => { }
+
+        }
+        // if someone/something is blocking path, clear the current plan which should trigger 
+        // creating a new plan
+        npc.plan.clear();
+    } else if state.map[&goal_loc] == Tile::Door(DoorState::Closed) {
+        npc.plan.push_front(Action::Move(goal_loc));
+        open_door(goal_loc, state, npc_name);
+    } else {
+        // Villagers will close doors after they pass through them
+        if npc_mode == NPCPersonality::Villager {
+            if let Tile::Door(DoorState::Open) = state.map[&npc_loc] {
+                npc.plan.push_front(Action::CloseDoor(npc_loc));                
+            }
+        }
+
+        super::take_step(state, game_obj_db, npc_id, npc_loc, goal_loc);
+    }
+}
+
+fn villager_schedule(npc_id: usize, state: &GameState, game_obj_db: &mut GameObjectDB, npc_loc: (i32, i32, i8)) {
+    let npc = game_obj_db.npc(npc_id).unwrap();
+    let npc_home_id = if let Some(Venue::Home(home_id)) = npc.home {
+        home_id as i32
+    } else {
+        -1
+    };
+
+    if let Some(curr_item) = npc.curr_agenda_item(state) {
+        check_agenda_item(npc_id, state, game_obj_db, &curr_item, npc_loc);
+    } else {
+        // The default behaviour is to go home if nothing on the agenda.
+        let b = &state.world_info.town_buildings.as_ref().unwrap();
+        
+        if npc_home_id > 0 {
+            if !in_location(state, npc_loc, &b.homes[npc_home_id as usize], true) {
+                go_to_place(npc_id, state, game_obj_db, &b.homes[npc_home_id as usize]);
+            } else {
+                random_adj_sq(npc_id, state, game_obj_db, npc_loc);                    
+            }
+        } else {
+            random_adj_sq(npc_id, state, game_obj_db, npc_loc);
+        }
+    } 
+}
+
+fn check_agenda_item(npc_id: usize, state: &GameState, game_obj_db: &mut GameObjectDB, item: &AgendaItem, npc_loc: (i32, i32, i8)) {        
+    let venue =
+        match item.place {
+            Venue::Tavern => &state.world_info.town_buildings.as_ref().unwrap().tavern,
+            Venue::Market => &state.world_info.town_buildings.as_ref().unwrap().market,
+            Venue::Smithy => &state.world_info.town_buildings.as_ref().unwrap().smithy,
+            Venue::TownSquare => &state.world_info.town_square,
+            _ => panic!("Haven't implemented that venue yet!"),
+        };
+
+    if !venue.is_empty() && !in_location(state, npc_loc, &venue, true) {
+        go_to_place(npc_id, state, game_obj_db, &venue);
+    } else {
+        random_adj_sq(npc_id, state, game_obj_db, npc_loc);
+    }
+}
+
+// Generally, when I have an NPC go a building/place, I assume it doesn't matter too much if 
+// they go to specific square inside it, so just pick any one of them.
+fn go_to_place(npc_id: usize, state: &GameState, game_obj_db: &mut GameObjectDB, sqs: &HashSet<(i32, i32, i8)>) {
+    let j = thread_rng().gen_range(0, &sqs.len());
+    let goal_loc = &sqs.iter().nth(j).unwrap().clone(); // Clone prevents a compiler warning...
+    calc_plan_to_move(npc_id, state, game_obj_db, *goal_loc, false);
+}
+
+// Quick, dirty guess of which adjacent, open square is closest to the player
+fn best_guess_toward_player(state: &GameState, loc: (i32, i32, i8), player_loc: (i32, i32, i8)) -> (i32, i32, i8) {
+    let mut nearest = i32::MAX;
+    let mut best = loc;
+    for adj in util::ADJ.iter() {            
+        let a = (loc.0 + adj.0, loc.1 + adj.1, loc.2);
+
+        // This will need to be updated when I add aquatic creatures
+        if !state.map[&a].passable_dry_land() {
+            continue;
+        }
+
+        let d = (a.0 - player_loc.0) * (a.0 - player_loc.0) + (a.1 - player_loc.1) * (a.1 - player_loc.1);
+        if d < nearest {
+            best = a;
+            nearest = d;
+        }
+    }
+
+    best
+}
+
+fn random_adj_sq(npc_id: usize, state: &GameState , game_obj_db: &mut GameObjectDB, loc: (i32, i32, i8)) {
+    if thread_rng().gen_range(0.0, 1.0) < 0.33 {
+        let j = thread_rng().gen_range(0, util::ADJ.len()) as usize;
+        let d = util::ADJ[j];
+        let adj = (loc.0 + d.0, loc.1 + d.1, loc.2);
+        if !game_obj_db.blocking_obj_at(&adj) && state.map[&adj].passable_dry_land() {
+            calc_plan_to_move(npc_id, state, game_obj_db, adj, false);
+        }
+    }
+}
+
+// I should be able to move calc_plan_to_move, try_to_move_to_loc, etc to generic
+// places for all Villager types since they'll be pretty same-y. The differences
+// will be in how NPCs set their plans/schedules. 
+fn calc_plan_to_move(npc_id: usize, state: &GameState, game_obj_db: &mut GameObjectDB, goal: (i32, i32, i8), stop_before: bool) {
+    let npc = game_obj_db.npc(npc_id).unwrap();
+    npc.plan.clear();
+
+    let mut passable = HashMap::new();
+    passable.insert(Tile::Grass, 1.0);
+    passable.insert(Tile::Dirt, 1.0);
+    passable.insert(Tile::Tree, 1.0);
+    passable.insert(Tile::Bridge, 1.0);
+    passable.insert(Tile::Door(DoorState::Open), 1.0);
+    passable.insert(Tile::Door(DoorState::Broken), 1.0);
+    passable.insert(Tile::Gate(DoorState::Open), 1.0);
+    passable.insert(Tile::Gate(DoorState::Broken), 1.0);
+    if npc.attributes & MA_OPEN_DOORS > 0 {
+        passable.insert(Tile::Door(DoorState::Closed), 2.0);
+    }
+    if npc.attributes & MA_UNLOCK_DOORS > 0 {
+        passable.insert(Tile::Door(DoorState::Locked), 2.5);
+    }
+    passable.insert(Tile::StoneFloor, 1.0);
+    passable.insert(Tile::Floor, 1.0);
+    passable.insert(Tile::Trigger, 1.0);
+    passable.insert(Tile::Rubble, 1.50);
+
+    let npc_loc = npc.get_loc();
+    let mut path = find_path(&state.map, Some(game_obj_db), stop_before, npc_loc.0, npc_loc.1, 
+        npc_loc.2, goal.0, goal.1, 50, &passable);
+    
+    let npc = game_obj_db.npc(npc_id).unwrap();
+    path.pop(); // first square in path is the start location
+    while !path.is_empty() {
+        let sq = path.pop().unwrap();
+        npc.plan.push_back(Action::Move((sq.0, sq.1, npc_loc.2)));
+    }
+}
+
+fn spin_webs(state: &mut GameState, game_obj_db: &mut GameObjectDB, loc: (i32, i32, i8), npc_name: String, difficulty: u8) {
+    let s = format!("{} spins a web.", npc_name);
+    state.write_msg_buff(&s);
+    let mut web = Item::web(game_obj_db, difficulty);
+    web.set_loc(loc);
+    game_obj_db.add(web);
+
+    for adj in util::ADJ.iter() {
+        let adj_loc = (loc.0 + adj.0, loc.1 + adj.1, loc.2);
+        if state.map[&adj_loc].passable() && rand::thread_rng().gen_range(0.0, 1.0) < 0.66 {
+            let mut web = Item::web(game_obj_db, difficulty);
+            web.set_loc(adj_loc);
+            game_obj_db.add(web);
+        }
+    }        
+}
+
+fn special_move(npc_id: usize, state: &mut GameState, game_obj_db: &mut GameObjectDB, player_loc: (i32, i32, i8), sees_player: bool, adj: bool) -> bool {
+    let npc = game_obj_db.npc(npc_id).unwrap();
+    let npc_loc = npc.get_loc();
+    let npc_name = npc.npc_name(false).capitalize();
+    let attributes = npc.attributes;
+    let difficulty = npc.edc;
+    
+    if attributes & MA_WEBSLINGER > 0 && sees_player && !adj {
+        let d = util::distance(npc_loc.0, npc_loc.1, player_loc.0, player_loc.1);
+        if d < 5.0 && rand::thread_rng().gen_range(0.0, 1.0) < 0.33 {
+            spin_webs(state, game_obj_db, player_loc, npc_name, difficulty);
+            return true;
+        }
+    }
+
+    false
+}
+
+fn can_see_player(state: &GameState, game_obj_db: &mut GameObjectDB, loc: (i32, i32, i8), player_loc: (i32, i32, i8), npc_id: usize) -> bool {
+    let dr = loc.0 - player_loc.0;
+    let dc = loc.1 - player_loc.1;
+    let d = dr * dr + dc * dc;
+
+    // This distance check may be premature optimization. If monster fov turns out to not be a bottleneck
+    // I can ditch it. But my first ever attempt at a roguelike was in Python in 2002 and you had to be
+    // careful about speed...
+    if d < 169 {
+        // Is the player within the monster's FOV? If they recently saw the player or pass a perception check
+        // then they can see the player. Otherwise, not. If they player passes out of the FOV, flip the 
+        // recently saw player bit so that they have to make a new perception check if they loose track
+        // of player
+        let visible_sqs = fov::calc_fov(state, loc, 12, true);
+        let in_fov = visible_sqs.contains(&player_loc);
+        if !in_fov {
+            if let Some(GameObjects::NPC(npc)) = game_obj_db.get_mut(npc_id) {
+                npc.recently_saw_player = false;
+            }
+            return false;
+        }
+        
+        let (npc_level, recently_saw_player) = if let Some(GameObjects::NPC(npc)) = game_obj_db.get(npc_id) {
+            (npc.level, npc.recently_saw_player)
+        } else {
+            (0, false)
+        };
+
+        if in_fov && recently_saw_player {
+            return true;
+        }
+
+        let mut rng = rand::thread_rng();
+        let percept = rng.gen_range(1, 21) + npc_level;
+        let player_stealth = game_obj_db.player().unwrap().stealth_score;
+        if percept >= player_stealth {
+            if let Some(GameObjects::NPC(npc)) = game_obj_db.get_mut(npc_id) {
+                npc.recently_saw_player = true;
+            }
+            return true;
+        }
+
+        false
+    } else {
+        if let Some(GameObjects::NPC(npc)) = game_obj_db.get_mut(npc_id) {
+            npc.recently_saw_player = false;
+        }
+        false
     }
 }
 

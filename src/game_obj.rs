@@ -19,10 +19,11 @@ use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet, VecDeque};
 
 use super::{EventResponse, EventType, GameState, Status, PLAYER_INV};
-use crate::npc::NPC;
 use crate::battle::DamageType;
 use crate::items::{Item, GoldPile};
 use crate::map::{SpecialSquare, Tile};
+use crate::npc;
+use crate::npc::NPC;
 use crate::player::Player;
 use crate::util::StringUtils;
 use crate::items;
@@ -548,13 +549,21 @@ impl GameObjectDB {
         }
     }
 
+    fn clear_dead_npc(&mut self, npc_id: usize) {
+        self.listeners.retain(|l| l.0 != npc_id);
+        let mut npc = self.remove(npc_id);
+        if let GameObjects::NPC(npc) = &mut npc {                    
+            self.drop_npc_inventory(npc);
+        }
+    }
+
     pub fn do_npc_turns(&mut self, state: &mut GameState) {
         let player_loc = self.get(0).unwrap().get_loc();
-        let actors = self.listeners.iter()
-                                   .filter(|i| i.1 == EventType::TakeTurn)
-                                   .map(|i| i.0).collect::<Vec<usize>>();
+        let npcs = self.listeners.iter()
+                        .filter(|i| i.1 == EventType::TakeTurn)
+                        .map(|i| i.0).collect::<Vec<usize>>();
         
-        for actor_id in actors {     
+        for npc_id in npcs {     
             // Okay, so I need (or at any rate it's *super* convenient) to pass game_objs int othe take_turns()
             // function for the NPC. (For things like check if squares they want to move to are occupied, etc).
             // But the simplest way to do that I could think of is to remove the NPC GameObject from objects
@@ -566,22 +575,13 @@ impl GameObjectDB {
             
             // Got to remove the NPC from the objects table so I don't hit a mutual borrow situation when interacting 
             // with other game objects
-            let mut actor = self.remove(actor_id);
-            let actor_loc = actor.get_loc();
+            let npc = self.npc(npc_id).unwrap();
+            let npc_loc = npc.get_loc();
             
             // Has the npc died since their last turn?
-            let is_alive = if let GameObjects::NPC(npc) = &actor {
-                npc.alive
-            } else {
-                false
-            };
-                
+            let is_alive = npc.alive;
             if !is_alive {
-                self.listeners.retain(|l| l.0 != actor_id);
-                self.remove_from_loc(actor_id, actor_loc);
-                if let GameObjects::NPC(npc) = &mut actor {                    
-                    self.drop_npc_inventory(npc);
-                }
+                self.clear_dead_npc(npc_id);
                 continue;   
             }
             
@@ -589,46 +589,17 @@ impl GameObjectDB {
             // only update monsters on the surface or on the same level as the player. (Who knows, in
             // the end maybe it'll be fast enough to always update 100s of monsters..)
             let curr_dungeon_level =  player_loc.2;      
-            if actor_loc.2 == 0 || actor_loc.2 == curr_dungeon_level {
-                if let GameObjects::NPC(npc) = &mut actor {
-                    npc.take_turn(state, self);
-                }
+            if npc_loc.2 == 0 || npc_loc.2 == curr_dungeon_level {                
+                npc::take_turn(npc_id, state, self);                
             }
-            println!("fuck fuck fuck {}", actor_id);
 
             // // Was the npc killed during their turn?
-            let is_alive = if let GameObjects::NPC(npc) = &actor {
-                npc.alive
-            } else {
-                false
-            };
-                
+            let npc = self.npc(npc_id).unwrap();
+            let is_alive = npc.alive;                
             if !is_alive {
-                self.listeners.retain(|l| l.0 != actor_id);
-                self.remove_from_loc(actor_id, actor_loc);
-                if let GameObjects::NPC(npc) = &mut actor {                    
-                    self.drop_npc_inventory(npc);
-                }
+                self.clear_dead_npc(npc_id);
                 continue;
             }
-
-            // We need to reinsert the NPC into the objects table. Thank you, Rust
-            let fuck_loc = actor.get_loc();
-            self.add( actor);
-            println!("*** fuck");
-            println!("{:?}", self.obj_locs[&actor_loc]);
-            println!("{:?}", self.obj_locs[&fuck_loc]);
-            println!("fuck off {:?} {:?}", actor_loc, fuck_loc);
-            // if actor.get_loc() != actor_loc {
-            //     // the NPC moved on their turn, so we need to update them in the obj_locs table and
-            //     // re-insert them into the objects table. 
-            //     self.remove_from_loc(actor_id, actor_loc);
-            //     actor.set_loc(actor.get_loc());
-            //     self.stepped_on_event(state, actor.get_loc());
-            //     self.add(actor);
-            // } else {
-                
-            // }
         }
     }
 
