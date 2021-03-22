@@ -59,6 +59,7 @@ use player::{Player};
 use util::StringUtils;
 use world::WorldInfo;
 use items::IA_IMMOBILE;
+use npc::MA_WEBSLINGER;
 
 const MSG_HISTORY_LENGTH: usize = 50;
 const FOV_WIDTH: usize = 41;
@@ -1064,6 +1065,13 @@ fn check_for_web_on_sq(state: &mut GameState, game_obj_db: &mut GameObjectDB, ob
 
     if web_info.0 > 0 {
         let agent = game_obj_db.as_person(obj_id).unwrap();
+
+        // I dunno if one spider can get caught in another spider's web but in my game, if you can spin a web
+        // you won't get stuck in any web
+        if agent.attributes() & MA_WEBSLINGER > 0 {
+            return 0.0;
+        }
+
         if agent.ability_check(Ability::Str) < web_info.1 {
             state.write_msg_buff(&util::format_msg(obj_id, "to be", "held fast by the web!", game_obj_db));
             return 1.0;

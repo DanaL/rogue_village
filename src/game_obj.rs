@@ -659,4 +659,5 @@ pub trait Person {
     fn add_status(&mut self, status: Status);
     fn remove_status(&mut self, status: Status);
     fn ability_check(&self, ability: Ability) -> u8;
+    fn attributes(&self) -> u128;
 }

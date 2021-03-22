@@ -625,6 +625,12 @@ impl Person for Player {
             roll as u8
         }
     }
+
+    // Haven't yet implemented attributes for player, but eventually they'll have fire resistance, etc,
+    // from their gear and in some cases inate abilities
+    fn attributes(&self) -> u128 {
+        0
+    }
 }
 
 impl GameObject for Player {

@@ -313,6 +313,10 @@ impl Person for NPC {
 
         roll
     }
+
+    fn attributes(&self) -> u128 {
+        self.attributes
+    }
 }
 
 pub fn take_turn(npc_id: usize, state: &mut GameState, game_obj_db: &mut GameObjectDB) {  
