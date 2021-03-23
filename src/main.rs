@@ -1189,6 +1189,9 @@ fn do_move(state: &mut GameState, game_obj_db: &mut GameObjectDB, dir: &str, gui
         // Bump to open doors. I might make this an option later
         do_open(state, next_loc);
         return 1.0;
+    } else if tile == Tile::Door(DoorState::Locked) {
+        state.write_msg_buff("The door is locked.");
+        return 1.0;
     } else if tile == Tile::Gate(DoorState::Closed) || tile == Tile::Gate(DoorState::Locked) {
         state.write_msg_buff("A portcullis bars your way.");    
     } else  {

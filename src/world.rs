@@ -437,13 +437,16 @@ fn populate_levels(_world_info: &mut WorldInfo, deepest_level: i8, floor_sqs: &H
     while curr_level > 0 {
         let level_index = curr_level as usize - 1;
 
-        for _ in 0..1 {
+        let loc = random_sq(&floor_sqs[&level_index]);
+        monster_fac.add_monster("giant spider", loc, game_obj_db);
+
+        for _ in 0..5 {
             let loc = random_sq(&floor_sqs[&level_index]);
-            //if rng.gen_range(0.0, 1.0) < 0.5 {
-                monster_fac.add_monster("giant spider", loc, game_obj_db);
-            // } else {
-            //     monster_fac.add_monster("goblin", loc, game_objs);
-            // }
+            if rand::thread_rng().gen_range(0.0, 1.0) < 0.5 {
+                monster_fac.add_monster("kobold", loc, game_obj_db);
+             } else {
+                monster_fac.add_monster("goblin", loc, game_obj_db);
+            }
         }
         curr_level -= 1;
     }
@@ -765,7 +768,17 @@ fn build_dungeon(world_info: &mut WorldInfo, map: &mut Map, entrance: (i32, i32,
                 let i = r * width + c;
                 let curr_row = r as i32 + stairs_row_delta;
                 let curr_col = c as i32 + stairs_col_delta;
-                if dungeon[lvl][i] == Tile::Dirt {
+
+                if let Tile::Door(_) = dungeon[lvl][i] {
+                    let roll = rand::thread_rng().gen_range(0.0, 1.0);
+                    if roll < 0.2 {
+                        map.insert((curr_row, curr_col, lvl as i8 + 1), Tile::Door(DoorState::Locked));
+                    } else if roll < 0.5 {
+                        map.insert((curr_row, curr_col, lvl as i8 + 1), Tile::Door(DoorState::Open));
+                    } else {
+                        map.insert((curr_row, curr_col, lvl as i8 + 1), dungeon[lvl][i]);
+                    }
+                } else if dungeon[lvl][i] == Tile::Dirt {
                     map.insert((curr_row, curr_col, lvl as i8 + 1), Tile::StoneFloor);
                     let r = Item::rubble(game_obj_db, (curr_row, curr_col, lvl as i8 + 1));
                     game_obj_db.add(r);

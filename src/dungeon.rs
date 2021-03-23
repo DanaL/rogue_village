@@ -169,7 +169,6 @@ fn add_doorway_horizonal(level: &mut Vec<Tile>, row: usize, lo: usize, hi: usize
         let x = rng.gen_range(0, options.len());
         let col = options[x];
         if rng.gen_range(0.0, 1.0) < 0.8 {
-            // Have to make them locked sometimes too...
             level[row * width + col] = Tile::Door(DoorState::Closed);
         } else {
             level[row * width + col] = Tile::StoneFloor;
