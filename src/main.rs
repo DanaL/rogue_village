@@ -1056,56 +1056,51 @@ fn land_on_location(state: &mut GameState, game_obj_db: &mut GameObjectDB, loc: 
     // }
 }
 
-fn check_for_web_on_sq(state: &mut GameState, game_obj_db: &mut GameObjectDB, obj_id: usize, loc: (i32, i32, i8)) -> f32 {
-    let web_info = if let Some(web) = game_obj_db.web_at_loc(&loc) {
-        (web.obj_id(), web.item_dc)
-    } else {
-        (0, 0)
-    };
+fn check_for_obstacles(state: &mut GameState, game_obj_db: &mut GameObjectDB, obj_id: usize, loc: (i32, i32, i8)) -> f32 {
+    let obstacles = game_obj_db.obstacles_at_loc(loc);
+    let web_count = obstacles.iter().filter(|o| o.get_fullname() == "web").count();
+    let obstacle_info: Vec<(usize, u8, String)> = obstacles.iter()
+                                    .map(|o| (o.obj_id(), o.item_dc, o.get_fullname())).collect();
 
-    if web_info.0 > 0 {
-        let agent = game_obj_db.as_person(obj_id).unwrap();
+    for oi in obstacle_info.iter() {
+        if oi.2 == "web" {
+            let agent = game_obj_db.as_person(obj_id).unwrap();
 
-        // I dunno if one spider can get caught in another spider's web but in my game, if you can spin a web
-        // you won't get stuck in any web
-        if agent.attributes() & MA_WEBSLINGER > 0 {
-            return 0.0;
-        }
+            // I dunno if one spider can get caught in another spider's web but in my game, if you can spin a web
+            // you won't get stuck in any web
+            if agent.attributes() & MA_WEBSLINGER > 0 {
+                return 0.0;
+            }
 
-        if agent.ability_check(Ability::Str) < web_info.1 {
-            state.write_msg_buff(&util::format_msg(obj_id, "to be", "held fast by the web!", game_obj_db));
-            return 1.0;
-        } else {
-            game_obj_db.remove(web_info.0);
-
-            // Are they free or is there still more webbing?
-            if let Some(_) = game_obj_db.web_at_loc(&loc) {                
-                state.write_msg_buff(&util::format_msg(obj_id, "tear", "through some of the webbing!", game_obj_db));
+            if agent.ability_check(Ability::Str) < oi.1 {
+                state.write_msg_buff(&util::format_msg(obj_id, "to be", "held fast by the web!", game_obj_db));
                 return 1.0;
-            } else {                
-                state.write_msg_buff(&util::format_msg(obj_id, "tear", "through the web!", game_obj_db));
-            }            
+            } else {
+                game_obj_db.remove(oi.0);
+
+                // Are they free or is there still more webbing?
+                if web_count > 1 {                
+                    state.write_msg_buff(&util::format_msg(obj_id, "tear", "through some of the webbing!", game_obj_db));
+                    return 1.0;
+                } else {                
+                    state.write_msg_buff(&util::format_msg(obj_id, "tear", "through the web!", game_obj_db));
+                }            
+            }
+        } else if oi.2 == "rubble" {
+            let agent = game_obj_db.as_person(obj_id).unwrap();
+            if agent.ability_check(Ability::Dex) <= 12 {            
+                state.write_msg_buff(&util::format_msg(obj_id, "stumble", "over the rubble!", game_obj_db));
+                return 1.0;
+            }
         }
     }
 
     0.0
 }
 
-pub fn take_step(state: &mut GameState, game_obj_db: &mut GameObjectDB, obj_id: usize, start_loc: (i32, i32, i8), next_loc: (i32, i32, i8)) -> (f32, bool) {
-    let start_tile = state.map[&start_loc];
-    
-    let cost = check_for_web_on_sq(state, game_obj_db, obj_id, start_loc);
+pub fn take_step(state: &mut GameState, game_obj_db: &mut GameObjectDB, obj_id: usize, start_loc: (i32, i32, i8), next_loc: (i32, i32, i8)) -> (f32, bool) {    
+    let cost = check_for_obstacles(state, game_obj_db, obj_id, start_loc);
     if cost > 0.0 { return (cost, false); }
-
-    // Rubble is difficult terrain and requires a dex check to mvoe off of.
-    // (If you designate more terrain types as difficult terrain, probably make a function)
-    if start_tile == Tile::Rubble {
-        let agent = game_obj_db.as_person(obj_id).unwrap();
-        if agent.ability_check(Ability::Dex) <= 12 {            
-            state.write_msg_buff(&util::format_msg(obj_id, "stumble", "over the rubble!", game_obj_db));
-            return (1.0, false);
-        }
-    }
 
     game_obj_db.set_to_loc(obj_id, next_loc);
     

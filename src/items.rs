@@ -48,7 +48,7 @@ pub enum ItemType {
     Potion,
     Shield,
     Scroll,
-    Web,
+    Obstacle,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -184,11 +184,19 @@ impl Item {
     }
 
     pub fn web(game_obj_db: &mut GameObjectDB, strength: u8) -> GameObjects {
-        let mut web = Item::new(game_obj_db.next_id(), ':',display::GREY, display::DARK_GREY, "web", ItemType::Web, 0, false, 0);
+        let mut web = Item::new(game_obj_db.next_id(), ':',display::WHITE, display::GREY, "web", ItemType::Obstacle, 0, false, 0);
         web.attributes |= IA_IMMOBILE;
         web.item_dc = strength;
 
         GameObjects::Item(web)
+    }
+
+    pub fn rubble(game_obj_db: &mut GameObjectDB) -> GameObjects {
+        let mut rubble = Item::new(game_obj_db.next_id(), ':',display::GREY, display::DARK_GREY, "rubble", ItemType::Obstacle, 0, false, 0);
+        rubble.attributes |= IA_IMMOBILE;
+        rubble.item_dc = 15;
+
+        GameObjects::Item(rubble)
     }
 
     pub fn desc(&self) -> String {

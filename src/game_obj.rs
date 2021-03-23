@@ -27,7 +27,9 @@ use crate::npc::NPC;
 use crate::player::Player;
 use crate::util::StringUtils;
 use crate::items;
+use crate::items::ItemType;
 
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Ability {
     Str,
     Dex,
@@ -389,18 +391,20 @@ impl GameObjectDB {
         v
     }
 
-    pub fn web_at_loc(&self, loc: &(i32, i32, i8)) -> Option<&Item> {
+    pub fn obstacles_at_loc(&self, loc: (i32, i32, i8)) -> Vec<&Item> {
+        let mut obstacles = Vec::new();
+
         if self.obj_locs.contains_key(&loc) {
             for id in self.obj_locs[&loc].iter() {
                 if let GameObjects::Item(item) = &self.objects[&id] {
-                    if item.item_type == items::ItemType::Web {
-                        return Some(&item);
+                    if ItemType::Obstacle == item.item_type {
+                        obstacles.push(item);
                     }
                 }
             }
         }
 
-        None
+        obstacles
     }
 
     pub fn hidden_at_loc(&self, loc: (i32, i32, i8)) -> Vec<usize> {
