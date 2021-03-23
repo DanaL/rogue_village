@@ -191,11 +191,12 @@ impl Item {
         GameObjects::Item(web)
     }
 
-    pub fn rubble(game_obj_db: &mut GameObjectDB) -> GameObjects {
+    pub fn rubble(game_obj_db: &mut GameObjectDB, loc: (i32, i32, i8)) -> GameObjects {
         let mut rubble = Item::new(game_obj_db.next_id(), ':',display::GREY, display::DARK_GREY, "rubble", ItemType::Obstacle, 0, false, 0);
         rubble.attributes |= IA_IMMOBILE;
         rubble.item_dc = 15;
-
+        rubble.set_loc(loc);
+        
         GameObjects::Item(rubble)
     }
 

@@ -605,8 +605,7 @@ fn calc_plan_to_move(npc_id: usize, state: &GameState, game_obj_db: &mut GameObj
     passable.insert(Tile::StoneFloor, 1.0);
     passable.insert(Tile::Floor, 1.0);
     passable.insert(Tile::Trigger, 1.0);
-    passable.insert(Tile::Rubble, 1.50);
-
+    
     let npc_loc = npc.get_loc();
     let mut path = find_path(&state.map, Some(game_obj_db), stop_before, npc_loc.0, npc_loc.1, 
         npc_loc.2, goal.0, goal.1, 50, &passable);

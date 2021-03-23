@@ -1147,11 +1147,6 @@ fn do_move(state: &mut GameState, game_obj_db: &mut GameObjectDB, dir: &str, gui
 
         match tile {
             Tile::Water => state.write_msg_buff("You splash in the shallow water."),
-            Tile::Rubble => {
-                if start_tile != Tile::Rubble {
-                    state.write_msg_buff("The ground is cracked and rubble-strewn here.")
-                }
-            },
             Tile::DeepWater => {
                 if start_tile != Tile::DeepWater {
                     state.write_msg_buff("You wade into the flow.");				
@@ -1321,7 +1316,6 @@ fn dump_level(state: &GameState, level: i8) {
                 Tile::StairsDown => '>',
                 Tile::StairsUp => '<',
                 Tile::Gate(_) => '/',
-                Tile::Rubble => ':',
                 Tile::UndergroundRiver => '~',
                 _ => ' ',
             };

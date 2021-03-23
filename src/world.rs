@@ -647,7 +647,7 @@ fn add_caves_to_level(tiles: &mut Vec<Tile>, height: usize, width: usize) {
             tiles[map_i] = if !caves[oi] {
                 Tile::Wall
             } else if rng.gen_range(0.0, 1.0) < 0.2 {
-                Tile::Rubble
+                Tile::Dirt // this will later be replaced with Rubble items
             } else {
                 Tile::StoneFloor
             };
@@ -765,7 +765,13 @@ fn build_dungeon(world_info: &mut WorldInfo, map: &mut Map, entrance: (i32, i32,
                 let i = r * width + c;
                 let curr_row = r as i32 + stairs_row_delta;
                 let curr_col = c as i32 + stairs_col_delta;
-                map.insert((curr_row, curr_col, lvl as i8 + 1), dungeon[lvl][i]);
+                if dungeon[lvl][i] == Tile::Dirt {
+                    map.insert((curr_row, curr_col, lvl as i8 + 1), Tile::StoneFloor);
+                    let r = Item::rubble(game_obj_db, (curr_row, curr_col, lvl as i8 + 1));
+                    game_obj_db.add(r);
+                } else {
+                    map.insert((curr_row, curr_col, lvl as i8 + 1), dungeon[lvl][i]);
+                }
                 
                 if dungeon[lvl][i] == Tile::StoneFloor {
                     let fqs = floor_sqs.get_mut(&lvl).unwrap();

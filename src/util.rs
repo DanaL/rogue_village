@@ -257,7 +257,10 @@ impl StringUtils for String {
 
 	fn with_indef_article(&self) -> String {	
 		let first = self.chars().next().unwrap();
-		if first == 'a' || first == 'e' || first == 'i' || first == 'o' || first == 'u' || first == 'y' {
+
+		if self == "rubble" {
+			"some rubble".to_string()
+		} else if first == 'a' || first == 'e' || first == 'i' || first == 'o' || first == 'u' || first == 'y' {
 			format!("an {}", self)
 		} else if first >= '0' && first <= '9' {
 			self.to_string()		
