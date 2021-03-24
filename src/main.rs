@@ -1197,18 +1197,67 @@ fn do_move(state: &mut GameState, game_obj_db: &mut GameObjectDB, dir: &str, gui
     0.0
 }
 
+// I don't know how real noise works but when I want to alert monsters to something noisy a player did, I'm
+// going to floodfill out to a certain radius. (Which closed doors muffling the noise)
+// Another semi-duplicate implementation of floodfill but this one does work a little differently than the others.
+fn floodfill_noise(state: &mut GameState, game_obj_db: &mut GameObjectDB, centre: (i32, i32, i8), radius: u8, actor_id: usize) {
+    // find start point
+    let mut q = VecDeque::new();
+    let mut visited = HashSet::new();
+    let start = (centre, 0);
+
+    q.push_front(start);
+    while !q.is_empty() {
+        let pt = q.pop_front().unwrap();
+        let mut distance = pt.1;
+        if visited.contains(&pt) {
+            continue;
+        }
+        
+        visited.insert(pt);
+
+        match state.map[&pt.0] {
+            Tile::WoodWall | Tile::Wall => { continue; },
+            Tile::Door(DoorState::Closed) | Tile::Door(DoorState::Locked) | Tile::Window(_) => distance += 4,
+            _ => { distance += 1 },
+        }
+        
+        let loc = pt.0;
+        for adj in util::ADJ.iter() {
+            let n = (loc.0 + adj.0, loc.1 + adj.1, loc.2);
+            if distance > radius || !state.map.contains_key(&n) || state.map[&n] == Tile::WoodWall || state.map[&n] == Tile::Wall   {
+                continue;
+            }
+
+            q.push_back((n, distance));
+        }
+    }
+
+    // Now we have to alert/wake up any monsters in the visited sqs
+    for loc in visited {
+        if let Some(npc_id) = game_obj_db.npc_at(&loc.0) {
+            let npc = game_obj_db.npc(npc_id).unwrap();
+            // I need to make a better way to differentiate between monsters and villagers
+            if npc.voice == "monster" {
+                npc.attitude = Attitude::Hostile;
+                npc.active = true;
+            }
+        }
+    }    
+}
+
 fn bash(state: &mut GameState, loc: (i32, i32, i8), game_obj_db: &mut GameObjectDB) -> f32 {
     let tile = state.map[&loc];
 
     if tile == Tile::Door(DoorState::Locked) || tile == Tile::Door(DoorState::Closed) {
+        floodfill_noise(state, game_obj_db, loc, 8, 0);
         let player = game_obj_db.player().unwrap();
         if player.ability_check(Ability::Str) > 17 {
             state.write_msg_buff("BAM! You knock down the door!");
-            state.map.insert(loc, Tile::Door(DoorState::Broken));
-            // need to have some kind of noise alert for nearby monsters
+            state.map.insert(loc, Tile::Door(DoorState::Broken));           
         } else {
             state.write_msg_buff("The door holds firm!");
-        }
+        }        
     } else if tile == Tile::Wall || tile == Tile::WoodWall {
         state.write_msg_buff("Ouch! You slam yourself into the wall!");
         let player = game_obj_db.player().unwrap();
