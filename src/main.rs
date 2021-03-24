@@ -867,13 +867,17 @@ fn do_open(state: &mut GameState, loc: (i32, i32, i8)) {
     }        
 }
 
-fn do_close(state: &mut GameState, loc: (i32, i32, i8)) {
+fn do_close(state: &mut GameState, loc: (i32, i32, i8), game_obj_db: &GameObjectDB) {
     let tile = &state.map[&loc];
     match tile {
         Tile::Door(DoorState::Closed) | Tile::Door(DoorState::Locked) => state.write_msg_buff("The door is already closed!"),
         Tile::Door(DoorState::Open) => {
-            state.write_msg_buff("You close the door.");
-            state.map.insert(loc, map::Tile::Door(DoorState::Closed));
+            if !game_obj_db.things_at_loc(loc).is_empty() {
+                state.write_msg_buff("There's something in the way!");
+            } else {
+                state.write_msg_buff("You close the door.");
+                state.map.insert(loc, map::Tile::Door(DoorState::Closed));
+            }
         },
         Tile::Door(DoorState::Broken) => state.write_msg_buff("That door is broken."),
         _ => state.write_msg_buff("You cannot open that!"),
@@ -1612,7 +1616,7 @@ fn run(gui: &mut GameUI, state: &mut GameState, game_obj_db: &mut GameObjectDB, 
                 Cmd::Bash(loc) => energy_cost = bash(state, loc, game_obj_db),
                 Cmd::Chat(loc) => energy_cost = chat_with(state, gui, loc, game_obj_db, dialogue),
                 Cmd::Close(loc) => {
-                    do_close(state, loc);
+                    do_close(state, loc, game_obj_db);
                     energy_cost = 1.0;
                 },
                 Cmd::Down => energy_cost = take_stairs(state, game_obj_db, true),
