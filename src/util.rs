@@ -16,6 +16,7 @@
 // Some miscellaneous structs and functions used in a few plces
 
 use crate::game_obj::GameObjectDB;
+use crate::npc::Pronouns;
 
 pub const ADJ: [(i32, i32); 8] = [(0, -1), (0, 1), (-1, 0), (1, 0), (-1, -1), (-1, 1), (1, -1), (1, 1)];
 
@@ -176,13 +177,22 @@ pub fn format_msg(obj_id: usize, verb: &str, msg: &str, game_obj_db: &mut GameOb
 		s.push_str("You ");
 	} else {
 		let m = game_obj_db.npc(obj_id).unwrap();
-		s.push_str(&m.npc_name(false));
+		s.push_str(&m.npc_name(false).capitalize());
 		s.push(' ');
 	}
 
 	s.push_str(&conjugate(obj_id == 0, verb));
 	s.push(' ');
 	s.push_str(msg);
+
+	if s.contains("[pronoun]") {
+		let m = game_obj_db.npc(obj_id).unwrap();
+		s = match m.pronouns {
+			Pronouns::Masculine => s.replace("[pronoun]", "his"),
+			Pronouns::Feminine => s.replace("[pronoun]", "her"),
+			Pronouns::Neutral => s.replace("[pronoun]", "their"),
+		}
+	}
 
 	s
 }

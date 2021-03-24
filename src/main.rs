@@ -41,7 +41,7 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use std::io::prelude::*;
 use std::fs;
 use std::fs::File;
-//use std::time::Duration;
+use std::time::Duration;
 use std::path::Path;
 
 use std::time::Instant;
@@ -109,27 +109,26 @@ pub enum Status {
     WeakVenom(u8),
 }
 
-pub enum Cmd {
-    Quit,
+pub enum Cmd { 
+    Bash((i32, i32, i8)),
+    Chat((i32, i32, i8)),    
+    Close((i32, i32, i8)),
+    Down,
+    DropItem,
+    Help,    
     Move(String),
     MsgHistory,
-    PickUp,
-    ShowInventory,
-    DropItem,
-    ShowCharacterSheet,
-    ToggleEquipment,
-    Pass,
     Open((i32, i32, i8)),
-    Close((i32, i32, i8)),
-    Quaff,
-    Search,
-    Eat,
+    Pass,
+    PickUp,
+    Quit,
     Save,
-    Chat((i32, i32, i8)),
-    Use,
-    Help,
-    Down,
+    Search,
+    ShowCharacterSheet,
+    ShowInventory,
+    ToggleEquipment,
     Up,
+    Use,
     WizardCommand,
 }
 
@@ -1131,11 +1130,6 @@ fn do_move(state: &mut GameState, game_obj_db: &mut GameObjectDB, dir: &str, gui
     let next_loc = (start_loc.0 + mv.0, start_loc.1 + mv.1, start_loc.2);
     let tile = state.map[&next_loc].clone();
     
-    // Ugh, this function is turning into a hot mess. I need to break it up into the attempt to 
-    // move to or from a square and the effects of landing on a square. With difficult terrain
-    // for instance, if you are stuck on a square you should suffer its effects again. Ie., if
-    // it is difficult terrain to move out of lava
-
     if game_obj_db.blocking_obj_at(&next_loc) {
         return maybe_fight(state, game_obj_db, next_loc, gui);            
     } else if tile.passable() {
@@ -1199,6 +1193,33 @@ fn do_move(state: &mut GameState, game_obj_db: &mut GameObjectDB, dir: &str, gui
     }
 
     0.0
+}
+
+fn bash(state: &mut GameState, loc: (i32, i32, i8), game_obj_db: &mut GameObjectDB) -> f32 {
+    let tile = state.map[&loc];
+
+    if tile == Tile::Door(DoorState::Locked) || tile == Tile::Door(DoorState::Closed) {
+        let player = game_obj_db.player().unwrap();
+        if player.ability_check(Ability::Str) > 17 {
+            state.write_msg_buff("BAM! You knock down the door!");
+            state.map.insert(loc, Tile::Door(DoorState::Broken));
+            // need to have some kind of noise alert for nearby monsters
+        } else {
+            state.write_msg_buff("The door holds firm!");
+        }
+    } else if tile == Tile::Wall || tile == Tile::WoodWall {
+        state.write_msg_buff("Ouch! You slam yourself into the wall!");
+        let player = game_obj_db.player().unwrap();
+        player.damaged(state, rand::thread_rng().gen_range(1, 6), battle::DamageType::Bludgeoning, 0, "a wall");
+    } else if  game_obj_db.blocking_obj_at(&loc) {
+        // I don't yet have blocking_objs that aren't creatures...
+        battle::knock_back(state, game_obj_db, loc);
+    } else {
+        // I should perhaps move them?
+        state.write_msg_buff("You flail about in a silly fashion.");
+    }
+    
+    1.0
 }
 
 fn chat_with(state: &mut GameState, gui: &mut GameUI, loc: (i32, i32, i8), game_obj_db: &mut GameObjectDB, dialogue: &DialogueLibrary) -> f32 {
@@ -1536,6 +1557,7 @@ fn run(gui: &mut GameUI, state: &mut GameState, game_obj_db: &mut GameObjectDB, 
 
             let mut energy_cost = 0.0;
             match cmd {
+                Cmd::Bash(loc) => energy_cost = bash(state, loc, game_obj_db),
                 Cmd::Chat(loc) => energy_cost = chat_with(state, gui, loc, game_obj_db, dialogue),
                 Cmd::Close(loc) => {
                     do_close(state, loc);
@@ -1586,10 +1608,15 @@ fn run(gui: &mut GameUI, state: &mut GameState, game_obj_db: &mut GameObjectDB, 
                 game_obj_db.update_listeners(state, EventType::Update);
                 if !skip_turn || !state.msg_buff.is_empty() {
                     update_view(state, game_obj_db, gui);
+                    println!("flag 0");
                 }
             }
         }
         
+        update_view(state, game_obj_db, gui);
+        ::std::thread::sleep(Duration::new(0, 125_000_000u32));
+        println!("flag 1");
+
         check_player_statuses(state, game_obj_db);
 
         game_obj_db.do_npc_turns(state);

@@ -70,6 +70,7 @@ pub struct Player {
     pub hit_die: u8,
     pub stealth_score: u8,
     pub statuses: Vec<Status>,
+    pub size: u8,
 }
 
 impl Player {
@@ -128,7 +129,7 @@ impl Player {
                 max_hp: (15 + stat_to_mod(stats[1])) as u8, curr_hp: (15 + stat_to_mod(stats[1])) as u8,
                 vision_radius: default_vision_radius, str: stats[0], con: stats[1], dex: stats[2], chr, apt, role: Role::Warrior, xp: 0, level: 1, max_depth: 0, 
                 ac: 10, purse: 20, readied_weapon: "".to_string(), energy: 1.0, energy_restore: 1.0, inventory: Vec::new(), next_slot: 'a', hit_die: 10,
-                stealth_score: 10, statuses: Vec::new(),
+                stealth_score: 10, statuses: Vec::new(), size: 2,
         };
         
         // Warrior starting equipment
@@ -630,6 +631,10 @@ impl Person for Player {
     // from their gear and in some cases inate abilities
     fn attributes(&self) -> u128 {
         0
+    }
+
+    fn size(&self) -> u8 {
+        self.size
     }
 }
 

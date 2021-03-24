@@ -76,6 +76,13 @@ impl AgendaItem {
     }
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum Pronouns {
+    Masculine,
+    Feminine,
+    Neutral,
+}
+
 #[derive(Debug, Clone, Hash, Eq, PartialEq, Copy, Serialize, Deserialize)]
 pub enum Attitude {
     Stranger,
@@ -137,15 +144,17 @@ pub struct NPC {
     pub level: u8,
     pub last_inventory: u32,
     pub recently_saw_player: bool,
+    pub size: u8,
+    pub pronouns: Pronouns,
 }
 
 impl NPC {
-    pub fn villager(name: String, location: (i32, i32, i8), home: Option<Venue>, voice: &str, game_obj_db: &mut GameObjectDB) -> GameObjects {      
+    pub fn villager(name: String, location: (i32, i32, i8), home: Option<Venue>, voice: &str, game_obj_db: &mut GameObjectDB) -> GameObjects {            
         let npc = NPC { base_info: GameObjectBase::new(game_obj_db.next_id(), location, false, '@', display::LIGHT_GREY, 
             display::LIGHT_GREY, true, &name),ac: 10, curr_hp: 8, max_hp: 8, attitude: Attitude::Stranger, facts_known: Vec::new(), home, plan: VecDeque::new(), 
             voice: String::from(voice), schedule: Vec::new(), mode: NPCPersonality::Villager, attack_mod: 2, dmg_dice: 1, dmg_die: 3, dmg_bonus: 0, edc: 12,
             attributes: MA_OPEN_DOORS | MA_UNLOCK_DOORS, alive: true, xp_value: 0, inventory: Vec::new(), active: true, active_behaviour: Behaviour::Idle, 
-            inactive_behaviour: Behaviour::Idle, level: 0, last_inventory: 0, recently_saw_player: false,
+            inactive_behaviour: Behaviour::Idle, level: 0, last_inventory: 0, recently_saw_player: false, size: 2, pronouns: pick_pronouns(),
         };
 
 		GameObjects::NPC(npc)
@@ -307,15 +316,30 @@ impl Person for NPC {
     fn remove_status(&mut self, _status: Status) { }
 
     // I'm not (yet) giving monsters individual stats yet, so for ability checks 
-    // just use their effect dc
+    // just use their attack mod for now
     fn ability_check(&self, _ability: Ability) -> u8 {
-        let roll = rand::thread_rng().gen_range(1, 21) + self.edc;
+        let roll = rand::thread_rng().gen_range(1, 21) + self.attack_mod;
 
         roll
     }
 
     fn attributes(&self) -> u128 {
         self.attributes
+    }
+
+    fn size(&self) -> u8 {
+        self.size
+    }
+}
+
+fn pick_pronouns() -> Pronouns {
+    let roll = rand::thread_rng().gen_range(0, 3);
+    if roll == 0 {
+        Pronouns::Masculine
+    } else if roll == 1 {
+        Pronouns::Feminine
+    } else {
+        Pronouns::Neutral
     }
 }
 
@@ -731,8 +755,8 @@ pub fn pick_villager_name(used_names: &HashSet<String>) -> String {
 // in basic monster definitions!
 pub struct MonsterFactory {
     // AC, HP, ch, colour, behaviour, attack_mod, dmg_dice, dmg_die, dmg_bonus, level, attributes, xp_value, active,
-    // active_behaviour, inactive_behaviour
-    table: HashMap<String, (u8, u8, char, (u8, u8, u8), NPCPersonality, u8, u8, u8, u8, u8, u128, u32, bool, Behaviour, Behaviour)>, 
+    // active_behaviour, inactive_behaviour, size,
+    table: HashMap<String, (u8, u8, char, (u8, u8, u8), NPCPersonality, u8, u8, u8, u8, u8, u128, u32, bool, Behaviour, Behaviour, u8)>, 
 }
 
 impl MonsterFactory {
@@ -740,17 +764,17 @@ impl MonsterFactory {
         let mut mf = MonsterFactory { table: HashMap::new() };
 
         mf.table.insert(String::from("kobold"), (13, 7, 'k', display::DULL_RED, NPCPersonality::SimpleMonster, 4, 1, 4, 2, 1,
-            MA_OPEN_DOORS | MA_UNLOCK_DOORS | MA_PACK_TACTICS, 4, false, Behaviour::Hunt, Behaviour::Idle));
+            MA_OPEN_DOORS | MA_UNLOCK_DOORS | MA_PACK_TACTICS, 4, false, Behaviour::Hunt, Behaviour::Idle, 1));
         mf.table.insert(String::from("goblin"), (15, 7, 'o', display::GREEN, NPCPersonality::SimpleMonster, 4, 1, 6, 2, 1,
-            MA_OPEN_DOORS | MA_UNLOCK_DOORS, 4, false, Behaviour::Hunt, Behaviour::Idle));
+            MA_OPEN_DOORS | MA_UNLOCK_DOORS, 4, false, Behaviour::Hunt, Behaviour::Idle, 1));
         mf.table.insert(String::from("zombie"), (11, 8, 'z', display::GREY, NPCPersonality::BasicUndead, 4, 1, 6, 2, 1,
-            MA_OPEN_DOORS | MA_FEARLESS  | MA_UNDEAD, 5, false, Behaviour::Hunt, Behaviour::Wander));
+            MA_OPEN_DOORS | MA_FEARLESS  | MA_UNDEAD, 5, false, Behaviour::Hunt, Behaviour::Wander, 2));
         mf.table.insert(String::from("skeleton"), (12, 8, 's', display::WHITE, NPCPersonality::BasicUndead, 4, 1, 6, 2, 1,
-            MA_OPEN_DOORS | MA_FEARLESS  | MA_UNDEAD | MA_RESIST_PIERCE | MA_RESIST_SLASH, 6, false, Behaviour::Hunt, Behaviour::Wander));
+            MA_OPEN_DOORS | MA_FEARLESS  | MA_UNDEAD | MA_RESIST_PIERCE | MA_RESIST_SLASH, 6, false, Behaviour::Hunt, Behaviour::Wander, 2));
         mf.table.insert(String::from("dire rat"), (13, 8, 'r', display::GREY, NPCPersonality::SimpleMonster, 4, 1, 4, 0, 1,
-            MA_WEAK_VENOMOUS, 5, false, Behaviour::Hunt, Behaviour::Wander));
+            MA_WEAK_VENOMOUS, 5, false, Behaviour::Hunt, Behaviour::Wander, 1));
         mf.table.insert(String::from("giant spider"), (14, 24, 's', display::GREY, NPCPersonality::SimpleMonster, 6, 1, 8, 0, 3,
-            MA_WEAK_VENOMOUS | MA_WEBSLINGER, 8, false, Behaviour::Hunt, Behaviour::Wander));
+            MA_WEAK_VENOMOUS | MA_WEBSLINGER, 8, false, Behaviour::Hunt, Behaviour::Wander, 3));
         mf
     }
 
@@ -785,7 +809,7 @@ impl MonsterFactory {
             ac: stats.0, curr_hp: stats.1, max_hp: stats.1, attitude: Attitude::Indifferent, facts_known: Vec::new(), home: None, plan: VecDeque::new(), voice: String::from("monster"), 
             schedule: Vec::new(), mode: stats.4, attack_mod: stats.5, dmg_dice: stats.6, dmg_die: stats.7, dmg_bonus: stats.8, edc: self.calc_dc(stats.9), attributes: stats.10, 
             alive: true, xp_value: stats.11, inventory: Vec::new(), active: stats.12, active_behaviour: stats.13, inactive_behaviour: stats.14, level: stats.9, last_inventory: 0,
-            recently_saw_player: false,
+            recently_saw_player: false, size: stats.15, pronouns: pick_pronouns(),
         };
 
         let mut rng = rand::thread_rng();

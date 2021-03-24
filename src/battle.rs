@@ -23,6 +23,7 @@ use super::{GameState, Status};
 use crate::npc;
 use crate::player;
 use crate::game_obj::{Ability, GameObjectDB, Person};
+use crate::util;
 use crate::util::StringUtils;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -127,6 +128,46 @@ pub fn monster_attacks_player(state: &mut GameState, monster_id: usize, game_obj
         }
     } else {
         let s = format!("{} misses you!", monster_name.capitalize());
+        state.write_msg_buff(&s);
+    }
+}
+
+pub fn knock_back(state: &mut GameState, game_obj_db: &mut GameObjectDB, target_loc: (i32, i32, i8)) {
+    let p = game_obj_db.player().unwrap();
+    let player_size = p.size();
+    let player_loc = p.base_info.location;
+    let str_check = p.ability_check(Ability::Str);
+
+    let npc_id = game_obj_db.npc_at(&target_loc).unwrap();
+    let target = game_obj_db.npc(npc_id).unwrap();
+    let target_size = target.size();
+    let target_str_check = target.ability_check(Ability::Str);
+    let target_name = target.npc_name(false);
+
+    println!("{} {}", str_check, target_str_check);
+    if target_size > player_size {
+        let s = format!("You fruitlessly hurl yourself at {}.", target_name);
+        state.write_msg_buff(&s);
+    } else if str_check > target_str_check {
+        let d = (target_loc.0 - player_loc.0, target_loc.1 - player_loc.1, target_loc.2 - player_loc.2);
+        let new_loc = (target_loc.0 + d.0, target_loc.1 + d.1, target_loc.2 + d.2);
+        
+        if !state.map[&new_loc].passable() {
+            let s = format!("You slam into {}.", target_name);
+            state.write_msg_buff(&s);
+        } else if let Some(bystander_id) = game_obj_db.npc_at(&new_loc) {
+            let bystander = game_obj_db.npc(bystander_id).unwrap();
+            let name = bystander.npc_name(false);
+            let s = format!("{} blunders into {}!", target_name.capitalize(), name);
+            state.write_msg_buff(&s);
+        } else {
+            let s = format!("{} staggers back!", target_name.capitalize());
+            state.write_msg_buff(&s);
+            println!("{:?} {:?} {:?}, {:?}", player_loc, d, target_loc, new_loc);
+            super::take_step(state, game_obj_db, npc_id, target_loc, new_loc);
+        }
+    } else {
+        let s = util::format_msg(npc_id, "hold", "[pronoun] ground!", game_obj_db);
         state.write_msg_buff(&s);
     }
 }

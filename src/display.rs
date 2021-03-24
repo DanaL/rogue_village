@@ -296,12 +296,13 @@ impl<'a, 'b> GameUI<'a, 'b> {
 							return Cmd::ToggleEquipment;
 						} else if val == "." {
 							return Cmd::Pass;
-						} else if val == "q" {
-							return Cmd::Quaff;
-						} else if val == "E" {
-							return Cmd::Eat;
 						} else if val == "S" {
-							return Cmd::Save; 
+							return Cmd::Save;
+						} else if val == "B" {
+							match self.select_dir("Bash what?", state, game_obj_db) {
+								Some(loc) => return Cmd::Bash(loc),
+								None => { },
+							}
 						} else if val == "C" {
 							match self.select_dir("Chat with whom?", state, game_obj_db) {
 								Some(loc) => return Cmd::Chat(loc),
