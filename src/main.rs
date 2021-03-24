@@ -143,6 +143,7 @@ pub struct GameState {
     lit_sqs: HashSet<(i32, i32, i8)>, // by light sources independent of player
     aura_sqs: HashSet<(i32, i32, i8)>, // areas of special effects
     queued_events: VecDeque<(EventType, (i32, i32, i8), usize, Option<String>)>, // events queue during a turn that should be resolved at the end of turn
+    animation_pause: bool,
 }
 
 impl GameState {
@@ -157,6 +158,7 @@ impl GameState {
             lit_sqs: HashSet::new(),
             aura_sqs: HashSet::new(),
             queued_events: VecDeque::new(),
+            animation_pause: false,
         }
     }
 
@@ -1522,6 +1524,7 @@ fn run(gui: &mut GameUI, state: &mut GameState, game_obj_db: &mut GameObjectDB, 
     state.msg_buff.clear();
 
     loop {
+        state.animation_pause = false;
         let mut curr_energy = 0.0;
         if let Some(GameObjects::Player(player)) = game_obj_db.get(0) {
             curr_energy = player.energy;
@@ -1608,14 +1611,18 @@ fn run(gui: &mut GameUI, state: &mut GameState, game_obj_db: &mut GameObjectDB, 
                 game_obj_db.update_listeners(state, EventType::Update);
                 if !skip_turn || !state.msg_buff.is_empty() {
                     update_view(state, game_obj_db, gui);
-                    println!("flag 0");
                 }
             }
         }
         
-        update_view(state, game_obj_db, gui);
-        ::std::thread::sleep(Duration::new(0, 125_000_000u32));
-        println!("flag 1");
+        // There are moments where I want to update the view and pause very briefly
+        // to show some effect to the player. (Otherwise, eg, if you bash a monster
+        // backwards and they immediately step toward you, it would have been too fast
+        // to see anything)
+        if state.animation_pause {
+            update_view(state, game_obj_db, gui);
+            ::std::thread::sleep(Duration::new(0, 75_000_000u32));
+        }
 
         check_player_statuses(state, game_obj_db);
 
