@@ -1240,12 +1240,7 @@ fn floodfill_noise(state: &mut GameState, game_obj_db: &mut GameObjectDB, centre
     // Now we have to alert/wake up any monsters in the visited sqs
     for loc in visited {
         if let Some(npc_id) = game_obj_db.npc_at(&loc.0) {
-            let npc = game_obj_db.npc(npc_id).unwrap();
-            // I need to make a better way to differentiate between monsters and villagers
-            if npc.voice == "monster" {
-                npc.attitude = Attitude::Hostile;
-                npc.active = true;
-            }
+            npc::heard_noise(npc_id, centre, state, game_obj_db);
         }
     }    
 }
@@ -1254,7 +1249,7 @@ fn bash(state: &mut GameState, loc: (i32, i32, i8), game_obj_db: &mut GameObject
     let tile = state.map[&loc];
 
     if tile == Tile::Door(DoorState::Locked) || tile == Tile::Door(DoorState::Closed) {
-        floodfill_noise(state, game_obj_db, loc, 8, 0);
+        floodfill_noise(state, game_obj_db, loc, 10, 0);
         let player = game_obj_db.player().unwrap();
         if player.ability_check(Ability::Str) > 17 {
             state.write_msg_buff("BAM! You knock down the door!");

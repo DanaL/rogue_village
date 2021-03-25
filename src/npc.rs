@@ -421,6 +421,21 @@ fn idle_monster(npc_id: usize, state: &mut GameState, game_obj_db: &mut GameObje
     follow_plan(npc_id, state, game_obj_db);
 }
 
+pub fn heard_noise(npc_id: usize, loc: (i32, i32, i8), state: &mut GameState, game_obj_db: &mut GameObjectDB) {
+    let player_loc = game_obj_db.player().unwrap().get_loc();
+    let npc = game_obj_db.npc(npc_id).unwrap();
+    // I need to make a better way to differentiate between monsters and villagers
+    if npc.voice == "monster" {
+        npc.attitude = Attitude::Hostile;
+        npc.active = true;
+        let npc_loc = npc.get_loc();
+
+        if !can_see_player(state, game_obj_db, npc_loc, player_loc, npc_id) {
+            calc_plan_to_move(npc_id, state, game_obj_db, loc, false);
+        }
+    }
+}
+
 fn hunt_player(npc_id: usize, npc_loc: (i32, i32, i8), state: &mut GameState, game_obj_db: &mut GameObjectDB) {
     let player_loc = game_obj_db.get(0).unwrap().get_loc();
     let sees = can_see_player(state, game_obj_db, npc_loc, player_loc, npc_id);
@@ -430,12 +445,12 @@ fn hunt_player(npc_id: usize, npc_loc: (i32, i32, i8), state: &mut GameState, ga
         return;
     }
     
-    if adj {
-        let npc = game_obj_db.npc(npc_id).unwrap();
+    let npc = game_obj_db.npc(npc_id).unwrap();    
+    if adj {        
         npc.plan.push_front(Action::Attack(player_loc));
     } else if sees {
         calc_plan_to_move(npc_id, state, game_obj_db, player_loc, true);
-    } else {
+    } else if npc.plan.is_empty() {
         let guess = best_guess_toward_player(state, npc_loc, player_loc);
         calc_plan_to_move(npc_id, state, game_obj_db, guess, true);
     }

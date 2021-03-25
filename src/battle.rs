@@ -136,7 +136,7 @@ pub fn knock_back(state: &mut GameState, game_obj_db: &mut GameObjectDB, target_
     let p = game_obj_db.player().unwrap();
     let player_size = p.size();
     let player_loc = p.base_info.location;
-    let str_check = p.ability_check(Ability::Str) + 20;
+    let str_check = p.ability_check(Ability::Str);
 
     let npc_id = game_obj_db.npc_at(&target_loc).unwrap();
     let target = game_obj_db.npc(npc_id).unwrap();
