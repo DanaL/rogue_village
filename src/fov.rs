@@ -234,17 +234,19 @@ pub fn calc_fov(state: &GameState, centre: (i32, i32, i8), radius: u8, fov_only:
 }
 
 // Translates the set of visible squares into the grid used to select which tiles to show to the player
-pub fn visible_sqs(state: &GameState, centre: (i32, i32, i8), radius: u8, fov_only: bool) -> Vec<((i32, i32, i8), bool)> {
+pub fn visible_sqs(state: &GameState, centre: (i32, i32, i8), radius: u8, fov_only: bool) -> [((i32, i32, i8), bool); FOV_HEIGHT * FOV_WIDTH] {
 	let visible = calc_fov(state, centre, radius, fov_only);
 
     // Now we know which locations are actually visible from the player's loc, 
     // copy the tiles into the v_matrix
-    let mut v_matrix = Vec::with_capacity(FOV_HEIGHT * FOV_WIDTH);
+    let mut v_matrix = [((-1, -1, -1), false); FOV_HEIGHT * FOV_WIDTH];
+	let mut x = 0;
 	for r in centre.0 - 10..centre.0 + 11 {
 		for c in centre.1 - 20..centre.1 + 21 {
 			let loc = (r, c, centre.2);
 			let visible = visible.contains(&loc);
-			v_matrix.push((loc, visible));
+			v_matrix[x] = (loc, visible);
+			x += 1;
 		}
 	}
 

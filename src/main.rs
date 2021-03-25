@@ -1480,8 +1480,8 @@ fn pick_player_start_loc(state: &GameState) -> (i32, i32, i8) {
 // From that, we assemble the vector of tiles to send to the GameUI to be drawn. If an NPC is in a visible square,
 // they are on top, otherwise show the tile. If the tile isn't visible but the player has seen it before, show the 
 // tile as unlit, otherwise leave it as a blank square.
-fn fov_to_tiles(state: &mut GameState, game_obj_db: &GameObjectDB, visible: &[((i32, i32, i8), bool)], player_loc: (i32, i32, i8)) -> Vec<(map::Tile, bool)> {
-    let mut v_matrix = vec![(map::Tile::Blank, false); visible.len()];
+fn fov_to_tiles(state: &mut GameState, game_obj_db: &GameObjectDB, visible: &[((i32, i32, i8), bool)], player_loc: (i32, i32, i8)) -> [(map::Tile, bool); FOV_HEIGHT * FOV_WIDTH] {
+    let mut v_matrix = [(map::Tile::Blank, false); FOV_HEIGHT * FOV_WIDTH];
     for j in 0..visible.len() {
         let vis = visible[j];
         if vis.0 == player_loc {

@@ -98,7 +98,7 @@ pub struct GameUI<'a, 'b> {
 	sm_font: &'a Font<'a, 'b>,
 	canvas: WindowCanvas,
 	event_pump: EventPump,
-	pub v_matrix: Vec<(map::Tile, bool)>,
+	pub v_matrix: [(Tile, bool); FOV_HEIGHT * FOV_WIDTH],
 	surface_cache: HashMap<(char, Color), Surface<'a>>,
 	msg_line: String,
 }
@@ -119,7 +119,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 			.build()
 			.map_err(|e| e.to_string())?;
 
-		let v_matrix = vec![(map::Tile::Blank, false); FOV_WIDTH * FOV_HEIGHT];
+		let v_matrix = [(map::Tile::Blank, false); FOV_WIDTH * FOV_HEIGHT];
 		let canvas = window.into_canvas().build().map_err(|e| e.to_string())?;
 		let gui = GameUI { 
 			screen_width_px, screen_height_px, 
