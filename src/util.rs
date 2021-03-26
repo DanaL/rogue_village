@@ -15,10 +15,27 @@
 
 // Some miscellaneous structs and functions used in a few plces
 
+extern crate rand;
+
+use rand::Rng;
+
 use crate::game_obj::GameObjectDB;
 use crate::npc::Pronouns;
 
 pub const ADJ: [(i32, i32); 8] = [(0, -1), (0, 1), (-1, 0), (1, 0), (-1, -1), (-1, 1), (1, -1), (1, 1)];
+
+pub fn std_guassian() -> f32 {
+	let mut sum = 0.0;
+	for _ in 0..12 {
+		sum += rand::thread_rng().gen_range(0.0, 1.0);
+	}
+
+	sum - 6.0
+}
+
+pub fn general_guassian(m: f32, sigma: f32) -> f32 {
+	std_guassian() * sigma + m
+}
 
 pub fn num_to_nth(n: u8) -> String {
 	let x = n % 10;

@@ -1790,6 +1790,10 @@ fn main() {
         state.write_msg_buff("Welcome, adventurer!");
     }
     
+    for _ in 0..20 {
+        println!("{}", MonsterFactory::pick_monster_level(10));
+    }
+
     match run_game_loop(&mut gui, &mut state, &mut game_obj_db, &dialogue_library, &mf) {
         Ok(_) => println!("Game over I guess? Probably the player won?!"),
         //Err(ExitReason::Save) => save_msg(&mut state, &mut gui),

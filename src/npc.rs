@@ -836,4 +836,21 @@ impl MonsterFactory {
         game_obj_db.add(GameObjects::NPC(npc));
         game_obj_db.listeners.insert((obj_id, EventType::TakeTurn));
     }
+
+    pub fn pick_monster_level(dungeon_level: u8) -> u8 {
+        if dungeon_level == 1 {
+            return 1;
+        }
+
+        let mut guass = util::general_guassian(dungeon_level as f32, 1.15).round();
+        if guass < 1.0 {
+            guass = 1.0;
+        }
+
+        if dungeon_level > 3 && guass < dungeon_level as f32 - 3.0 {
+            guass = dungeon_level as f32 - 3.0;
+        }
+
+        guass as u8
+    }
 }
