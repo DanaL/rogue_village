@@ -278,12 +278,24 @@ impl GameObjectDB {
     // around anyhow.
     pub fn tile_at(&self, loc: &(i32, i32, i8)) -> Option<(Tile, bool)> {
         if self.obj_locs.contains_key(&loc) && !self.obj_locs[&loc].is_empty() {
-            for obj_id in self.obj_locs[&loc].iter() {   
+            // Ensure the player or a monster occupying a square is displayed in 
+            // preference to items on the square. Check for them first
+            for obj_id in self.obj_locs[&loc].iter() {
                 if let GameObjects::Player(_) = self.objects[&obj_id] {
                     return Some((self.objects[&obj_id].get_tile(), false));
-                } else if let GameObjects::NPC(_) = self.objects[&obj_id] {
-                    return Some((self.objects[&obj_id].get_tile(), false));
-                } else if !self.objects[obj_id].hidden() {
+                }
+            }
+
+            for obj_id in self.obj_locs[&loc].iter() {
+                if let GameObjects::NPC(npc) = &self.objects[&obj_id] {
+                    if !npc.hidden() {
+                        return Some((self.objects[&obj_id].get_tile(), false));
+                    }
+                }
+            }
+
+            for obj_id in self.obj_locs[&loc].iter() {
+                if !self.objects[obj_id].hidden() {
                     return Some((self.objects[&obj_id].get_tile(), true));
                 }
             }

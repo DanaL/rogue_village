@@ -1567,7 +1567,7 @@ fn check_player_statuses(state: &mut GameState, game_obj_db: &mut GameObjectDB) 
 }
 
 // Herein lies the main game loop
-fn run(gui: &mut GameUI, state: &mut GameState, game_obj_db: &mut GameObjectDB, dialogue: &DialogueLibrary, monster_fac: &MonsterFactory) -> Result<(), ExitReason> {    
+fn run_game_loop(gui: &mut GameUI, state: &mut GameState, game_obj_db: &mut GameObjectDB, dialogue: &DialogueLibrary, monster_fac: &MonsterFactory) -> Result<(), ExitReason> {    
     update_view(state, game_obj_db, gui);
     state.msg_buff.clear();
 
@@ -1790,7 +1790,7 @@ fn main() {
         state.write_msg_buff("Welcome, adventurer!");
     }
     
-    match run(&mut gui, &mut state, &mut game_obj_db, &dialogue_library, &mf) {
+    match run_game_loop(&mut gui, &mut state, &mut game_obj_db, &dialogue_library, &mf) {
         Ok(_) => println!("Game over I guess? Probably the player won?!"),
         //Err(ExitReason::Save) => save_msg(&mut state, &mut gui),
         //Err(ExitReason::Quit) => quit_msg(&mut state, &mut gui),
