@@ -16,6 +16,7 @@
 extern crate serde;
 
 use std::collections::{HashMap, HashSet, VecDeque};
+use std::fs;
 use std::u128;
 //use std::time::Instant;
 
@@ -766,8 +767,6 @@ pub fn pick_villager_name(used_names: &HashSet<String>) -> String {
     }
 }
 
-// This could be in a data file and maybe one day will be but for now the compiler will help me avoid stupid typos
-// in basic monster definitions!
 pub struct MonsterFactory {
     // AC, HP, ch, colour, behaviour, attack_mod, dmg_dice, dmg_die, dmg_bonus, level, attributes, xp_value, active,
     // active_behaviour, inactive_behaviour, size,
@@ -775,21 +774,111 @@ pub struct MonsterFactory {
 }
 
 impl MonsterFactory {
+    fn to_personality(text: &str) -> NPCPersonality {
+        match text {
+            "SimpleMonster" => NPCPersonality::SimpleMonster,
+            "BasicUndead" => NPCPersonality::BasicUndead,
+            _ => {
+                panic!("{}", format!("Unknown personality: {}", text));
+            }
+        }
+    }
+    fn to_colour(text: &str) -> (u8, u8, u8) {
+        match text {    
+            "BEIGE" => display::BEIGE,        
+            "BLACK" => display::BLACK,
+            "BLUE" => display::BLUE,
+            "BRIGHT_RED" => display::BRIGHT_RED,
+            "BROWN" => display::BROWN,
+            "DARK_BLUE" => display::DARK_BROWN,
+            "DARK_BROWN" => display::DARK_BROWN,
+            "DARK_GREEN" => display::DARK_GREEN,
+            "DARK_GREY" => display::DARK_GREY,
+            "DULL_RED" => display::DULL_RED,
+            "GOLD" => display::GOLD,
+            "GREEN" => display::GREEN,
+            "GREY" => display::GREY,
+            "LIGHT_BLUE" => display::LIGHT_BLUE,
+            "LIGHT_BROWN" => display::LIGHT_BROWN,
+            "LIGHT_GREY" => display::LIGHT_GREY,
+            "PINK" => display::PINK,
+            "PURPLE" => display::PURPLE,
+            "WHITE" => display::WHITE,
+            "YELLOW" => display::YELLOW,
+            "YELLOW_ORANGE" => display::YELLOW_ORANGE,
+            _ => {
+                panic!("{}", format!("Unknown colour: {}!", text));
+            }
+        }
+    }
+
+    fn to_behaviour(text: &str) -> Behaviour {
+        match text {
+            "hunt" => Behaviour::Hunt,
+            "idle" => Behaviour::Idle,
+            "wander" => Behaviour::Wander,
+            _ => {
+                panic!("{}", format!("Unknown behaviour: {}!", text));
+            }
+        }
+    }
+
+    fn parse_attributes(text: &str) -> u128 {
+        let mut attributes = 0;
+
+        let attrs = text.split('|').map(|a| a.trim()).collect::<Vec<&str>>();
+        for a in attrs {
+            attributes |= match a {
+                "MA_OPEN_DOORS" => MA_OPEN_DOORS,
+                "MA_UNLOCK_DOORS" => MA_UNLOCK_DOORS,
+                "MA_PACK_TACTICS" => MA_PACK_TACTICS,
+                "MA_FEARLESS" => MA_FEARLESS,
+                "MA_UNDEAD" => MA_UNDEAD,
+                "MA_RESIST_PIERCE" => MA_RESIST_PIERCE,
+                "MA_RESIST_SLASH" => MA_RESIST_PIERCE,
+                "MA_WEAK_VENOMOUS" => MA_WEAK_VENOMOUS,
+                "MA_WEBSLINGER" => MA_WEBSLINGER,
+                _ => {
+                    panic!("{}", format!("Unknown attribute: {}!", a));
+                }
+            }
+        }
+        attributes
+    }
+
+    fn parse_line(line: &str) -> (String, (u8, u8, char, (u8, u8, u8), NPCPersonality, u8, u8, u8, u8, u8, u128, u32, bool, Behaviour, Behaviour, u8)) {
+        let pieces = line.split(',').collect::<Vec<&str>>();
+        let name = pieces[0].trim();
+        let level = pieces[1].trim().parse::<u8>().expect("Incorrectly formatted line in monster file!");
+        let ac = pieces[2].trim().parse::<u8>().expect("Incorrectly formatted line in monster file!");
+        let hp = pieces[3].trim().parse::<u8>().expect("Incorrectly formatted line in monster file!");
+        let ch = pieces[4].trim().chars().nth(0).unwrap();
+        let colour = MonsterFactory::to_colour(pieces[5].trim());
+        let personality = MonsterFactory::to_personality(pieces[6].trim());
+        let attack_mod = pieces[7].trim().parse::<u8>().expect("Incorrectly formatted line in monster file!");
+        let dmg_dice = pieces[8].trim().parse::<u8>().expect("Incorrectly formatted line in monster file!");
+        let dmg_die = pieces[9].trim().parse::<u8>().expect("Incorrectly formatted line in monster file!");
+        let dmg_bonus = pieces[10].trim().parse::<u8>().expect("Incorrectly formatted line in monster file!");
+        let xp_value = pieces[11].trim().parse::<u32>().expect("Incorrectly formatted line in monster file!");
+        let active_behaviour = MonsterFactory::to_behaviour(pieces[12].trim());
+        let inactive_behaviour = MonsterFactory::to_behaviour(pieces[13].trim());
+        let size = pieces[14].trim().parse::<u8>().expect("Incorrectly formatted line in monster file!");
+        let attributes = MonsterFactory::parse_attributes(pieces[15]);
+
+        (name.to_string(), (ac, hp, ch, colour, personality, attack_mod, dmg_dice, dmg_die, dmg_bonus, level, attributes, xp_value, false, active_behaviour, inactive_behaviour, size))
+    }
+
     pub fn init() -> MonsterFactory {
         let mut mf = MonsterFactory { table: HashMap::new() };
 
-        mf.table.insert(String::from("kobold"), (13, 7, 'k', display::DULL_RED, NPCPersonality::SimpleMonster, 4, 1, 4, 2, 1,
-            MA_OPEN_DOORS | MA_UNLOCK_DOORS | MA_PACK_TACTICS, 4, false, Behaviour::Hunt, Behaviour::Idle, 1));
-        mf.table.insert(String::from("goblin"), (15, 7, 'o', display::GREEN, NPCPersonality::SimpleMonster, 4, 1, 6, 2, 1,
-            MA_OPEN_DOORS | MA_UNLOCK_DOORS, 4, false, Behaviour::Hunt, Behaviour::Idle, 1));
-        mf.table.insert(String::from("zombie"), (11, 8, 'z', display::GREY, NPCPersonality::BasicUndead, 4, 1, 6, 2, 1,
-            MA_OPEN_DOORS | MA_FEARLESS  | MA_UNDEAD, 5, false, Behaviour::Hunt, Behaviour::Wander, 2));
-        mf.table.insert(String::from("skeleton"), (12, 8, 's', display::WHITE, NPCPersonality::BasicUndead, 4, 1, 6, 2, 1,
-            MA_OPEN_DOORS | MA_FEARLESS  | MA_UNDEAD | MA_RESIST_PIERCE | MA_RESIST_SLASH, 6, false, Behaviour::Hunt, Behaviour::Wander, 2));
-        mf.table.insert(String::from("dire rat"), (13, 8, 'r', display::GREY, NPCPersonality::SimpleMonster, 4, 1, 4, 0, 1,
-            MA_WEAK_VENOMOUS, 5, false, Behaviour::Hunt, Behaviour::Wander, 1));
-        mf.table.insert(String::from("giant spider"), (14, 24, 's', display::GREY, NPCPersonality::SimpleMonster, 6, 1, 8, 0, 3,
-            MA_WEAK_VENOMOUS | MA_WEBSLINGER, 8, false, Behaviour::Hunt, Behaviour::Wander, 3));
+        let contents = fs::read_to_string("monsters.txt")
+            .expect("Unable to find building templates file!");
+        let lines = contents.split('\n').collect::<Vec<&str>>();
+        for line in lines.iter().skip(1) {
+            let entry = MonsterFactory::parse_line(line);
+            mf.table.insert(entry.0, entry.1);
+        }
+
         mf
     }
 
@@ -813,8 +902,7 @@ impl MonsterFactory {
 
     pub fn add_monster(&self, name: &str, loc: (i32, i32, i8), game_obj_db: &mut GameObjectDB) {
         if !self.table.contains_key(name) {
-            let s = format!("Unknown monster: {}!!", name);
-            panic!(s);
+            panic!("{}", format!("Unknown monster: {}!!", name));
         }
 
         let stats = self.table.get(name).unwrap();

@@ -1,0 +1,7 @@
+name,     level, AC, HP, ch, colour,       personality, attack_mod, dmg_dice, dmg_die, dmg_bonus, xp_value, active_behaviour, inactive_behaviour, size, attributes
+kobold,       1, 13,  7,  k, DULL_RED,   SimpleMonster, 4,          1,          4,      2,          4,      hunt,               idle,               1,  MA_OPEN_DOORS | MA_UNLOCK_DOORS | MA_PACK_TACTICS
+goblin,       1, 15,  7,  g, GREEN,      SimpleMonster, 4,          1,          6,      2,          4,      hunt,               idle,               1,  MA_OPEN_DOORS | MA_UNLOCK_DOORS
+zombie,       1, 11,  8,  z, DARK_GREEN, BasicUndead,   4,          1,          6,      2,          4,      hunt,               wander,             2,  MA_OPEN_DOORS | MA_FEARLESS  | MA_UNDEAD
+skeleton,     1, 13,  8,  z, WHITE,      SimpleMonster, 4,          1,          6,      2,          5,      hunt,               wander,             2,  MA_OPEN_DOORS | MA_FEARLESS  | MA_UNDEAD | MA_RESIST_PIERCE | MA_RESIST_SLASH
+dire rat,     1, 13,  8,  r, GREY,       SimpleMonster, 4,          1,          4,      0,          5,      hunt,               wander,             1,  MA_WEAK_VENOMOUS
+giant spider, 3, 14, 24,  s, GREY,       SimpleMonster, 6,          1,          8,      0,          8,      hunt,               idle,               3,  MA_WEAK_VENOMOUS | MA_WEBSLINGER

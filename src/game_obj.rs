@@ -308,8 +308,7 @@ impl GameObjectDB {
         if self.obj_locs.contains_key(&loc) && !self.obj_locs[&loc].is_empty() {
             for obj_id in self.obj_locs[&loc].iter() {
                 if !self.objects.contains_key(obj_id) {
-                    let s = format!("Should find obj_id {}!", obj_id);
-                    panic!(s);
+                    panic!("{}", format!("Should find obj_id {}!", obj_id));
                 }
                 if self.objects[&obj_id].blocks() {
                     return true;
