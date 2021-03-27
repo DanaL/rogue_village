@@ -838,6 +838,7 @@ impl MonsterFactory {
                 "MA_RESIST_SLASH" => MA_RESIST_PIERCE,
                 "MA_WEAK_VENOMOUS" => MA_WEAK_VENOMOUS,
                 "MA_WEBSLINGER" => MA_WEBSLINGER,
+                "NONE" => 0,
                 _ => {
                     panic!("{}", format!("Unknown attribute: {}!", a));
                 }
