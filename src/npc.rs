@@ -147,6 +147,7 @@ pub struct NPC {
     pub recently_saw_player: bool,
     pub size: u8,
     pub pronouns: Pronouns,
+    pub rarity: u8,
 }
 
 impl NPC {
@@ -155,7 +156,7 @@ impl NPC {
             display::LIGHT_GREY, true, &name),ac: 10, curr_hp: 8, max_hp: 8, attitude: Attitude::Stranger, facts_known: Vec::new(), home, plan: VecDeque::new(), 
             voice: String::from(voice), schedule: Vec::new(), mode: NPCPersonality::Villager, attack_mod: 2, dmg_dice: 1, dmg_die: 3, dmg_bonus: 0, edc: 12,
             attributes: MA_OPEN_DOORS | MA_UNLOCK_DOORS, alive: true, xp_value: 0, inventory: Vec::new(), active: true, active_behaviour: Behaviour::Idle, 
-            inactive_behaviour: Behaviour::Idle, level: 0, last_inventory: 0, recently_saw_player: false, size: 2, pronouns: pick_pronouns(),
+            inactive_behaviour: Behaviour::Idle, level: 0, last_inventory: 0, recently_saw_player: false, size: 2, pronouns: pick_pronouns(), rarity: 0,
         };
 
 		GameObjects::NPC(npc)
@@ -770,7 +771,7 @@ pub fn pick_villager_name(used_names: &HashSet<String>) -> String {
 pub struct MonsterFactory {
     // AC, HP, ch, colour, behaviour, attack_mod, dmg_dice, dmg_die, dmg_bonus, level, attributes, xp_value, active,
     // active_behaviour, inactive_behaviour, size,
-    table: HashMap<String, (u8, u8, char, (u8, u8, u8), NPCPersonality, u8, u8, u8, u8, u8, u128, u32, bool, Behaviour, Behaviour, u8)>, 
+    table: HashMap<String, (u8, u8, char, (u8, u8, u8), NPCPersonality, u8, u8, u8, u8, u8, u128, u32, bool, Behaviour, Behaviour, u8, u8)>, 
 }
 
 impl MonsterFactory {
@@ -847,7 +848,7 @@ impl MonsterFactory {
         attributes
     }
 
-    fn parse_line(line: &str) -> (String, (u8, u8, char, (u8, u8, u8), NPCPersonality, u8, u8, u8, u8, u8, u128, u32, bool, Behaviour, Behaviour, u8)) {
+    fn parse_line(line: &str) -> (String, (u8, u8, char, (u8, u8, u8), NPCPersonality, u8, u8, u8, u8, u8, u128, u32, bool, Behaviour, Behaviour, u8, u8)) {
         let pieces = line.split(',').collect::<Vec<&str>>();
         let name = pieces[0].trim();
         let level = pieces[1].trim().parse::<u8>().expect("Incorrectly formatted line in monster file!");
@@ -864,9 +865,10 @@ impl MonsterFactory {
         let active_behaviour = MonsterFactory::to_behaviour(pieces[12].trim());
         let inactive_behaviour = MonsterFactory::to_behaviour(pieces[13].trim());
         let size = pieces[14].trim().parse::<u8>().expect("Incorrectly formatted line in monster file!");
-        let attributes = MonsterFactory::parse_attributes(pieces[15]);
+        let rarity = pieces[15].trim().parse::<u8>().expect("Incorrectly formatted line in monster file!");
+        let attributes = MonsterFactory::parse_attributes(pieces[16]);
 
-        (name.to_string(), (ac, hp, ch, colour, personality, attack_mod, dmg_dice, dmg_die, dmg_bonus, level, attributes, xp_value, false, active_behaviour, inactive_behaviour, size))
+        (name.to_string(), (ac, hp, ch, colour, personality, attack_mod, dmg_dice, dmg_die, dmg_bonus, level, attributes, xp_value, false, active_behaviour, inactive_behaviour, size, rarity))
     }
 
     pub fn init() -> MonsterFactory {
@@ -913,7 +915,7 @@ impl MonsterFactory {
             ac: stats.0, curr_hp: stats.1, max_hp: stats.1, attitude: Attitude::Indifferent, facts_known: Vec::new(), home: None, plan: VecDeque::new(), voice: String::from("monster"), 
             schedule: Vec::new(), mode: stats.4, attack_mod: stats.5, dmg_dice: stats.6, dmg_die: stats.7, dmg_bonus: stats.8, edc: self.calc_dc(stats.9), attributes: stats.10, 
             alive: true, xp_value: stats.11, inventory: Vec::new(), active: stats.12, active_behaviour: stats.13, inactive_behaviour: stats.14, level: stats.9, last_inventory: 0,
-            recently_saw_player: false, size: stats.15, pronouns: pick_pronouns(),
+            recently_saw_player: false, size: stats.15, pronouns: pick_pronouns(), rarity: stats.16,
         };
 
         let mut rng = rand::thread_rng();
