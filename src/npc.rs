@@ -98,6 +98,7 @@ pub enum Action {
     Move((i32, i32, i8)),
     OpenDoor((i32, i32, i8)),
     CloseDoor((i32, i32, i8)),
+    UnlockDoor((i32, i32, i8)),
     Attack((i32, i32, i8)),
 }
 
@@ -466,6 +467,12 @@ fn open_door(loc: (i32, i32, i8), state: &mut GameState, npc_name: String) {
     state.map.insert(loc, Tile::Door(DoorState::Open));
 }
 
+fn unlock_door(loc: (i32, i32, i8), state: &mut GameState, npc_name: String) {
+    let s = format!("{} fiddles with the lock.", npc_name);
+    state.write_msg_buff(&s);
+    state.map.insert(loc, Tile::Door(DoorState::Closed));
+}
+
 fn close_door(loc: (i32, i32, i8), state: &mut GameState, game_obj_db: &mut GameObjectDB, npc_id: usize, npc_name: String) {
     if game_obj_db.blocking_obj_at(&loc) {
         state.write_msg_buff("Please don't stand in the doorway.");
@@ -496,6 +503,7 @@ fn follow_plan(npc_id: usize, state: &mut GameState, game_obj_db: &mut GameObjec
             Action::Move(loc) => try_to_move_to_loc(npc_id, loc, state, game_obj_db),
             Action::OpenDoor(loc) => open_door(loc, state, npc_name),
             Action::CloseDoor(loc) => close_door(loc, state, game_obj_db, npc_id, npc_name),
+            Action::UnlockDoor(loc) => unlock_door(loc, state, npc_name),
             Action::Attack(_loc) => {
                 battle::monster_attacks_player(state,  npc_id, game_obj_db);
             },
@@ -525,6 +533,9 @@ fn try_to_move_to_loc(npc_id: usize, goal_loc: (i32, i32, i8), state: &mut GameS
     } else if state.map[&goal_loc] == Tile::Door(DoorState::Closed) {
         npc.plan.push_front(Action::Move(goal_loc));
         open_door(goal_loc, state, npc_name);
+    } else if state.map[&goal_loc] == Tile::Door(DoorState::Locked) {
+        npc.plan.push_front(Action::Move(goal_loc));
+        unlock_door(goal_loc, state, npc_name);
     } else {
         // Villagers will close doors after they pass through them
         if npc_mode == NPCPersonality::Villager {

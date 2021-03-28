@@ -725,6 +725,32 @@ fn add_river_to_level(tiles: &mut Vec<Tile>, height: usize, width: usize, top:bo
     }
 }
 
+fn build_test_dungeon(world_info: &mut WorldInfo, map: &mut Map, entrance: (i32, i32, i8), game_obj_db: &mut GameObjectDB, monster_fac: &MonsterFactory) {
+    for row in entrance.0-1..entrance.0+8 {
+        for col in entrance.1-1..entrance.1+8 {
+            map.insert((row, col, 1), Tile::StoneFloor);
+        }
+    }
+
+    for col in entrance.1-1..entrance.1+9 {
+        map.insert((entrance.0-1, col, 1), Tile::Wall);
+        map.insert((entrance.0+8, col, 1), Tile::Wall);
+    }
+
+    for row in entrance.0-1..entrance.0+8 {
+        map.insert((row, entrance.1-1, 1), Tile::Wall);
+        map.insert((row, entrance.1+4, 1), Tile::Wall);
+        map.insert((row, entrance.1+8, 1), Tile::Wall);
+    }
+
+    map.insert((entrance.0+3, entrance.1+4, 1), Tile::Door(DoorState::Locked));
+
+    let goblin_loc = (entrance.0 + 3, entrance.1 + 5, 1);
+    monster_fac.add_monster("goblin", goblin_loc, game_obj_db);
+    map.insert((entrance.0, entrance.1, 1), Tile::StairsUp);
+
+}
+
 fn build_dungeon(world_info: &mut WorldInfo, map: &mut Map, entrance: (i32, i32, i8), game_obj_db: &mut GameObjectDB, monster_fac: &MonsterFactory) {
     let mut rng = rand::thread_rng();
     let width = 125;
@@ -839,7 +865,8 @@ pub fn generate_world(game_obj_db: &mut GameObjectDB, monster_fac: &MonsterFacto
     println!("Found a good dungeon entrance");
 
     let dungeon_start = Instant::now();
-    build_dungeon(&mut world_info, &mut map, dungeon_entrance, game_obj_db, monster_fac);
+    //build_dungeon(&mut world_info, &mut map, dungeon_entrance, game_obj_db, monster_fac);
+    build_test_dungeon(&mut world_info, &mut map, dungeon_entrance, game_obj_db, monster_fac);
     let dungeon_end = dungeon_start.elapsed();
     println!("Time to make dungeon: {:?}", dungeon_end);
 
