@@ -530,6 +530,17 @@ impl Player {
         roll + stat_to_mod(self.str)    
     }
 
+    pub fn bane(&self) -> bool {
+        for status in self.statuses.iter() {
+            match status {
+                Status::Bane(_) => return true,
+                _ => { },
+            }
+        }
+
+        false
+    }
+
     pub fn blind(&self) -> bool {
         for status in self.statuses.iter() {
             match status {
@@ -618,6 +629,17 @@ impl Person for Player {
         if let Status::BlindUntil(new_time) = status {
             for j in 0..self.statuses.len() {
                 if let Status::BlindUntil(prev_time) = self.statuses[j] {
+                    if new_time > prev_time {
+                        self.statuses[j] = status;
+                        return;
+                    }
+                }
+            }
+        }
+
+        if let Status::Bane(new_time) = status {
+            for j in 0..self.statuses.len() {
+                if let Status::Bane(prev_time) = self.statuses[j] {
                     if new_time > prev_time {
                         self.statuses[j] = status;
                         return;

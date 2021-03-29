@@ -49,6 +49,7 @@ pub fn player_attacks(state: &mut GameState, opponent_id: usize, game_obj_db: &m
     let dmg_type;
     let player = game_obj_db.player().unwrap();
     let blind = player.blind();
+    let baned = player.bane();
     if let Some(weapon_info) = player.readied_weapon() {
         weapon_attack_bonus = weapon_info.0.attack_bonus;
         dmg_type = weapon_info.0.dmg_type;
@@ -65,6 +66,9 @@ pub fn player_attacks(state: &mut GameState, opponent_id: usize, game_obj_db: &m
     let mut attack_roll = rng.gen_range(1, 21) + attack_bonus + weapon_attack_bonus;
     if blind {
         attack_roll -= 5;
+    }
+    if baned {
+        attack_roll -= rand::thread_rng().gen_range(1, 5);
     }
     let str_mod = player::stat_to_mod(player.str);
 

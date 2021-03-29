@@ -714,6 +714,15 @@ fn minor_black_magic(npc_id: usize, state: &mut GameState, game_obj_db: &mut Gam
         return true;
     }
 
+    if sees_player && distance <= 3.0 && rand::thread_rng().gen_range(0.0, 1.0) < 0.33 {
+        let s = format!("{} mumbles.", npc_name.capitalize());
+        state.write_msg_buff(&s);
+        state.write_msg_buff("You have been cursed!");
+        let player = game_obj_db.player().unwrap();
+        player.add_status(Status::Bane(state.turn + rand::thread_rng().gen_range(3, 6)));
+        return true;
+    }
+
     false
 }
 

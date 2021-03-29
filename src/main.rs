@@ -108,6 +108,7 @@ pub enum Status {
     RestAtInn(u32),
     WeakVenom(u8),
     BlindUntil(u32),
+    Bane(u32),
 }
 
 pub enum Cmd { 
@@ -1554,6 +1555,13 @@ fn check_player_statuses(state: &mut GameState, game_obj_db: &mut GameObjectDB) 
                     continue;
                 }
             },
+            Status::Bane(time) => {
+                if time <= state.turn {
+                    p.statuses.remove(j);
+                    state.write_msg_buff("A curse lifts!");
+                    continue;
+                }
+            },
             Status::RestAtInn(time) => {
                 if time <= state.turn {
                     p.statuses.remove(j);
@@ -1599,6 +1607,7 @@ fn run_game_loop(gui: &mut GameUI, state: &mut GameState, game_obj_db: &mut Game
                         Status::RestAtInn(_) => skip_turn = true,
                         Status::WeakVenom(_) => effects |= effects::EF_WEAK_VENOM,
                         Status::BlindUntil(_) => { }, // blindness is handled when we check the player's vision radius
+                        Status::Bane(_) => { },
                     }                
                 }
             }
