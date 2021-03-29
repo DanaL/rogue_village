@@ -619,7 +619,7 @@ impl Person for Player {
             for j in 0..self.statuses.len() {
                 if let Status::BlindUntil(prev_time) = self.statuses[j] {
                     if new_time > prev_time {
-                        std::mem::replace(&mut self.statuses[j], status);
+                        self.statuses[j] = status;
                         return;
                     }
                 }
