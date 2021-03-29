@@ -48,6 +48,7 @@ pub fn player_attacks(state: &mut GameState, opponent_id: usize, game_obj_db: &m
     let num_dmg_die;
     let dmg_type;
     let player = game_obj_db.player().unwrap();
+    let blind = player.blind();
     if let Some(weapon_info) = player.readied_weapon() {
         weapon_attack_bonus = weapon_info.0.attack_bonus;
         dmg_type = weapon_info.0.dmg_type;
@@ -61,7 +62,10 @@ pub fn player_attacks(state: &mut GameState, opponent_id: usize, game_obj_db: &m
     }
     
     let attack_bonus = player.attack_bonus();
-    let attack_roll = rng.gen_range(1, 21) + attack_bonus + weapon_attack_bonus;
+    let mut attack_roll = rng.gen_range(1, 21) + attack_bonus + weapon_attack_bonus;
+    if blind {
+        attack_roll -= 5;
+    }
     let str_mod = player::stat_to_mod(player.str);
 
     let mut xp_earned = 0;
@@ -83,7 +87,12 @@ pub fn player_attacks(state: &mut GameState, opponent_id: usize, game_obj_db: &m
             }
         }
     } else {
-        let s = format!("You miss {}!", foe.npc_name(false));
+        let s = if blind {
+            "You swing wildly!".to_string()
+        } else { 
+            format!("You miss {}!", foe.npc_name(false))
+        };
+
         state.write_msg_buff(&s);
     }
 

@@ -530,6 +530,17 @@ impl Player {
         roll + stat_to_mod(self.str)    
     }
 
+    pub fn blind(&self) -> bool {
+        for status in self.statuses.iter() {
+            match status {
+                Status::BlindUntil(_) => return true,
+                _ => { },
+            }
+        }
+
+        false
+    }
+
     // The player will regain HP on their own every X turns (see the game loop in main.rs)
     pub fn recover(&mut self) {
         if self.curr_hp < self.max_hp {
@@ -609,7 +620,6 @@ impl Person for Player {
                 if let Status::BlindUntil(prev_time) = self.statuses[j] {
                     if new_time > prev_time {
                         std::mem::replace(&mut self.statuses[j], status);
-                        println!("flag replacing!");
                         return;
                     }
                 }
