@@ -602,6 +602,20 @@ impl Person for Player {
     }
 
     fn add_status(&mut self, status: Status) {
+        // If there's an existing BlindUntil status, we want to replace it with the
+        // new one if it's further in the future
+        if let Status::BlindUntil(new_time) = status {
+            for j in 0..self.statuses.len() {
+                if let Status::BlindUntil(prev_time) = self.statuses[j] {
+                    if new_time > prev_time {
+                        std::mem::replace(&mut self.statuses[j], status);
+                        println!("flag replacing!");
+                        return;
+                    }
+                }
+            }
+        }
+
         // Generally don't allow the player to have more than one status effect of the same type.
         for s in self.statuses.iter() {
             if *s == status {

@@ -1593,8 +1593,6 @@ fn run_game_loop(gui: &mut GameUI, state: &mut GameState, game_obj_db: &mut Game
             // Here we look for any statuses that should have effects at the start of a player's turn.
             // After their turn we'll check to see if the statuses have ended.
             if let Some(GameObjects::Player(p)) = game_obj_db.get(0) {
-                println!("{:?}", &p.statuses);
-
                 for status in &p.statuses {
                     match status {
                         Status::PassUntil(_) => skip_turn = true,

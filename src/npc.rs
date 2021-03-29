@@ -710,7 +710,7 @@ fn minor_black_magic(npc_id: usize, state: &mut GameState, game_obj_db: &mut Gam
         state.write_msg_buff(&s);
         state.write_msg_buff("A shroud falls over your eyes!");
         let player = game_obj_db.player().unwrap();
-        player.statuses.push(Status::BlindUntil(state.turn + rand::thread_rng().gen_range(3, 6)));
+        player.add_status(Status::BlindUntil(state.turn + rand::thread_rng().gen_range(3, 6)));
         return true;
     }
 
