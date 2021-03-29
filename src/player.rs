@@ -103,6 +103,13 @@ impl Player {
             }
         }
 
+        for status in &self.statuses {
+            match status {
+                Status::BlindUntil(_) => { self.vision_radius = 0 ;},
+                _ => { },
+            }
+        }
+
         // Announce sunrise and sunset if the player is on the surface
         // This should be here and is a dumb calculation because vision radius will be
         // affected by say torches. It should be moved to end-of-turn stuff in the gameloop

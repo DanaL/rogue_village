@@ -24,9 +24,10 @@ use crate::battle::DamageType;
 use crate::game_obj::{GameObject, GameObjectDB, Person};
 use crate::util;
 
-pub const EF_MINOR_HEAL: u128   = 0x00000001;
-pub const EF_BLINK: u128        = 0x00000002;
-pub const EF_WEAK_VENOM: u128   = 0x00000004;
+pub const EF_MINOR_HEAL: u128     = 0x00000001;
+pub const EF_BLINK: u128          = 0x00000002;
+pub const EF_WEAK_VENOM: u128     = 0x00000004;
+pub const EF_WEAK_BLINDNESS: u128 = 0x00000008;
 
 // Short range, untargeted teleport
 fn blink(state: &mut GameState, obj_id: usize, game_obj_db: &mut GameObjectDB) {
@@ -38,7 +39,7 @@ fn blink(state: &mut GameState, obj_id: usize, game_obj_db: &mut GameObjectDB) {
         let circle = util::bresenham_circle(loc.0, loc.1, radius);
         for pt in circle {
             let nloc = (pt.0, pt.1, loc.2);
-            if state.map.contains_key(&loc) && state.map[&nloc].passable() && !game_obj_db.blocking_obj_at(&nloc) {
+            if state.map.contains_key(&nloc) && state.map[&nloc].passable() && !game_obj_db.blocking_obj_at(&nloc) {
                 sqs.push(nloc);
             }
         }
@@ -85,6 +86,10 @@ pub fn apply_effects(state: &mut GameState, obj_id: usize, game_obj_db: &mut Gam
         if let Some(victim) = game_obj_db.as_person(obj_id) {
             weak_venom(state, victim);
         }
+    }
+
+    if effects & EF_WEAK_BLINDNESS > 0 {
+        
     }
 }
 

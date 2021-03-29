@@ -107,6 +107,7 @@ pub enum Status {
     PassUntil(u32),
     RestAtInn(u32),
     WeakVenom(u8),
+    BlindUntil(u32),
 }
 
 pub enum Cmd { 
@@ -1546,6 +1547,13 @@ fn check_player_statuses(state: &mut GameState, game_obj_db: &mut GameObjectDB) 
                     continue;
                 }
             },
+            Status::BlindUntil(time) => {
+                if time <= state.turn {
+                    p.statuses.remove(j);
+                    state.write_msg_buff("Your vision clears!");
+                    continue;
+                }
+            },
             Status::RestAtInn(time) => {
                 if time <= state.turn {
                     p.statuses.remove(j);
@@ -1559,7 +1567,7 @@ fn check_player_statuses(state: &mut GameState, game_obj_db: &mut GameObjectDB) 
                     state.write_msg_buff("You feel better.");
                     p.remove_status(Status::WeakVenom(dc));
                 }
-            },
+            },            
         }
 
         j += 1;
@@ -1581,15 +1589,18 @@ fn run_game_loop(gui: &mut GameUI, state: &mut GameState, game_obj_db: &mut Game
         let mut effects: u128 = 0;
         while curr_energy >= 1.0 {
             gui.clear_msg_buff();
-
+            
             // Here we look for any statuses that should have effects at the start of a player's turn.
             // After their turn we'll check to see if the statuses have ended.
             if let Some(GameObjects::Player(p)) = game_obj_db.get(0) {
+                println!("{:?}", &p.statuses);
+
                 for status in &p.statuses {
                     match status {
                         Status::PassUntil(_) => skip_turn = true,
                         Status::RestAtInn(_) => skip_turn = true,
                         Status::WeakVenom(_) => effects |= effects::EF_WEAK_VENOM,
+                        Status::BlindUntil(_) => { }, // blindness is handled when we check the player's vision radius
                     }                
                 }
             }
@@ -1720,17 +1731,15 @@ fn check_event_queue(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui:
     Ok(())
 }
 
-fn update_view(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mut GameUI) {
-    let mut player_loc = (0, 0, 0);
-    let mut player_vr = 0;
-    if let Some(GameObjects::Player(player)) = game_obj_db.get_mut(0) {
-        player_loc = player.get_loc();
-        player.calc_vision_radius(state, player_loc);
-        player_vr = player.vision_radius;
-    }
-        
+fn update_view(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mut GameUI) {    
+    let player = game_obj_db.player().unwrap();
+    let player_loc = player.get_loc();
+    player.calc_vision_radius(state, player_loc);
+    let player_vr = player.vision_radius;
+    
     //let _fov_start = Instant::now();
     let visible = fov::visible_sqs(state, player_loc, player_vr, false);
+    
     gui.v_matrix = fov_to_tiles(state, game_obj_db, &visible, player_loc);        
     //let _fov_duration = _fov_start.elapsed();
     //println!("Player fov: {:?}", fov_duration);

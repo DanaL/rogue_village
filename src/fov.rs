@@ -200,6 +200,10 @@ fn mark_visible(r1: i32, c1: i32, r2: i32, c2: i32, sq_radius: i32,
 // for squares that are lit according to the list of lit sqs in GameState. (Ie., so the player may have no torch burning underground but can
 // see the light from an independent light source)
 pub fn calc_fov(state: &GameState, centre: (i32, i32, i8), radius: u8, fov_only: bool) -> HashSet<(i32, i32, i8)> {    
+	if radius == 0 {
+		return HashSet::new();
+	}
+	
 	// Even if the player's vision radius is only, say, 3 we still need to scan to the 
 	// perimiter of the FOV area in case there are independently lit squares for which
 	// the player has line-of-sight
