@@ -20,6 +20,7 @@ use rand::Rng;
 use serde::{Serialize, Deserialize};
 
 use super::{GameState, Status};
+use crate::effects;
 use crate::npc;
 use crate::player;
 use crate::game_obj::{Ability, GameObjectDB, Person};
@@ -135,7 +136,7 @@ pub fn monster_attacks_player(state: &mut GameState, monster_id: usize, game_obj
                 let con_save = player.ability_check(Ability::Con);
                 if con_save <= monster_dc {
                     state.write_msg_buff("You feel ill.");
-                    player.add_status(Status::WeakVenom(monster_dc));
+                    effects::add_status(player, Status::WeakVenom(monster_dc));
                 }
             }
         }

@@ -18,6 +18,7 @@ use std::collections::{HashMap, HashSet};
 use rand::Rng;
 
 use super::{GameState, Status};
+use crate::effects;
 use crate::npc::Attitude;
 use crate::game_obj::{GameObject, Person};
 use crate::dialogue::DialogueLibrary;
@@ -73,7 +74,7 @@ fn rent_room(state: &mut GameState, game_obj_db: &mut GameObjectDB) {
         player.purse -= 10;
         
         let checkout = state.turn + 2880; // renting a room is basically passing for 8 hours
-        player.add_status(Status::RestAtInn(checkout));
+        effects::add_status(player, Status::RestAtInn(checkout));
 
         state.write_msg_buff("You check in.");
     }

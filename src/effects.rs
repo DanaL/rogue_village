@@ -14,10 +14,12 @@
 // along with RogueVillage.  If not, see <https://www.gnu.org/licenses/>.
 
 extern crate rand;
+extern crate serde;
 
 use std::u128;
 
 use rand::{Rng, prelude::SliceRandom};
+use serde::{Serialize, Deserialize};
 
 use super::GameState;
 use crate::battle::DamageType;
@@ -89,7 +91,61 @@ pub fn apply_effects(state: &mut GameState, obj_id: usize, game_obj_db: &mut Gam
     }
 
     if effects & EF_WEAK_BLINDNESS > 0 {
-        
+
     }
 }
 
+#[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub enum Status {
+    PassUntil(u32),
+    RestAtInn(u32),
+    WeakVenom(u8),
+    BlindUntil(u32),
+    Bane(u32),
+}
+
+pub trait HasStatuses {
+    fn get_statuses(&mut self) -> Option<&mut Vec<Status>>;
+}
+
+pub fn add_status(person: &mut dyn HasStatuses, status: Status) {
+    let statuses = person.get_statuses().unwrap();
+
+    // BlindUtil and other statuses we want to merge. Ie., if someone has BlindUntil(100) and then
+    // gets further blinded, replace the current status with the one that's further in the future.
+    if let Status::BlindUntil(new_time) = status {
+        for j in 0..statuses.len() {
+            if let Status::BlindUntil(prev_time) = statuses[j] {
+                if new_time > prev_time {
+                    statuses[j] = status;
+                    return;
+                }
+            }
+        }
+    }
+
+    if let Status::Bane(new_time) = status {
+        for j in 0..statuses.len() {
+            if let Status::Bane(prev_time) = statuses[j] {
+                if new_time > prev_time {
+                    statuses[j] = status;
+                    return;
+                }
+            }
+        }
+    }
+
+    // Generally don't allow the player to have more than one status effect of the same type.
+    for s in statuses.iter() {
+        if *s == status {
+            return;
+        }
+    }
+
+    statuses.push(status);
+}
+
+pub fn remove_status(person: &mut dyn HasStatuses, status: Status) {
+    let statuses = person.get_statuses().unwrap();
+    statuses.retain(|s| *s != status);
+} 

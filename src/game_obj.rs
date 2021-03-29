@@ -18,8 +18,9 @@ extern crate serde;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet, VecDeque};
 
-use super::{EventResponse, EventType, GameState, Status, PLAYER_INV};
+use super::{EventResponse, EventType, GameState, PLAYER_INV};
 use crate::battle::DamageType;
+use crate::effects::Status;
 use crate::items::{Item, GoldPile};
 use crate::map::{SpecialSquare, Tile};
 use crate::npc;
@@ -671,8 +672,6 @@ pub trait Person {
     fn damaged(&mut self, state: &mut GameState, amount: u8, dmg_type: DamageType, assailant_id: usize, assailant_name: &str);
     fn get_hp(&self) -> (u8, u8);
     fn add_hp(&mut self, state: &mut GameState, amt: u8);
-    fn add_status(&mut self, status: Status);
-    fn remove_status(&mut self, status: Status);
     fn ability_check(&self, ability: Ability) -> u8;
     fn attributes(&self) -> u128;
     fn size(&self) -> u8;

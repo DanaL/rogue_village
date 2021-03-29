@@ -152,6 +152,7 @@ pub struct NPC {
     pub size: u8,
     pub pronouns: Pronouns,
     pub rarity: u8,
+    pub statuses: Vec<Status>,
 }
 
 impl NPC {
@@ -161,6 +162,7 @@ impl NPC {
             voice: String::from(voice), schedule: Vec::new(), mode: NPCPersonality::Villager, attack_mod: 2, dmg_dice: 1, dmg_die: 3, dmg_bonus: 0, edc: 12,
             attributes: MA_OPEN_DOORS | MA_UNLOCK_DOORS, alive: true, xp_value: 0, inventory: Vec::new(), active: true, active_behaviour: Behaviour::Idle, 
             inactive_behaviour: Behaviour::Idle, level: 0, last_inventory: 0, recently_saw_player: false, size: 2, pronouns: pick_pronouns(), rarity: 0,
+            statuses: Vec::new(),
         };
 
 		GameObjects::NPC(npc)
@@ -316,10 +318,6 @@ impl Person for NPC {
         let s = format!("{} looks better!", self.npc_name(false).capitalize());
         state.write_msg_buff(&s);
     }
-
-    // Not deaing with statuses for monsters yet...
-    fn add_status(&mut self, _status: Status) { }
-    fn remove_status(&mut self, _status: Status) { }
 
     // I'm not (yet) giving monsters individual stats yet, so for ability checks 
     // just use their attack mod for now
@@ -710,7 +708,7 @@ fn minor_black_magic(npc_id: usize, state: &mut GameState, game_obj_db: &mut Gam
         state.write_msg_buff(&s);
         state.write_msg_buff("A shroud falls over your eyes!");
         let player = game_obj_db.player().unwrap();
-        player.add_status(Status::BlindUntil(state.turn + rand::thread_rng().gen_range(3, 6)));
+        effects::add_status(player, Status::BlindUntil(state.turn + rand::thread_rng().gen_range(3, 6)));
         return true;
     }
 
@@ -719,7 +717,7 @@ fn minor_black_magic(npc_id: usize, state: &mut GameState, game_obj_db: &mut Gam
         state.write_msg_buff(&s);
         state.write_msg_buff("You have been cursed!");
         let player = game_obj_db.player().unwrap();
-        player.add_status(Status::Bane(state.turn + rand::thread_rng().gen_range(3, 6)));
+        effects::add_status(player, Status::Bane(state.turn + rand::thread_rng().gen_range(3, 6)));
         return true;
     }
 
@@ -971,7 +969,7 @@ impl MonsterFactory {
             ac: stats.0, curr_hp: stats.1, max_hp: stats.1, attitude: Attitude::Indifferent, facts_known: Vec::new(), home: None, plan: VecDeque::new(), voice: String::from("monster"), 
             schedule: Vec::new(), mode: stats.4, attack_mod: stats.5, dmg_dice: stats.6, dmg_die: stats.7, dmg_bonus: stats.8, edc: self.calc_dc(stats.9), attributes: stats.10, 
             alive: true, xp_value: stats.11, inventory: Vec::new(), active: stats.12, active_behaviour: stats.13, inactive_behaviour: stats.14, level: stats.9, last_inventory: 0,
-            recently_saw_player: false, size: stats.15, pronouns: pick_pronouns(), rarity: stats.16,
+            recently_saw_player: false, size: stats.15, pronouns: pick_pronouns(), rarity: stats.16, statuses: Vec::new(),
         };
 
         let mut rng = rand::thread_rng();

@@ -19,10 +19,11 @@ use std::collections::{HashMap, HashSet};
 use rand::Rng;
 use serde::{Serialize, Deserialize};
 
-use super::{EventResponse, GameState, Status};
+use super::{EventResponse, EventType, GameState, Status};
 use crate::battle::DamageType;
 use crate::display;
-use crate::{EventType, items};
+use crate::effects::HasStatuses;
+use crate::items;
 use crate::game_obj::{Ability, GameObject, GameObjectDB, GameObjectBase, GameObjects, Person};
 use crate::items::{Item, ItemType};
 use crate::map::Tile;
@@ -623,45 +624,6 @@ impl Person for Player {
         state.write_msg_buff("You feel better!");
     }
 
-    fn add_status(&mut self, status: Status) {
-        // If there's an existing BlindUntil status, we want to replace it with the
-        // new one if it's further in the future
-        if let Status::BlindUntil(new_time) = status {
-            for j in 0..self.statuses.len() {
-                if let Status::BlindUntil(prev_time) = self.statuses[j] {
-                    if new_time > prev_time {
-                        self.statuses[j] = status;
-                        return;
-                    }
-                }
-            }
-        }
-
-        if let Status::Bane(new_time) = status {
-            for j in 0..self.statuses.len() {
-                if let Status::Bane(prev_time) = self.statuses[j] {
-                    if new_time > prev_time {
-                        self.statuses[j] = status;
-                        return;
-                    }
-                }
-            }
-        }
-
-        // Generally don't allow the player to have more than one status effect of the same type.
-        for s in self.statuses.iter() {
-            if *s == status {
-                return;
-            }
-        }
-
-        self.statuses.push(status);
-    }
-
-    fn remove_status(&mut self, status: Status) {
-        self.statuses.retain(|s| *s != status);
-    }
-
     fn ability_check(&self, ability: Ability) -> u8 {
         let mut rng = rand::thread_rng();
         let roll = rng.gen_range(1, 21) + 
@@ -729,6 +691,12 @@ impl GameObject for Player {
 
     fn receive_event(&mut self, _event: EventType, _state: &mut GameState, _player_loc: (i32, i32, i8)) -> Option<EventResponse> {
         None
+    }
+}
+
+impl HasStatuses for Player {
+    fn get_statuses(&mut self) -> Option<&mut Vec<Status>> {
+        return Some(&mut self.statuses)
     }
 }
 

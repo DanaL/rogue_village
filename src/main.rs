@@ -52,6 +52,7 @@ use serde::{Serialize, Deserialize};
 use npc::{Attitude, MonsterFactory, Venue};
 use dialogue::DialogueLibrary;
 use display::{GameUI, SidebarInfo, WHITE};
+use effects::{HasStatuses, Status};
 use game_obj::{Ability, GameObject, GameObjectDB, GameObjects, Person};
 use items::{GoldPile, IA_CONSUMABLE, ItemType};
 use map::{DoorState, ShrineType, Tile};
@@ -100,15 +101,6 @@ pub enum EventType {
     PlayerKilled,
     LevelUp,
     TrapRevealed,
-}
-
-#[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
-pub enum Status {
-    PassUntil(u32),
-    RestAtInn(u32),
-    WeakVenom(u8),
-    BlindUntil(u32),
-    Bane(u32),
 }
 
 pub enum Cmd { 
@@ -1573,7 +1565,7 @@ fn check_player_statuses(state: &mut GameState, game_obj_db: &mut GameObjectDB) 
                 let save = p.ability_check(Ability::Con);
                 if save >= dc {
                     state.write_msg_buff("You feel better.");
-                    p.remove_status(Status::WeakVenom(dc));
+                    effects::remove_status(p, Status::WeakVenom(dc));
                 }
             },            
         }
@@ -1593,6 +1585,7 @@ fn run_game_loop(gui: &mut GameUI, state: &mut GameState, game_obj_db: &mut Game
         if let Some(GameObjects::Player(player)) = game_obj_db.get(0) {
             curr_energy = player.energy;
         }
+        
         let mut skip_turn = false;
         let mut effects: u128 = 0;
         while curr_energy >= 1.0 {
@@ -1600,18 +1593,17 @@ fn run_game_loop(gui: &mut GameUI, state: &mut GameState, game_obj_db: &mut Game
             
             // Here we look for any statuses that should have effects at the start of a player's turn.
             // After their turn we'll check to see if the statuses have ended.
-            if let Some(GameObjects::Player(p)) = game_obj_db.get(0) {
-                for status in &p.statuses {
-                    match status {
-                        Status::PassUntil(_) => skip_turn = true,
-                        Status::RestAtInn(_) => skip_turn = true,
-                        Status::WeakVenom(_) => effects |= effects::EF_WEAK_VENOM,
-                        Status::BlindUntil(_) => { }, // blindness is handled when we check the player's vision radius
-                        Status::Bane(_) => { },
-                    }                
-                }
+            let p = game_obj_db.player().unwrap();
+            for status in p.get_statuses().unwrap().iter() {
+                match status {
+                    Status::PassUntil(_) => skip_turn = true,
+                    Status::RestAtInn(_) => skip_turn = true,
+                    Status::WeakVenom(_) => effects |= effects::EF_WEAK_VENOM,
+                    Status::BlindUntil(_) => { }, // blindness is handled when we check the player's vision radius
+                    Status::Bane(_) => { },
+                }                
             }
-
+            
             if effects > 0 {
                 effects::apply_effects(state, 0, game_obj_db, effects);
             }
