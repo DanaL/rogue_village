@@ -99,6 +99,7 @@ pub enum Status {
     BlindUntil(u32),
     Bane(u32),
     Invisible(u32),
+    FadeAfter(usize, u32), // used for illusions that will disappear after a certain time or when their creator dies
 }
 
 pub trait HasStatuses {

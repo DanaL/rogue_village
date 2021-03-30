@@ -53,6 +53,7 @@ pub const MA_RESIST_PIERCE: u128     = 0x00000080;
 pub const MA_WEBSLINGER: u128        = 0x00000100;
 pub const MA_MINOR_BLACK_MAGIC: u128 = 0x00000200;
 pub const MA_MINOR_TRICKERY: u128    = 0x00000400;
+pub const MA_ILLUSION: u128          = 0x00000800;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum Venue {
@@ -159,7 +160,7 @@ pub struct NPC {
 impl NPC {
     pub fn villager(name: String, location: (i32, i32, i8), home: Option<Venue>, voice: &str, game_obj_db: &mut GameObjectDB) -> GameObjects {            
         let npc = NPC { base_info: GameObjectBase::new(game_obj_db.next_id(), location, false, '@', display::LIGHT_GREY, 
-            display::LIGHT_GREY, true, &name),ac: 10, curr_hp: 8, max_hp: 8, attitude: Attitude::Stranger, facts_known: Vec::new(), home, plan: VecDeque::new(), 
+            display::LIGHT_GREY, true, &name), ac: 10, curr_hp: 8, max_hp: 8, attitude: Attitude::Stranger, facts_known: Vec::new(), home, plan: VecDeque::new(), 
             voice: String::from(voice), schedule: Vec::new(), mode: NPCPersonality::Villager, attack_mod: 2, dmg_dice: 1, dmg_die: 3, dmg_bonus: 0, edc: 12,
             attributes: MA_OPEN_DOORS | MA_UNLOCK_DOORS, alive: true, xp_value: 0, inventory: Vec::new(), active: true, active_behaviour: Behaviour::Idle, 
             inactive_behaviour: Behaviour::Idle, level: 0, last_inventory: 0, recently_saw_player: false, size: 2, pronouns: pick_pronouns(), rarity: 0,
@@ -169,6 +170,17 @@ impl NPC {
 		GameObjects::NPC(npc)
     }
     
+    pub fn phantasm(name: String, location: (i32, i32, i8), sym: char, colour: (u8, u8, u8), game_obj_db: &mut GameObjectDB) -> GameObjects {
+        let phantasm = NPC { base_info: GameObjectBase::new(game_obj_db.next_id(), location, false, sym, colour, colour, true, &name), ac: 10, curr_hp: 0, max_hp: 0, 
+            attitude: Attitude::Hostile, facts_known: Vec::new(), home: None, plan: VecDeque::new(), voice: String::from("monster"), schedule: Vec::new(), 
+            mode: NPCPersonality::SimpleMonster, attack_mod: 0, dmg_dice: 0, dmg_die: 0, dmg_bonus: 0, edc: 10, attributes: MA_FEARLESS | MA_ILLUSION, alive: true, 
+            xp_value: 0, inventory: Vec::new(), active: true, active_behaviour: Behaviour::Hunt, inactive_behaviour: Behaviour::Hunt, level: 0, last_inventory: 0, recently_saw_player: false, 
+            size: 2, pronouns: pick_pronouns(), rarity: 0, statuses: Vec::new(),
+        };
+
+		GameObjects::NPC(phantasm)
+    }
+
     // fn is_home_open(&self, map: &Map) -> bool {
     //     match self.entrance_location(map) {
     //         Some(loc) => 
@@ -731,6 +743,30 @@ fn minor_black_magic(npc_id: usize, state: &mut GameState, game_obj_db: &mut Gam
     false
 }
 
+fn create_phantasm(npc_id: usize, state: &mut GameState, game_obj_db: &mut GameObjectDB, centre: (i32, i32, i8)) {
+    let mut options = Vec::new();
+    for adj in util::ADJ.iter() {
+        let loc = (centre.0 + adj.0, centre.1 + adj.1, centre.2);
+        if !game_obj_db.location_occupied(&loc) {
+            options.push(loc);
+        }
+    }
+
+    if !options.is_empty() {
+        let j = rand::thread_rng().gen_range(0, options.len());
+        let npc = game_obj_db.npc(npc_id).unwrap();
+        let ch = npc.base_info.symbol;
+        let colour = npc.base_info.lit_colour;
+        let name = &npc.base_info.name;
+        let phantasm = NPC::phantasm(name.to_string(), options[j], ch, colour, game_obj_db);
+        let pid = phantasm.obj_id();
+        // chance for the caster to swap places with the phantasm
+
+        game_obj_db.add(phantasm);
+        game_obj_db.listeners.insert((pid, EventType::TakeTurn));
+    }
+}
+
 fn minor_trickery(npc_id: usize, state: &mut GameState, game_obj_db: &mut GameObjectDB, player_loc: (i32, i32, i8), sees_player: bool, adj: bool) -> bool {
     let npc = game_obj_db.npc(npc_id).unwrap();
     let npc_loc = npc.get_loc();
@@ -758,6 +794,14 @@ fn minor_trickery(npc_id: usize, state: &mut GameState, game_obj_db: &mut GameOb
         let s = format!("{} disappears!", npc_name.capitalize());
         state.write_msg_buff(&s);
         effects::add_status(npc, Status::Invisible(state.turn + rand::thread_rng().gen_range(5, 8)));
+        return true;
+    }
+
+    // I'll need a way to stop the trickster from completely spamming this power. Cool down that
+    // lasts longer than the duration?
+    if adj && rand::thread_rng().gen_range(0.0, 1.0) < 0.33 {
+        // create two phantasm duplicates
+
         return true;
     }
 
@@ -880,6 +924,7 @@ impl MonsterFactory {
             }
         }
     }
+
     fn to_colour(text: &str) -> (u8, u8, u8) {
         match text {    
             "BEIGE" => display::BEIGE,        

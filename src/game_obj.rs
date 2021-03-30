@@ -610,12 +610,10 @@ impl GameObjectDB {
 
             // // Was the npc killed during their turn?
             let npc = self.npc(npc_id).unwrap();
+            effects::check_statuses(npc, state);
             let is_alive = npc.alive;                
             if !is_alive {
                 self.clear_dead_npc(npc_id);
-                continue;
-            } else {
-                effects::check_statuses(npc, state);
             }
         }
     }
