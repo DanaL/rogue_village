@@ -305,6 +305,17 @@ impl GameObject for NPC {
 
 impl Person for NPC {
     fn damaged(&mut self, state: &mut GameState, amount: u8, dmg_type: DamageType, assailant_id: usize, _assailant_name: &str) {
+        if self.attributes & MA_ILLUSION > 0 {
+            if rand::thread_rng().gen_range(0.0, 1.0) <= 0.75 {
+                state.write_msg_buff("Your weapon seems to pass right through them!");
+            } else {
+                let s = format!("{} vanishes in a puff of mist!", self.npc_name(false).capitalize());
+                state.write_msg_buff(&s);
+                self.alive = false;
+            }
+            return;
+        }
+
         let mut adjusted_dmg = amount;
         match dmg_type {
             DamageType::Slashing => if self.attributes & MA_RESIST_SLASH != 0 { adjusted_dmg /= 2; },
