@@ -19,7 +19,7 @@ extern crate serde;
 use rand::Rng;
 use serde::{Serialize, Deserialize};
 
-use super::{GameState, Status};
+use super::{GameObject, GameState, Status};
 use crate::effects;
 use crate::npc;
 use crate::player;
@@ -41,6 +41,9 @@ pub enum DamageType {
 
 pub fn player_attacks(state: &mut GameState, opponent_id: usize, game_obj_db: &mut GameObjectDB) {
     let mut rng = rand::thread_rng();
+
+    let npc = game_obj_db.get(opponent_id).unwrap();
+    let invisible_opponent = npc.hidden();
 
     // Fetch the attack bonuses for the player's weapon. Do it here so that Player needs to know
     // less about GameObject and such. 
@@ -65,7 +68,7 @@ pub fn player_attacks(state: &mut GameState, opponent_id: usize, game_obj_db: &m
     
     let attack_bonus = player.attack_bonus();
     let mut attack_roll = rng.gen_range(1, 21) + attack_bonus + weapon_attack_bonus;
-    if blind {
+    if blind || invisible_opponent {
         attack_roll -= 5;
     }
     if baned {
@@ -92,7 +95,7 @@ pub fn player_attacks(state: &mut GameState, opponent_id: usize, game_obj_db: &m
             }
         }
     } else {
-        let s = if blind {
+        let s = if blind || invisible_opponent {
             "You swing wildly!".to_string()
         } else { 
             format!("You miss {}!", foe.npc_name(false))
@@ -119,9 +122,12 @@ pub fn monster_attacks_player(state: &mut GameState, monster_id: usize, game_obj
     let monster_dc = npc.edc;
     let monster_attributes = npc.attributes;
 
-    let attack_roll = rng.gen_range(1, 21) + attack_mod;
-
     let player = game_obj_db.player().unwrap();
+    let mut attack_roll = rng.gen_range(1, 21) + attack_mod;
+    if player.base_info.hidden {
+        attack_roll -= 5;
+    }    
+    
     if attack_roll >= player.ac {
         let s = format!("{} hits you!", monster_name.capitalize());
         state.write_msg_buff(&s);        

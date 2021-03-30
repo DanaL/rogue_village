@@ -23,7 +23,7 @@ use serde::{Serialize, Deserialize};
 
 use super::GameState;
 use crate::battle::DamageType;
-use crate::game_obj::{GameObject, GameObjectDB, Person};
+use crate::game_obj::{Ability, GameObject, GameObjectDB, Person};
 use crate::util;
 
 pub const EF_MINOR_HEAL: u128     = 0x00000001;
@@ -89,10 +89,6 @@ pub fn apply_effects(state: &mut GameState, obj_id: usize, game_obj_db: &mut Gam
             weak_venom(state, victim);
         }
     }
-
-    if effects & EF_WEAK_BLINDNESS > 0 {
-
-    }
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -102,13 +98,18 @@ pub enum Status {
     WeakVenom(u8),
     BlindUntil(u32),
     Bane(u32),
+    Invisible(u32),
 }
 
 pub trait HasStatuses {
     fn get_statuses(&mut self) -> Option<&mut Vec<Status>>;
 }
 
-pub fn add_status(person: &mut dyn HasStatuses, status: Status) {
+pub fn add_status<T: HasStatuses + GameObject>(person: &mut T, status: Status) {
+    if let Status::Invisible(_) = status  {
+        person.hide();
+    }
+
     let statuses = person.get_statuses().unwrap();
 
     // BlindUtil and other statuses we want to merge. Ie., if someone has BlindUntil(100) and then
@@ -135,6 +136,17 @@ pub fn add_status(person: &mut dyn HasStatuses, status: Status) {
         }
     }
 
+    if let Status::Invisible(new_time) = status {
+        for j in 0..statuses.len() {
+            if let Status::Invisible(prev_time) = statuses[j] {
+                if new_time > prev_time {
+                    statuses[j] = status;
+                    return;
+                }
+            }
+        }
+    }
+
     // Generally don't allow the player to have more than one status effect of the same type.
     for s in statuses.iter() {
         if *s == status {
@@ -145,7 +157,84 @@ pub fn add_status(person: &mut dyn HasStatuses, status: Status) {
     statuses.push(status);
 }
 
-pub fn remove_status(person: &mut dyn HasStatuses, status: Status) {
+pub fn remove_status<T: HasStatuses + GameObject>(person: &mut T, status: Status) {
     let statuses = person.get_statuses().unwrap();
     statuses.retain(|s| *s != status);
-} 
+
+    if let Status::Invisible(_) = status {
+        person.reveal();
+    }
+}
+
+pub fn check_statuses<T: HasStatuses + GameObject + Person>(person: &mut T, state: &mut GameState) {
+    let obj_id = person.obj_id();
+    let con_check = person.ability_check(Ability::Con); // gotta do this here for borrow checker reasons...
+    let statuses = person.get_statuses().unwrap();
+
+    let mut reveal = false;
+    let mut j = 0;
+    while j < statuses.len() {
+        match statuses[j] {
+            Status::PassUntil(time) => {
+                if time <= state.turn {
+                    statuses.remove(j);
+                    continue;
+                }
+            },
+            Status::BlindUntil(time) => {
+                if time <= state.turn {
+                    statuses.remove(j);
+                    if obj_id == 0 {
+                        state.write_msg_buff("Your vision clears!");
+                    }
+                    continue;
+                }
+            },
+            Status::Bane(time) => {
+                if time <= state.turn {
+                    statuses.remove(j);
+                    if obj_id == 0 {
+                        state.write_msg_buff("A curse lifts!");
+                    }
+                    continue;
+                }
+            },
+            Status::RestAtInn(time) => {
+                if time <= state.turn {
+                    statuses.remove(j);
+                    if obj_id == 0 {
+                        state.write_msg_buff("You awake feeling refreshed!");
+                    }
+                    continue;
+                }
+            },
+            Status::WeakVenom(dc) => {
+                if con_check >= dc {
+                    if obj_id == 0 {
+                        state.write_msg_buff("You feel better.");
+                    }
+                    statuses.remove(j);                    
+                }
+            },
+            Status::Invisible(time) => {
+                if time <= state.turn {
+                    statuses.remove(j);
+                    reveal = true;
+                }
+            },
+            _ => { },
+        }
+
+        j += 1;
+    }
+
+    if reveal {
+        person.reveal();
+        if obj_id == 0 {
+            state.write_msg_buff("You re-appear!");
+        } else {
+            let s = format!("The {} re-appears!", person.get_fullname());
+            state.write_msg_buff(&s);
+        }
+    }
+}

@@ -1529,51 +1529,6 @@ fn kill_screen(state: &mut GameState, gui: &mut GameUI, game_obj_db: &mut GameOb
     gui.pause_for_more();
 }
 
-fn check_player_statuses(state: &mut GameState, game_obj_db: &mut GameObjectDB) {
-    let p = game_obj_db.player().unwrap();
-    let mut j = 0;
-    while j < p.statuses.len() {
-        match p.statuses[j] {
-            Status::PassUntil(time) => {
-                if time <= state.turn {
-                    p.statuses.remove(j);
-                    continue;
-                }
-            },
-            Status::BlindUntil(time) => {
-                if time <= state.turn {
-                    p.statuses.remove(j);
-                    state.write_msg_buff("Your vision clears!");
-                    continue;
-                }
-            },
-            Status::Bane(time) => {
-                if time <= state.turn {
-                    p.statuses.remove(j);
-                    state.write_msg_buff("A curse lifts!");
-                    continue;
-                }
-            },
-            Status::RestAtInn(time) => {
-                if time <= state.turn {
-                    p.statuses.remove(j);
-                    state.write_msg_buff("You awake feeling refreshed!");
-                    continue;
-                }
-            },
-            Status::WeakVenom(dc) => {
-                let save = p.ability_check(Ability::Con);
-                if save >= dc {
-                    state.write_msg_buff("You feel better.");
-                    effects::remove_status(p, Status::WeakVenom(dc));
-                }
-            },            
-        }
-
-        j += 1;
-    }
-}
-
 // Herein lies the main game loop
 fn run_game_loop(gui: &mut GameUI, state: &mut GameState, game_obj_db: &mut GameObjectDB, dialogue: &DialogueLibrary, monster_fac: &MonsterFactory) -> Result<(), ExitReason> {    
     update_view(state, game_obj_db, gui);
@@ -1600,7 +1555,7 @@ fn run_game_loop(gui: &mut GameUI, state: &mut GameState, game_obj_db: &mut Game
                     Status::RestAtInn(_) => skip_turn = true,
                     Status::WeakVenom(_) => effects |= effects::EF_WEAK_VENOM,
                     Status::BlindUntil(_) => { }, // blindness is handled when we check the player's vision radius
-                    Status::Bane(_) => { },
+                    _ => { },
                 }                
             }
             
@@ -1682,7 +1637,8 @@ fn run_game_loop(gui: &mut GameUI, state: &mut GameState, game_obj_db: &mut Game
             ::std::thread::sleep(Duration::new(0, 75_000_000u32));
         }
 
-        check_player_statuses(state, game_obj_db);
+        let p = game_obj_db.player().unwrap();
+        effects::check_statuses(p, state);
 
         game_obj_db.do_npc_turns(state);
         game_obj_db.update_listeners(state, EventType::Update);

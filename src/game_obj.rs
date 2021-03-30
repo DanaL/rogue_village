@@ -20,7 +20,7 @@ use std::collections::{HashMap, HashSet, VecDeque};
 
 use super::{EventResponse, EventType, GameState, PLAYER_INV};
 use crate::battle::DamageType;
-use crate::effects::Status;
+use crate::effects;
 use crate::items::{Item, GoldPile};
 use crate::map::{SpecialSquare, Tile};
 use crate::npc;
@@ -614,6 +614,8 @@ impl GameObjectDB {
             if !is_alive {
                 self.clear_dead_npc(npc_id);
                 continue;
+            } else {
+                effects::check_statuses(npc, state);
             }
         }
     }

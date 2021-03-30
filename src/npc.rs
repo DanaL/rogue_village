@@ -32,6 +32,7 @@ use crate::dialogue;
 use crate::dialogue::DialogueLibrary;
 use crate::display;
 use crate::effects;
+use crate::effects::HasStatuses;
 use crate::game_obj::{Ability, GameObject, GameObjectBase, GameObjectDB, GameObjects, Person};
 use crate::items::{GoldPile, Item};
 use crate::map::{Tile, DoorState};
@@ -333,6 +334,12 @@ impl Person for NPC {
 
     fn size(&self) -> u8 {
         self.size
+    }
+}
+
+impl HasStatuses for NPC {
+    fn get_statuses(&mut self) -> Option<&mut Vec<Status>> {
+        return Some(&mut self.statuses)
     }
 }
 
@@ -724,6 +731,39 @@ fn minor_black_magic(npc_id: usize, state: &mut GameState, game_obj_db: &mut Gam
     false
 }
 
+fn minor_trickery(npc_id: usize, state: &mut GameState, game_obj_db: &mut GameObjectDB, player_loc: (i32, i32, i8), sees_player: bool, adj: bool) -> bool {
+    let npc = game_obj_db.npc(npc_id).unwrap();
+    let npc_loc = npc.get_loc();
+    let npc_hp = npc.get_hp();
+    let npc_name = npc.npc_name(false);
+    let distance = util::distance(npc_loc.0, npc_loc.1, player_loc.0, player_loc.1);
+
+    let mut invisible = false;
+    for status in npc.get_statuses().unwrap().iter() {
+        if let Status::Invisible(_) = status {
+            invisible = true;
+            break;
+        }
+    }
+
+    // if they are injured and near the player, they will blink away 50% of the time (this check is cut-n-pasted from minor_black_magic...)
+    if  (npc_hp.0 as f32 / npc_hp.1 as f32) < 0.33 && distance <= 3.0 && rand::thread_rng().gen_range(0.0, 1.0) < 0.5 {
+        let s = format!("{} blinks away!", npc_name.capitalize());
+        state.write_msg_buff(&s);
+        effects::apply_effects(state, npc_id, game_obj_db, effects::EF_BLINK);
+        return true;
+    }
+
+    if sees_player && !invisible && rand::thread_rng().gen_range(0.0, 1.0) < 0.33 {
+        let s = format!("{} disappears!", npc_name.capitalize());
+        state.write_msg_buff(&s);
+        effects::add_status(npc, Status::Invisible(state.turn + rand::thread_rng().gen_range(5, 8)));
+        return true;
+    }
+
+    false
+}
+
 fn special_move(npc_id: usize, state: &mut GameState, game_obj_db: &mut GameObjectDB, player_loc: (i32, i32, i8), sees_player: bool, adj: bool) -> bool {
     let npc = game_obj_db.npc(npc_id).unwrap();
     let npc_loc = npc.get_loc();
@@ -741,6 +781,10 @@ fn special_move(npc_id: usize, state: &mut GameState, game_obj_db: &mut GameObje
 
     if attributes & MA_MINOR_BLACK_MAGIC > 0 && minor_black_magic(npc_id, state, game_obj_db, player_loc, sees_player, adj) {
         return true;        
+    }
+
+    if attributes & MA_MINOR_TRICKERY > 0 && minor_trickery(npc_id, state, game_obj_db, player_loc, sees_player, adj) {
+        return true;
     }
 
     false
