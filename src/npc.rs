@@ -40,6 +40,7 @@ use crate::pathfinding::find_path;
 use crate::util;
 use crate::util::StringUtils;
 use crate::fov;
+use display::LIGHT_GREY;
 
 // Some bitmasks for various monster attributes
 pub const MA_OPEN_DOORS: u128        = 0x00000001;
@@ -747,7 +748,7 @@ fn create_phantasm(npc_id: usize, state: &mut GameState, game_obj_db: &mut GameO
     let mut options = Vec::new();
     for adj in util::ADJ.iter() {
         let loc = (centre.0 + adj.0, centre.1 + adj.1, centre.2);
-        if !game_obj_db.location_occupied(&loc) {
+        if !game_obj_db.location_occupied(&loc) && state.map[&loc].passable() {
             options.push(loc);
         }
     }
@@ -757,13 +758,24 @@ fn create_phantasm(npc_id: usize, state: &mut GameState, game_obj_db: &mut GameO
         let npc = game_obj_db.npc(npc_id).unwrap();
         let ch = npc.base_info.symbol;
         let colour = npc.base_info.lit_colour;
-        let name = &npc.base_info.name;
-        let phantasm = NPC::phantasm(name.to_string(), options[j], ch, colour, game_obj_db);
+        let name = &npc.base_info.name.to_string();
+        let phantasm_loc = options[j];
+        let phantasm = NPC::phantasm(name.to_string(), phantasm_loc, ch, display::LIGHT_GREY, game_obj_db);
         let pid = phantasm.obj_id();
-        // chance for the caster to swap places with the phantasm
-
+        
         game_obj_db.add(phantasm);
         game_obj_db.listeners.insert((pid, EventType::TakeTurn));
+
+        let s = format!("Another {} appears!", name);
+        state.write_msg_buff(&s);
+
+        // The caster sometimes swaps places with the newly summoned phantasm
+        if rand::thread_rng().gen_range(0.0, 1.0) < 0.33 {
+            let npc = game_obj_db.get_mut(npc_id).unwrap();
+            let npc_loc = npc.get_loc();
+            game_obj_db.set_to_loc(npc_id, phantasm_loc);
+            game_obj_db.set_to_loc(pid, npc_loc);
+        }
     }
 }
 
@@ -790,7 +802,7 @@ fn minor_trickery(npc_id: usize, state: &mut GameState, game_obj_db: &mut GameOb
         return true;
     }
 
-    if sees_player && !invisible && rand::thread_rng().gen_range(0.0, 1.0) < 0.33 {
+    if sees_player && !invisible && rand::thread_rng().gen_range(0.0, 1.0) < 0.0033 {
         let s = format!("{} disappears!", npc_name.capitalize());
         state.write_msg_buff(&s);
         effects::add_status(npc, Status::Invisible(state.turn + rand::thread_rng().gen_range(5, 8)));
@@ -799,9 +811,10 @@ fn minor_trickery(npc_id: usize, state: &mut GameState, game_obj_db: &mut GameOb
 
     // I'll need a way to stop the trickster from completely spamming this power. Cool down that
     // lasts longer than the duration?
-    if adj && rand::thread_rng().gen_range(0.0, 1.0) < 0.33 {
+    if adj && !invisible && rand::thread_rng().gen_range(0.0, 1.0) < 10.33 {
         // create two phantasm duplicates
-
+        create_phantasm(npc_id, state, game_obj_db, player_loc);
+        create_phantasm(npc_id, state, game_obj_db, player_loc);
         return true;
     }
 
