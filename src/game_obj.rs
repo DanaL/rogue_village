@@ -675,4 +675,5 @@ pub trait Person {
     fn ability_check(&self, ability: Ability) -> u8;
     fn attributes(&self) -> u128;
     fn size(&self) -> u8;
+    fn mark_dead(&mut self);
 }

@@ -99,7 +99,7 @@ pub enum Status {
     BlindUntil(u32),
     Bane(u32),
     Invisible(u32),
-    FadeAfter(usize, u32), // used for illusions that will disappear after a certain time or when their creator dies
+    FadeAfter(u32), // used for illusions that will disappear after a certain time or when their creator dies
 }
 
 pub trait HasStatuses {
@@ -173,6 +173,7 @@ pub fn check_statuses<T: HasStatuses + GameObject + Person>(person: &mut T, stat
     let statuses = person.get_statuses().unwrap();
 
     let mut reveal = false;
+    let mut killed = false;
     let mut j = 0;
     while j < statuses.len() {
         match statuses[j] {
@@ -223,6 +224,11 @@ pub fn check_statuses<T: HasStatuses + GameObject + Person>(person: &mut T, stat
                     reveal = true;
                 }
             },
+            Status::FadeAfter(time) => {
+                if time <= state.turn {
+                    killed = true;
+                }
+            }
             _ => { },
         }
 
@@ -237,5 +243,12 @@ pub fn check_statuses<T: HasStatuses + GameObject + Person>(person: &mut T, stat
             let s = format!("The {} re-appears!", person.get_fullname());
             state.write_msg_buff(&s);
         }
+    }
+
+    if killed {
+        let name = person.get_fullname();
+        person.mark_dead();
+        let s = format!("The {} evaporates into mist!", name);
+        state.write_msg_buff(&s);
     }
 }

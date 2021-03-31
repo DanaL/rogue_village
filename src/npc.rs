@@ -359,6 +359,10 @@ impl Person for NPC {
     fn size(&self) -> u8 {
         self.size
     }
+
+    fn mark_dead(&mut self) {
+        self.alive = false;
+    }
 }
 
 impl HasStatuses for NPC {
@@ -771,11 +775,14 @@ fn create_phantasm(npc_id: usize, state: &mut GameState, game_obj_db: &mut GameO
         let colour = npc.base_info.lit_colour;
         let name = &npc.base_info.name.to_string();
         let phantasm_loc = options[j];
-        let phantasm = NPC::phantasm(name.to_string(), phantasm_loc, ch, display::LIGHT_GREY, game_obj_db);
+        let mut phantasm = NPC::phantasm(name.to_string(), phantasm_loc, ch, display::LIGHT_GREY, game_obj_db);
         let pid = phantasm.obj_id();
         
         game_obj_db.add(phantasm);
         game_obj_db.listeners.insert((pid, EventType::TakeTurn));
+
+        let npc = game_obj_db.npc(pid).unwrap();
+        effects::add_status(npc, Status::FadeAfter(state.turn + 10));
 
         let s = format!("Another {} appears!", name);
         state.write_msg_buff(&s);

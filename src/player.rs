@@ -651,6 +651,10 @@ impl Person for Player {
     fn size(&self) -> u8 {
         self.size
     }
+
+    fn mark_dead(&mut self) {
+        // does nothing for the Player right now
+    }
 }
 
 impl GameObject for Player {
