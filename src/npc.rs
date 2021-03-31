@@ -312,6 +312,7 @@ impl Person for NPC {
                 let s = format!("{} vanishes in a puff of mist!", self.npc_name(false).capitalize());
                 state.write_msg_buff(&s);
                 self.alive = false;
+                state.queued_events.push_back((EventType::DeathOf, self.get_loc(), self.obj_id(), None));
             }
             return;
         }

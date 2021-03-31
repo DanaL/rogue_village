@@ -101,6 +101,7 @@ pub enum EventType {
     PlayerKilled,
     LevelUp,
     TrapRevealed,
+    DeathOf,
 }
 
 pub enum Cmd { 
