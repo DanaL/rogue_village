@@ -40,7 +40,7 @@ use crate::pathfinding::find_path;
 use crate::util;
 use crate::util::StringUtils;
 use crate::fov;
-use display::LIGHT_GREY;
+use crate::effects::AB_CREATE_PHANTASM;
 
 // Some bitmasks for various monster attributes
 pub const MA_OPEN_DOORS: u128        = 0x00000001;
@@ -786,7 +786,7 @@ fn create_phantasm(npc_id: usize, state: &mut GameState, game_obj_db: &mut GameO
         let colour = npc.base_info.lit_colour;
         let name = &npc.base_info.name.to_string();
         let phantasm_loc = options[j];
-        let phantasm = NPC::phantasm(name.to_string(), phantasm_loc, ch, display::LIGHT_GREY, game_obj_db);
+        let phantasm = NPC::phantasm(name.to_string(), phantasm_loc, ch, colour, game_obj_db);
         let pid = phantasm.obj_id();
         
         game_obj_db.add(phantasm);
@@ -817,9 +817,14 @@ fn minor_trickery(npc_id: usize, state: &mut GameState, game_obj_db: &mut GameOb
     let distance = util::distance(npc_loc.0, npc_loc.1, player_loc.0, player_loc.1);
 
     let mut invisible = false;
+    let mut cast_phantasm = false;
     for status in npc.get_statuses().unwrap().iter() {
         if let Status::Invisible(_) = status {
             invisible = true;
+            break;
+        }
+        if let Status::CoolingDown(AB_CREATE_PHANTASM, _) = status {
+            cast_phantasm = true;
             break;
         }
     }
@@ -832,19 +837,21 @@ fn minor_trickery(npc_id: usize, state: &mut GameState, game_obj_db: &mut GameOb
         return true;
     }
 
-    if sees_player && !invisible && rand::thread_rng().gen_range(0.0, 1.0) < 0.0033 {
+    if sees_player && !invisible && rand::thread_rng().gen_range(0.0, 1.0) < 0.33 {
         let s = format!("{} disappears!", npc_name.capitalize());
         state.write_msg_buff(&s);
         effects::add_status(npc, Status::Invisible(state.turn + rand::thread_rng().gen_range(5, 8)));
         return true;
     }
 
-    // I'll need a way to stop the trickster from completely spamming this power. Cool down that
-    // lasts longer than the duration?
-    if adj && !invisible && rand::thread_rng().gen_range(0.0, 1.0) < 10.33 {
-        // create two phantasm duplicates
+    if !cast_phantasm && adj && !invisible && rand::thread_rng().gen_range(0.0, 1.0) < 0.33 {
+        // create three phantasm duplicates
         create_phantasm(npc_id, state, game_obj_db, player_loc);
         create_phantasm(npc_id, state, game_obj_db, player_loc);
+        create_phantasm(npc_id, state, game_obj_db, player_loc);
+
+        let npc = game_obj_db.npc(npc_id).unwrap();
+        effects::add_status(npc, Status::CoolingDown(AB_CREATE_PHANTASM, state.turn + 10));
         return true;
     }
 

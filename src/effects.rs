@@ -91,6 +91,9 @@ pub fn apply_effects(state: &mut GameState, obj_id: usize, game_obj_db: &mut Gam
     }
 }
 
+// Constants used to track abilities that have cool down times
+pub const AB_CREATE_PHANTASM: u16 = 0;
+
 #[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum Status {
     PassUntil(u32),
@@ -100,6 +103,7 @@ pub enum Status {
     Bane(u32),
     Invisible(u32),
     FadeAfter(u32), // used for illusions that will disappear after a certain time or when their creator dies
+    CoolingDown(u16, u32),
 }
 
 pub trait HasStatuses {
@@ -141,6 +145,17 @@ pub fn add_status<T: HasStatuses + GameObject>(person: &mut T, status: Status) {
         for j in 0..statuses.len() {
             if let Status::Invisible(prev_time) = statuses[j] {
                 if new_time > prev_time {
+                    statuses[j] = status;
+                    return;
+                }
+            }
+        }
+    }
+
+    if let Status::CoolingDown(ability, time) = status {
+        for j in 0..statuses.len() {
+            if let Status::CoolingDown(curr_ability, curr_time) = statuses[j] {
+                if ability == curr_ability && time > curr_time {
                     statuses[j] = status;
                     return;
                 }
@@ -223,12 +238,17 @@ pub fn check_statuses<T: HasStatuses + GameObject + Person>(person: &mut T, stat
                     statuses.remove(j);
                     reveal = true;
                 }
-            },
+            },            
             Status::FadeAfter(time) => {
                 if time <= state.turn {
                     killed = true;
                 }
-            }            
+            }
+            Status::CoolingDown(_, time) => {
+                if time <= state.turn {
+                    statuses.remove(j);
+                }
+            }
         }
 
         j += 1;
