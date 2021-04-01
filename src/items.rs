@@ -49,6 +49,7 @@ pub enum ItemType {
     Shield,
     Scroll,
     Obstacle,
+    Ammunition,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -87,6 +88,13 @@ impl Item {
             "longsword" => {
                 let mut i = Item::new(game_obj_db.next_id(), ')',display::WHITE, display::GREY, name, ItemType::Weapon, 3, false, 15);
                 i.dmg_die = 8;
+                i.dmg_type = DamageType::Slashing;
+                
+                Some(GameObjects::Item(i))
+            },
+            "shortsword" => {
+                let mut i = Item::new(game_obj_db.next_id(), ')',display::WHITE, display::GREY, name, ItemType::Weapon, 3, false, 15);
+                i.dmg_die = 6;
                 i.dmg_type = DamageType::Slashing;
                 
                 Some(GameObjects::Item(i))
@@ -179,6 +187,14 @@ impl Item {
                 
                 Some(GameObjects::Item(i))
             }
+            "arrow" => {
+                let mut a = Item::new(game_obj_db.next_id(), '|', display::BROWN, display::DARK_BROWN, name, ItemType::Ammunition, 0, true, 1);
+                a.dmg_dice = 1;
+                a.dmg_die = 4;
+                a.dmg_type = DamageType::Piercing;
+                
+                Some(GameObjects::Item(a))
+            },
             _ => None,
         }
     }

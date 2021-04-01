@@ -744,6 +744,8 @@ impl<'a, 'b> GameUI<'a, 'b> {
 	}
 
 	pub fn write_screen(&mut self, msgs: &VecDeque<String>, sbi: Option<&SidebarInfo>) {
+		//self.draw_frame("", sbi, false);
+
 		let mut msg = String::from("");
 		if !msgs.is_empty() {
 			let mut words = VecDeque::new();

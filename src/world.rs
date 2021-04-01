@@ -438,11 +438,11 @@ fn populate_levels(_world_info: &mut WorldInfo, deepest_level: i8, floor_sqs: &H
         let level_index = curr_level as usize - 1;
 
         let loc = random_sq(&floor_sqs[&level_index]);
-        monster_fac.add_monster("giant spider", loc, game_obj_db);
+        //monster_fac.add_monster("giant spider", loc, game_obj_db);
 
-        for _ in 0..5 {
+        for _ in 0..10 {
             let loc = random_sq(&floor_sqs[&level_index]);
-            if rand::thread_rng().gen_range(0.0, 1.0) < 0.5 {
+            if rand::thread_rng().gen_range(0.0, 1.0) < 0.25 {
                 monster_fac.add_monster("kobold", loc, game_obj_db);
              } else {
                 monster_fac.add_monster("goblin", loc, game_obj_db);
@@ -746,7 +746,7 @@ fn build_test_dungeon(world_info: &mut WorldInfo, map: &mut Map, entrance: (i32,
     map.insert((entrance.0+3, entrance.1+4, 1), Tile::Door(DoorState::Locked));
 
     let loc = (entrance.0 + 3, entrance.1 + 5, 1);
-    monster_fac.add_monster("fell dwarf", loc, game_obj_db);
+    monster_fac.add_monster("goblin", loc, game_obj_db);
     map.insert((entrance.0, entrance.1, 1), Tile::StairsUp);
 
 }
@@ -865,8 +865,8 @@ pub fn generate_world(game_obj_db: &mut GameObjectDB, monster_fac: &MonsterFacto
     println!("Found a good dungeon entrance");
 
     let dungeon_start = Instant::now();
-    //build_dungeon(&mut world_info, &mut map, dungeon_entrance, game_obj_db, monster_fac);
-    build_test_dungeon(&mut world_info, &mut map, dungeon_entrance, game_obj_db, monster_fac);
+    build_dungeon(&mut world_info, &mut map, dungeon_entrance, game_obj_db, monster_fac);
+    //build_test_dungeon(&mut world_info, &mut map, dungeon_entrance, game_obj_db, monster_fac);
     let dungeon_end = dungeon_start.elapsed();
     println!("Time to make dungeon: {:?}", dungeon_end);
 

@@ -32,7 +32,7 @@ use crate::dialogue;
 use crate::dialogue::DialogueLibrary;
 use crate::display;
 use crate::effects;
-use crate::effects::HasStatuses;
+use crate::effects::{AB_CREATE_PHANTASM, HasStatuses};
 use crate::game_obj::{Ability, GameObject, GameObjectBase, GameObjectDB, GameObjects, Person};
 use crate::items::{GoldPile, Item};
 use crate::map::{Tile, DoorState};
@@ -40,7 +40,12 @@ use crate::pathfinding::find_path;
 use crate::util;
 use crate::util::StringUtils;
 use crate::fov;
-use crate::effects::AB_CREATE_PHANTASM;
+
+// Loot categories from monsters.txt
+pub const LOOT_NONE: u128       = 0x00000001;
+pub const LOOT_PITTANCE: u128   = 0x00000002;
+pub const LOOT_MINOR_GEAR: u128 = 0x00000004;
+pub const LOOT_MINOR_ITEM: u128 = 0x00000008;
 
 // Some bitmasks for various monster attributes
 pub const MA_OPEN_DOORS: u128        = 0x00000001;
@@ -961,7 +966,7 @@ pub fn pick_villager_name(used_names: &HashSet<String>) -> String {
 pub struct MonsterFactory {
     // AC, HP, ch, colour, behaviour, attack_mod, dmg_dice, dmg_die, dmg_bonus, level, attributes, xp_value, active,
     // active_behaviour, inactive_behaviour, size,
-    table: HashMap<String, (u8, u8, char, (u8, u8, u8), NPCPersonality, u8, u8, u8, u8, u8, u128, u32, bool, Behaviour, Behaviour, u8, u8)>, 
+    table: HashMap<String, (u8, u8, char, (u8, u8, u8), NPCPersonality, u8, u8, u8, u8, u8, u128, u32, bool, Behaviour, Behaviour, u8, u8, u128)>, 
 }
 
 impl MonsterFactory {
@@ -1015,6 +1020,24 @@ impl MonsterFactory {
         }
     }
 
+    fn parse_loot_field(text: &str) -> u128 {
+        let mut loot = 0;
+
+        let fields = text.split('|').map(|l| l.trim()).collect::<Vec<&str>>();
+        for field in fields {
+            loot |= match field {
+                "NONE" => LOOT_NONE,
+                "PITTANCE" => LOOT_PITTANCE,
+                "MINOR_GEAR" => LOOT_MINOR_GEAR,
+                "MINOR_ITEM" => LOOT_MINOR_ITEM,
+                _ => {
+                    panic!("{}", format!("Unknown loot type: {}", field));
+                }
+            }
+        }
+        loot
+    }
+
     fn parse_attributes(text: &str) -> u128 {
         let mut attributes = 0;
 
@@ -1041,7 +1064,7 @@ impl MonsterFactory {
         attributes
     }
 
-    fn parse_line(line: &str) -> (String, (u8, u8, char, (u8, u8, u8), NPCPersonality, u8, u8, u8, u8, u8, u128, u32, bool, Behaviour, Behaviour, u8, u8)) {
+    fn parse_line(line: &str) -> (String, (u8, u8, char, (u8, u8, u8), NPCPersonality, u8, u8, u8, u8, u8, u128, u32, bool, Behaviour, Behaviour, u8, u8, u128)) {
         let pieces = line.split(',').collect::<Vec<&str>>();
         let name = pieces[0].trim();
         let level = pieces[1].trim().parse::<u8>().expect("Incorrectly formatted line in monster file!");
@@ -1059,9 +1082,10 @@ impl MonsterFactory {
         let inactive_behaviour = MonsterFactory::to_behaviour(pieces[13].trim());
         let size = pieces[14].trim().parse::<u8>().expect("Incorrectly formatted line in monster file!");
         let rarity = pieces[15].trim().parse::<u8>().expect("Incorrectly formatted line in monster file!");
-        let attributes = MonsterFactory::parse_attributes(pieces[16]);
+        let loot = MonsterFactory::parse_loot_field(pieces[16]);
+        let attributes = MonsterFactory::parse_attributes(pieces[17]);
 
-        (name.to_string(), (ac, hp, ch, colour, personality, attack_mod, dmg_dice, dmg_die, dmg_bonus, level, attributes, xp_value, false, active_behaviour, inactive_behaviour, size, rarity))
+        (name.to_string(), (ac, hp, ch, colour, personality, attack_mod, dmg_dice, dmg_die, dmg_bonus, level, attributes, xp_value, false, active_behaviour, inactive_behaviour, size, rarity, loot))
     }
 
     pub fn init() -> MonsterFactory {
@@ -1096,6 +1120,39 @@ impl MonsterFactory {
         }
     }
 
+    fn set_loot(&self, loot_fields: u128, game_obj_db: &mut GameObjectDB) -> Vec<GameObjects> {
+        let mut rng = rand::thread_rng();
+        let mut items = Vec::new();
+
+        if loot_fields & LOOT_PITTANCE > 0 && rng.gen_range(0.0, 1.0) < 0.33 {   
+            let amt = rng.gen_range(3, 6);
+            let gold = GoldPile::make(game_obj_db, amt, (-1, -1, -1));
+            items.push(gold);            
+        }
+
+        if loot_fields & LOOT_MINOR_GEAR > 0 {
+            if rng.gen_range(0.0, 1.0) < 0.1 {
+                for _ in 3..6 {
+                    items.push(Item::get_item(game_obj_db, "arrow").unwrap());
+                }
+            }
+            if rng.gen_range(0.0, 1.0) < 0.1 {
+                items.push(Item::get_item(game_obj_db, "shortsword").unwrap());
+            }
+
+        }
+
+        if loot_fields & LOOT_MINOR_ITEM > 0 && rng.gen_range(0.0, 1.0) < 0.5 {
+            if rng.gen_range(0.0, 1.0) < 0.5 {
+                items.push(Item::get_item(game_obj_db, "potion of healing").unwrap());
+            } else {
+                items.push(Item::get_item(game_obj_db, "scroll of blink").unwrap());
+            }
+        }
+
+        items
+    }
+
     pub fn add_monster(&self, name: &str, loc: (i32, i32, i8), game_obj_db: &mut GameObjectDB) {
         if !self.table.contains_key(name) {
             panic!("{}", format!("Unknown monster: {}!!", name));
@@ -1111,10 +1168,10 @@ impl MonsterFactory {
             recently_saw_player: false, size: stats.15, pronouns: pick_pronouns(), rarity: stats.16, statuses: Vec::new(),
         };
 
-        let mut rng = rand::thread_rng();
-        let amt = rng.gen_range(1, 6);
-        let gold = GoldPile::make(game_obj_db, amt, loc);
-        npc.inventory.push(gold);
+        let items = self.set_loot(stats.17, game_obj_db);
+        for item in items {
+            npc.inventory.push(item);
+        }
 
         let obj_id = npc.obj_id();
         game_obj_db.add(GameObjects::NPC(npc));
