@@ -228,8 +228,7 @@ pub fn check_statuses<T: HasStatuses + GameObject + Person>(person: &mut T, stat
                 if time <= state.turn {
                     killed = true;
                 }
-            }
-            _ => { },
+            }            
         }
 
         j += 1;

@@ -101,7 +101,7 @@ pub enum EventType {
     PlayerKilled,
     LevelUp,
     TrapRevealed,
-    DeathOf,
+    DeathOf(usize),
 }
 
 pub enum Cmd { 
@@ -1629,6 +1629,8 @@ fn run_game_loop(gui: &mut GameUI, state: &mut GameState, game_obj_db: &mut Game
             }
         }
         
+        check_event_queue(state, game_obj_db, gui)?;
+        
         // There are moments where I want to update the view and pause very briefly
         // to show some effect to the player. (Otherwise, eg, if you bash a monster
         // backwards and they immediately step toward you, it would have been too fast
@@ -1679,7 +1681,10 @@ fn check_event_queue(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui:
             (EventType::LevelUp, _, _, _) => {
                 let p = game_obj_db.player().unwrap();
                 p.level_up(state);
-            }
+            },
+            (EventType::DeathOf(npc_id), _, _, _) => {
+                game_obj_db.update_listeners(state, EventType::DeathOf(npc_id));
+            },
             _ => { },
         }                
     }

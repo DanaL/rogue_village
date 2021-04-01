@@ -298,7 +298,17 @@ impl GameObject for NPC {
         self.base_info.hidden = false;
     }
 
-    fn receive_event(&mut self, _event: EventType, _state: &mut GameState, _player_loc: (i32, i32, i8)) -> Option<EventResponse> {
+    fn receive_event(&mut self, event: EventType, state: &mut GameState, _player_loc: (i32, i32, i8)) -> Option<EventResponse> {
+        if let EventType::DeathOf(_) = event {
+            if self.attributes & MA_ILLUSION > 0 {
+                // Illusions go away when their creator dies (I'm assuming here the illusion will only be wired up to listen for the
+                // death of the person who created it)
+                let s = format!("{} vanishes in a puff of mist!", self.npc_name(false).capitalize());
+                state.write_msg_buff(&s);
+                self.alive = false;
+            }
+        }
+        
         None
     }
 }
@@ -312,7 +322,7 @@ impl Person for NPC {
                 let s = format!("{} vanishes in a puff of mist!", self.npc_name(false).capitalize());
                 state.write_msg_buff(&s);
                 self.alive = false;
-                state.queued_events.push_back((EventType::DeathOf, self.get_loc(), self.obj_id(), None));
+                state.queued_events.push_back((EventType::DeathOf(self.obj_id()), self.get_loc(), self.obj_id(), None));
             }
             return;
         }
@@ -329,7 +339,7 @@ impl Person for NPC {
         if adjusted_dmg >= curr_hp {
             self.alive = false;
             state.write_msg_buff(&self.death_msg(assailant_id));
-            
+            state.queued_events.push_back((EventType::DeathOf(self.obj_id()), self.get_loc(), self.obj_id(), None));            
         } else {
             self.curr_hp -= adjusted_dmg;
         }
@@ -776,11 +786,12 @@ fn create_phantasm(npc_id: usize, state: &mut GameState, game_obj_db: &mut GameO
         let colour = npc.base_info.lit_colour;
         let name = &npc.base_info.name.to_string();
         let phantasm_loc = options[j];
-        let mut phantasm = NPC::phantasm(name.to_string(), phantasm_loc, ch, display::LIGHT_GREY, game_obj_db);
+        let phantasm = NPC::phantasm(name.to_string(), phantasm_loc, ch, display::LIGHT_GREY, game_obj_db);
         let pid = phantasm.obj_id();
         
         game_obj_db.add(phantasm);
         game_obj_db.listeners.insert((pid, EventType::TakeTurn));
+        game_obj_db.listeners.insert((pid, EventType::DeathOf(npc_id)));
 
         let npc = game_obj_db.npc(pid).unwrap();
         effects::add_status(npc, Status::FadeAfter(state.turn + 10));
