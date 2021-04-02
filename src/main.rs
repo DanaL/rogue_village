@@ -1125,6 +1125,7 @@ pub fn take_step(state: &mut GameState, game_obj_db: &mut GameObjectDB, obj_id: 
 
 fn do_move(state: &mut GameState, game_obj_db: &mut GameObjectDB, dir: &str, gui: &mut GameUI) -> f32 {
     let mv = get_move_tuple(dir);
+    let sbi = state.curr_sidebar_info(game_obj_db);
 
     let start_loc = game_obj_db.get(0).unwrap().get_loc();
     let start_tile = state.map[&start_loc];
@@ -1141,28 +1142,26 @@ fn do_move(state: &mut GameState, game_obj_db: &mut GameObjectDB, dir: &str, gui
         }
 
         match tile {
-            Tile::Water => state.write_msg_buff("You splash in the shallow water."),
+            Tile::Water => gui.update("You splash in the shallow water.", false, Some(&sbi)),
             Tile::DeepWater => {
                 if start_tile != Tile::DeepWater {
-                    state.write_msg_buff("You wade into the flow.");				
+                    gui.update("You wade into the flow", false, Some(&sbi));                    		
                 }
             },
-            Tile::Well => state.write_msg_buff("A well."),
-            Tile::Lava => state.write_msg_buff("MOLTEN LAVA!"),
-            Tile::FirePit => {
-                state.write_msg_buff("You step in the fire!");
-            },
-            Tile::OldFirePit(n) => state.write_msg_buff(firepit_msg(n)),
-            Tile::Portal => state.write_msg_buff("Where could this lead..."),
+            Tile::Well => gui.update("A well.", false, Some(&sbi)),
+            Tile::Lava => gui.update("MOLTEN LAVA!", false, Some(&sbi)),
+            Tile::FirePit => gui.update("You step in the fire!", false, Some(&sbi)),
+            Tile::OldFirePit(n) => gui.update(firepit_msg(n), false, Some(&sbi)),
+            Tile::Portal => gui.update("Where could this lead?", false, Some(&sbi)),
             Tile::Shrine(stype) => {
                 match stype {
-                    ShrineType::Woden => state.write_msg_buff("A shrine to Woden."),
-                    ShrineType::Crawler => state.write_msg_buff("The misshapen altar makes your skin crawl"),
+                    ShrineType::Woden => gui.update("A shrine to Woden.", false, Some(&sbi)),
+                    ShrineType::Crawler => gui.update("The misshappen altar makes your skin crawl.", false, Some(&sbi)),
                 }
             },
             _ => {
                 if state.aura_sqs.contains(&next_loc) && !state.aura_sqs.contains(&start_loc) {
-                    state.write_msg_buff("You feel a sense of peace.");
+                    gui.update("You feel a sense of peace.", false, Some(&sbi));                    
                 }
             },            
         }
@@ -1171,12 +1170,12 @@ fn do_move(state: &mut GameState, game_obj_db: &mut GameObjectDB, dir: &str, gui
         let item_count = items.len();                        
         if item_count == 1 {
             let s = format!("You see {} here.", items[0]);
-            state.write_msg_buff(&s);
+            gui.update(&s, false, Some(&sbi));            
         } else if item_count == 2 {
             let s = format!("You see {} and {} here.", items[0], items[1]);
-            state.write_msg_buff(&s);
+            gui.update(&s, false, Some(&sbi));        
         } else if item_count > 2 {
-            state.write_msg_buff("There are several items here.");
+            gui.update("There are several items here.", false, Some(&sbi));
         }
         
         return cost;
@@ -1184,13 +1183,13 @@ fn do_move(state: &mut GameState, game_obj_db: &mut GameObjectDB, dir: &str, gui
         // Bump to open doors. I might make this an option later
         do_open(state, next_loc);
         return 1.0;
-    } else if tile == Tile::Door(DoorState::Locked) {
-        state.write_msg_buff("The door is locked.");
+    } else if tile == Tile::Door(DoorState::Locked) {        
+        gui.update("The door is locked.", false, Some(&sbi));        
         return 1.0;
     } else if tile == Tile::Gate(DoorState::Closed) || tile == Tile::Gate(DoorState::Locked) {
-        state.write_msg_buff("A portcullis bars your way.");    
+        gui.update("A portcullis bars your way.", false, Some(&sbi));
     } else  {
-        state.write_msg_buff("You cannot go that way.");
+        gui.update("You cannot go that way.", false, Some(&sbi));
     }
 
     0.0
@@ -1757,12 +1756,14 @@ fn main() {
 
         start_new_game(&state, &mut game_obj_db, &mut gui, player_name);
         
-        state.write_msg_buff("Welcome, adventurer!");
+        //state.write_msg_buff("Welcome, adventurer!");
+        let sbi = state.curr_sidebar_info(&mut game_obj_db);
+        gui.update("Welcome, adventurer!!", true, Some(&sbi));
     }
     
-    for _ in 0..20 {
-        println!("{}", MonsterFactory::pick_monster_level(10));
-    }
+    // for _ in 0..20 {
+    //     println!("{}", MonsterFactory::pick_monster_level(10));
+    // }
 
     match run_game_loop(&mut gui, &mut state, &mut game_obj_db, &dialogue_library, &mf) {
         Ok(_) => println!("Game over I guess? Probably the player won?!"),

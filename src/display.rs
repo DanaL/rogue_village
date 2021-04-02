@@ -743,6 +743,19 @@ impl<'a, 'b> GameUI<'a, 'b> {
 		}
 	}
 
+	pub fn update(&mut self, msg: &str, clear_msg: bool, sbi: Option<&SidebarInfo>) {
+		if clear_msg {
+			self.msg_line = msg.to_string();
+		} else {
+			// here I'll append the msg to the current line
+			self.msg_line.push_str(msg);
+		}
+
+		let line = String::from(self.msg_line.to_string());
+		self.write_line(0, &line, false);
+		self.draw_frame(&line, sbi, true);		
+	}
+
 	pub fn write_screen(&mut self, msgs: &VecDeque<String>, sbi: Option<&SidebarInfo>) {
 		//self.draw_frame("", sbi, false);
 
