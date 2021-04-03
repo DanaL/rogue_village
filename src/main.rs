@@ -366,11 +366,8 @@ fn drop_zorkmids(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mu
     }
     
     let sbi = state.curr_sidebar_info(game_obj_db);
-    let amt = gui.query_natural_num("How much?", Some(&sbi)).unwrap();
-    if amt == 0 {
-        state.write_msg_buff("Never mind.");
-        return 0.0;
-    } else {
+    
+    if let Some(amt) = gui.query_natural_num("How much?", Some(&sbi)) {
         let tile = &state.map[&player_loc];                        
         let into_well = *tile == Tile::Well;
         if amt >= purse {
@@ -402,6 +399,9 @@ fn drop_zorkmids(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mu
             }
             purse -= 1;
         }
+    } else {
+        state.write_msg_buff("Never mind.");
+        return 0.0;
     }
 
     let player = game_obj_db.player().unwrap();
