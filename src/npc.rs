@@ -322,10 +322,9 @@ impl Person for NPC {
     fn damaged(&mut self, state: &mut GameState, amount: u8, dmg_type: DamageType, assailant_id: usize, _assailant_name: &str) {
         if self.attributes & MA_ILLUSION > 0 {
             if rand::thread_rng().gen_range(0.0, 1.0) <= 0.75 {
-                state.write_msg_buff("Your weapon seems to pass right through them!");
+                state.message = String::from("Your weapon seems to pass right through them!");
             } else {
-                let s = format!("{} vanishes in a puff of mist!", self.npc_name(false).capitalize());
-                state.write_msg_buff(&s);
+                state.message = format!("{} vanishes in a puff of mist!", self.npc_name(false).capitalize());
                 self.alive = false;
                 state.queued_events.push_back((EventType::DeathOf(self.obj_id()), self.get_loc(), self.obj_id(), None));
             }
@@ -343,7 +342,7 @@ impl Person for NPC {
 
         if adjusted_dmg >= curr_hp {
             self.alive = false;
-            state.write_msg_buff(&self.death_msg(assailant_id));
+            state.message = self.death_msg(assailant_id);
             state.queued_events.push_back((EventType::DeathOf(self.obj_id()), self.get_loc(), self.obj_id(), None));            
         } else {
             self.curr_hp -= adjusted_dmg;

@@ -58,11 +58,11 @@ pub const PINK: (u8, u8, u8) = (255, 20, 147);
 pub const PURPLE: (u8, u8, u8) = (138,43,226);
 
 const SCREEN_WIDTH: u32 = 58;
-const SCREEN_HEIGHT: u32 = 22;
+const SCREEN_HEIGHT: u32 = 25;
 const BACKSPACE_CH: char = '\u{0008}';
 const DEFAULT_FONT: &'static str = "DejaVuSansMono.ttf";
 const SM_FONT_PT: u16 = 18;
-const LG_FONT_PT: u16 = 24;
+const LG_FONT_PT: u16 = 25;
 
 #[derive(Debug)]
 pub struct SidebarInfo {
@@ -101,6 +101,7 @@ pub struct GameUI<'a, 'b> {
 	pub v_matrix: [(Tile, bool); FOV_HEIGHT * FOV_WIDTH],
 	surface_cache: HashMap<(char, Color), Surface<'a>>,
 	msg_line: String,
+	messages: VecDeque<String>,
 }
 
 impl<'a, 'b> GameUI<'a, 'b> {
@@ -130,6 +131,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 			v_matrix,
 			surface_cache: HashMap::new(),
 			msg_line: "".to_string(),
+			messages: VecDeque::new(),
 		};
 
 		Ok(gui)
@@ -382,7 +384,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 		}
 	}
 
-	fn write_line(&mut self, row: i32, line: &str, small_text: bool) {
+	fn write_line(&mut self, row: i32, line: &str, small_text: bool, text_colour: (u8, u8, u8)) {
 		let fw: u32;
 		let fh: u32;	
 		let f: &Font;
@@ -406,7 +408,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 		}
 
 		let surface = f.render(line)
-			.blended(WHITE)
+			.blended(text_colour)
 			.expect("Error rendering message line!");
 		let texture_creator = self.canvas.texture_creator();
 		let texture = texture_creator.create_texture_from_surface(&surface)
@@ -419,7 +421,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 	pub fn show_in_side_pane(&mut self, blurb: &str, lines: &Vec<(String, bool)>) -> Option<char> {
 		self.canvas.clear();
 		self.draw_frame(&"", None, false);
-		self.write_line(0, blurb, false);
+		self.write_line(0, blurb, false, WHITE);
 
 		let panel_width = self.screen_height_px / 2;
 		
@@ -485,13 +487,13 @@ impl<'a, 'b> GameUI<'a, 'b> {
 		let mut curr_line = 0;
 		let mut curr_row = 0;
 		while curr_line < line_count {
-			self.write_line(curr_row as i32, &line_buff[curr_line], small_text);
+			self.write_line(curr_row as i32, &line_buff[curr_line], small_text, WHITE);
 			curr_line += 1;
 			curr_row += 1;
 
 			if curr_row == display_lines - 2 && curr_line < line_count {
-				self.write_line(curr_row as i32, "", small_text);
-				self.write_line(curr_row as i32 + 1, "-- Press space to continue --", small_text);
+				self.write_line(curr_row as i32, "", small_text, WHITE);
+				self.write_line(curr_row as i32 + 1, "-- Press space to continue --", small_text, WHITE);
 				self.canvas.present();
 				self.pause_for_more();
 				curr_row = 0;
@@ -499,8 +501,8 @@ impl<'a, 'b> GameUI<'a, 'b> {
 			}
 		}
 
-		self.write_line(curr_row as i32, "", small_text);
-		self.write_line(curr_row as i32 + 1, "-- Press space to continue --", small_text);
+		self.write_line(curr_row as i32, "", small_text, WHITE);
+		self.write_line(curr_row as i32 + 1, "-- Press space to continue --", small_text, WHITE);
 		self.canvas.present();
 		self.pause_for_more();		
 	}
@@ -550,7 +552,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 	pub fn popup_msg(&mut self, title: &str, text: &str, sbi: Option<&SidebarInfo>) -> Option<char> {
 		self.canvas.clear();
 		self.draw_frame(&"", sbi, false);
-		self.write_line(0, "", false);
+		self.write_line(0, "", false, WHITE);
 
 		let line_width = 45; // eventually this probably shouldn't be hardcoded here
 		let r_offset = self.font_height as i32 * 3;
@@ -689,7 +691,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 			self.canvas.set_draw_color(BLACK);
 			self.canvas.clear();
 		}
-		self.write_line(0, msg, false);
+		self.write_line(0, msg, false, WHITE);
 
 		// I wonder if, since I've got rid of write_sq() and am generating a bunch of textures here,
 		// if I can keep a texture_creator instance in the GUI struct and thereby placate Rust and 
@@ -738,22 +740,29 @@ impl<'a, 'b> GameUI<'a, 'b> {
 			self.write_sidebar(sidebar);
 		}
 
+		// Draw the recent messages
+		let msg_count = self.messages.len();
+		if msg_count > 0  {
+			let line = self.messages[0].to_string();
+			self.write_line((SCREEN_HEIGHT - 1) as i32, &line, false, WHITE);
+		}
+		if msg_count > 1 {
+			let line = self.messages[1].to_string();
+			self.write_line((SCREEN_HEIGHT - 2) as i32, &line, false, DARK_GREY);
+		}
+		if msg_count > 2 {
+			let line = self.messages[2].to_string();
+			self.write_line((SCREEN_HEIGHT - 3) as i32, &line, false, DARK_GREY);
+		}
+
 		if render {
 			self.canvas.present();
 		}
 	}
 
-	pub fn update(&mut self, msg: &str, clear_msg: bool, sbi: Option<&SidebarInfo>) {
-		if clear_msg {
-			self.msg_line = msg.to_string();
-		} else {
-			// here I'll append the msg to the current line
-			self.msg_line.push_str(msg);
-		}
-
-		let line = String::from(self.msg_line.to_string());
-		self.write_line(0, &line, false);
-		self.draw_frame(&line, sbi, true);		
+	pub fn update(&mut self, msg: &str, clear_msg: bool, sbi: Option<&SidebarInfo>) {		
+		self.messages.push_front(msg.to_string());
+		self.draw_frame("", sbi, true);
 	}
 
 	pub fn write_screen(&mut self, msgs: &VecDeque<String>, sbi: Option<&SidebarInfo>) {
@@ -876,10 +885,10 @@ impl<'a, 'b> GameUI<'a, 'b> {
 		loop {
 			self.canvas.clear();
 			for line in 0..menu.len() {
-				self.write_line(line as i32, &menu[line], true);				
+				self.write_line(line as i32, &menu[line], true, WHITE);				
 			}
 	
-			self.write_line(menu.len() as i32 + 1, "", true);	
+			self.write_line(menu.len() as i32 + 1, "", true, WHITE);
 			
 			self.canvas.present();
 

@@ -129,6 +129,7 @@ pub enum Cmd {
 
 #[derive(Serialize, Deserialize)]
 pub struct GameState {
+    message: String,
     msg_buff: VecDeque<String>,
     msg_history: VecDeque<(String, u32)>,
     map: Map,
@@ -144,6 +145,7 @@ pub struct GameState {
 impl GameState {
     pub fn init(map: Map, world_info: WorldInfo) -> GameState {
         GameState {
+            message: String::from(""),
             msg_buff: VecDeque::new(),
             msg_history: VecDeque::new(),
             map,
@@ -999,7 +1001,7 @@ fn maybe_fight(state: &mut GameState, game_obj_db: &mut GameObjectDB, loc: (i32,
         
         match attitude {
             Attitude::Hostile => {
-                battle::player_attacks(state, npc_id, game_obj_db);
+                battle::player_attacks(state, npc_id, game_obj_db, gui);
                 return 1.0;
             },
             Attitude::Indifferent | Attitude::Stranger => {
@@ -1011,13 +1013,14 @@ fn maybe_fight(state: &mut GameState, game_obj_db: &mut GameObjectDB, loc: (i32,
                         foe.attitude = Attitude::Hostile;
                         foe.active = true;
                     }                    
-                    battle::player_attacks(state, npc_id, game_obj_db);
+                    battle::player_attacks(state, npc_id, game_obj_db, gui);
                     return 1.0;
                 }                    
             },
             _ => {
                 let s = format!("{} is in your way!", npc_name.capitalize());
-                state.write_msg_buff(&s);
+                let sbi = state.curr_sidebar_info(game_obj_db);
+                gui.update(&s, false, Some(&sbi));
                 return 1.0;
             }
         }
