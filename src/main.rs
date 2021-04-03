@@ -171,7 +171,7 @@ impl GameState {
         }
     }
 
-    pub fn write_msg_buff(&mut self, msg: &str) {
+    fn _write_msg_buff(&mut self, msg: &str) {
         let s = String::from(msg);
         self.msg_buff.push_back(s);
 
@@ -361,48 +361,50 @@ fn drop_zorkmids(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mu
     let player = game_obj_db.player().unwrap();
     let player_loc = player.get_loc();
     let mut purse = player.purse;
-    
+    let sbi = state.curr_sidebar_info(game_obj_db);
+
     if purse == 0 {
-        state.write_msg_buff("You have no money!");
+        gui.update("You have no money!", false, Some(&sbi));
         return 0.0;
     }
-    
-    let sbi = state.curr_sidebar_info(game_obj_db);
-    
+
     if let Some(amt) = gui.query_natural_num("How much?", Some(&sbi)) {
         let tile = &state.map[&player_loc];                        
         let into_well = *tile == Tile::Well;
-        if amt >= purse {
+
+        if amt == 0 {
+            gui.update("Never mind.", false, Some(&sbi));
+        } else if amt >= purse {
             if into_well {
-                state.write_msg_buff("You hear faint tinkling splashes.");
+                gui.update("You hear faint tinkling splashes.", false, Some(&sbi));
             } else {
-                state.write_msg_buff("You drop all your money.");
+                gui.update("You drop all of your money.", false, Some(&sbi));
                 let zorkmids = GoldPile::make(game_obj_db, purse, player_loc);
                 game_obj_db.add(zorkmids);
             }                
             purse = 0;
         } else if amt > 1 {
             if into_well {
-                state.write_msg_buff("You hear faint tinkling splashes.");
+                gui.update("You hear faint tinkling splashes.", false, Some(&sbi));
             } else {
                 let s = format!("You drop {} gold pieces.", amt);
-                state.write_msg_buff(&s);
+                gui.update(&s, false, Some(&sbi));
                 let zorkmids = GoldPile::make(game_obj_db, amt, player_loc);
                 game_obj_db.add(zorkmids);
             }
             purse -= amt;
         } else {
             if into_well {
-                state.write_msg_buff("You hear a faint splash.");
+                gui.update("You hear a faint splash.", false, Some(&sbi));
             } else {
-                state.write_msg_buff("You drop a gold piece.");
+                gui.update("You drop a gold piece.", false, Some(&sbi));
                 let zorkmids = GoldPile::make(game_obj_db, 1, player_loc);
                 game_obj_db.add(zorkmids);                    
             }
             purse -= 1;
         }
     } else {
-        state.write_msg_buff("Never mind.");
+        gui.update("Never mind.", false, Some(&sbi));
         return 0.0;
     }
 
@@ -420,22 +422,23 @@ fn item_hits_ground(mut obj: GameObjects, loc: (i32, i32, i8), game_obj_db: &mut
     game_obj_db.add(obj);
 }
 
-fn drop_stack(state: &mut GameState, game_obj_db: &mut GameObjectDB, loc: (i32, i32, i8), slot: char, count: u32) -> f32 {
+fn drop_stack(state: &mut GameState, game_obj_db: &mut GameObjectDB, loc: (i32, i32, i8), slot: char, count: u32, gui: &mut GameUI) -> f32 {
     let player = game_obj_db.player().unwrap();
     let result = player.inv_remove_from_slot(slot, count);
+    let sbi = state.curr_sidebar_info(game_obj_db);
 
     match result {
         Ok(pile) => {
             if !pile.is_empty() {
                 for obj in pile {                        
                     let s = format!("You drop {}.", &obj.get_fullname().with_def_article());
-                    state.write_msg_buff(&s);
+                    gui.update(&s, false, Some(&sbi));
                     item_hits_ground(obj, loc, game_obj_db);
                 }
                 return 1.0; // Really, dropping several items should take several turns...
             }
         },
-        Err(msg) => state.write_msg_buff(&msg),
+        Err(msg) => gui.update(&msg, false, Some(&sbi)),
     }
     
     0.0
@@ -447,7 +450,7 @@ fn drop_item(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mut Ga
     let player_loc = player.get_loc();
 
     if player.purse == 0 && player.inventory.is_empty() {
-        state.write_msg_buff("You are empty handed.");
+        gui.update("You are empty handed", false, Some(&sbi));
         return 0.0;
     }
     
@@ -466,13 +469,13 @@ fn drop_item(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mut Ga
         } else {
             let count = player.inv_count_in_slot(ch);
             if count == 0 {
-                state.write_msg_buff("You do not have that item.");
+                gui.update("You do not have that item.", false, Some(&sbi));                
             } else if count > 1 {
                 match gui.query_natural_num("Drop how many?", Some(&sbi)) {
                     Some(v) => {
-                        cost = drop_stack(state, game_obj_db, player_loc, ch, v);
+                        cost = drop_stack(state, game_obj_db, player_loc, ch, v, gui);
                     },
-                    None => state.write_msg_buff("Nevermind"),
+                    None => gui.update("Never mind.", false, Some(&sbi)),
                 }
             } else {
                 let result = player.inv_remove_from_slot(ch, 1);
@@ -480,16 +483,16 @@ fn drop_item(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mut Ga
                     Ok(mut items) => {
                         let obj = items.remove(0);
                         let s = format!("You drop {}.", &obj.get_fullname().with_def_article());
-                        state.write_msg_buff(&s);
+                        gui.update(&s, false, Some(&sbi));
                         item_hits_ground(obj, player_loc, game_obj_db);
                         cost = 1.0;
                     },
-                    Err(msg) => state.write_msg_buff(&msg),
+                    Err(msg) => gui.update(&msg, false, Some(&sbi)),
                 }                    
             }
         }
     } else {
-        state.write_msg_buff("Nevermind.");            
+        gui.update("Never mind.", false, Some(&sbi));
     }
     
     let player = game_obj_db.player().unwrap();
@@ -498,29 +501,30 @@ fn drop_item(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mut Ga
     cost    
 }
 
-fn search_loc(state: &mut GameState, roll: u8, loc: (i32, i32, i8), game_obj_db: &mut GameObjectDB) {
+fn search_loc(state: &mut GameState, roll: u8, loc: (i32, i32, i8), game_obj_db: &mut GameObjectDB, gui: &mut GameUI) {
     let things:Vec<usize> = game_obj_db.hidden_at_loc(loc);
 
     for obj_id in &things {
         if roll >= 15 {
             let t = game_obj_db.get_mut(*obj_id).unwrap();
             let s = format!("You find {}!", t.get_fullname().with_indef_article());
-            state.write_msg_buff(&s);            
+            let sbi = state.curr_sidebar_info(game_obj_db);
+            gui.update(&s, false, Some(&sbi));
             t.reveal();
         }
     }
 }
 
-fn search(state: &mut GameState, game_obj_db: &mut GameObjectDB) {
+fn search(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mut GameUI) {
     let player = game_obj_db.player().unwrap();
     let ploc = player.get_loc();
     
     let roll = player.ability_check(Ability::Apt);
     
-    search_loc(state, roll, ploc, game_obj_db);
+    search_loc(state, roll, ploc, game_obj_db, gui);
     for adj in util::ADJ.iter() {
         let loc = (ploc.0 + adj.0, ploc.1 + adj.1, ploc.2);
-        search_loc(state, roll, loc, game_obj_db);
+        search_loc(state, roll, loc, game_obj_db, gui);
     }
 }
 
@@ -528,9 +532,10 @@ fn search(state: &mut GameState, game_obj_db: &mut GameObjectDB) {
 fn pick_up(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mut GameUI) -> f32 {
     let player_loc = game_obj_db.get(0).unwrap().get_loc();
     let things = game_obj_db.things_at_loc(player_loc);
+    let sbi = state.curr_sidebar_info(game_obj_db);
 
     if things.is_empty() {
-        state.write_msg_buff("There is nothing here.");
+        gui.update("There is nothing here.", false, Some(&sbi));
         return 0.0;
     } else if things.len() == 1 {
         let obj = game_obj_db.get(things[0]).unwrap();
@@ -542,7 +547,7 @@ fn pick_up(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mut Game
 
         if let GameObjects::Item(item) = obj {
             if item.attributes & IA_IMMOBILE > 0 {
-                state.write_msg_buff("You cannot pick that up!");
+                gui.update("You cannot pick that up!", false, Some(&sbi));
                 return 0.0;
             }
         }
@@ -556,10 +561,10 @@ fn pick_up(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mut Game
             };
 
             if amount == 1 {
-                state.write_msg_buff(&"You pick up a single gold piece.");
+                gui.update("You pick up a single gold piece.", false, Some(&sbi));                
             } else {
                 let s = format!("You pick up {} gold pieces.", amount);
-                state.write_msg_buff(&s);
+                gui.update(&s, false, Some(&sbi));                
             }
             
             let p = game_obj_db.player().unwrap();
@@ -567,7 +572,7 @@ fn pick_up(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mut Game
         } else {
             let obj = game_obj_db.remove(things[0]);
             let s = format!("You pick up {}.", obj.get_fullname().with_def_article());
-            state.write_msg_buff(&s);
+            gui.update(&s, false, Some(&sbi));
             let p = game_obj_db.player().unwrap();
             p.add_to_inv(obj);
         }
@@ -603,31 +608,32 @@ fn pick_up(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mut Game
                 
                 if is_zorkmids {
                     if amount == 1 {
-                        state.write_msg_buff("You pick up a single gold piece.");
+                        gui.update("You pick up a single gold piece.", false, Some(&sbi));                        
                     } else {
                         let s = format!("You pick up {} gold pieces.", amount);
-                        state.write_msg_buff(&s);
+                        gui.update(&s, false, Some(&sbi));                        
                     }
                     game_obj_db.remove(id);
                     game_obj_db.player().unwrap().purse += amount;                   
                 } else {
                     let obj = game_obj_db.remove(id);
                     let s = format!("You pick up {}.", obj.get_fullname().with_def_article());
-                    state.write_msg_buff(&s);
+                    gui.update(&s, false, Some(&sbi));                    
                     let p = game_obj_db.player().unwrap();
                     p.add_to_inv(obj);
                 }
             }
             return 1.0;
         } else {
-            state.write_msg_buff("Nevermind.");
+            gui.update("Never mind.", false, Some(&sbi));
         }
     }
 
     0.0
 }
 
-fn toggle_item(state: &mut GameState, player: &mut Player, slot: char) -> f32 {
+fn toggle_item(state: &mut GameState, player: &mut Player, slot: char, game_obj_db: &mut GameObjectDB, gui: &mut GameUI) -> f32 {
+    let sbi = state.curr_sidebar_info(game_obj_db);
     let obj = player.inv_item_in_slot(slot).unwrap();
     let obj_id = obj.obj_id();
     let (equipable, item_type, attributes) = if let GameObjects::Item(item) = &obj {
@@ -637,14 +643,14 @@ fn toggle_item(state: &mut GameState, player: &mut Player, slot: char) -> f32 {
     };
 
     if !equipable {
-            state.write_msg_buff("You cannot wear or wield that!");
+            gui.update("You cannot wear or wield that!", false, Some(&sbi));            
             return 0.0;
     }
     
     let mut swapping = false;
     if item_type == ItemType::Weapon {
         if attributes & items::IA_TWO_HANDED > 0 && player.readied_obj_ids_of_type(ItemType::Shield).len() > 0 {
-            state.write_msg_buff("You cannot wield that while using a shield.");
+            gui.update("You cannot wield that while using a shield.", false, Some(&sbi));            
             return 0.0;
         }
 
@@ -658,19 +664,19 @@ fn toggle_item(state: &mut GameState, player: &mut Player, slot: char) -> f32 {
     } else if item_type == ItemType::Armour {
         let readied = player.readied_obj_ids_of_type(ItemType::Armour);
         if !readied.is_empty() && readied[0] != obj_id {
-            state.write_msg_buff("You're already wearing armour.");
+            gui.update("You're already wearing armour.", false, Some(&sbi));            
             return 0.0;             
         }
     } else if item_type == ItemType::Shield {
         let readied = player.readied_obj_ids_of_type(ItemType::Shield);
         if !readied.is_empty() && readied[0] != obj_id {
-            state.write_msg_buff("You're already wielding a shield.");
+            gui.update("You're already wielding a shileld.", false, Some(&sbi));
             return 0.0;
         }
 
         if let Some((weapon, _)) = player.readied_weapon() {
             if weapon.attributes & items::IA_TWO_HANDED > 0 {
-                state.write_msg_buff("You cannot equip that along with a two-handed weapon!");
+                gui.update("You cannot equip that along with a two-handed weapon!", false, Some(&sbi));
                 return 0.0;
             }
         }
@@ -691,14 +697,14 @@ fn toggle_item(state: &mut GameState, player: &mut Player, slot: char) -> f32 {
         }
         s.push_str(&item.get_fullname().with_def_article());
         s.push('.');
-        state.write_msg_buff(&s);
+        gui.update(&s, false, Some(&sbi));        
     }
     
     player.calc_gear_effects();
 
     let readied = player.readied_obj_ids_of_type(ItemType::Weapon);
     if item_type == ItemType::Weapon && readied.is_empty() {
-        state.write_msg_buff("You are now empty handed.");
+        gui.update("You are now empty handed", false, Some(&sbi));        
     } 
 
     1.0
@@ -707,22 +713,23 @@ fn toggle_item(state: &mut GameState, player: &mut Player, slot: char) -> f32 {
 fn toggle_equipment(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mut GameUI) -> f32 {
     let player = game_obj_db.player().unwrap();
     let slots = player.inv_slots_used();
-    
+    let sbi = state.curr_sidebar_info(game_obj_db);
+
     if slots.is_empty() {
-        state.write_msg_buff("You are empty handed.");
+        gui.update("You are empty handed.", false, Some(&sbi));
         return 0.0;
     }
 
     let menu = player.inv_menu(2);
     let cost = if let Some(ch) = gui.show_in_side_pane("Equip/unequip which?", &menu) {
         if !slots.contains(&ch) {
-            state.write_msg_buff("You do not have that item!");
+            gui.update("You do not have that item!", false, Some(&sbi));
             0.0
         } else {
-            toggle_item(state, player, ch)
+            toggle_item(state, player, ch, game_obj_db, gui)
         }
     } else {
-        state.write_msg_buff("Nevermind.");
+        gui.update("Never mind.", false, Some(&sbi));
         0.0
     };
 
@@ -735,14 +742,14 @@ fn use_item(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mut Gam
     let slots = player.inv_slots_used();
     
     if slots.is_empty() {
-        state.write_msg_buff("You are empty handed.");
+        gui.update("You are empty handed.", false, Some(&sbi));
         return 0.0;
     }
     
     let menu = player.inv_menu(1);
     if let Some(ch) = gui.show_in_side_pane("Use which?", &menu) {
         if !slots.contains(&ch) {
-            state.write_msg_buff("You do not have that item!");
+            gui.update("You do not have that item!", false, Some(&sbi));
             return 0.0;
         }
         
@@ -766,7 +773,7 @@ fn use_item(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mut Gam
         
         if useable {
             if item_type == ItemType::Light {
-                let (item_id, active) = use_light(state, ch, game_obj_db);
+                let (item_id, active) = use_light(state, ch, game_obj_db, gui);
                 
                 if active {
                     game_obj_db.listeners.insert((item_id, EventType::Update));
@@ -778,7 +785,9 @@ fn use_item(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mut Gam
             }
 
             if effects > 0 {
-                effects::apply_effects(state, 0, game_obj_db, effects)
+                if let Some(msg) = effects::apply_effects(state, 0, game_obj_db, effects) {
+                    gui.update(&msg, false, Some(&sbi));
+                }
             }
 
             if consumable {
@@ -790,16 +799,17 @@ fn use_item(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mut Gam
         } else if !text.is_empty() {
             gui.popup_msg(&desc, &text, Some(&sbi));
         } else {
-            state.write_msg_buff("You don't know how to use that.");
+            gui.update("You don't know how to use that.", false, Some(&sbi));            
         }       
     } else {
-        state.write_msg_buff("Nevermind.");
+        gui.update("Never mind.", false, Some(&sbi));        
     }
 
     0.0
 }
 
-fn use_light(state: &mut GameState, slot: char,game_obj_db: &mut GameObjectDB) -> (usize, bool) {
+fn use_light(state: &mut GameState, slot: char,game_obj_db: &mut GameObjectDB, gui: &mut GameUI) -> (usize, bool) {
+    let sbi = state.curr_sidebar_info(game_obj_db);
     let player = game_obj_db.player().unwrap();
     let next_slot = player.next_slot; // We might need to give the item a new inventory slot
     let was_in_stack = player.inv_count_in_slot(slot) > 1;
@@ -815,7 +825,7 @@ fn use_light(state: &mut GameState, slot: char,game_obj_db: &mut GameObjectDB) -
         } else {
             format!("{} blazes brightly!", name.with_def_article().capitalize())
         };
-        state.write_msg_buff(&s);
+        gui.update(&s, false, Some(&sbi));
         item.active = !item.active;
         item.stackable = false;
         if was_in_stack {
@@ -851,51 +861,54 @@ fn get_move_tuple(mv: &str) -> (i32, i32) {
     }
 }
 
-fn do_open(state: &mut GameState, loc: (i32, i32, i8)) {
+fn do_open(state: &mut GameState, loc: (i32, i32, i8), game_obj_db: &mut GameObjectDB, gui: &mut GameUI) {
+    let sbi = state.curr_sidebar_info(game_obj_db);
     let tile = &state.map[&loc];
     match tile {
-        Tile::Door(DoorState::Open) | Tile::Door(DoorState::Broken) => state.write_msg_buff("The door is already open!"),
+        Tile::Door(DoorState::Open) | Tile::Door(DoorState::Broken) => gui.update("The door is already open!", false, Some(&sbi)),
         Tile::Door(DoorState::Closed) => {
-            state.write_msg_buff("You open the door.");
+            gui.update("You open the door.", false, Some(&sbi));
             state.map.insert(loc, map::Tile::Door(DoorState::Open));
         },
-        Tile::Door(DoorState::Locked) => state.write_msg_buff("That door is locked!"),
-        _ => state.write_msg_buff("You cannot open that!"),
+        Tile::Door(DoorState::Locked) => gui.update("That door is locked!", false, Some(&sbi)),
+        _ => gui.update("You cannot open that!", false, Some(&sbi)),
     }        
 }
 
-fn do_close(state: &mut GameState, loc: (i32, i32, i8), game_obj_db: &GameObjectDB) {
+fn do_close(state: &mut GameState, loc: (i32, i32, i8), game_obj_db: &mut GameObjectDB, gui: &mut GameUI) {
+    let sbi = state.curr_sidebar_info(game_obj_db);
     let tile = &state.map[&loc];
     match tile {
-        Tile::Door(DoorState::Closed) | Tile::Door(DoorState::Locked) => state.write_msg_buff("The door is already closed!"),
+        Tile::Door(DoorState::Closed) | Tile::Door(DoorState::Locked) => gui.update("That door is already closed.", false, Some(&sbi)),
         Tile::Door(DoorState::Open) => {
             if !game_obj_db.things_at_loc(loc).is_empty() {
-                state.write_msg_buff("There's something in the way!");
+                gui.update("There's something in the way!", false, Some(&sbi));
             } else {
-                state.write_msg_buff("You close the door.");
+                gui.update("You close the door.", false, Some(&sbi));
                 state.map.insert(loc, map::Tile::Door(DoorState::Closed));
             }
         },
-        Tile::Door(DoorState::Broken) => state.write_msg_buff("That door is broken."),
-        _ => state.write_msg_buff("You cannot open that!"),
+        Tile::Door(DoorState::Broken) => gui.update("That door is broken.", false, Some(&sbi)),
+        _ => gui.update("You cannot close that.", false, Some(&sbi)),
     }        
 }
 
-fn take_stairs(state: &mut GameState, game_obj_db: &mut GameObjectDB, down: bool) -> f32 {
+fn take_stairs(state: &mut GameState, game_obj_db: &mut GameObjectDB, down: bool, gui: &mut GameUI) -> f32 {
     let player_loc = game_obj_db.get(0).unwrap().get_loc();
     let tile = &state.map[&player_loc];
+    let sbi = state.curr_sidebar_info(game_obj_db);
 
     if down {
         let cost = if *tile == map::Tile::Portal {
-            state.write_msg_buff("You enter the beckoning portal.");
+            gui.update("You enter the beckoning portal.", false, Some(&sbi));
             game_obj_db.set_to_loc(0, (player_loc.0, player_loc.1, player_loc.2 + 1));
             1.0
         } else if *tile == map::Tile::StairsDown {
-            state.write_msg_buff("You brave the stairs downward.");
+            gui.update("You brave the stairs downward.", false, Some(&sbi));
             game_obj_db.set_to_loc(0, (player_loc.0, player_loc.1, player_loc.2 + 1));
             1.0
         } else {
-            state.write_msg_buff("You cannot do that here.");
+            gui.update("You cannot do that here.", false, Some(&sbi));
             0.0
         };
 
@@ -909,23 +922,24 @@ fn take_stairs(state: &mut GameState, game_obj_db: &mut GameObjectDB, down: bool
         return cost;
     } else {
         if *tile == map::Tile::StairsUp {
-            state.write_msg_buff("You climb the stairway.");
+            gui.update("You climb the stairway.", false, Some(&sbi));
             game_obj_db.set_to_loc(0, (player_loc.0, player_loc.1, player_loc.2 - 1));
             
             if player_loc.2 == 0 {
-                state.write_msg_buff("Fresh air!");
+                gui.update("Fresh air!", false, Some(&sbi));                
             }
 
             return 1.0;
         } else {
-            state.write_msg_buff("You cannot do that here.");
+            gui.update("You cannot do that here.", false, Some(&sbi));
         }
     }
 
     0.0
 }
 
-fn check_closed_gate(state: &mut GameState, game_obj_db: &mut GameObjectDB, loc: (i32, i32, i8)) {
+fn check_closed_gate(state: &mut GameState, game_obj_db: &mut GameObjectDB, loc: (i32, i32, i8), gui: &mut GameUI) {
+    let sbi = state.curr_sidebar_info(game_obj_db);
     let player_loc = game_obj_db.get(0).unwrap().get_loc();
     let mut rng = rand::thread_rng();
     if player_loc == loc {
@@ -938,7 +952,7 @@ fn check_closed_gate(state: &mut GameState, game_obj_db: &mut GameObjectDB, loc:
                 continue;
             }
             if !game_obj_db.location_occupied(&landing_spot) {
-                state.write_msg_buff("You are shoved out of the way by the falling gate!");
+                gui.update("You are shoved out of the way by the falling gate!", false, Some(&sbi));
                 game_obj_db.set_to_loc(0, landing_spot);
                 return;
             }
@@ -965,8 +979,8 @@ fn check_closed_gate(state: &mut GameState, game_obj_db: &mut GameObjectDB, loc:
                 game_obj_db.set_to_loc(npc_id, landing_spot);
                 
                 let s = format!("{} is shoved out of the way by the falling gate!", npc_name.with_def_article());
-                state.write_msg_buff(&s);
-
+                gui.update(&s, false, Some(&sbi));
+                
                 game_obj_db.remove_from_loc(npc_id, start_loc);                    
                 game_obj_db.stepped_on_event(state, landing_spot);
 
@@ -1059,7 +1073,8 @@ fn land_on_location(state: &mut GameState, game_obj_db: &mut GameObjectDB, loc: 
     // }
 }
 
-fn check_for_obstacles(state: &mut GameState, game_obj_db: &mut GameObjectDB, obj_id: usize, loc: (i32, i32, i8)) -> f32 {
+fn check_for_obstacles(state: &mut GameState, game_obj_db: &mut GameObjectDB, obj_id: usize, loc: (i32, i32, i8), gui: &mut GameUI) -> f32 {
+    let sbi = state.curr_sidebar_info(game_obj_db);
     let obstacles = game_obj_db.obstacles_at_loc(loc);
     let web_count = obstacles.iter().filter(|o| o.get_fullname() == "web").count();
     let obstacle_info: Vec<(usize, u8, String)> = obstacles.iter()
@@ -1076,23 +1091,27 @@ fn check_for_obstacles(state: &mut GameState, game_obj_db: &mut GameObjectDB, ob
             }
 
             if agent.ability_check(Ability::Str) < oi.1 {
-                state.write_msg_buff(&util::format_msg(obj_id, "to be", "held fast by the web!", game_obj_db));
+                let msg = util::format_msg(obj_id, "to be", "held fast by the web!", game_obj_db);
+                gui.update(&msg, false, Some(&sbi));
                 return 1.0;
             } else {
                 game_obj_db.remove(oi.0);
 
                 // Are they free or is there still more webbing?
-                if web_count > 1 {                
-                    state.write_msg_buff(&util::format_msg(obj_id, "tear", "through some of the webbing!", game_obj_db));
+                if web_count > 1 {
+                    let msg = util::format_msg(obj_id, "tear", "through some of the webbing!", game_obj_db);
+                    gui.update(&msg, false, Some(&sbi));
                     return 1.0;
-                } else {                
-                    state.write_msg_buff(&util::format_msg(obj_id, "tear", "through the web!", game_obj_db));
+                } else {
+                    let msg = util::format_msg(obj_id, "tear", "through the web!", game_obj_db);
+                    gui.update(&msg, false, Some(&sbi));
                 }            
             }
         } else if oi.2 == "rubble" {
             let agent = game_obj_db.as_person(obj_id).unwrap();
             if agent.ability_check(Ability::Dex) <= 12 {            
-                state.write_msg_buff(&util::format_msg(obj_id, "stumble", "over the rubble!", game_obj_db));
+                let msg = util::format_msg(obj_id, "stumble", "over the rubble!", game_obj_db);
+                gui.update(&msg, false, Some(&sbi));
                 return 1.0;
             }
         }
@@ -1101,8 +1120,8 @@ fn check_for_obstacles(state: &mut GameState, game_obj_db: &mut GameObjectDB, ob
     0.0
 }
 
-pub fn take_step(state: &mut GameState, game_obj_db: &mut GameObjectDB, obj_id: usize, start_loc: (i32, i32, i8), next_loc: (i32, i32, i8)) -> (f32, bool) {    
-    let cost = check_for_obstacles(state, game_obj_db, obj_id, start_loc);
+pub fn take_step(state: &mut GameState, game_obj_db: &mut GameObjectDB, obj_id: usize, start_loc: (i32, i32, i8), next_loc: (i32, i32, i8), gui: &mut GameUI) -> (f32, bool) {    
+    let cost = check_for_obstacles(state, game_obj_db, obj_id, start_loc, gui);
     if cost > 0.0 { return (cost, false); }
 
     game_obj_db.set_to_loc(obj_id, next_loc);
@@ -1138,7 +1157,7 @@ fn do_move(state: &mut GameState, game_obj_db: &mut GameObjectDB, dir: &str, gui
     if game_obj_db.blocking_obj_at(&next_loc) {
         return maybe_fight(state, game_obj_db, next_loc, gui);            
     } else if tile.passable() {
-        let (cost, moved) = take_step(state, game_obj_db, 0, start_loc, next_loc);
+        let (cost, moved) = take_step(state, game_obj_db, 0, start_loc, next_loc, gui);
 
         if !moved {
             return cost;
@@ -1184,7 +1203,7 @@ fn do_move(state: &mut GameState, game_obj_db: &mut GameObjectDB, dir: &str, gui
         return cost;
     } else if tile == Tile::Door(DoorState::Closed) {
         // Bump to open doors. I might make this an option later
-        do_open(state, next_loc);
+        do_open(state, next_loc, game_obj_db, gui);
         return 1.0;
     } else if tile == Tile::Door(DoorState::Locked) {        
         gui.update("The door is locked.", false, Some(&sbi));        
@@ -1242,28 +1261,29 @@ fn floodfill_noise(state: &mut GameState, game_obj_db: &mut GameObjectDB, centre
     }    
 }
 
-fn bash(state: &mut GameState, loc: (i32, i32, i8), game_obj_db: &mut GameObjectDB) -> f32 {
+fn bash(state: &mut GameState, loc: (i32, i32, i8), game_obj_db: &mut GameObjectDB, gui: &mut GameUI) -> f32 {
+    let sbi = state.curr_sidebar_info(game_obj_db);
     let tile = state.map[&loc];
 
     if tile == Tile::Door(DoorState::Locked) || tile == Tile::Door(DoorState::Closed) {
         floodfill_noise(state, game_obj_db, loc, 10, 0);
         let player = game_obj_db.player().unwrap();
         if player.ability_check(Ability::Str) > 17 {
-            state.write_msg_buff("BAM! You knock down the door!");
+            gui.update("BAM! You knock down the door!", false, Some(&sbi));
             state.map.insert(loc, Tile::Door(DoorState::Broken));           
         } else {
-            state.write_msg_buff("The door holds firm!");
+            gui.update("The door holds firm!", false, Some(&sbi));            
         }        
     } else if tile == Tile::Wall || tile == Tile::WoodWall {
-        state.write_msg_buff("Ouch! You slam yourself into the wall!");
+        gui.update("Ouch! You slam yourself into the wall!", false, Some(&sbi));
         let player = game_obj_db.player().unwrap();
         player.damaged(state, rand::thread_rng().gen_range(1, 6), battle::DamageType::Bludgeoning, 0, "a wall");
     } else if  game_obj_db.blocking_obj_at(&loc) {
         // I don't yet have blocking_objs that aren't creatures...
-        battle::knock_back(state, game_obj_db, loc);
+        battle::knock_back(state, game_obj_db, loc, gui);
     } else {
         // I should perhaps move them?
-        state.write_msg_buff("You flail about in a silly fashion.");
+        gui.update("You flail about in a silly fashion.", false, Some(&sbi));
     }
     
     1.0
@@ -1300,9 +1320,9 @@ fn chat_with(state: &mut GameState, gui: &mut GameUI, loc: (i32, i32, i8), game_
         }           
     } else {
         if let Tile::Door(_) = state.map[&loc] {
-            state.write_msg_buff("The door is ignoring you.");
+            gui.update("The door is ignoring you.", false, Some(&sbi));
         } else {
-            state.write_msg_buff("Oh no, talking to yourself?");
+            gui.update("Oh no, talking to yourself?", false, Some(&sbi));            
         } 
     }
 
@@ -1353,7 +1373,8 @@ fn show_inventory(gui: &mut GameUI, state: &mut GameState, game_obj_db: &mut Gam
     };
 
     if menu.is_empty() && purse == 0 {
-        state.write_msg_buff("You are empty-handed.");
+        let sbi = state.curr_sidebar_info(game_obj_db);
+        gui.update("You are empty handed.", false, Some(&sbi));        
     } else {
         let mut m: Vec<(String, bool)> = menu.iter().map(|m| (m.0.to_string(), m.1)).collect();        
         if purse > 0 {
@@ -1425,20 +1446,20 @@ fn wiz_command(state: &mut GameState, gui: &mut GameUI, game_obj_db: &mut GameOb
             mf.add_monster("goblin", loc, game_obj_db);
         } else if result == "dump level" {
             if player_loc.2 == 0 {
-                state.write_msg_buff("Uhh the wilderness is too big to dump.");
+                gui.update("Uhh the wilderness is too big to dump.", false, Some(&sbi));                
             } else {
                 dump_level(state, player_loc.2);
             }
         } else if pieces.len() != 2 {
-            state.write_msg_buff("Invalid wizard command");
+            gui.update("Invalid wizard commmand.", false, Some(&sbi));
         } else if pieces[0] == "turn" {
             let num = pieces[1].parse::<u32>();
             match num {
                 Ok(v) => state.turn = v,
-                Err(_) => state.write_msg_buff("Invalid wizard command"),
+                Err(_) => gui.update("Invalid wizard command.", false, Some(&sbi)),
             }
         } else {
-            state.write_msg_buff("Invalid wizard command");
+            gui.update("Invalid wiziard command.", false, Some(&sbi));            
         }
     }
 }
@@ -1518,15 +1539,16 @@ fn fov_to_tiles(state: &mut GameState, game_obj_db: &GameObjectDB, visible: &[((
 }
 
 fn kill_screen(state: &mut GameState, gui: &mut GameUI, game_obj_db: &mut GameObjectDB, msg: &str) {
+    let sbi = state.curr_sidebar_info(game_obj_db);
     if msg.is_empty() {
-        state.write_msg_buff("Oh no! You have died!");
+        gui.update("Oh no! You have died!", false, Some(&sbi));        
     } else {
         let s = format!("Oh no! You have been killed by {}!", msg);
-        state.write_msg_buff(&s);
+        gui.update(&s, false, Some(&sbi));        
     }
     
     let s = format!("Farewell, {}.", game_obj_db.get(0).unwrap().get_fullname());
-    state.write_msg_buff(&s);
+    gui.update(&s, false, Some(&sbi));
     let sbi = state.curr_sidebar_info(game_obj_db);
     gui.write_screen(&state.msg_buff, Some(&sbi));
     gui.pause_for_more();
@@ -1563,7 +1585,10 @@ fn run_game_loop(gui: &mut GameUI, state: &mut GameState, game_obj_db: &mut Game
             }
             
             if effects > 0 {
-                effects::apply_effects(state, 0, game_obj_db, effects);
+                if let Some(msg) = effects::apply_effects(state, 0, game_obj_db, effects) {
+                    let sbi = state.curr_sidebar_info(game_obj_db);
+                    gui.update(&msg, false, Some(&sbi));
+                }
             }
 
             check_event_queue(state, game_obj_db, gui)?;
@@ -1576,18 +1601,18 @@ fn run_game_loop(gui: &mut GameUI, state: &mut GameState, game_obj_db: &mut Game
 
             let mut energy_cost = 0.0;
             match cmd {
-                Cmd::Bash(loc) => energy_cost = bash(state, loc, game_obj_db),
+                Cmd::Bash(loc) => energy_cost = bash(state, loc, game_obj_db, gui),
                 Cmd::Chat(loc) => energy_cost = chat_with(state, gui, loc, game_obj_db, dialogue),
                 Cmd::Close(loc) => {
-                    do_close(state, loc, game_obj_db);
+                    do_close(state, loc, game_obj_db, gui);
                     energy_cost = 1.0;
                 },
-                Cmd::Down => energy_cost = take_stairs(state, game_obj_db, true),
+                Cmd::Down => energy_cost = take_stairs(state, game_obj_db, true, gui),
                 Cmd::DropItem => energy_cost = drop_item(state, game_obj_db, gui),  
                 Cmd::Move(dir) => energy_cost = do_move(state, game_obj_db, &dir, gui),
                 Cmd::MsgHistory => show_message_history(state, gui),
                 Cmd::Open(loc) => { 
-                    do_open(state, loc);
+                    do_open(state, loc, game_obj_db, gui);
                     energy_cost = 1.0;
                 },
                 Cmd::Pass => {
@@ -1597,7 +1622,7 @@ fn run_game_loop(gui: &mut GameUI, state: &mut GameState, game_obj_db: &mut Game
                 Cmd::PickUp => energy_cost = pick_up(state, game_obj_db, gui),
                 Cmd::Save => save_and_exit(state, game_obj_db, gui)?,
                 Cmd::Search => {
-                    search(state, game_obj_db);
+                    search(state, game_obj_db, gui);
                     energy_cost = 1.0;
                 },
                 Cmd::ShowCharacterSheet => {
@@ -1609,7 +1634,7 @@ fn run_game_loop(gui: &mut GameUI, state: &mut GameState, game_obj_db: &mut Game
                 Cmd::ToggleEquipment => energy_cost = toggle_equipment(state, game_obj_db, gui),
                 Cmd::Use => energy_cost = use_item(state, game_obj_db, gui),
                 Cmd::Quit => confirm_quit(state, gui, game_obj_db)?,
-                Cmd::Up => energy_cost = take_stairs(state, game_obj_db, false),
+                Cmd::Up => energy_cost = take_stairs(state, game_obj_db, false, gui),
                 Cmd::WizardCommand => wiz_command(state, gui, game_obj_db, monster_fac),
                 _ => continue,
             }
@@ -1645,7 +1670,7 @@ fn run_game_loop(gui: &mut GameUI, state: &mut GameState, game_obj_db: &mut Game
         let p = game_obj_db.player().unwrap();
         effects::check_statuses(p, state);
 
-        game_obj_db.do_npc_turns(state);
+        game_obj_db.do_npc_turns(state, gui);
         game_obj_db.update_listeners(state, EventType::Update);
         game_obj_db.update_listeners(state, EventType::EndOfTurn);
         
@@ -1674,7 +1699,7 @@ fn check_event_queue(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui:
     while !state.queued_events.is_empty() {
         match state.queued_events.pop_front().unwrap() {
             (EventType::GateClosed, loc, _, _) => {
-                check_closed_gate(state, game_obj_db, loc);
+                check_closed_gate(state, game_obj_db, loc, gui);
             },
             (EventType::PlayerKilled, _, _, Some(msg)) => {
                 kill_screen(state, gui, game_obj_db, &msg);
@@ -1682,7 +1707,11 @@ fn check_event_queue(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui:
             },
             (EventType::LevelUp, _, _, _) => {
                 let p = game_obj_db.player().unwrap();
-                p.level_up(state);
+                p.level_up();
+                let level = p.level;
+                let sbi = state.curr_sidebar_info(game_obj_db);                    
+                let s = format!("Welcome to level {}!", level);
+                gui.update(&s, false, Some(&sbi));
             },
             (EventType::DeathOf(npc_id), _, _, _) => {
                 game_obj_db.update_listeners(state, EventType::DeathOf(npc_id));
@@ -1742,8 +1771,9 @@ fn main() {
             state = saved_objs.0;
             game_obj_db = saved_objs.1;
             
-            let msg = format!("Welcome back, {}!", player_name);
-            state.write_msg_buff(&msg);
+            let sbi = state.curr_sidebar_info(&mut game_obj_db);
+            let msg = format!("Welcome back, {}!", player_name);            
+            gui.update(&msg, false, Some(&sbi));        
         } else {
             // need to dump some sort of message for corrupted game file
             return;

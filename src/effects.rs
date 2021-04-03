@@ -25,6 +25,7 @@ use super::GameState;
 use crate::battle::DamageType;
 use crate::game_obj::{Ability, GameObject, GameObjectDB, Person};
 use crate::util;
+use std::net::ToSocketAddrs;
 
 pub const EF_MINOR_HEAL: u128     = 0x00000001;
 pub const EF_BLINK: u128          = 0x00000002;
@@ -32,7 +33,7 @@ pub const EF_WEAK_VENOM: u128     = 0x00000004;
 pub const EF_WEAK_BLINDNESS: u128 = 0x00000008;
 
 // Short range, untargeted teleport
-fn blink(state: &mut GameState, obj_id: usize, game_obj_db: &mut GameObjectDB) {
+fn blink(state: &mut GameState, obj_id: usize, game_obj_db: &mut GameObjectDB) -> String {
     let obj = game_obj_db.get_mut(obj_id).unwrap();
     let loc = obj.get_loc();
 
@@ -49,11 +50,12 @@ fn blink(state: &mut GameState, obj_id: usize, game_obj_db: &mut GameObjectDB) {
 
     let mut rng = rand::thread_rng();
     if sqs.is_empty() {
-        state.write_msg_buff("The magic fizzles.");
+        "The magic fizzles".to_string()
     } else {
         let landing_spot = sqs.choose(&mut rng).unwrap();
         // I should probably call lands_on_sq() too?
         game_obj_db.set_to_loc(obj_id, *landing_spot);
+        "".to_string()
     }
 }
 
@@ -73,7 +75,8 @@ fn weak_venom(state: &mut GameState, victim: &mut dyn Person) {
     victim.damaged(state, dmg, DamageType::Poison, 0, "poison");
 }
 
-pub fn apply_effects(state: &mut GameState, obj_id: usize, game_obj_db: &mut GameObjectDB, effects: u128) {
+pub fn apply_effects(state: &mut GameState, obj_id: usize, game_obj_db: &mut GameObjectDB, effects: u128) -> Option<String> {
+    let mut result = "".to_string();
     if effects & EF_MINOR_HEAL > 0 {
         if let Some(user) = game_obj_db.as_person(obj_id) {
             minor_healing(state, user);
@@ -81,13 +84,19 @@ pub fn apply_effects(state: &mut GameState, obj_id: usize, game_obj_db: &mut Gam
     }
 
     if effects & EF_BLINK > 0 {
-        blink(state, obj_id, game_obj_db);
+        result = blink(state, obj_id, game_obj_db);
     }
 
     if effects & EF_WEAK_VENOM > 0 {
         if let Some(victim) = game_obj_db.as_person(obj_id) {
             weak_venom(state, victim);
         }
+    }
+
+    if !result.is_empty() {
+        Some(result)
+    } else {
+        None
     }
 }
 
@@ -182,10 +191,11 @@ pub fn remove_status<T: HasStatuses + GameObject>(person: &mut T, status: Status
     }
 }
 
-pub fn check_statuses<T: HasStatuses + GameObject + Person>(person: &mut T, state: &mut GameState) {
+pub fn check_statuses<T: HasStatuses + GameObject + Person>(person: &mut T, state: &mut GameState) -> Option<Vec<String>> {
     let obj_id = person.obj_id();
     let con_check = person.ability_check(Ability::Con); // gotta do this here for borrow checker reasons...
     let statuses = person.get_statuses().unwrap();
+    let mut messages = Vec::new();
 
     let mut reveal = false;
     let mut killed = false;
@@ -202,7 +212,7 @@ pub fn check_statuses<T: HasStatuses + GameObject + Person>(person: &mut T, stat
                 if time <= state.turn {
                     statuses.remove(j);
                     if obj_id == 0 {
-                        state.write_msg_buff("Your vision clears!");
+                        messages.push("Your vision clears!".to_string());
                     }
                     continue;
                 }
@@ -211,7 +221,7 @@ pub fn check_statuses<T: HasStatuses + GameObject + Person>(person: &mut T, stat
                 if time <= state.turn {
                     statuses.remove(j);
                     if obj_id == 0 {
-                        state.write_msg_buff("A curse lifts!");
+                        messages.push("A curse lifts!".to_string());
                     }
                     continue;
                 }
@@ -220,7 +230,7 @@ pub fn check_statuses<T: HasStatuses + GameObject + Person>(person: &mut T, stat
                 if time <= state.turn {
                     statuses.remove(j);
                     if obj_id == 0 {
-                        state.write_msg_buff("You awake feeling refreshed!");
+                        messages.push("You awake feeling refreshed!".to_string());
                     }
                     continue;
                 }
@@ -228,7 +238,7 @@ pub fn check_statuses<T: HasStatuses + GameObject + Person>(person: &mut T, stat
             Status::WeakVenom(dc) => {
                 if con_check >= dc {
                     if obj_id == 0 {
-                        state.write_msg_buff("You feel better.");
+                        messages.push("You feel better".to_string());
                     }
                     statuses.remove(j);                    
                 }
@@ -257,10 +267,10 @@ pub fn check_statuses<T: HasStatuses + GameObject + Person>(person: &mut T, stat
     if reveal {
         person.reveal();
         if obj_id == 0 {
-            state.write_msg_buff("You re-appear!");
+            messages.push("You reappear!".to_string());
         } else {
             let s = format!("The {} re-appears!", person.get_fullname());
-            state.write_msg_buff(&s);
+            messages.push(s.to_string());
         }
     }
 
@@ -268,6 +278,12 @@ pub fn check_statuses<T: HasStatuses + GameObject + Person>(person: &mut T, stat
         let name = person.get_fullname();
         person.mark_dead();
         let s = format!("The {} evaporates into mist!", name);
-        state.write_msg_buff(&s);
+        messages.push(s.to_string());
+    }
+
+    if messages.is_empty() {
+        None
+    } else {
+        Some(messages)
     }
 }

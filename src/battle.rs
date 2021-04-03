@@ -114,7 +114,8 @@ pub fn player_attacks(state: &mut GameState, opponent_id: usize, game_obj_db: &m
     }
 }
 
-pub fn monster_attacks_player(state: &mut GameState, monster_id: usize, game_obj_db: &mut GameObjectDB) {
+pub fn monster_attacks_player(state: &mut GameState, monster_id: usize, game_obj_db: &mut GameObjectDB, gui: &mut GameUI) {
+    let sbi = state.curr_sidebar_info(game_obj_db);
     let mut rng = rand::thread_rng();
     let npc = game_obj_db.npc(monster_id).unwrap();
     let monster_name_indef = npc.npc_name(true);
@@ -134,7 +135,7 @@ pub fn monster_attacks_player(state: &mut GameState, monster_id: usize, game_obj
     
     if attack_roll >= player.ac {
         let s = format!("{} hits you!", monster_name.capitalize());
-        state.write_msg_buff(&s);        
+        gui.update(&s, false, Some(&sbi));
         let dmg_roll: u8 = (0..dmg_dice).map(|_| rng.gen_range(1, dmg_die + 1)).sum();
         let dmg_total = (dmg_roll + dmg_bonus) as i8;
         if dmg_total > 0 {
@@ -144,19 +145,20 @@ pub fn monster_attacks_player(state: &mut GameState, monster_id: usize, game_obj
             // Are there any relevant extra effects from the monster's attack?
             if monster_attributes & npc::MA_WEAK_VENOMOUS > 0 {
                 let con_save = player.ability_check(Ability::Con);
-                if con_save <= monster_dc {
-                    state.write_msg_buff("You feel ill.");
+                if con_save <= monster_dc {                    
+                    gui.update("You feel ill.", false, Some(&sbi));
                     effects::add_status(player, Status::WeakVenom(monster_dc));
                 }
             }
         }
     } else {
         let s = format!("{} misses you!", monster_name.capitalize());
-        state.write_msg_buff(&s);
+        gui.update(&s, false, Some(&sbi));        
     }
 }
 
-pub fn knock_back(state: &mut GameState, game_obj_db: &mut GameObjectDB, target_loc: (i32, i32, i8)) {
+pub fn knock_back(state: &mut GameState, game_obj_db: &mut GameObjectDB, target_loc: (i32, i32, i8), gui: &mut GameUI) {
+    let sbi = state.curr_sidebar_info(game_obj_db);
     let p = game_obj_db.player().unwrap();
     let player_size = p.size();
     let player_loc = p.base_info.location;
@@ -170,30 +172,30 @@ pub fn knock_back(state: &mut GameState, game_obj_db: &mut GameObjectDB, target_
 
     if target_size > player_size {
         let s = format!("You fruitlessly hurl yourself at {}.", target_name);
-        state.write_msg_buff(&s);
+        gui.update(&s, false, Some(&sbi));
     } else if str_check > target_str_check {
         let d = (target_loc.0 - player_loc.0, target_loc.1 - player_loc.1, target_loc.2 - player_loc.2);
         let new_loc = (target_loc.0 + d.0, target_loc.1 + d.1, target_loc.2 + d.2);
         
         let s = format!("You bash {}!", target_name);
-        state.write_msg_buff(&s);
-
+        gui.update(&s, false, Some(&sbi));
+        
         if !state.map[&new_loc].passable() {
             let s = format!("{} does not move.", target_name.capitalize());
-            state.write_msg_buff(&s);
+            gui.update(&s, false, Some(&sbi));            
         } else if let Some(bystander_id) = game_obj_db.npc_at(&new_loc) {
             let bystander = game_obj_db.npc(bystander_id).unwrap();
             let name = bystander.npc_name(false);
             let s = format!("{} blunders into {}!", target_name.capitalize(), name);
-            state.write_msg_buff(&s);
+            gui.update(&s, false, Some(&sbi));            
         } else {
             let s = format!("{} staggers back!", target_name.capitalize());
-            state.write_msg_buff(&s);
-            super::take_step(state, game_obj_db, npc_id, target_loc, new_loc);
+            gui.update(&s, false, Some(&sbi));
+            super::take_step(state, game_obj_db, npc_id, target_loc, new_loc, gui);
             state.animation_pause = true;
         }
     } else {
         let s = util::format_msg(npc_id, "hold", "[pronoun] ground!", game_obj_db);
-        state.write_msg_buff(&s);
+        gui.update(&s, false, Some(&sbi));        
     }
 }

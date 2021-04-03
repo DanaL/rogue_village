@@ -580,7 +580,7 @@ impl Player {
         }
     }
 
-    pub fn level_up(&mut self, state: &mut GameState) {
+    pub fn level_up(&mut self) {
         self.level += 1;
         
         // Other stuff needs to happen like more hit points, etc
@@ -593,10 +593,7 @@ impl Player {
         self.curr_hp += hp_roll as u8;
         if self.curr_hp > self.max_hp {
             self.curr_hp = self.max_hp;
-        }
-        
-        let s = format!("Welcome to level {}!", self.level);
-        state.write_msg_buff(&s);
+        }        
     }
 }
 
@@ -619,9 +616,8 @@ impl Person for Player {
         (self.curr_hp, self.max_hp)
     }
 
-    fn add_hp(&mut self, state: &mut GameState, amt: u8) {
+    fn add_hp(&mut self, amt: u8) {
         self.curr_hp += amt;
-        state.write_msg_buff("You feel better!");
     }
 
     fn ability_check(&self, ability: Ability) -> u8 {

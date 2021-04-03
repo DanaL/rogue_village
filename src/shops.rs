@@ -64,10 +64,11 @@ fn inventory_menu(inventory: &Vec<GameObjects>) -> Vec<(String, char, u8, u16)> 
 
 // Is it worth preventing the character from renting a room if it's early in the day?
 // Check in isn't until 3:00pm?
-fn rent_room(state: &mut GameState, game_obj_db: &mut GameObjectDB) {
+fn rent_room(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mut GameUI) {
+    let sbi = state.curr_sidebar_info(game_obj_db);
     if let Some(GameObjects::Player(player)) = game_obj_db.get_mut(0) {
         if player.purse < 10 {
-            state.write_msg_buff("\"You can't afford a room in this establishment.\"");
+            gui.update("You can't afford a room in this establishment.", false, Some(&sbi));
             return;
         }
 
@@ -76,25 +77,27 @@ fn rent_room(state: &mut GameState, game_obj_db: &mut GameObjectDB) {
         let checkout = state.turn + 2880; // renting a room is basically passing for 8 hours
         effects::add_status(player, Status::RestAtInn(checkout));
 
-        state.write_msg_buff("You check in.");
+        gui.update("You check in.", false, Some(&sbi));
     }
 }
 
 // Eventually, having a drink will incease the player's verve (ie., the emotional readiness for dungeoneering)
 // and/or possibly get them tipsy if they indulge too much.
-fn buy_drink(state: &mut GameState, game_obj_db: &mut GameObjectDB) {
+fn buy_drink(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mut GameUI) {
+    let sbi = state.curr_sidebar_info(game_obj_db);
     if let Some(GameObjects::Player(p)) = game_obj_db.get_mut(0) {
         if p.purse == 0 {
-            state.write_msg_buff("\"Hey this isn't a charity!\"");
+            gui.update("\"Hey this isn't a charity!\"", false, Some(&sbi));
         } else {
             p.purse -= 1;
             // more drink types eventually?
-            state.write_msg_buff("You drink a refreshing ale.");
+            gui.update("You drink a refreshing ale.", false, Some(&sbi));            
         }
     }
 }
 
-fn fill_flask(state: &mut GameState, game_obj_db: &mut GameObjectDB) {
+fn fill_flask(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mut GameUI) {
+    let sbi = state.curr_sidebar_info(game_obj_db);
     let player = game_obj_db.player().unwrap();
 
     let mut full = false;
@@ -104,38 +107,41 @@ fn fill_flask(state: &mut GameState, game_obj_db: &mut GameObjectDB) {
                 if item.charges == 2 {
                     full = true;
                 } else if player.purse < 2 {
-                    state.write_msg_buff("\"You're a bit short, I'm afraid.\"");
+                    gui.update("\"You're a bit short, I'm afraid.\"", false, Some(&sbi));
                     return;
                 } else {
                     item.charges = 2;
                     player.purse -= 2;
-                    if rand::thread_rng().gen_range(0, 2) == 0 {
-                        state.write_msg_buff("\"There you are! Enjoy!\"");
+                    let s = if rand::thread_rng().gen_range(0, 2) == 0 {
+                        "\"There you are! Enjoy!\""
                     } else {
-                        state.write_msg_buff("\"Please drink and adventure responsibly!\"");
-                    }
+                        "\"Please drink and adventure responsibly!\""
+                    };
+                    gui.update(&s, false, Some(&sbi));
                     return;
                 }
             }
         }        
     }
 
-    if full {
-        state.write_msg_buff("\"Yours is already full!\"");
+    let s = if full {
+        "\"Yours is already full!\""
     } else {
-        state.write_msg_buff("\"You don't have anything to carry it in.\"");
-    }
+        "\"You don't have anything to carry it in.\""
+    };
+    gui.update(&s, false, Some(&sbi));
 }
 
-fn buy_round(state: &mut GameState, game_obj_db: &mut GameObjectDB, patrons: &Vec<usize>) {
+fn buy_round(state: &mut GameState, game_obj_db: &mut GameObjectDB, patrons: &Vec<usize>, gui: &mut GameUI) {
+    let sbi = state.curr_sidebar_info(game_obj_db);
     let player = game_obj_db.player().unwrap();
 
     if player.purse < patrons.len() as u32 {
-        state.write_msg_buff("You can't afford to pay for everyone!");
+        gui.update("You can't afford to pay for eveyrone!", false, Some(&sbi));
         return;
     } 
 
-    state.write_msg_buff("You a round for everyone in the bar.");
+    gui.update("You buy a round for eveyrone in the bar.", false, Some(&sbi));
     player.purse -= patrons.len() as u32;
 
     let mut made_friend = false;
@@ -154,7 +160,7 @@ fn buy_round(state: &mut GameState, game_obj_db: &mut GameObjectDB, patrons: &Ve
     }
 
     if made_friend {
-        state.write_msg_buff("Cheers!!");
+        gui.update("\"Cheers!\"", false, Some(&sbi));        
     }
 }
 
@@ -202,23 +208,24 @@ pub fn talk_to_innkeeper(state: &mut GameState, innkeeper_id: usize, game_obj_db
     let answer = gui.popup_menu(&name, &msg, &options, Some(&sbi));
     if let Some(ch) = answer {
         if ch == 'a' {
-            buy_drink(state, game_obj_db);
+            buy_drink(state, game_obj_db, gui);
         } else if ch == 'b' {
-            rent_room(state, game_obj_db);
+            rent_room(state, game_obj_db, gui);
         } else if ch == 'c' {
-            fill_flask(state, game_obj_db);
+            fill_flask(state, game_obj_db, gui);
         } else if ch == 'd' {
-            buy_round(state, game_obj_db, &patrons);
+            buy_round(state, game_obj_db, &patrons, gui);
         }
     } else {
         let x = rand::thread_rng().gen_range(0, 3);
-        if x == 0 {
-            state.write_msg_buff("\"Nevermind.\"");
+        let s = if x == 0 {
+            "\"Nevermind.\""
         } else if x == 1 {
-            state.write_msg_buff("\"No loitering.\"");
+            "\"No loitering.\""
         } else {
-            state.write_msg_buff("\"No outside food or drink.\"");
-        }
+            "\"No outside food or drink.\""
+        };
+        gui.update(&s, false, Some(&sbi));
     }
 }
 
@@ -270,7 +277,7 @@ fn check_smith_inventory(state: &mut GameState, smith_id: usize, game_obj_db: &m
         }
     } else if curr_day - last_inventory_day >= 2  {        
         // Update inventory every couple of days.
-        println!("Checkin' stock");
+        
         // First, generate the new stock
         let mut new_stock = Vec::new();
 
@@ -495,13 +502,15 @@ pub fn talk_to_grocer(state: &mut GameState, grocer_id: usize, game_obj_db: &mut
     }
 
     if made_purchase {
-        state.write_msg_buff("\"Thank you for supporting small businesses!\"");
+        let sbi = state.curr_sidebar_info(game_obj_db);
+        gui.update("\"Thank you for supporting small businesses!\"", false, Some(&sbi));        
     }
 }
 
 // For when I implement rust/corrosion
-fn repair_gear(state: &mut GameState, _game_obj_db: &mut GameObjectDB) {
-    state.write_msg_buff("\"Hmm none of your equipment needs fixing at the moment.\"");
+fn repair_gear(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mut GameUI) {
+    let sbi = state.curr_sidebar_info(game_obj_db);
+    gui.update("\"Hmm none of your equipment needs fixing right now.", false, Some(&sbi));    
 }
 
 fn purchase_from_smith(state: &mut GameState, smith_id: usize, name: String, preamble: &str, game_obj_db: &mut GameObjectDB, gui: &mut GameUI) -> bool {
@@ -598,17 +607,18 @@ pub fn talk_to_smith(state: &mut GameState, smith_id: usize, game_obj_db: &mut G
     let options: HashSet<char> = vec!['a', 'b'].into_iter().collect();
     let mut made_purchase = false;
     let answer = gui.popup_menu(&name, &msg, &options, Some(&sbi));
+    let sbi = state.curr_sidebar_info(game_obj_db);
     if let Some(ch) = answer {
         if ch == 'a' {
             made_purchase = purchase_from_smith(state, smith_id, name.clone(), &preamble, game_obj_db, gui);
         } else if ch == 'b' {
-            repair_gear(state, game_obj_db);
+            repair_gear(state, game_obj_db, gui);
         } 
     } else {
-        state.write_msg_buff("\"Nevermind.\"");
+        gui.update("\"Never mind.\"", false, Some(&sbi));        
     }
 
     if made_purchase {
-        state.write_msg_buff("\"I hope that serves you well!\"");
+        gui.update("\"I hope that serves you well!\"", false, Some(&sbi));
     }
 }

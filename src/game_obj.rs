@@ -20,6 +20,7 @@ use std::collections::{HashMap, HashSet, VecDeque};
 
 use super::{EventResponse, EventType, GameState, PLAYER_INV};
 use crate::battle::DamageType;
+use crate::display::GameUI;
 use crate::effects;
 use crate::items::{Item, GoldPile};
 use crate::map::{SpecialSquare, Tile};
@@ -572,7 +573,7 @@ impl GameObjectDB {
         }
     }
 
-    pub fn do_npc_turns(&mut self, state: &mut GameState) {
+    pub fn do_npc_turns(&mut self, state: &mut GameState, gui: &mut GameUI) {
         let player_loc = self.get(0).unwrap().get_loc();
         let npcs = self.listeners.iter()
                         .filter(|i| i.1 == EventType::TakeTurn)
@@ -605,7 +606,7 @@ impl GameObjectDB {
             // the end maybe it'll be fast enough to always update 100s of monsters..)
             let curr_dungeon_level =  player_loc.2;      
             if npc_loc.2 == 0 || npc_loc.2 == curr_dungeon_level {                
-                npc::take_turn(npc_id, state, self);                
+                npc::take_turn(npc_id, state, self, gui);                
             }
 
             // // Was the npc killed during their turn?
@@ -671,7 +672,7 @@ impl GameObjectDB {
 pub trait Person {
     fn damaged(&mut self, state: &mut GameState, amount: u8, dmg_type: DamageType, assailant_id: usize, assailant_name: &str);
     fn get_hp(&self) -> (u8, u8);
-    fn add_hp(&mut self, state: &mut GameState, amt: u8);
+    fn add_hp(&mut self, amt: u8);
     fn ability_check(&self, ability: Ability) -> u8;
     fn attributes(&self) -> u128;
     fn size(&self) -> u8;
