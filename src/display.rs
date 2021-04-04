@@ -101,7 +101,7 @@ pub struct GameUI<'a, 'b> {
 	pub v_matrix: [(Tile, bool); FOV_HEIGHT * FOV_WIDTH],
 	surface_cache: HashMap<(char, Color), Surface<'a>>,
 	msg_line: String,
-	messages: VecDeque<String>,
+	messages: VecDeque<(String, bool)>,
 }
 
 impl<'a, 'b> GameUI<'a, 'b> {
@@ -743,16 +743,31 @@ impl<'a, 'b> GameUI<'a, 'b> {
 		// Draw the recent messages
 		let msg_count = self.messages.len();
 		if msg_count > 0  {
-			let line = self.messages[0].to_string();
-			self.write_line((SCREEN_HEIGHT - 1) as i32, &line, false, WHITE);
+			let line = self.messages[0].0.to_string();
+			let colour =  if self.messages[0].1 {
+				WHITE
+			} else {
+				DARK_GREY
+			};
+			self.write_line((SCREEN_HEIGHT - 1) as i32, &line, false, colour);
 		}
 		if msg_count > 1 {
-			let line = self.messages[1].to_string();
-			self.write_line((SCREEN_HEIGHT - 2) as i32, &line, false, DARK_GREY);
+			let line = self.messages[1].0.to_string();
+			let colour =  if self.messages[1].1 {
+				WHITE
+			} else {
+				DARK_GREY
+			};
+			self.write_line((SCREEN_HEIGHT - 2) as i32, &line, false, colour);
 		}
 		if msg_count > 2 {
-			let line = self.messages[2].to_string();
-			self.write_line((SCREEN_HEIGHT - 3) as i32, &line, false, DARK_GREY);
+			let line = self.messages[2].0.to_string();
+			let colour =  if self.messages[2].1 {
+				WHITE
+			} else {
+				DARK_GREY
+			};
+			self.write_line((SCREEN_HEIGHT - 3) as i32, &line, false, colour);
 		}
 
 		if render {
@@ -760,12 +775,20 @@ impl<'a, 'b> GameUI<'a, 'b> {
 		}
 	}
 
-	pub fn update_messages(&mut self, msg_queue: &mut VecDeque<String>, sbi: Option<&SidebarInfo>) {
-		let mut msg = "".to_string();
+	pub fn update(&mut self, msg_queue: &mut VecDeque<String>, sbi: Option<&SidebarInfo>) {
+		// Un-highlight the previous messages
+		let mut j = 0;
+		while j < self.messages.len() {
+			self.messages[j].1 = false;
+			j += 1;
+			if j > 2 { break; }
+		}
+		
+		let mut msg = "".to_string();		
 		while !msg_queue.is_empty() {
 			let item = msg_queue.pop_front().unwrap();
 			if msg.len() + item.len() + 1 >=  SCREEN_WIDTH as usize - 2 {
-				self.messages.push_front(msg);
+				self.messages.push_front((msg, true));
 				msg = "".to_string();
 			}
 			if !msg.is_empty() {
@@ -773,53 +796,11 @@ impl<'a, 'b> GameUI<'a, 'b> {
 			}
 			msg.push_str(&item);
 		}
-		self.messages.push_front(msg);
+
+		if !msg.is_empty() {
+			self.messages.push_front((msg, true));
+		}
 		self.draw_frame("", sbi, true);
-	}
-
-	pub fn write_screen(&mut self, msgs: &VecDeque<String>, sbi: Option<&SidebarInfo>) {
-		//self.draw_frame("", sbi, false);
-
-		let mut msg = String::from("");
-		if !msgs.is_empty() {
-			let mut words = VecDeque::new();
-			if !self.msg_line.is_empty() {
-				for w in self.msg_line.split(' ') {
-					let s = String::from(w);
-					words.push_back(s);
-				}
-			}
-			for line in msgs.iter() {
-				for w in line.split(' ') {
-					let s = String::from(w);
-					words.push_back(s);
-				}
-			}
-
-			while !words.is_empty() {
-				let word = words.pop_front().unwrap();
-				
-				// If we can't fit the new word in the message put it back
-				// on the queue and display what we have so far
-				if msg.len() + word.len() + 1 >=  SCREEN_WIDTH as usize - 9 {
-					words.push_front(word);
-					msg.push_str("--More--");
-					self.draw_frame(&msg, sbi, true);
-					self.pause_for_more();
-					msg = String::from("");
-				} else {
-					msg.push_str(&word);
-					msg.push(' ');
-				}
-			}
-		} else {
-			msg = self.msg_line.clone();
-		}
-
-		self.draw_frame(&msg, sbi, true);
-		if !msg.is_empty() {			
-			self.msg_line = msg;
-		}
 	}
 
 	pub fn clear_msg_buff(&mut self) {

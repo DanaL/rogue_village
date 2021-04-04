@@ -112,8 +112,7 @@ pub fn player_attacks(state: &mut GameState, opponent_id: usize, game_obj_db: &m
     }
 }
 
-pub fn monster_attacks_player(state: &mut GameState, monster_id: usize, game_obj_db: &mut GameObjectDB, gui: &mut GameUI) {
-    let sbi = state.curr_sidebar_info(game_obj_db);
+pub fn monster_attacks_player(state: &mut GameState, monster_id: usize, game_obj_db: &mut GameObjectDB) {
     let mut rng = rand::thread_rng();
     let npc = game_obj_db.npc(monster_id).unwrap();
     let monster_name_indef = npc.npc_name(true);
@@ -144,7 +143,7 @@ pub fn monster_attacks_player(state: &mut GameState, monster_id: usize, game_obj
             if monster_attributes & npc::MA_WEAK_VENOMOUS > 0 {
                 let con_save = player.ability_check(Ability::Con);
                 if con_save <= monster_dc {                    
-                    state.msg_buff.push_back("You feel ill.".to_string())
+                    state.msg_buff.push_back("You feel ill.".to_string());
                     effects::add_status(player, Status::WeakVenom(monster_dc));
                 }
             }

@@ -511,25 +511,21 @@ fn hunt_player(npc_id: usize, npc_loc: (i32, i32, i8), state: &mut GameState, ga
     follow_plan(npc_id, state, game_obj_db, gui);     
 }
 
-fn open_door(loc: (i32, i32, i8), state: &mut GameState, npc_name: String, game_obj_db: &mut GameObjectDB, gui: &mut GameUI) {
+fn open_door(loc: (i32, i32, i8), state: &mut GameState, npc_name: String, game_obj_db: &mut GameObjectDB) {
     state.map.insert(loc, Tile::Door(DoorState::Open));
-    let sbi = state.curr_sidebar_info(game_obj_db);
     let s = format!("{} opens the door.", npc_name);
-    gui.update(&s, false, Some(&sbi));
-    
+    state.msg_buff.push_back(s);
 }
 
-fn unlock_door(loc: (i32, i32, i8), state: &mut GameState, npc_name: String, game_obj_db: &mut GameObjectDB, gui: &mut GameUI) {
+fn unlock_door(loc: (i32, i32, i8), state: &mut GameState, npc_name: String, game_obj_db: &mut GameObjectDB) {
     state.map.insert(loc, Tile::Door(DoorState::Closed));
-    let sbi = state.curr_sidebar_info(game_obj_db);
     let s = format!("{} fiddles with the lock.", npc_name);
-    gui.update(&s, false, Some(&sbi));
+    state.msg_buff.push_back(s);
 }
 
-fn close_door(loc: (i32, i32, i8), state: &mut GameState, game_obj_db: &mut GameObjectDB, npc_id: usize, npc_name: String, gui: &mut GameUI) {
-    let sbi = state.curr_sidebar_info(game_obj_db);
+fn close_door(loc: (i32, i32, i8), state: &mut GameState, game_obj_db: &mut GameObjectDB, npc_id: usize, npc_name: String) {
     if game_obj_db.blocking_obj_at(&loc) {
-        gui.update("\"Please don't stand in the doorway.\"", false, Some(&sbi));
+        state.msg_buff.push_back("\"Please don't stand in the doorway.\"".to_string());
         let npc = game_obj_db.npc(npc_id).unwrap();
         npc.plan.push_front(Action::CloseDoor(loc));
     } else {
@@ -537,10 +533,10 @@ fn close_door(loc: (i32, i32, i8), state: &mut GameState, game_obj_db: &mut Game
             state.map.insert(loc, Tile::Door(DoorState::Closed));
             let npc = game_obj_db.npc(npc_id).unwrap();
             if npc.attitude == Attitude::Stranger {
-                gui.update("The villager closes the door.", false, Some(&sbi));                
+                state.msg_buff.push_back("The villager closes the door.".to_string());
             } else {
                 let s = format!("{} closes the door.", npc_name);
-                gui.update(&s, false, Some(&sbi));                
+                state.msg_buff.push_back(s);
             }            
         }
     }
@@ -553,18 +549,16 @@ fn follow_plan(npc_id: usize, state: &mut GameState, game_obj_db: &mut GameObjec
 
     if let Some(action) = action {
         match action {
-            Action::Move(loc) => try_to_move_to_loc(npc_id, loc, state, game_obj_db, gui),
-            Action::OpenDoor(loc) => open_door(loc, state, npc_name, game_obj_db, gui),
-            Action::CloseDoor(loc) => close_door(loc, state, game_obj_db, npc_id, npc_name, gui),
-            Action::UnlockDoor(loc) => unlock_door(loc, state, npc_name,game_obj_db, gui),
-            Action::Attack(_loc) => {
-                battle::monster_attacks_player(state, npc_id, game_obj_db, gui);
-            },
+            Action::Move(loc) => try_to_move_to_loc(npc_id, loc, state, game_obj_db),
+            Action::OpenDoor(loc) => open_door(loc, state, npc_name, game_obj_db),
+            Action::CloseDoor(loc) => close_door(loc, state, game_obj_db, npc_id, npc_name),
+            Action::UnlockDoor(loc) => unlock_door(loc, state, npc_name,game_obj_db),
+            Action::Attack(_loc) => battle::monster_attacks_player(state, npc_id, game_obj_db),
         }
     }
 }
 
-fn try_to_move_to_loc(npc_id: usize, goal_loc: (i32, i32, i8), state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mut GameUI) {
+fn try_to_move_to_loc(npc_id: usize, goal_loc: (i32, i32, i8), state: &mut GameState, game_obj_db: &mut GameObjectDB) {
     let sbi = state.curr_sidebar_info(game_obj_db);
     let blocking_object = game_obj_db.blocking_obj_at(&goal_loc);
     let npc = game_obj_db.npc(npc_id).unwrap();
@@ -577,7 +571,7 @@ fn try_to_move_to_loc(npc_id: usize, goal_loc: (i32, i32, i8), state: &mut GameS
     }   
     if blocking_object {
         match npc_mode {
-            NPCPersonality::Villager => gui.update("\"Excuse me.\"", false, Some(&sbi)),
+            NPCPersonality::Villager => state.msg_buff.push_back("\"Excuse me.\"".to_string()),
             _ => { }
 
         }
@@ -586,10 +580,10 @@ fn try_to_move_to_loc(npc_id: usize, goal_loc: (i32, i32, i8), state: &mut GameS
         npc.plan.clear();
     } else if state.map[&goal_loc] == Tile::Door(DoorState::Closed) {
         npc.plan.push_front(Action::Move(goal_loc));
-        open_door(goal_loc, state, npc_name, game_obj_db, gui);
+        open_door(goal_loc, state, npc_name, game_obj_db);
     } else if state.map[&goal_loc] == Tile::Door(DoorState::Locked) {
         npc.plan.push_front(Action::Move(goal_loc));
-        unlock_door(goal_loc, state, npc_name, game_obj_db, gui);
+        unlock_door(goal_loc, state, npc_name, game_obj_db);
     } else {
         // Villagers will close doors after they pass through them
         if npc_mode == NPCPersonality::Villager {
@@ -598,7 +592,7 @@ fn try_to_move_to_loc(npc_id: usize, goal_loc: (i32, i32, i8), state: &mut GameS
             }
         }
 
-        super::take_step(state, game_obj_db, npc_id, npc_loc, goal_loc, gui);
+        super::take_step(state, game_obj_db, npc_id, npc_loc, goal_loc);
     }
 }
 
@@ -724,7 +718,7 @@ fn calc_plan_to_move(npc_id: usize, state: &GameState, game_obj_db: &mut GameObj
     }
 }
 
-fn spin_webs(state: &mut GameState, game_obj_db: &mut GameObjectDB, loc: (i32, i32, i8), npc_name: String, difficulty: u8, gui: &mut GameUI) {
+fn spin_webs(state: &mut GameState, game_obj_db: &mut GameObjectDB, loc: (i32, i32, i8), npc_name: String, difficulty: u8) {
     let mut web = Item::web(game_obj_db, difficulty);
     web.set_loc(loc);
     game_obj_db.add(web);
@@ -738,13 +732,11 @@ fn spin_webs(state: &mut GameState, game_obj_db: &mut GameObjectDB, loc: (i32, i
         }
     }
 
-    let sbi = state.curr_sidebar_info(game_obj_db);
     let s = format!("{} spins a web.", npc_name);
-    gui.update(&s, false, Some(&sbi));
+    state.msg_buff.push_back(s);
 }
 
-fn minor_black_magic(npc_id: usize, state: &mut GameState, game_obj_db: &mut GameObjectDB, player_loc: (i32, i32, i8), sees_player: bool, adj: bool, gui: &mut GameUI) -> bool {
-    let sbi = state.curr_sidebar_info(game_obj_db);
+fn minor_black_magic(npc_id: usize, state: &mut GameState, game_obj_db: &mut GameObjectDB, player_loc: (i32, i32, i8), sees_player: bool, adj: bool) -> bool {
     let npc = game_obj_db.npc(npc_id).unwrap();
     let npc_loc = npc.get_loc();
     let npc_name = npc.npc_name(false);
@@ -754,15 +746,15 @@ fn minor_black_magic(npc_id: usize, state: &mut GameState, game_obj_db: &mut Gam
     // if they are injured and near the player, they will blink away 50% of the time    
     if  (npc_hp.0 as f32 / npc_hp.1 as f32) < 0.33 && distance <= 3.0 && rand::thread_rng().gen_range(0.0, 1.0) < 0.5 {
         let s = format!("{} blinks away!", npc_name.capitalize());
-        gui.update(&s, false, Some(&sbi));
+        state.msg_buff.push_back(s);
         effects::apply_effects(state, npc_id, game_obj_db, effects::EF_BLINK);
         return true;
     }
 
     if sees_player && distance <= 3.0 && rand::thread_rng().gen_range(0.0, 1.0) < 0.33 {
         let s = format!("{} mumbles.", npc_name.capitalize());
-        gui.update(&s, false, Some(&sbi));
-        gui.update("A shroud falls over your eyes!", false, Some(&sbi));
+        state.msg_buff.push_back(s);
+        state.msg_buff.push_back("A shroud falls over your eyes!".to_string());
         let player = game_obj_db.player().unwrap();
         effects::add_status(player, Status::BlindUntil(state.turn + rand::thread_rng().gen_range(3, 6)));
         return true;
@@ -770,8 +762,8 @@ fn minor_black_magic(npc_id: usize, state: &mut GameState, game_obj_db: &mut Gam
 
     if sees_player && distance <= 3.0 && rand::thread_rng().gen_range(0.0, 1.0) < 0.33 {
         let s = format!("{} mumbles.", npc_name.capitalize());
-        gui.update(&s, false, Some(&sbi));
-        gui.update("You have been cursed!", false, Some(&sbi));
+        state.msg_buff.push_back(s);
+        state.msg_buff.push_back("You have been cursed!".to_string());
         let player = game_obj_db.player().unwrap();
         effects::add_status(player, Status::Bane(state.turn + rand::thread_rng().gen_range(3, 6)));
         return true;
@@ -780,7 +772,7 @@ fn minor_black_magic(npc_id: usize, state: &mut GameState, game_obj_db: &mut Gam
     false
 }
 
-fn create_phantasm(npc_id: usize, state: &mut GameState, game_obj_db: &mut GameObjectDB, centre: (i32, i32, i8), gui: &mut GameUI) {
+fn create_phantasm(npc_id: usize, state: &mut GameState, game_obj_db: &mut GameObjectDB, centre: (i32, i32, i8)) {
     let mut options = Vec::new();
     for adj in util::ADJ.iter() {
         let loc = (centre.0 + adj.0, centre.1 + adj.1, centre.2);
@@ -807,8 +799,7 @@ fn create_phantasm(npc_id: usize, state: &mut GameState, game_obj_db: &mut GameO
         effects::add_status(npc, Status::FadeAfter(state.turn + 10));
 
         let s = format!("Another {} appears!", name);
-        let sbi = state.curr_sidebar_info(game_obj_db);
-        gui.update(&s, false, Some(&sbi));
+        state.msg_buff.push_back(s);
 
         // The caster sometimes swaps places with the newly summoned phantasm
         if rand::thread_rng().gen_range(0.0, 1.0) < 0.33 {
@@ -820,7 +811,7 @@ fn create_phantasm(npc_id: usize, state: &mut GameState, game_obj_db: &mut GameO
     }
 }
 
-fn minor_trickery(npc_id: usize, state: &mut GameState, game_obj_db: &mut GameObjectDB, player_loc: (i32, i32, i8), sees_player: bool, adj: bool, gui: &mut GameUI) -> bool {
+fn minor_trickery(npc_id: usize, state: &mut GameState, game_obj_db: &mut GameObjectDB, player_loc: (i32, i32, i8), sees_player: bool, adj: bool) -> bool {
     let sbi = state.curr_sidebar_info(game_obj_db);
     let npc = game_obj_db.npc(npc_id).unwrap();
     let npc_loc = npc.get_loc();
@@ -844,23 +835,23 @@ fn minor_trickery(npc_id: usize, state: &mut GameState, game_obj_db: &mut GameOb
     // if they are injured and near the player, they will blink away 50% of the time (this check is cut-n-pasted from minor_black_magic...)
     if  (npc_hp.0 as f32 / npc_hp.1 as f32) < 0.33 && distance <= 3.0 && rand::thread_rng().gen_range(0.0, 1.0) < 0.5 {
         let s = format!("{} blinks away!", npc_name.capitalize());
-        gui.update(&s, false, Some(&sbi));
+        state.msg_buff.push_back(s);
         effects::apply_effects(state, npc_id, game_obj_db, effects::EF_BLINK);
         return true;
     }
 
     if sees_player && !invisible && rand::thread_rng().gen_range(0.0, 1.0) < 0.33 {
         let s = format!("{} disappears!", npc_name.capitalize());
-        gui.update(&s, false, Some(&sbi));
+        state.msg_buff.push_back(s);
         effects::add_status(npc, Status::Invisible(state.turn + rand::thread_rng().gen_range(5, 8)));
         return true;
     }
 
     if !cast_phantasm && adj && !invisible && rand::thread_rng().gen_range(0.0, 1.0) < 0.33 {
         // create three phantasm duplicates
-        create_phantasm(npc_id, state, game_obj_db, player_loc, gui);
-        create_phantasm(npc_id, state, game_obj_db, player_loc, gui);
-        create_phantasm(npc_id, state, game_obj_db, player_loc, gui);
+        create_phantasm(npc_id, state, game_obj_db, player_loc);
+        create_phantasm(npc_id, state, game_obj_db, player_loc);
+        create_phantasm(npc_id, state, game_obj_db, player_loc);
 
         let npc = game_obj_db.npc(npc_id).unwrap();
         effects::add_status(npc, Status::CoolingDown(AB_CREATE_PHANTASM, state.turn + 10));
@@ -880,16 +871,16 @@ fn special_move(npc_id: usize, state: &mut GameState, game_obj_db: &mut GameObje
     if attributes & MA_WEBSLINGER > 0 && sees_player && !adj {
         let d = util::distance(npc_loc.0, npc_loc.1, player_loc.0, player_loc.1);
         if d < 5.0 && rand::thread_rng().gen_range(0.0, 1.0) < 0.33 {
-            spin_webs(state, game_obj_db, player_loc, npc_name, difficulty, gui);
+            spin_webs(state, game_obj_db, player_loc, npc_name, difficulty);
             return true;
         }
     }
 
-    if attributes & MA_MINOR_BLACK_MAGIC > 0 && minor_black_magic(npc_id, state, game_obj_db, player_loc, sees_player, adj, gui) {
+    if attributes & MA_MINOR_BLACK_MAGIC > 0 && minor_black_magic(npc_id, state, game_obj_db, player_loc, sees_player, adj) {
         return true;        
     }
 
-    if attributes & MA_MINOR_TRICKERY > 0 && minor_trickery(npc_id, state, game_obj_db, player_loc, sees_player, adj, gui) {
+    if attributes & MA_MINOR_TRICKERY > 0 && minor_trickery(npc_id, state, game_obj_db, player_loc, sees_player, adj) {
         return true;
     }
 

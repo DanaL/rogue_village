@@ -114,7 +114,7 @@ fn fill_flask(state: &mut GameState, game_obj_db: &mut GameObjectDB) {
                     } else {
                         "\"Please drink and adventure responsibly!\""
                     };
-                    state.msg_buff.push_back(s);
+                    state.msg_buff.push_back(s.to_string());
                     return;
                 }
             }
@@ -126,7 +126,7 @@ fn fill_flask(state: &mut GameState, game_obj_db: &mut GameObjectDB) {
     } else {
         "\"You don't have anything to carry it in.\""
     };
-    state.msg_buff.push_back(s);
+    state.msg_buff.push_back(s.to_string());
 }
 
 fn buy_round(state: &mut GameState, game_obj_db: &mut GameObjectDB, patrons: &Vec<usize>) {
