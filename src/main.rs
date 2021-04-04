@@ -1724,8 +1724,7 @@ fn update_view(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mut 
     let player_vr = player.vision_radius;
     
     //let _fov_start = Instant::now();
-    let visible = fov::visible_sqs(state, player_loc, player_vr, false);
-    
+    let visible = fov::visible_sqs(state, player_loc, player_vr, false);    
     gui.v_matrix = fov_to_tiles(state, game_obj_db, &visible, player_loc);        
     //let _fov_duration = _fov_start.elapsed();
     //println!("Player fov: {:?}", fov_duration);

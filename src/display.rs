@@ -760,8 +760,25 @@ impl<'a, 'b> GameUI<'a, 'b> {
 		}
 	}
 
-	pub fn update(&mut self, msg: &str, clear_msg: bool, sbi: Option<&SidebarInfo>) {		
+	pub fn update(&mut self, msg: &str, clear_msg: bool, sbi: Option<&SidebarInfo>) {	
 		self.messages.push_front(msg.to_string());
+		self.draw_frame("", sbi, true);
+	}
+
+	pub fn update_messages(&mut self, msg_queue: &mut VecDeque<String>, sbi: Option<&SidebarInfo>) {
+		let mut msg = "".to_string();
+		while !msg_queue.is_empty() {
+			let item = msg_queue.pop_front().unwrap();
+			if msg.len() + item.len() + 1 >=  SCREEN_WIDTH as usize - 2 {
+				self.messages.push_front(msg);
+				msg = "".to_string();
+			}
+			if !msg.is_empty() {
+				msg.push(' ');
+			}
+			msg.push_str(&item);
+		}
+		self.messages.push_front(msg);
 		self.draw_frame("", sbi, true);
 	}
 

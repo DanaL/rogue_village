@@ -42,7 +42,6 @@ pub enum DamageType {
 
 pub fn player_attacks(state: &mut GameState, opponent_id: usize, game_obj_db: &mut GameObjectDB, gui: &mut GameUI) {
     let mut rng = rand::thread_rng();
-    let sbi = state.curr_sidebar_info(game_obj_db);
     let npc = game_obj_db.get(opponent_id).unwrap();
     let invisible_opponent = npc.hidden();
 
@@ -81,18 +80,14 @@ pub fn player_attacks(state: &mut GameState, opponent_id: usize, game_obj_db: &m
     let foe = game_obj_db.npc(opponent_id).unwrap();
     if attack_roll >= foe.ac as i8 {
         let s = format!("You hit {}!", foe.npc_name(false));
-        gui.update(&s, false, Some(&sbi));
+        state.msg_buff.push_front(s);
         
         let dmg_roll: u8 = (0..num_dmg_die).map(|_| rng.gen_range(1, weapon_dmg_dice + 1)).sum();
         let dmg_total = dmg_roll as i8 + weapon_attack_bonus + str_mod;    
         if dmg_total > 0 {
             //let monster = npc.npc.as_mut().unwrap();
             foe.damaged(state, dmg_total as u8, dmg_type, 0, "player");
-            if !state.msg_buff.is_empty() {
-                let msg = state.msg_buff.pop_front().unwrap();
-                gui.update(&msg, false, Some(&sbi));
-            }
-
+            
             // I don't know if this is the best spot for this? But for now, if the monsters is no longer
             // alive after the player must have killed it so award xp
             if !foe.alive {
@@ -106,8 +101,11 @@ pub fn player_attacks(state: &mut GameState, opponent_id: usize, game_obj_db: &m
             format!("You miss {}!", foe.npc_name(false))
         };
 
-        gui.update(&s, false, Some(&sbi));
+        state.msg_buff.push_back(s);
     }
+
+    let sbi = state.curr_sidebar_info(game_obj_db);
+    gui.update_messages(&mut state.msg_buff, Some(&sbi));
 
     if xp_earned > 0 {
         let player = game_obj_db.player().unwrap();
