@@ -25,7 +25,6 @@ use super::GameState;
 use crate::battle::DamageType;
 use crate::game_obj::{Ability, GameObject, GameObjectDB, Person};
 use crate::util;
-use std::net::ToSocketAddrs;
 
 pub const EF_MINOR_HEAL: u128     = 0x00000001;
 pub const EF_BLINK: u128          = 0x00000002;
@@ -33,7 +32,7 @@ pub const EF_WEAK_VENOM: u128     = 0x00000004;
 pub const EF_WEAK_BLINDNESS: u128 = 0x00000008;
 
 // Short range, untargeted teleport
-fn blink(state: &mut GameState, obj_id: usize, game_obj_db: &mut GameObjectDB) -> String {
+fn blink(state: &mut GameState, obj_id: usize, game_obj_db: &mut GameObjectDB) {
     let obj = game_obj_db.get_mut(obj_id).unwrap();
     let loc = obj.get_loc();
 
@@ -50,12 +49,11 @@ fn blink(state: &mut GameState, obj_id: usize, game_obj_db: &mut GameObjectDB) -
 
     let mut rng = rand::thread_rng();
     if sqs.is_empty() {
-        "The magic fizzles".to_string()
+        state.msg_buff.push_back("The magic fizzles".to_string());
     } else {
         let landing_spot = sqs.choose(&mut rng).unwrap();
         // I should probably call lands_on_sq() too?
-        game_obj_db.set_to_loc(obj_id, *landing_spot);
-        "".to_string()
+        game_obj_db.set_to_loc(obj_id, *landing_spot);        
     }
 }
 
@@ -66,7 +64,7 @@ fn minor_healing(state: &mut GameState, user: &mut dyn Person) {
 
     let amt = rand::thread_rng().gen_range(5, 11);
     if curr_hp < max_hp {
-        user.add_hp(state, amt);
+        user.add_hp(amt);
     } 
 }
 
@@ -75,8 +73,7 @@ fn weak_venom(state: &mut GameState, victim: &mut dyn Person) {
     victim.damaged(state, dmg, DamageType::Poison, 0, "poison");
 }
 
-pub fn apply_effects(state: &mut GameState, obj_id: usize, game_obj_db: &mut GameObjectDB, effects: u128) -> Option<String> {
-    let mut result = "".to_string();
+pub fn apply_effects(state: &mut GameState, obj_id: usize, game_obj_db: &mut GameObjectDB, effects: u128) {
     if effects & EF_MINOR_HEAL > 0 {
         if let Some(user) = game_obj_db.as_person(obj_id) {
             minor_healing(state, user);
@@ -84,19 +81,13 @@ pub fn apply_effects(state: &mut GameState, obj_id: usize, game_obj_db: &mut Gam
     }
 
     if effects & EF_BLINK > 0 {
-        result = blink(state, obj_id, game_obj_db);
+        blink(state, obj_id, game_obj_db);
     }
 
     if effects & EF_WEAK_VENOM > 0 {
         if let Some(victim) = game_obj_db.as_person(obj_id) {
             weak_venom(state, victim);
         }
-    }
-
-    if !result.is_empty() {
-        Some(result)
-    } else {
-        None
     }
 }
 

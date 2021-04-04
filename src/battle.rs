@@ -88,8 +88,9 @@ pub fn player_attacks(state: &mut GameState, opponent_id: usize, game_obj_db: &m
         if dmg_total > 0 {
             //let monster = npc.npc.as_mut().unwrap();
             foe.damaged(state, dmg_total as u8, dmg_type, 0, "player");
-            if !state.message.is_empty() {
-                gui.update(&state.message, false, Some(&sbi));
+            if !state.msg_buff.is_empty() {
+                let msg = state.msg_buff.pop_front().unwrap();
+                gui.update(&msg, false, Some(&sbi));
             }
 
             // I don't know if this is the best spot for this? But for now, if the monsters is no longer

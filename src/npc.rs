@@ -310,7 +310,7 @@ impl GameObject for NPC {
                 // Illusions go away when their creator dies (I'm assuming here the illusion will only be wired up to listen for the
                 // death of the person who created it)
                 let s = format!("{} vanishes in a puff of mist!", self.npc_name(false).capitalize());
-                state.write_msg_buff(&s);
+                state.msg_buff.push_back(s);
                 self.alive = false;
             }
         }
@@ -323,9 +323,9 @@ impl Person for NPC {
     fn damaged(&mut self, state: &mut GameState, amount: u8, dmg_type: DamageType, assailant_id: usize, _assailant_name: &str) {
         if self.attributes & MA_ILLUSION > 0 {
             if rand::thread_rng().gen_range(0.0, 1.0) <= 0.75 {
-                state.message = String::from("Your weapon seems to pass right through them!");
+                state.msg_buff.push_back("Your weapon seems to pass right through them!".to_string());
             } else {
-                state.message = format!("{} vanishes in a puff of mist!", self.npc_name(false).capitalize());
+                state.msg_buff.push_back(format!("{} vanishes in a puff of mist!", self.npc_name(false).capitalize()));
                 self.alive = false;
                 state.queued_events.push_back((EventType::DeathOf(self.obj_id()), self.get_loc(), self.obj_id(), None));
             }
@@ -343,7 +343,7 @@ impl Person for NPC {
 
         if adjusted_dmg >= curr_hp {
             self.alive = false;
-            state.message = self.death_msg(assailant_id);
+            state.msg_buff.push_back(self.death_msg(assailant_id));
             state.queued_events.push_back((EventType::DeathOf(self.obj_id()), self.get_loc(), self.obj_id(), None));            
         } else {
             self.curr_hp -= adjusted_dmg;
@@ -519,7 +519,7 @@ fn open_door(loc: (i32, i32, i8), state: &mut GameState, npc_name: String, game_
     
 }
 
-fn unlock_door(loc: (i32, i32, i8), state: &mut GameState, npc_name: String, game_obj_db: &mut GameObjectDB, gui: & GameUI) {
+fn unlock_door(loc: (i32, i32, i8), state: &mut GameState, npc_name: String, game_obj_db: &mut GameObjectDB, gui: &mut GameUI) {
     state.map.insert(loc, Tile::Door(DoorState::Closed));
     let sbi = state.curr_sidebar_info(game_obj_db);
     let s = format!("{} fiddles with the lock.", npc_name);
@@ -780,7 +780,7 @@ fn minor_black_magic(npc_id: usize, state: &mut GameState, game_obj_db: &mut Gam
     false
 }
 
-fn create_phantasm(npc_id: usize, state: &mut GameState, game_obj_db: &mut GameObjectDB, centre: (i32, i32, i8), gui: &GameUI) {
+fn create_phantasm(npc_id: usize, state: &mut GameState, game_obj_db: &mut GameObjectDB, centre: (i32, i32, i8), gui: &mut GameUI) {
     let mut options = Vec::new();
     for adj in util::ADJ.iter() {
         let loc = (centre.0 + adj.0, centre.1 + adj.1, centre.2);
@@ -821,6 +821,7 @@ fn create_phantasm(npc_id: usize, state: &mut GameState, game_obj_db: &mut GameO
 }
 
 fn minor_trickery(npc_id: usize, state: &mut GameState, game_obj_db: &mut GameObjectDB, player_loc: (i32, i32, i8), sees_player: bool, adj: bool, gui: &mut GameUI) -> bool {
+    let sbi = state.curr_sidebar_info(game_obj_db);
     let npc = game_obj_db.npc(npc_id).unwrap();
     let npc_loc = npc.get_loc();
     let npc_hp = npc.get_hp();
@@ -840,7 +841,6 @@ fn minor_trickery(npc_id: usize, state: &mut GameState, game_obj_db: &mut GameOb
         }
     }
 
-    let sbi = state.curr_sidebar_info(game_obj_db);
     // if they are injured and near the player, they will blink away 50% of the time (this check is cut-n-pasted from minor_black_magic...)
     if  (npc_hp.0 as f32 / npc_hp.1 as f32) < 0.33 && distance <= 3.0 && rand::thread_rng().gen_range(0.0, 1.0) < 0.5 {
         let s = format!("{} blinks away!", npc_name.capitalize());

@@ -115,10 +115,10 @@ impl Player {
         // This should be here and is a dumb calculation because vision radius will be
         // affected by say torches. It should be moved to end-of-turn stuff in the gameloop
         if prev_vr == 99 && self.vision_radius == 9 && loc.2 == 0 {
-            state.write_msg_buff("The sun is beginning to set.");
+            state.msg_buff.push_back("The sun is beginning to set.".to_string());
         }
         if prev_vr == 5 && self.vision_radius == 7 && loc.2 == 0 {
-            state.write_msg_buff("Sunrise soon.");
+            state.msg_buff.push_back("Sunrise soon.".to_string());
         }
     }
 
@@ -608,7 +608,7 @@ impl Person for Player {
         }
 
         if dmg_type == DamageType::Poison {
-            state.write_msg_buff("You feel ill.");
+            state.msg_buff.push_back("You feel ill.".to_string());            
         }
     }
 

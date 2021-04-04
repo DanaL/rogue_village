@@ -147,7 +147,7 @@ impl SpecialSquare {
 	fn handle_triggered_event(&mut self, state: &mut GameState, loc: (i32, i32, i8), obj_id: usize) {
 		if let Tile::Gate(_) = self.tile {
 			self.active = !self.active;
-			state.write_msg_buff("You hear a metallic grinding.");
+			state.msg_buff.push_back("You hear a metallic grinding.".to_string());
 			if self.active {
 				state.queued_events.push_back((EventType::GateClosed, loc, obj_id, None));
 				state.map.insert(loc, Tile::Gate(DoorState::Closed));
@@ -170,10 +170,10 @@ impl SpecialSquare {
 
 	fn stepped_on(&mut self, state: &mut GameState, obj_id: usize) -> Option<EventResponse> {
 		if self.tile == Tile::TeleportTrap {
-			state.write_msg_buff("A feeling of vertigo!");
+			state.msg_buff.push_back("A feeling of vertigo.".to_string());
 			return Some(EventResponse::new(obj_id, EventType::TrapRevealed));
 		}  else {
-			state.write_msg_buff("Click.");
+			state.msg_buff.push_back("Click.".to_string());
 			self.active = !self.active;
 
 			if let Some(target) = self.target {

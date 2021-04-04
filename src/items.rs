@@ -338,21 +338,21 @@ impl GameObject for Item {
 						format!("The {} flickers.", self.base_info.name)
 					};
 					self.aura -= 2;
-					state.write_msg_buff(&s);
+                    state.msg_buff.push_back(s.to_string());
 				} else if self.charges == 25 {
 					let s = if self.get_loc() == PLAYER_INV {
 						format!("Your {} seems about to go out.", self.base_info.name)					
 					} else {
 						format!("The {} seems about to out.", self.base_info.name)
 					};
-					state.write_msg_buff(&s);
+                    state.msg_buff.push_back(s.to_string());                    
 				} else if self.charges == 0 {
 					let s = if self.get_loc() == PLAYER_INV {
 						format!("Your {} has gone out!", self.base_info.name)					
 					} else {
 						format!("The {} has gone out!", self.base_info.name)
 					};
-					state.write_msg_buff(&s);
+                    state.msg_buff.push_back(s.to_string());
 
                     let er = EventResponse::new(self.obj_id(), EventType::LightExpired);
 					return Some(er);

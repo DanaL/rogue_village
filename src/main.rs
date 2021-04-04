@@ -129,7 +129,6 @@ pub enum Cmd {
 
 #[derive(Serialize, Deserialize)]
 pub struct GameState {
-    message: String,
     msg_buff: VecDeque<String>,
     msg_history: VecDeque<(String, u32)>,
     map: Map,
@@ -145,7 +144,6 @@ pub struct GameState {
 impl GameState {
     pub fn init(map: Map, world_info: WorldInfo) -> GameState {
         GameState {
-            message: String::from(""),
             msg_buff: VecDeque::new(),
             msg_history: VecDeque::new(),
             map,
@@ -168,15 +166,6 @@ impl GameState {
 
         if self.msg_history.len() > MSG_HISTORY_LENGTH {
             self.msg_history.pop_back();
-        }
-    }
-
-    fn _write_msg_buff(&mut self, msg: &str) {
-        let s = String::from(msg);
-        self.msg_buff.push_back(s);
-
-        if !msg.is_empty() {
-            self.add_to_msg_history(msg);
         }
     }
 
@@ -503,12 +492,12 @@ fn drop_item(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mut Ga
 
 fn search_loc(state: &mut GameState, roll: u8, loc: (i32, i32, i8), game_obj_db: &mut GameObjectDB, gui: &mut GameUI) {
     let things:Vec<usize> = game_obj_db.hidden_at_loc(loc);
+    let sbi = state.curr_sidebar_info(game_obj_db);
 
     for obj_id in &things {
         if roll >= 15 {
             let t = game_obj_db.get_mut(*obj_id).unwrap();
-            let s = format!("You find {}!", t.get_fullname().with_indef_article());
-            let sbi = state.curr_sidebar_info(game_obj_db);
+            let s = format!("You find {}!", t.get_fullname().with_indef_article());            
             gui.update(&s, false, Some(&sbi));
             t.reveal();
         }
@@ -632,8 +621,9 @@ fn pick_up(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mut Game
     0.0
 }
 
-fn toggle_item(state: &mut GameState, player: &mut Player, slot: char, game_obj_db: &mut GameObjectDB, gui: &mut GameUI) -> f32 {
+fn toggle_item(state: &mut GameState, slot: char, game_obj_db: &mut GameObjectDB, gui: &mut GameUI) -> f32 {
     let sbi = state.curr_sidebar_info(game_obj_db);
+    let player = game_obj_db.player().unwrap();
     let obj = player.inv_item_in_slot(slot).unwrap();
     let obj_id = obj.obj_id();
     let (equipable, item_type, attributes) = if let GameObjects::Item(item) = &obj {
@@ -711,10 +701,10 @@ fn toggle_item(state: &mut GameState, player: &mut Player, slot: char, game_obj_
 }
 
 fn toggle_equipment(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mut GameUI) -> f32 {
+    let sbi = state.curr_sidebar_info(game_obj_db);
     let player = game_obj_db.player().unwrap();
     let slots = player.inv_slots_used();
-    let sbi = state.curr_sidebar_info(game_obj_db);
-
+    
     if slots.is_empty() {
         gui.update("You are empty handed.", false, Some(&sbi));
         return 0.0;
@@ -726,7 +716,7 @@ fn toggle_equipment(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: 
             gui.update("You do not have that item!", false, Some(&sbi));
             0.0
         } else {
-            toggle_item(state, player, ch, game_obj_db, gui)
+            toggle_item(state, ch, game_obj_db, gui)
         }
     } else {
         gui.update("Never mind.", false, Some(&sbi));
@@ -785,7 +775,9 @@ fn use_item(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mut Gam
             }
 
             if effects > 0 {
-                if let Some(msg) = effects::apply_effects(state, 0, game_obj_db, effects) {
+                effects::apply_effects(state, 0, game_obj_db, effects);
+                while !state.msg_buff.is_empty() {
+                    let msg = state.msg_buff.pop_front().unwrap();
                     gui.update(&msg, false, Some(&sbi));
                 }
             }
@@ -1585,8 +1577,10 @@ fn run_game_loop(gui: &mut GameUI, state: &mut GameState, game_obj_db: &mut Game
             }
             
             if effects > 0 {
-                if let Some(msg) = effects::apply_effects(state, 0, game_obj_db, effects) {
-                    let sbi = state.curr_sidebar_info(game_obj_db);
+                let sbi = state.curr_sidebar_info(game_obj_db);
+                effects::apply_effects(state, 0, game_obj_db, effects);
+                while !state.msg_buff.is_empty() {
+                    let msg = state.msg_buff.pop_front().unwrap();
                     gui.update(&msg, false, Some(&sbi));
                 }
             }
