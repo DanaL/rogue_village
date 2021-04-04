@@ -40,7 +40,7 @@ pub enum DamageType {
     Poison,
 }
 
-pub fn player_attacks(state: &mut GameState, opponent_id: usize, game_obj_db: &mut GameObjectDB, gui: &mut GameUI) {
+pub fn player_attacks(state: &mut GameState, opponent_id: usize, game_obj_db: &mut GameObjectDB) {
     let mut rng = rand::thread_rng();
     let npc = game_obj_db.get(opponent_id).unwrap();
     let invisible_opponent = npc.hidden();
@@ -105,8 +105,7 @@ pub fn player_attacks(state: &mut GameState, opponent_id: usize, game_obj_db: &m
     }
 
     let sbi = state.curr_sidebar_info(game_obj_db);
-    gui.update_messages(&mut state.msg_buff, Some(&sbi));
-
+    
     if xp_earned > 0 {
         let player = game_obj_db.player().unwrap();
         player.add_xp(xp_earned, state, (0, 0, 0));
@@ -134,7 +133,7 @@ pub fn monster_attacks_player(state: &mut GameState, monster_id: usize, game_obj
     
     if attack_roll >= player.ac {
         let s = format!("{} hits you!", monster_name.capitalize());
-        gui.update(&s, false, Some(&sbi));
+        state.msg_buff.push_back(s);
         let dmg_roll: u8 = (0..dmg_dice).map(|_| rng.gen_range(1, dmg_die + 1)).sum();
         let dmg_total = (dmg_roll + dmg_bonus) as i8;
         if dmg_total > 0 {
@@ -145,18 +144,18 @@ pub fn monster_attacks_player(state: &mut GameState, monster_id: usize, game_obj
             if monster_attributes & npc::MA_WEAK_VENOMOUS > 0 {
                 let con_save = player.ability_check(Ability::Con);
                 if con_save <= monster_dc {                    
-                    gui.update("You feel ill.", false, Some(&sbi));
+                    state.msg_buff.push_back("You feel ill.".to_string())
                     effects::add_status(player, Status::WeakVenom(monster_dc));
                 }
             }
         }
     } else {
         let s = format!("{} misses you!", monster_name.capitalize());
-        gui.update(&s, false, Some(&sbi));        
+        state.msg_buff.push_back(s);
     }
 }
 
-pub fn knock_back(state: &mut GameState, game_obj_db: &mut GameObjectDB, target_loc: (i32, i32, i8), gui: &mut GameUI) {
+pub fn knock_back(state: &mut GameState, game_obj_db: &mut GameObjectDB, target_loc: (i32, i32, i8)) {
     let sbi = state.curr_sidebar_info(game_obj_db);
     let p = game_obj_db.player().unwrap();
     let player_size = p.size();
@@ -171,30 +170,30 @@ pub fn knock_back(state: &mut GameState, game_obj_db: &mut GameObjectDB, target_
 
     if target_size > player_size {
         let s = format!("You fruitlessly hurl yourself at {}.", target_name);
-        gui.update(&s, false, Some(&sbi));
+        state.msg_buff.push_back(s);
     } else if str_check > target_str_check {
         let d = (target_loc.0 - player_loc.0, target_loc.1 - player_loc.1, target_loc.2 - player_loc.2);
         let new_loc = (target_loc.0 + d.0, target_loc.1 + d.1, target_loc.2 + d.2);
         
         let s = format!("You bash {}!", target_name);
-        gui.update(&s, false, Some(&sbi));
+        state.msg_buff.push_back(s);
         
         if !state.map[&new_loc].passable() {
             let s = format!("{} does not move.", target_name.capitalize());
-            gui.update(&s, false, Some(&sbi));            
+            state.msg_buff.push_back(s);
         } else if let Some(bystander_id) = game_obj_db.npc_at(&new_loc) {
             let bystander = game_obj_db.npc(bystander_id).unwrap();
             let name = bystander.npc_name(false);
             let s = format!("{} blunders into {}!", target_name.capitalize(), name);
-            gui.update(&s, false, Some(&sbi));            
+            state.msg_buff.push_back(s);
         } else {
             let s = format!("{} staggers back!", target_name.capitalize());
-            gui.update(&s, false, Some(&sbi));
-            super::take_step(state, game_obj_db, npc_id, target_loc, new_loc, gui);
+            state.msg_buff.push_back(s);
+            super::take_step(state, game_obj_db, npc_id, target_loc, new_loc);
             state.animation_pause = true;
         }
     } else {
         let s = util::format_msg(npc_id, "hold", "[pronoun] ground!", game_obj_db);
-        gui.update(&s, false, Some(&sbi));        
+        state.msg_buff.push_back(s);
     }
 }
