@@ -139,6 +139,7 @@ pub struct GameState {
     aura_sqs: HashSet<(i32, i32, i8)>, // areas of special effects
     queued_events: VecDeque<(EventType, (i32, i32, i8), usize, Option<String>)>, // events queue during a turn that should be resolved at the end of turn
     animation_pause: bool,
+    altered_sqs: HashSet<(i32, i32, i8)>,
 }
 
 impl GameState {
@@ -154,6 +155,7 @@ impl GameState {
             aura_sqs: HashSet::new(),
             queued_events: VecDeque::new(),
             animation_pause: false,
+            altered_sqs: HashSet::new(),
         }
     }
 

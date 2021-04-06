@@ -498,7 +498,6 @@ pub fn talk_to_grocer(state: &mut GameState, grocer_id: usize, game_obj_db: &mut
     }
 
     if made_purchase {
-        let sbi = state.curr_sidebar_info(game_obj_db);
         state.msg_buff.push_back("\"Thank you for supporting small businesses!\"".to_string());        
     }
 }
@@ -602,7 +601,6 @@ pub fn talk_to_smith(state: &mut GameState, smith_id: usize, game_obj_db: &mut G
     let options: HashSet<char> = vec!['a', 'b'].into_iter().collect();
     let mut made_purchase = false;
     let answer = gui.popup_menu(&name, &msg, &options, Some(&sbi));
-    let sbi = state.curr_sidebar_info(game_obj_db);
     if let Some(ch) = answer {
         if ch == 'a' {
             made_purchase = purchase_from_smith(state, smith_id, name.clone(), &preamble, game_obj_db, gui);

@@ -605,14 +605,15 @@ impl GameObjectDB {
             // only update monsters on the surface or on the same level as the player. (Who knows, in
             // the end maybe it'll be fast enough to always update 100s of monsters..)
             let curr_dungeon_level =  player_loc.2;      
-            if npc_loc.2 == 0 || npc_loc.2 == curr_dungeon_level {                
-                npc::take_turn(npc_id, state, self, gui);                
+            if npc_loc.2 == 0 || npc_loc.2 == curr_dungeon_level {    
+                state.altered_sqs.clear();            
+                npc::take_turn(npc_id, state, self);                
             }
 
             // // Was the npc killed during their turn?
             let npc = self.npc(npc_id).unwrap();
             effects::check_statuses(npc, state);
-            let is_alive = npc.alive;                
+            let is_alive = npc.alive;
             if !is_alive {
                 self.clear_dead_npc(npc_id);
             }

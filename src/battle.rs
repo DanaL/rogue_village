@@ -20,7 +20,6 @@ use rand::Rng;
 use serde::{Serialize, Deserialize};
 
 use super::{GameObject, GameState, Status};
-use crate::display::GameUI;
 use crate::effects;
 use crate::npc;
 use crate::player;
@@ -103,8 +102,6 @@ pub fn player_attacks(state: &mut GameState, opponent_id: usize, game_obj_db: &m
 
         state.msg_buff.push_back(s);
     }
-
-    let sbi = state.curr_sidebar_info(game_obj_db);
     
     if xp_earned > 0 {
         let player = game_obj_db.player().unwrap();
@@ -155,7 +152,6 @@ pub fn monster_attacks_player(state: &mut GameState, monster_id: usize, game_obj
 }
 
 pub fn knock_back(state: &mut GameState, game_obj_db: &mut GameObjectDB, target_loc: (i32, i32, i8)) {
-    let sbi = state.curr_sidebar_info(game_obj_db);
     let p = game_obj_db.player().unwrap();
     let player_size = p.size();
     let player_loc = p.base_info.location;
