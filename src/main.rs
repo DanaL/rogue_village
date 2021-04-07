@@ -127,6 +127,12 @@ pub enum Cmd {
     WizardCommand,
 }
 
+#[derive(Debug)]
+pub struct ConfigOptions {
+    font_size: u16,
+    sm_font_size: u16,
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct Message {
     obj_id: usize,
@@ -1760,15 +1766,42 @@ fn update_view(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mut 
     //println!("Time for write_screen(): {:?}", write_screen_duration); 
 }
 
+fn fetch_config_options() -> ConfigOptions {
+    match fs::read_to_string("options") {
+        Ok(contents) => {
+            let mut co = ConfigOptions { font_size: 24, sm_font_size: 18 };
+            let lines = contents.split('\n').collect::<Vec<&str>>();
+
+            for line in lines.iter() {
+                let pieces = line.split('=').collect::<Vec<&str>>();
+                if pieces[0] == "font_size" {
+                    co.font_size = pieces[1].parse::<u16>().unwrap()
+                }
+                if pieces[0] == "sm_font_size" {
+                    co.sm_font_size = pieces[1].parse::<u16>().unwrap();
+                }
+            }
+
+            co
+        },
+        Err(_) => ConfigOptions { font_size: 24, sm_font_size: 18 },
+    }
+    //let contents = fs::read_to_string("options")
+    //    .expect("Unable to find building templates file!");
+    //let lines = contents.split('\n').collect::<Vec<&str>>();
+}
+
 fn main() {
+    let opts = fetch_config_options();
+    
     // It bugs me aesthetically that I can't move creating the font contexts into the 
     // constructor for GameUI. But the borrow check loses its shit whenever I try.
     let ttf_context = sdl2::ttf::init()
         .expect("Error creating ttf context on start-up!");
     let font_path: &Path = Path::new("DejaVuSansMono.ttf");
-    let font = ttf_context.load_font(font_path, 24)
+    let font = ttf_context.load_font(font_path, opts.font_size)
         .expect("Error loading game font!");
-    let sm_font = ttf_context.load_font(font_path, 18)
+    let sm_font = ttf_context.load_font(font_path, opts.sm_font_size)
         .expect("Error loading small game font!");
     let mut gui = GameUI::init(&font, &sm_font)
         .expect("Error initializing GameUI object.");
