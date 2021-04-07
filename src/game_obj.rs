@@ -606,7 +606,6 @@ impl GameObjectDB {
             // the end maybe it'll be fast enough to always update 100s of monsters..)
             let curr_dungeon_level =  player_loc.2;      
             if npc_loc.2 == 0 || npc_loc.2 == curr_dungeon_level {    
-                state.altered_sqs.clear();            
                 npc::take_turn(npc_id, state, self);                
             }
 

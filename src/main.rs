@@ -128,6 +128,35 @@ pub enum Cmd {
 }
 
 #[derive(Serialize, Deserialize)]
+pub struct Message {
+    obj_id: usize,
+    loc: (i32, i32, i8),
+    name: String,
+    text: String,
+    resolve_pronoun: bool,
+    noise: bool,
+}
+
+impl Message {
+    pub fn new(obj_id: usize, loc: (i32, i32, i8), name: &str, text: &str, resolve_pronoun: bool, noise: bool) -> Message {
+        Message { obj_id, loc, name: String::from(name), text: String::from(text), resolve_pronoun, noise }
+    }
+
+    pub fn resolve(&self, state: &GameState, game_obj_db: &mut GameObjectDB) -> String {
+        let player_loc = game_obj_db.player().unwrap().get_loc();
+
+        if self.resolve_pronoun && state.curr_visible.contains(&self.loc) {
+            //let s = format!(self.text, name);
+            //s
+        } else if self.noise && self.loc.2 == player_loc.2 && util::distance(player_loc.0, player_loc.1, self.loc.0, self.loc.1) <= 15.0 {
+            //let s = format!(self.text, "Something")
+        }
+
+        "".to_string()
+    }
+}
+
+#[derive(Serialize, Deserialize)]
 pub struct GameState {
     msg_buff: VecDeque<String>,
     msg_history: VecDeque<(String, u32)>,
@@ -139,7 +168,7 @@ pub struct GameState {
     aura_sqs: HashSet<(i32, i32, i8)>, // areas of special effects
     queued_events: VecDeque<(EventType, (i32, i32, i8), usize, Option<String>)>, // events queue during a turn that should be resolved at the end of turn
     animation_pause: bool,
-    altered_sqs: HashSet<(i32, i32, i8)>,
+    curr_visible: HashSet<(i32, i32, i8)>,
 }
 
 impl GameState {
@@ -155,7 +184,7 @@ impl GameState {
             aura_sqs: HashSet::new(),
             queued_events: VecDeque::new(),
             animation_pause: false,
-            altered_sqs: HashSet::new(),
+            curr_visible: HashSet::new(),
         }
     }
 
@@ -1712,7 +1741,12 @@ fn update_view(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mut 
     let player_vr = player.vision_radius;
     
     //let _fov_start = Instant::now();
-    let visible = fov::visible_sqs(state, player_loc, player_vr, false);    
+    let visible = fov::visible_sqs(state, player_loc, player_vr, false);
+    state.curr_visible = visible.iter()
+                                .filter(|sq| sq.1)
+                                .map(|sq| sq.0)
+                                .collect();
+    
     gui.v_matrix = fov_to_tiles(state, game_obj_db, &visible, player_loc);        
     //let _fov_duration = _fov_start.elapsed();
     //println!("Player fov: {:?}", fov_duration);
