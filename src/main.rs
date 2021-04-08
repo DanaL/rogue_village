@@ -1108,18 +1108,23 @@ pub fn take_step(state: &mut GameState, game_obj_db: &mut GameObjectDB, obj_id: 
             teleport = true;
         }
     }
-    if teleport {
+    if teleport {        
         let sq = random_open_sq(state, game_obj_db, start_loc.2);
         game_obj_db.set_to_loc(obj_id, sq);                
+        if obj_id == 0 {
+            state.msg_queue.push_back(Message::new(0, sq, "You have a feeling of vertigo!", "You have a feeling of vertigo!"));
+        } else {
+            let npc = game_obj_db.npc(obj_id).unwrap();
+            let s = format!("{} disappears!", npc.npc_name(false).capitalize());
+            state.msg_queue.push_back(Message::new(0, sq, &s, ""));
+        }
     }
 
     return (1.0, true);
 }
 
 fn do_move(state: &mut GameState, game_obj_db: &mut GameObjectDB, dir: &str, gui: &mut GameUI) -> f32 {
-    let mv = get_move_tuple(dir);
-    let sbi = state.curr_sidebar_info(game_obj_db);
-
+    let mv = get_move_tuple(dir);    
     let start_loc = game_obj_db.get(0).unwrap().get_loc();
     let start_tile = state.map[&start_loc];
     let next_loc = (start_loc.0 + mv.0, start_loc.1 + mv.1, start_loc.2);
@@ -1135,26 +1140,26 @@ fn do_move(state: &mut GameState, game_obj_db: &mut GameObjectDB, dir: &str, gui
         }
 
         match tile {
-            Tile::Water => state.msg_buff.push_back("You splash in the shallow water.".to_string()),
+            Tile::Water => state.msg_queue.push_back(Message::new(0, next_loc, "You splash in the shallow water.", "You splash in the shallow water.")),
             Tile::DeepWater => {
                 if start_tile != Tile::DeepWater {
-                    state.msg_buff.push_back("You wade into the flow.".to_string());                    		
+                    state.msg_queue.push_back(Message::new(0, next_loc, "You wade into the flow.", "You wade into the flow."))
                 }
             },
-            Tile::Well => state.msg_buff.push_back("A well.".to_string()),
-            Tile::Lava => state.msg_buff.push_back("MOLTEN LAVA!".to_string()),
-            Tile::FirePit => state.msg_buff.push_back("You step into the fire!".to_string()),
-            Tile::OldFirePit(n) => state.msg_buff.push_back(firepit_msg(n).to_string()),
-            Tile::Portal => state.msg_buff.push_back("Where could this lead?".to_string()),
+            Tile::Well => state.msg_queue.push_back(Message::new(0, next_loc, "There is a well here.", "There is a well here.")),
+            Tile::Lava => state.msg_queue.push_back(Message::new(0, next_loc, "MOLTEN LAVA!", "MOLTEN LAVA!")),
+            Tile::FirePit => state.msg_queue.push_back(Message::new(0, next_loc, "You've stepped in the fire!", "You've stepped in the fire!")),
+            Tile::OldFirePit(n) => state.msg_queue.push_back(Message::new(0, next_loc, firepit_msg(n), "You feel the remains of an old firepit.")),
+            Tile::Portal => state.msg_queue.push_back(Message::new(0, next_loc, "Where could this lead?", "")),
             Tile::Shrine(stype) => {
                 match stype {
-                    ShrineType::Woden =>state.msg_buff.push_back("A shrine to Woden.".to_string()),
-                    ShrineType::Crawler => state.msg_buff.push_back("The misshapen altar makes your skin crawl.".to_string()),
+                    ShrineType::Woden => state.msg_queue.push_back(Message::new(0, next_loc, "A shrine to Woden.", "")),
+                    ShrineType::Crawler => state.msg_queue.push_back(Message::new(0, next_loc, "The misshappen altar makes your skin crawl.", "You have a feeling of unease.")),
                 }
             },
             _ => {
                 if state.aura_sqs.contains(&next_loc) && !state.aura_sqs.contains(&start_loc) {
-                    state.msg_buff.push_back("You feel a sense of peace.".to_string())             
+                    state.msg_queue.push_back(Message::new(0, next_loc, "You feel a sense of peace.", "You feel a sense of peace."))
                 }
             },            
         }
@@ -1162,13 +1167,14 @@ fn do_move(state: &mut GameState, game_obj_db: &mut GameObjectDB, dir: &str, gui
         let items = game_obj_db.descs_at_loc(&next_loc);
         let item_count = items.len();                        
         if item_count == 1 {
-            let s = format!("You see {} here.", items[0]);
-            state.msg_buff.push_back(s);
+            let s1 = format!("You see {} here.", items[0]);
+            let s2 = format!("You feel {} here.", items[0]);
+            state.msg_queue.push_back(Message::new(0, next_loc, &s1, &s2));
         } else if item_count == 2 {
             let s = format!("You see {} and {} here.", items[0], items[1]);
-            state.msg_buff.push_back(s);
+            state.msg_queue.push_back(Message::new(0, next_loc, &s, "There is something on the ground."));            
         } else if item_count > 2 {
-            state.msg_buff.push_back("There are several items here.".to_string())
+            state.msg_queue.push_back(Message::new(0, next_loc, "There are several items here.", "You feel several items on the ground."));
         }
         
         return cost;
@@ -1177,12 +1183,12 @@ fn do_move(state: &mut GameState, game_obj_db: &mut GameObjectDB, dir: &str, gui
         do_open(state, next_loc, game_obj_db);
         return 1.0;
     } else if tile == Tile::Door(DoorState::Locked) {  
-        state.msg_buff.push_back("The door is locked.".to_string());
+        state.msg_queue.push_back(Message::new(0, next_loc, "You door is locked.", "The door is locked."));
         return 1.0;
     } else if tile == Tile::Gate(DoorState::Closed) || tile == Tile::Gate(DoorState::Locked) {
-        state.msg_buff.push_back("A portcullis bars your way.".to_string())
+        state.msg_queue.push_back(Message::new(0, next_loc, "A portcullis bars your way.", "A portcullis bars your way."));        
     } else  {
-        state.msg_buff.push_back("You cannot go that way.".to_string())
+        state.msg_queue.push_back(Message::new(0, next_loc, "You cannot go that way.", "You cannot go that way."));
     }
 
     0.0
