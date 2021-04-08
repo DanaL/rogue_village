@@ -865,8 +865,8 @@ pub fn generate_world(game_obj_db: &mut GameObjectDB, monster_fac: &MonsterFacto
     println!("Found a good dungeon entrance");
 
     let dungeon_start = Instant::now();
-    build_dungeon(&mut world_info, &mut map, dungeon_entrance, game_obj_db, monster_fac);
-    //build_test_dungeon(&mut world_info, &mut map, dungeon_entrance, game_obj_db, monster_fac);
+    //build_dungeon(&mut world_info, &mut map, dungeon_entrance, game_obj_db, monster_fac);
+    build_test_dungeon(&mut world_info, &mut map, dungeon_entrance, game_obj_db, monster_fac);
     let dungeon_end = dungeon_start.elapsed();
     println!("Time to make dungeon: {:?}", dungeon_end);
 

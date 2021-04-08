@@ -24,7 +24,7 @@ use rand::thread_rng;
 use rand::Rng;
 use serde::{Serialize, Deserialize};
 
-use super::{EventResponse, EventType, GameState, Status};
+use super::{EventResponse, EventType, GameState, Message, Status};
 
 use crate::battle;
 use crate::battle::DamageType;
@@ -309,7 +309,8 @@ impl GameObject for NPC {
                 // Illusions go away when their creator dies (I'm assuming here the illusion will only be wired up to listen for the
                 // death of the person who created it)
                 let s = format!("{} vanishes in a puff of mist!", self.npc_name(false).capitalize());
-                state.msg_buff.push_back(s);
+                let msg = Message::new(self.obj_id(), self.get_loc(), &s, "");
+                state.msg_queue.push_back(msg);
                 self.alive = false;
             }
         }
@@ -322,9 +323,12 @@ impl Person for NPC {
     fn damaged(&mut self, state: &mut GameState, amount: u8, dmg_type: DamageType, assailant_id: usize, _assailant_name: &str) {
         if self.attributes & MA_ILLUSION > 0 {
             if rand::thread_rng().gen_range(0.0, 1.0) <= 0.75 {
-                state.msg_buff.push_back("Your weapon seems to pass right through them!".to_string());
+                let msg = Message::new(self.obj_id(), self.get_loc(), "Your weapon seems to pass right through them!", "");
+                state.msg_queue.push_back(msg);
             } else {
-                state.msg_buff.push_back(format!("{} vanishes in a puff of mist!", self.npc_name(false).capitalize()));
+                let s = format!("{} vanishes in a puff of mist!", self.npc_name(false).capitalize());
+                let msg = Message::new(self.obj_id(), self.get_loc(), &s, "");
+                state.msg_queue.push_back(msg);
                 self.alive = false;
                 state.queued_events.push_back((EventType::DeathOf(self.obj_id()), self.get_loc(), self.obj_id(), None));
             }
@@ -342,7 +346,9 @@ impl Person for NPC {
 
         if adjusted_dmg >= curr_hp {
             self.alive = false;
-            state.msg_buff.push_back(self.death_msg(assailant_id));
+            let msg = Message::new(self.obj_id(), self.get_loc(), &self.death_msg(assailant_id), "You think you've landed a fatal blow!");
+            state.msg_queue.push_back(msg);
+            
             state.queued_events.push_back((EventType::DeathOf(self.obj_id()), self.get_loc(), self.obj_id(), None));            
         } else {
             self.curr_hp -= adjusted_dmg;
@@ -510,16 +516,18 @@ fn hunt_player(npc_id: usize, npc_loc: (i32, i32, i8), state: &mut GameState, ga
     follow_plan(npc_id, state, game_obj_db);     
 }
 
-fn open_door(loc: (i32, i32, i8), state: &mut GameState, npc_name: String) {
+fn open_door(npc_id: usize, loc: (i32, i32, i8), npc_loc: (i32, i32, i8), state: &mut GameState, npc_name: String) {
     state.map.insert(loc, Tile::Door(DoorState::Open));
     let s = format!("{} opens the door.", npc_name);
-    state.msg_buff.push_back(s);
+    let msg = Message::new(npc_id, npc_loc, &s, "You hear a door open.");
+    state.msg_queue.push_back(msg);
 }
 
-fn unlock_door(loc: (i32, i32, i8), state: &mut GameState, npc_name: String) {
+fn unlock_door(npc_id: usize, loc: (i32, i32, i8), npc_loc: (i32, i32, i8), state: &mut GameState, npc_name: String) {
     state.map.insert(loc, Tile::Door(DoorState::Closed));
     let s = format!("{} fiddles with the lock.", npc_name);
-    state.msg_buff.push_back(s);
+    let msg = Message::new(npc_id, npc_loc, &s, "Something fiddles with the lock.");
+    state.msg_queue.push_back(msg);
 }
 
 fn close_door(loc: (i32, i32, i8), state: &mut GameState, game_obj_db: &mut GameObjectDB, npc_id: usize, npc_name: String) {
@@ -543,15 +551,16 @@ fn close_door(loc: (i32, i32, i8), state: &mut GameState, game_obj_db: &mut Game
 
 fn follow_plan(npc_id: usize, state: &mut GameState, game_obj_db: &mut GameObjectDB) {
     let npc = game_obj_db.npc(npc_id).unwrap();
+    let npc_loc = npc.get_loc();
     let npc_name = npc.npc_name(false).capitalize();
     let action = npc.plan.pop_front();
 
     if let Some(action) = action {
         match action {
             Action::Move(loc) => try_to_move_to_loc(npc_id, loc, state, game_obj_db),
-            Action::OpenDoor(loc) => open_door(loc, state, npc_name),
+            Action::OpenDoor(loc) => open_door(npc_id, loc, npc_loc, state, npc_name),
             Action::CloseDoor(loc) => close_door(loc, state, game_obj_db, npc_id, npc_name),
-            Action::UnlockDoor(loc) => unlock_door(loc, state, npc_name),
+            Action::UnlockDoor(loc) => unlock_door(npc_id, loc, npc_loc, state, npc_name),
             Action::Attack(_loc) => battle::monster_attacks_player(state, npc_id, game_obj_db),
         }
     }
@@ -578,10 +587,10 @@ fn try_to_move_to_loc(npc_id: usize, goal_loc: (i32, i32, i8), state: &mut GameS
         npc.plan.clear();
     } else if state.map[&goal_loc] == Tile::Door(DoorState::Closed) {
         npc.plan.push_front(Action::Move(goal_loc));
-        open_door(goal_loc, state, npc_name);
+        open_door(npc_id, goal_loc, npc_loc, state, npc_name);
     } else if state.map[&goal_loc] == Tile::Door(DoorState::Locked) {
         npc.plan.push_front(Action::Move(goal_loc));
-        unlock_door(goal_loc, state, npc_name);
+        unlock_door(npc_id, goal_loc, npc_loc, state, npc_name);
     } else {
         // Villagers will close doors after they pass through them
         if npc_mode == NPCPersonality::Villager {

@@ -133,39 +133,24 @@ pub struct ConfigOptions {
     sm_font_size: u16,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Message {
     obj_id: usize,
     loc: (i32, i32, i8),
-    name: String,
     text: String,
-    resolve_pronoun: bool,
-    noise: bool,
+    alt_text: String,
 }
 
 impl Message {
-    pub fn new(obj_id: usize, loc: (i32, i32, i8), name: &str, text: &str, resolve_pronoun: bool, noise: bool) -> Message {
-        Message { obj_id, loc, name: String::from(name), text: String::from(text), resolve_pronoun, noise }
-    }
-
-    pub fn resolve(&self, state: &GameState, game_obj_db: &mut GameObjectDB) -> String {
-        let player_loc = game_obj_db.player().unwrap().get_loc();
-
-        if self.resolve_pronoun && state.curr_visible.contains(&self.loc) {
-            //let s = format!(self.text, name);
-            //s
-        } else if self.noise && self.loc.2 == player_loc.2 && util::distance(player_loc.0, player_loc.1, self.loc.0, self.loc.1) <= 15.0 {
-            //let s = format!(self.text, "Something")
-        }
-
-        "".to_string()
+    pub fn new(obj_id: usize, loc: (i32, i32, i8), text: &str, alt_text: &str) -> Message {
+        Message { obj_id, loc, text: String::from(text), alt_text: String::from(alt_text) }
     }
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct GameState {
     msg_buff: VecDeque<String>,
-    msg_history: VecDeque<(String, u32)>,
+    msg_queue: VecDeque<Message>,
     map: Map,
     turn: u32,
     world_info: WorldInfo,
@@ -181,7 +166,7 @@ impl GameState {
     pub fn init(map: Map, world_info: WorldInfo) -> GameState {
         GameState {
             msg_buff: VecDeque::new(),
-            msg_history: VecDeque::new(),
+            msg_queue: VecDeque::new(),
             map,
             turn: 0,
             world_info: world_info,
@@ -191,18 +176,6 @@ impl GameState {
             queued_events: VecDeque::new(),
             animation_pause: false,
             curr_visible: HashSet::new(),
-        }
-    }
-
-    pub fn add_to_msg_history(&mut self, msg: &str) {
-        if self.msg_history.is_empty() || msg != self.msg_history[0].0 {
-            self.msg_history.push_front((String::from(msg), 1));
-        } else {
-            self.msg_history[0].1 += 1;
-        }
-
-        if self.msg_history.len() > MSG_HISTORY_LENGTH {
-            self.msg_history.pop_back();
         }
     }
 
@@ -241,25 +214,7 @@ impl GameState {
 }
 
 fn show_message_history(state: &GameState, gui: &mut GameUI) {
-    let mut lines = Vec::new();
-    lines.push("".to_string());
-    for j in 0..state.msg_history.len() {
-        let mut s = state.msg_history[j].0.to_string();
-        if state.msg_history[j].1 > 1 {
-            s.push_str(" (x");
-            s.push_str(&state.msg_history[j].1.to_string());
-            s.push(')');
-        }
-        lines.push(s);
-    }
-
-    // Somedays I think rust is growing on me and some days I have to do stuff
-    // like this so that I can pass an Vec of &strs to a function. I just didn't
-    // want to have to constantly be typing .to_string() or String::From() when
-    // calling write_long_msg() T_T
-    let line_refs: Vec<&str> = lines.iter().map(AsRef::as_ref).collect();
-
-    gui.write_long_msg(&line_refs, true);
+    
 }
 
 fn title_screen(gui: &mut GameUI) {
@@ -1328,7 +1283,6 @@ fn chat_with(state: &mut GameState, gui: &mut GameUI, loc: (i32, i32, i8), game_
                 let mut ei = HashMap::new();
                 if let GameObjects::NPC(npc) = npc {
                     let line = npc.talk_to(state, dialogue, &mut ei);
-                    state.add_to_msg_history(&line);
                     gui.popup_msg(&npc.npc_name(true).capitalize(), &line, Some(&sbi));
                 }
             },
@@ -1759,6 +1713,18 @@ fn update_view(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mut 
     
     //let write_screen_start = Instant::now();
     let sbi = state.curr_sidebar_info(game_obj_db);
+
+    // this is semi-temporary code. Eventually msg_queue will replace msg_buff
+    // I don't know about the distance calculation for noise. A floodfill like I'm doing
+    // to alert monsters is probably better but more complicated.
+    while !state.msg_queue.is_empty() {
+        let msg = state.msg_queue.pop_front().unwrap();
+        if state.curr_visible.contains(&msg.loc) {
+            state.msg_buff.push_back(msg.text);
+        } else if !msg.alt_text.is_empty() && util::distance(player_loc.0, player_loc.1, msg.loc.0, msg.loc.1) < 12.0 {
+            state.msg_buff.push_back(msg.alt_text);
+        }
+    }
 
     gui.update(&mut state.msg_buff, Some(&sbi));
     state.msg_buff.clear();

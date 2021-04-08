@@ -185,8 +185,7 @@ pub fn talk_to_innkeeper(state: &mut GameState, innkeeper_id: usize, game_obj_db
     if let GameObjects::NPC(npc) = npc {
         npc.talk_to(state, dialogue, &mut ei);
     }
-    state.add_to_msg_history(&msg);
-    
+
     let mut options: HashSet<char> = vec!['a', 'b', 'c'].into_iter().collect();
     msg.push('\n');
     msg.push('\n');
@@ -435,8 +434,7 @@ pub fn talk_to_grocer(state: &mut GameState, grocer_id: usize, game_obj_db: &mut
             }
         }
     }
-    state.add_to_msg_history(&msg);
-
+    
     let mut made_purchase = false;
     loop {
         let sbi = state.curr_sidebar_info(game_obj_db);
@@ -590,8 +588,7 @@ pub fn talk_to_smith(state: &mut GameState, smith_id: usize, game_obj_db: &mut G
         }
     }
     let preamble = msg.clone();
-    state.add_to_msg_history(&msg);
-
+    
     // First choice, purchase or repair gear
     msg.push('\n');
     msg.push('\n');
