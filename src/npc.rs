@@ -530,9 +530,10 @@ fn unlock_door(npc_id: usize, loc: (i32, i32, i8), npc_loc: (i32, i32, i8), stat
     state.msg_queue.push_back(msg);
 }
 
-fn close_door(loc: (i32, i32, i8), state: &mut GameState, game_obj_db: &mut GameObjectDB, npc_id: usize, npc_name: String) {
+fn close_door(loc: (i32, i32, i8), state: &mut GameState, game_obj_db: &mut GameObjectDB, npc_id: usize, npc_loc: (i32, i32, i8), npc_name: String) {
     if game_obj_db.blocking_obj_at(&loc) {
-        state.msg_buff.push_back("\"Please don't stand in the doorway.\"".to_string());
+        let msg = Message::new(npc_id, npc_loc, "\"Please don't stand in the doorway.\"", "\"Please don't stand in the doorway.\"");
+        state.msg_queue.push_back(msg);
         let npc = game_obj_db.npc(npc_id).unwrap();
         npc.plan.push_front(Action::CloseDoor(loc));
     } else {
@@ -540,10 +541,12 @@ fn close_door(loc: (i32, i32, i8), state: &mut GameState, game_obj_db: &mut Game
             state.map.insert(loc, Tile::Door(DoorState::Closed));
             let npc = game_obj_db.npc(npc_id).unwrap();
             if npc.attitude == Attitude::Stranger {
-                state.msg_buff.push_back("The villager closes the door.".to_string());
+                let msg = Message::new(npc_id, npc_loc, "The villager closes the door.", "You hear a door close.");
+                state.msg_queue.push_back(msg);
             } else {
                 let s = format!("{} closes the door.", npc_name);
-                state.msg_buff.push_back(s);
+                let msg = Message::new(npc_id, npc_loc, &s, "You hear a door close.");
+                state.msg_queue.push_back(msg);                
             }            
         }
     }
@@ -559,7 +562,7 @@ fn follow_plan(npc_id: usize, state: &mut GameState, game_obj_db: &mut GameObjec
         match action {
             Action::Move(loc) => try_to_move_to_loc(npc_id, loc, state, game_obj_db),
             Action::OpenDoor(loc) => open_door(npc_id, loc, npc_loc, state, npc_name),
-            Action::CloseDoor(loc) => close_door(loc, state, game_obj_db, npc_id, npc_name),
+            Action::CloseDoor(loc) => close_door(loc, state, game_obj_db, npc_id, npc_loc, npc_name),
             Action::UnlockDoor(loc) => unlock_door(npc_id, loc, npc_loc, state, npc_name),
             Action::Attack(_loc) => battle::monster_attacks_player(state, npc_id, game_obj_db),
         }
@@ -578,9 +581,8 @@ fn try_to_move_to_loc(npc_id: usize, goal_loc: (i32, i32, i8), state: &mut GameS
     }   
     if blocking_object {
         match npc_mode {
-            NPCPersonality::Villager => state.msg_buff.push_back("\"Excuse me.\"".to_string()),
+            NPCPersonality::Villager => state.msg_queue.push_back(Message::new(npc_id, goal_loc, "\"Excuse me.\"", "\"Excuse me.\"")),
             _ => { }
-
         }
         // if someone/something is blocking path, clear the current plan which should trigger 
         // creating a new plan
@@ -725,7 +727,7 @@ fn calc_plan_to_move(npc_id: usize, state: &GameState, game_obj_db: &mut GameObj
     }
 }
 
-fn spin_webs(state: &mut GameState, game_obj_db: &mut GameObjectDB, loc: (i32, i32, i8), npc_name: String, difficulty: u8) {
+fn spin_webs(state: &mut GameState, game_obj_db: &mut GameObjectDB, loc: (i32, i32, i8), npc_id: usize, npc_name: String, difficulty: u8) {
     let mut web = Item::web(game_obj_db, difficulty);
     web.set_loc(loc);
     game_obj_db.add(web);
@@ -740,7 +742,7 @@ fn spin_webs(state: &mut GameState, game_obj_db: &mut GameObjectDB, loc: (i32, i
     }
 
     let s = format!("{} spins a web.", npc_name);
-    state.msg_buff.push_back(s);
+    state.msg_queue.push_back(Message::new(npc_id, loc, &s, ""));    
 }
 
 fn minor_black_magic(npc_id: usize, state: &mut GameState, game_obj_db: &mut GameObjectDB, player_loc: (i32, i32, i8), sees_player: bool, adj: bool) -> bool {
@@ -753,15 +755,15 @@ fn minor_black_magic(npc_id: usize, state: &mut GameState, game_obj_db: &mut Gam
     // if they are injured and near the player, they will blink away 50% of the time    
     if  (npc_hp.0 as f32 / npc_hp.1 as f32) < 0.33 && distance <= 3.0 && rand::thread_rng().gen_range(0.0, 1.0) < 0.5 {
         let s = format!("{} blinks away!", npc_name.capitalize());
-        state.msg_buff.push_back(s);
+        state.msg_queue.push_back(Message::new(npc_id, npc_loc, &s, "You hear a poof."));
         effects::apply_effects(state, npc_id, game_obj_db, effects::EF_BLINK);
         return true;
     }
 
     if sees_player && distance <= 3.0 && rand::thread_rng().gen_range(0.0, 1.0) < 0.33 {
         let s = format!("{} mumbles.", npc_name.capitalize());
-        state.msg_buff.push_back(s);
-        state.msg_buff.push_back("A shroud falls over your eyes!".to_string());
+        state.msg_queue.push_back(Message::new(npc_id, npc_loc, &s, "You hear mumbling."));
+        state.msg_queue.push_back(Message::new(npc_id, player_loc, "A shroud falls over your eyes!", "A shroud falls over your eyes!"));
         let player = game_obj_db.player().unwrap();
         effects::add_status(player, Status::BlindUntil(state.turn + rand::thread_rng().gen_range(3, 6)));
         return true;
@@ -769,8 +771,8 @@ fn minor_black_magic(npc_id: usize, state: &mut GameState, game_obj_db: &mut Gam
 
     if sees_player && distance <= 3.0 && rand::thread_rng().gen_range(0.0, 1.0) < 0.33 {
         let s = format!("{} mumbles.", npc_name.capitalize());
-        state.msg_buff.push_back(s);
-        state.msg_buff.push_back("You have been cursed!".to_string());
+        state.msg_queue.push_back(Message::new(npc_id, npc_loc, &s, "You hear mumbling."));
+        state.msg_queue.push_back(Message::new(npc_id, npc_loc, "You have been cursed!", "You have been cursed!"));
         let player = game_obj_db.player().unwrap();
         effects::add_status(player, Status::Bane(state.turn + rand::thread_rng().gen_range(3, 6)));
         return true;
@@ -806,8 +808,8 @@ fn create_phantasm(npc_id: usize, state: &mut GameState, game_obj_db: &mut GameO
         effects::add_status(npc, Status::FadeAfter(state.turn + 10));
 
         let s = format!("Another {} appears!", name);
-        state.msg_buff.push_back(s);
-
+        state.msg_queue.push_back(Message::new(pid, phantasm_loc, &s, ""));
+        
         // The caster sometimes swaps places with the newly summoned phantasm
         if rand::thread_rng().gen_range(0.0, 1.0) < 0.33 {
             let npc = game_obj_db.get_mut(npc_id).unwrap();
@@ -841,14 +843,14 @@ fn minor_trickery(npc_id: usize, state: &mut GameState, game_obj_db: &mut GameOb
     // if they are injured and near the player, they will blink away 50% of the time (this check is cut-n-pasted from minor_black_magic...)
     if  (npc_hp.0 as f32 / npc_hp.1 as f32) < 0.33 && distance <= 3.0 && rand::thread_rng().gen_range(0.0, 1.0) < 0.5 {
         let s = format!("{} blinks away!", npc_name.capitalize());
-        state.msg_buff.push_back(s);
+        state.msg_queue.push_back(Message::new(npc_id, npc_loc, &s, "You hear a poof."));
         effects::apply_effects(state, npc_id, game_obj_db, effects::EF_BLINK);
         return true;
     }
 
     if sees_player && !invisible && rand::thread_rng().gen_range(0.0, 1.0) < 0.33 {
         let s = format!("{} disappears!", npc_name.capitalize());
-        state.msg_buff.push_back(s);
+        state.msg_queue.push_back(Message::new(npc_id, npc_loc, &s, ""));
         effects::add_status(npc, Status::Invisible(state.turn + rand::thread_rng().gen_range(5, 8)));
         return true;
     }
@@ -877,7 +879,7 @@ fn special_move(npc_id: usize, state: &mut GameState, game_obj_db: &mut GameObje
     if attributes & MA_WEBSLINGER > 0 && sees_player && !adj {
         let d = util::distance(npc_loc.0, npc_loc.1, player_loc.0, player_loc.1);
         if d < 5.0 && rand::thread_rng().gen_range(0.0, 1.0) < 0.33 {
-            spin_webs(state, game_obj_db, player_loc, npc_name, difficulty);
+            spin_webs(state, game_obj_db, player_loc, npc_id, npc_name, difficulty);
             return true;
         }
     }
