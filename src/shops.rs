@@ -17,7 +17,7 @@ use std::collections::{HashMap, HashSet};
 
 use rand::Rng;
 
-use super::{GameState, Status};
+use super::{GameState, Message, Status};
 use crate::effects;
 use crate::npc::Attitude;
 use crate::game_obj::{GameObject, Person};
@@ -67,7 +67,7 @@ fn inventory_menu(inventory: &Vec<GameObjects>) -> Vec<(String, char, u8, u16)> 
 fn rent_room(state: &mut GameState, game_obj_db: &mut GameObjectDB) {
     if let Some(GameObjects::Player(player)) = game_obj_db.get_mut(0) {
         if player.purse < 10 {
-            state.msg_buff.push_back("You can't afford a room in this establishment.".to_string());
+            state.msg_queue.push_back(Message::info("You can't afford a room in this establishment."));
             return;
         }
 
@@ -76,7 +76,7 @@ fn rent_room(state: &mut GameState, game_obj_db: &mut GameObjectDB) {
         let checkout = state.turn + 2880; // renting a room is basically passing for 8 hours
         effects::add_status(player, Status::RestAtInn(checkout));
 
-        state.msg_buff.push_back("You check in.".to_string());
+        state.msg_queue.push_back(Message::info("You check in."));
     }
 }
 
@@ -85,11 +85,11 @@ fn rent_room(state: &mut GameState, game_obj_db: &mut GameObjectDB) {
 fn buy_drink(state: &mut GameState, game_obj_db: &mut GameObjectDB) {
     if let Some(GameObjects::Player(p)) = game_obj_db.get_mut(0) {
         if p.purse == 0 {
-            state.msg_buff.push_back("\"Hey this isn't a charity!\"".to_string());
+            state.msg_queue.push_back(Message::info("\"Hey this isn't a charity!\""));
         } else {
             p.purse -= 1;
             // more drink types eventually?
-            state.msg_buff.push_back("You drink a refreshing ale.".to_string());
+            state.msg_queue.push_back(Message::info("You drink a refreshing ale."));            
         }
     }
 }
@@ -104,7 +104,7 @@ fn fill_flask(state: &mut GameState, game_obj_db: &mut GameObjectDB) {
                 if item.charges == 2 {
                     full = true;
                 } else if player.purse < 2 {
-                    state.msg_buff.push_back("\"You're a bit short, I'm afraid.\"".to_string());
+                    state.msg_queue.push_back(Message::info("\"You're a bit short, I'm afraid.\""));
                     return;
                 } else {
                     item.charges = 2;
@@ -114,7 +114,7 @@ fn fill_flask(state: &mut GameState, game_obj_db: &mut GameObjectDB) {
                     } else {
                         "\"Please drink and adventure responsibly!\""
                     };
-                    state.msg_buff.push_back(s.to_string());
+                    state.msg_queue.push_back(Message::info(&s));
                     return;
                 }
             }
@@ -126,18 +126,18 @@ fn fill_flask(state: &mut GameState, game_obj_db: &mut GameObjectDB) {
     } else {
         "\"You don't have anything to carry it in.\""
     };
-    state.msg_buff.push_back(s.to_string());
+    state.msg_queue.push_back(Message::info(&s));
 }
 
 fn buy_round(state: &mut GameState, game_obj_db: &mut GameObjectDB, patrons: &Vec<usize>) {
     let player = game_obj_db.player().unwrap();
 
     if player.purse < patrons.len() as u32 {
-        state.msg_buff.push_back("You can't afford to pay for everyone!".to_string());        
+        state.msg_queue.push_back(Message::info("You can't afford to pay for everyone!"));
         return;
     } 
 
-    state.msg_buff.push_back("You buy a around for everyone in the bar.".to_string());
+    state.msg_queue.push_back(Message::info("You buy a round for everyone in the bar."));
     player.purse -= patrons.len() as u32;
 
     let mut made_friend = false;
@@ -156,7 +156,7 @@ fn buy_round(state: &mut GameState, game_obj_db: &mut GameObjectDB, patrons: &Ve
     }
 
     if made_friend {
-        state.msg_buff.push_back("\"Cheers!\"".to_string());
+        state.msg_queue.push_back(Message::info("\"Cheers!\""));
     }
 }
 
@@ -220,7 +220,7 @@ pub fn talk_to_innkeeper(state: &mut GameState, innkeeper_id: usize, game_obj_db
         } else {
             "\"No outside food or drink.\""
         };
-        state.msg_buff.push_back(s.to_string());
+        state.msg_queue.push_back(Message::info(&s));        
     }
 }
 
@@ -496,13 +496,13 @@ pub fn talk_to_grocer(state: &mut GameState, grocer_id: usize, game_obj_db: &mut
     }
 
     if made_purchase {
-        state.msg_buff.push_back("\"Thank you for supporting small businesses!\"".to_string());        
+        state.msg_queue.push_back(Message::info("\"Thank you for supporting small businesses!\""));
     }
 }
 
 // For when I implement rust/corrosion
 fn repair_gear(state: &mut GameState, _game_obj_db: &mut GameObjectDB, _gui: &mut GameUI) {
-    state.msg_buff.push_back("\"Hmm none of your equipment needs fixing right now.".to_string());    
+    state.msg_queue.push_back(Message::info("\"Hmm none of your equipment needs fixing right now.\""));      
 }
 
 fn purchase_from_smith(state: &mut GameState, smith_id: usize, name: String, preamble: &str, game_obj_db: &mut GameObjectDB, gui: &mut GameUI) -> bool {
@@ -605,10 +605,10 @@ pub fn talk_to_smith(state: &mut GameState, smith_id: usize, game_obj_db: &mut G
             repair_gear(state, game_obj_db, gui);
         } 
     } else {
-        state.msg_buff.push_back("\"Never mind.\"".to_string());
+        state.msg_queue.push_back(Message::info("Never mind."));
     }
 
     if made_purchase {
-        state.msg_buff.push_back("\"I hope that serves you well!\"".to_string());
+        state.msg_queue.push_back(Message::info("\"I hope that serves you well!\""));
     }
 }
