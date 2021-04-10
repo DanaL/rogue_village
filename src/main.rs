@@ -145,11 +145,15 @@ impl Message {
     pub fn new(obj_id: usize, loc: (i32, i32, i8), text: &str, alt_text: &str) -> Message {
         Message { obj_id, loc, text: String::from(text), alt_text: String::from(alt_text) }
     }
+
+    // for messages that are direct to the player and don't rely on needing to see the source.
+    pub fn info(text: &str) -> Message {
+        Message { obj_id: 0, loc: (-1, -1, -1), text: String::from(text), alt_text: String::from("") }
+    }
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct GameState {
-    msg_buff: VecDeque<String>,
     msg_queue: VecDeque<Message>,
     map: Map,
     turn: u32,
@@ -165,7 +169,6 @@ pub struct GameState {
 impl GameState {
     pub fn init(map: Map, world_info: WorldInfo) -> GameState {
         GameState {
-            msg_buff: VecDeque::new(),
             msg_queue: VecDeque::new(),
             map,
             turn: 0,
@@ -345,7 +348,7 @@ fn drop_zorkmids(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mu
     let sbi = state.curr_sidebar_info(game_obj_db);
 
     if purse == 0 {
-        state.msg_buff.push_back("You have no money!".to_string());
+        state.msg_queue.push_back(Message::info("You have no money!"));        
         return 0.0;
     }
 
@@ -354,38 +357,38 @@ fn drop_zorkmids(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mu
         let into_well = *tile == Tile::Well;
 
         if amt == 0 {
-            state.msg_buff.push_back("Never mind.".to_string());
+            state.msg_queue.push_back(Message::info("Never mind."));            
         } else if amt >= purse {
             if into_well {
-                state.msg_buff.push_back("You hear faint tinkling splashes.".to_string());
+                state.msg_queue.push_back(Message::info("You hear faint tinkling splashes."));                
             } else {
-                state.msg_buff.push_back("You drop all of your money.".to_string());
+                state.msg_queue.push_back(Message::info("You drop all of your money."));
                 let zorkmids = GoldPile::make(game_obj_db, purse, player_loc);
                 game_obj_db.add(zorkmids);
             }                
             purse = 0;
         } else if amt > 1 {
             if into_well {
-                state.msg_buff.push_back("You hear faint tinkling splashes.".to_string());
+                state.msg_queue.push_back(Message::info("You hear faint tinkling splashes."));
             } else {
                 let s = format!("You drop {} gold pieces.", amt);
-                state.msg_buff.push_back(s);
+                state.msg_queue.push_back(Message::info(&s));                
                 let zorkmids = GoldPile::make(game_obj_db, amt, player_loc);
                 game_obj_db.add(zorkmids);
             }
             purse -= amt;
         } else {
             if into_well {
-                state.msg_buff.push_back("You hear a faint splash.".to_string());                
+                state.msg_queue.push_back(Message::info("You hear a faint splash."));
             } else {
-                state.msg_buff.push_back("You drop a gold pieces.".to_string());
+                state.msg_queue.push_back(Message::info("You drop a gold piece."));
                 let zorkmids = GoldPile::make(game_obj_db, 1, player_loc);
                 game_obj_db.add(zorkmids);                    
             }
             purse -= 1;
         }
     } else {
-        state.msg_buff.push_back("Never mind.".to_string());
+        state.msg_queue.push_back(Message::info("Never mind."));
         return 0.0;
     }
 
@@ -413,13 +416,13 @@ fn drop_stack(state: &mut GameState, game_obj_db: &mut GameObjectDB, loc: (i32, 
             if !pile.is_empty() {
                 for obj in pile {                        
                     let s = format!("You drop {}.", &obj.get_fullname().with_def_article());
-                    state.msg_buff.push_back(s);
+                    state.msg_queue.push_back(Message::info(&s));                    
                     item_hits_ground(obj, loc, game_obj_db);
                 }
                 return 1.0; // Really, dropping several items should take several turns...
             }
         },
-        Err(msg) => state.msg_buff.push_back(msg),
+        Err(msg) => state.msg_queue.push_back(Message::info(&msg)),
     }
     
     0.0
@@ -431,7 +434,7 @@ fn drop_item(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mut Ga
     let player_loc = player.get_loc();
 
     if player.purse == 0 && player.inventory.is_empty() {
-        state.msg_buff.push_back("You are empty handed.".to_string());
+        state.msg_queue.push_back(Message::info("You are empty handed."));
         return 0.0;
     }
     
@@ -450,13 +453,13 @@ fn drop_item(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mut Ga
         } else {
             let count = player.inv_count_in_slot(ch);
             if count == 0 {
-                state.msg_buff.push_back("You do not have that item.".to_string());                
+                state.msg_queue.push_back(Message::info("You do not have that item."));
             } else if count > 1 {
                 match gui.query_natural_num("Drop how many?", Some(&sbi)) {
                     Some(v) => {
                         cost = drop_stack(state, game_obj_db, player_loc, ch, v);
                     },
-                    None => state.msg_buff.push_back("Never mind.".to_string()),
+                    None => state.msg_queue.push_back(Message::info("Never mind.")),
                 }
             } else {
                 let result = player.inv_remove_from_slot(ch, 1);
@@ -464,16 +467,16 @@ fn drop_item(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mut Ga
                     Ok(mut items) => {
                         let obj = items.remove(0);
                         let s = format!("You drop {}.", &obj.get_fullname().with_def_article());
-                        state.msg_buff.push_back(s);
+                        state.msg_queue.push_back(Message::info(&s));                        
                         item_hits_ground(obj, player_loc, game_obj_db);
                         cost = 1.0;
                     },
-                    Err(msg) => state.msg_buff.push_back(msg),
+                    Err(msg) => state.msg_queue.push_back(Message::info(&msg)),
                 }                    
             }
         }
     } else {
-        state.msg_buff.push_back("Never mind.".to_string());
+        state.msg_queue.push_back(Message::info("Never mind."));
     }
     
     let player = game_obj_db.player().unwrap();
@@ -489,7 +492,7 @@ fn search_loc(state: &mut GameState, roll: u8, loc: (i32, i32, i8), game_obj_db:
         if roll >= 15 {
             let t = game_obj_db.get_mut(*obj_id).unwrap();
             let s = format!("You find {}!", t.get_fullname().with_indef_article());  
-            state.msg_buff.push_back(s);
+            state.msg_queue.push_back(Message::info(&s));
             t.reveal();
         }
     }
@@ -515,7 +518,7 @@ fn pick_up(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mut Game
     let sbi = state.curr_sidebar_info(game_obj_db);
 
     if things.is_empty() {
-        state.msg_buff.push_back("There is nothing here.".to_string());        
+        state.msg_queue.push_back(Message::info("There is nothing here."));        
         return 0.0;
     } else if things.len() == 1 {
         let obj = game_obj_db.get(things[0]).unwrap();
@@ -527,7 +530,7 @@ fn pick_up(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mut Game
 
         if let GameObjects::Item(item) = obj {
             if item.attributes & IA_IMMOBILE > 0 {
-                state.msg_buff.push_back("You cannot pick that up!".to_string());
+                state.msg_queue.push_back(Message::info("You cannot pick that up!"));
                 return 0.0;
             }
         }
@@ -541,10 +544,10 @@ fn pick_up(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mut Game
             };
 
             if amount == 1 {
-                state.msg_buff.push_back("You pick up a single gold piece.".to_string());                
+                state.msg_queue.push_back(Message::info("You pick up a single gold piece."));        
             } else {
                 let s = format!("You pick up {} gold pieces.", amount);
-                state.msg_buff.push_back(s);                
+                state.msg_queue.push_back(Message::info(&s));                  
             }
             
             let p = game_obj_db.player().unwrap();
@@ -552,7 +555,7 @@ fn pick_up(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mut Game
         } else {
             let obj = game_obj_db.remove(things[0]);
             let s = format!("You pick up {}.", obj.get_fullname().with_def_article());
-            state.msg_buff.push_back(s);
+            state.msg_queue.push_back(Message::info(&s));
             let p = game_obj_db.player().unwrap();
             p.add_to_inv(obj);
         }
@@ -588,24 +591,24 @@ fn pick_up(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mut Game
                 
                 if is_zorkmids {
                     if amount == 1 {
-                        state.msg_buff.push_back("You pick up a single gold piece.".to_string());
+                        state.msg_queue.push_back(Message::info("You pick up a single gold piece."));
                     } else {
                         let s = format!("You pick up {} gold pieces.", amount);
-                        state.msg_buff.push_back(s);
+                        state.msg_queue.push_back(Message::info(&s));                        
                     }
                     game_obj_db.remove(id);
                     game_obj_db.player().unwrap().purse += amount;                   
                 } else {
                     let obj = game_obj_db.remove(id);
                     let s = format!("You pick up {}.", obj.get_fullname().with_def_article());
-                    state.msg_buff.push_back(s);
+                    state.msg_queue.push_back(Message::info(&s));
                     let p = game_obj_db.player().unwrap();
                     p.add_to_inv(obj);
                 }
             }
             return 1.0;
         } else {
-            state.msg_buff.push_back("Never mind.".to_string());
+            state.msg_queue.push_back(Message::info("Never mind."));
         }
     }
 
@@ -623,14 +626,14 @@ fn toggle_item(state: &mut GameState, slot: char, game_obj_db: &mut GameObjectDB
     };
 
     if !equipable {
-        state.msg_buff.push_back("You cannot wear or wield that!".to_string());
+        state.msg_queue.push_back(Message::info("You cannot wear or wield that!"));
         return 0.0;
     }
     
     let mut swapping = false;
     if item_type == ItemType::Weapon {
         if attributes & items::IA_TWO_HANDED > 0 && player.readied_obj_ids_of_type(ItemType::Shield).len() > 0 {
-            state.msg_buff.push_back("You cannot wield that while using a shield.".to_string());
+            state.msg_queue.push_back(Message::info("You cannot wield that while using a shield."));
             return 0.0;
         }
 
@@ -644,19 +647,19 @@ fn toggle_item(state: &mut GameState, slot: char, game_obj_db: &mut GameObjectDB
     } else if item_type == ItemType::Armour {
         let readied = player.readied_obj_ids_of_type(ItemType::Armour);
         if !readied.is_empty() && readied[0] != obj_id {
-            state.msg_buff.push_back("You're already wearing armour.".to_string());
+            state.msg_queue.push_back(Message::info("You're already wearing armour."));
             return 0.0;             
         }
     } else if item_type == ItemType::Shield {
         let readied = player.readied_obj_ids_of_type(ItemType::Shield);
         if !readied.is_empty() && readied[0] != obj_id {
-            state.msg_buff.push_back("You're already using a shield.".to_string());
+            state.msg_queue.push_back(Message::info("Yu're already using a shield."));
             return 0.0;
         }
 
         if let Some((weapon, _)) = player.readied_weapon() {
             if weapon.attributes & items::IA_TWO_HANDED > 0 {
-                state.msg_buff.push_back("You cannot equip that along with a two-handed weapon!".to_string());
+                state.msg_queue.push_back(Message::info("You cannot equip that along with a two-handed weapon!"));
                 return 0.0;
             }
         }
@@ -677,14 +680,14 @@ fn toggle_item(state: &mut GameState, slot: char, game_obj_db: &mut GameObjectDB
         }
         s.push_str(&item.get_fullname().with_def_article());
         s.push('.');
-        state.msg_buff.push_back(s);
+        state.msg_queue.push_back(Message::info(&s));
     }
     
     player.calc_gear_effects();
 
     let readied = player.readied_obj_ids_of_type(ItemType::Weapon);
     if item_type == ItemType::Weapon && readied.is_empty() {
-        state.msg_buff.push_back("You are now empty handed.".to_string());    
+        state.msg_queue.push_back(Message::info("You are now empty handed."));
     } 
 
     1.0
@@ -696,20 +699,20 @@ fn toggle_equipment(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: 
     let slots = player.inv_slots_used();
     
     if slots.is_empty() {
-        state.msg_buff.push_back("You ar empty handed.".to_string());
+        state.msg_queue.push_back(Message::info("You are empty handed."));
         return 0.0;
     }
 
     let menu = player.inv_menu(2);
     let cost = if let Some(ch) = gui.show_in_side_pane("Equip/unequip which?", &menu) {
         if !slots.contains(&ch) {
-            state.msg_buff.push_back("You do not have that item!".to_string());
+            state.msg_queue.push_back(Message::info("You do not have that item!"));
             0.0
         } else {
             toggle_item(state, ch, game_obj_db)
         }
     } else {
-        state.msg_buff.push_back("Never mind.".to_string());
+        state.msg_queue.push_back(Message::info("Never mind."));
         0.0
     };
 
@@ -722,14 +725,14 @@ fn use_item(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mut Gam
     let slots = player.inv_slots_used();
     
     if slots.is_empty() {
-        state.msg_buff.push_back("You are empty handed.".to_string());
+        state.msg_queue.push_back(Message::info("You are empty handed."));
         return 0.0;
     }
     
     let menu = player.inv_menu(1);
     if let Some(ch) = gui.show_in_side_pane("Use which?", &menu) {
         if !slots.contains(&ch) {
-            state.msg_buff.push_back("You do not have that item!".to_string());
+            state.msg_queue.push_back(Message::info("You do not have that item!"));
             return 0.0;
         }
         
@@ -777,10 +780,10 @@ fn use_item(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mut Gam
         } else if !text.is_empty() {
             gui.popup_msg(&desc, &text, Some(&sbi));
         } else {
-            state.msg_buff.push_back("You don't know how to use that.".to_string());
+            state.msg_queue.push_back(Message::info("You don't know how to use that."));
         }       
     } else {
-        state.msg_buff.push_back("Never mind.".to_string());        
+        state.msg_queue.push_back(Message::info("Never mind."));
     }
 
     0.0
@@ -802,7 +805,7 @@ fn use_light(state: &mut GameState, slot: char,game_obj_db: &mut GameObjectDB) -
         } else {
             format!("{} blazes brightly!", name.with_def_article().capitalize())
         };
-        state.msg_buff.push_back(s);
+        state.msg_queue.push_back(Message::info(&s));
         item.active = !item.active;
         item.stackable = false;
         if was_in_stack {
@@ -841,30 +844,30 @@ fn get_move_tuple(mv: &str) -> (i32, i32) {
 fn do_open(state: &mut GameState, loc: (i32, i32, i8), game_obj_db: &mut GameObjectDB) {
     let tile = &state.map[&loc];
     match tile {
-        Tile::Door(DoorState::Open) | Tile::Door(DoorState::Broken) => state.msg_buff.push_back("That door is already open!".to_string()),
+        Tile::Door(DoorState::Open) | Tile::Door(DoorState::Broken) => state.msg_queue.push_back(Message::info("That door is already open.")),
         Tile::Door(DoorState::Closed) => {
-            state.msg_buff.push_back("You open the door.".to_string());
+            state.msg_queue.push_back(Message::info("You open the door."));
             state.map.insert(loc, map::Tile::Door(DoorState::Open));
         },
-        Tile::Door(DoorState::Locked) => state.msg_buff.push_back("That door is locked!".to_string()),
-        _ => state.msg_buff.push_back("You cannot open that!".to_string()),
+        Tile::Door(DoorState::Locked) => state.msg_queue.push_back(Message::info("That door is locked.")),
+        _ => state.msg_queue.push_back(Message::info("You cannot open that.")),
     }        
 }
 
 fn do_close(state: &mut GameState, loc: (i32, i32, i8), game_obj_db: &mut GameObjectDB) {
     let tile = &state.map[&loc];
     match tile {
-        Tile::Door(DoorState::Closed) | Tile::Door(DoorState::Locked) => state.msg_buff.push_back("That door is already closed!".to_string()),
+        Tile::Door(DoorState::Closed) | Tile::Door(DoorState::Locked) => state.msg_queue.push_back(Message::info("That door is already closed.")),
         Tile::Door(DoorState::Open) => {
             if !game_obj_db.things_at_loc(loc).is_empty() {
-                state.msg_buff.push_back("There's something in the way!".to_string());                
+                state.msg_queue.push_back(Message::info("There's something in the way!"));             
             } else {
-                state.msg_buff.push_back("You close the door.".to_string());
+                state.msg_queue.push_back(Message::info("You close the door."));
                 state.map.insert(loc, map::Tile::Door(DoorState::Closed));
             }
         },
-        Tile::Door(DoorState::Broken) => state.msg_buff.push_back("That door is broken!".to_string()),
-        _ => state.msg_buff.push_back("You cannot close that!".to_string()),
+        Tile::Door(DoorState::Broken) => state.msg_queue.push_back(Message::info("That door is broken!")),
+        _ => state.msg_queue.push_back(Message::info("You cannot closed that!")),
     }        
 }
 
@@ -874,38 +877,37 @@ fn take_stairs(state: &mut GameState, game_obj_db: &mut GameObjectDB, down: bool
     
     if down {
         let cost = if *tile == map::Tile::Portal {
-            state.msg_buff.push_back("You enter the beckoning portal.".to_string());
+            state.msg_queue.push_back(Message::info("You enter the beckoning portal."));
             game_obj_db.set_to_loc(0, (player_loc.0, player_loc.1, player_loc.2 + 1));
             1.0
         } else if *tile == map::Tile::StairsDown {
-            state.msg_buff.push_back("You brave the stairs downward.".to_string());
+            state.msg_queue.push_back(Message::info("You brave the stairs downward."));
             game_obj_db.set_to_loc(0, (player_loc.0, player_loc.1, player_loc.2 + 1));
             1.0
         } else {
-            state.msg_buff.push_back("You cannot do that here.".to_string());
+            state.msg_queue.push_back(Message::info("You cannot do that here."));            
             0.0
         };
 
         if let Some(GameObjects::Player(p)) = game_obj_db.get_mut(0) {
             if player_loc.2 > p.max_depth as i8 {
                 p.max_depth = player_loc.2 as u8 + 1;
-            }
-            
+            }            
         }
 
         return cost;
     } else {
         if *tile == map::Tile::StairsUp {
-            state.msg_buff.push_back("You climb the stairway.".to_string());
+            state.msg_queue.push_back(Message::info("You climb the stairway."));
             game_obj_db.set_to_loc(0, (player_loc.0, player_loc.1, player_loc.2 - 1));
             
             if player_loc.2 == 0 {
-                state.msg_buff.push_back("Fresh air!".to_string());                
+                state.msg_queue.push_back(Message::info("Fresh air!"));
             }
 
             return 1.0;
         } else {
-            state.msg_buff.push_back("You cannot do that here.".to_string());
+            state.msg_queue.push_back(Message::info("You cannot do that here."));
         }
     }
 
@@ -925,7 +927,7 @@ fn check_closed_gate(state: &mut GameState, game_obj_db: &mut GameObjectDB, loc:
                 continue;
             }
             if !game_obj_db.location_occupied(&landing_spot) {
-                state.msg_buff.push_back("You are shoved out of the way by the falling gate!".to_string());
+                state.msg_queue.push_back(Message::info("You are shoved out of the way by the falling gate!"));
                 game_obj_db.set_to_loc(0, landing_spot);
                 return;
             }
@@ -952,8 +954,8 @@ fn check_closed_gate(state: &mut GameState, game_obj_db: &mut GameObjectDB, loc:
                 game_obj_db.set_to_loc(npc_id, landing_spot);
                 
                 let s = format!("{} is shoved out of the way by the falling gate!", npc_name.with_def_article());
-                state.msg_buff.push_back(s);
-
+                state.msg_queue.push_back(Message::new(npc_id, start_loc, "&s", ""));
+                
                 game_obj_db.remove_from_loc(npc_id, start_loc);                    
                 game_obj_db.stepped_on_event(state, landing_spot);
 
@@ -1006,7 +1008,7 @@ fn maybe_fight(state: &mut GameState, game_obj_db: &mut GameObjectDB, loc: (i32,
             },
             _ => {
                 let s = format!("{} is in your way!", npc_name.capitalize());
-                state.msg_buff.push_back(s);
+                state.msg_queue.push_back(Message::new(npc_id, loc, &s, "Someone is in your way!"));
                 return 1.0;
             }
         }
@@ -1063,7 +1065,7 @@ fn check_for_obstacles(state: &mut GameState, game_obj_db: &mut GameObjectDB, ob
 
             if agent.ability_check(Ability::Str) < oi.1 {
                 let msg = util::format_msg(obj_id, "to be", "held fast by the web!", game_obj_db);
-                state.msg_buff.push_back(msg);
+                state.msg_queue.push_back(Message::new(obj_id, loc, &msg, ""));
                 return 1.0;
             } else {
                 game_obj_db.remove(oi.0);
@@ -1071,18 +1073,18 @@ fn check_for_obstacles(state: &mut GameState, game_obj_db: &mut GameObjectDB, ob
                 // Are they free or is there still more webbing?
                 if web_count > 1 {
                     let msg = util::format_msg(obj_id, "tear", "through some of the webbing!", game_obj_db);
-                    state.msg_buff.push_back(msg);
+                    state.msg_queue.push_back(Message::new(obj_id, loc, &msg, ""));
                     return 1.0;
                 } else {
                     let msg = util::format_msg(obj_id, "tear", "through the web!", game_obj_db);
-                    state.msg_buff.push_back(msg);
+                    state.msg_queue.push_back(Message::new(obj_id, loc, &msg, ""));                    
                 }            
             }
         } else if oi.2 == "rubble" {
             let agent = game_obj_db.as_person(obj_id).unwrap();
             if agent.ability_check(Ability::Dex) <= 12 {            
                 let msg = util::format_msg(obj_id, "stumble", "over the rubble!", game_obj_db);
-                state.msg_buff.push_back(msg);
+                state.msg_queue.push_back(Message::new(obj_id, loc, &msg, ""));
                 return 1.0;
             }
         }
@@ -1108,18 +1110,23 @@ pub fn take_step(state: &mut GameState, game_obj_db: &mut GameObjectDB, obj_id: 
             teleport = true;
         }
     }
-    if teleport {
+    if teleport {        
         let sq = random_open_sq(state, game_obj_db, start_loc.2);
         game_obj_db.set_to_loc(obj_id, sq);                
+        if obj_id == 0 {
+            state.msg_queue.push_back(Message::new(0, sq, "You have a feeling of vertigo!", "You have a feeling of vertigo!"));
+        } else {
+            let npc = game_obj_db.npc(obj_id).unwrap();
+            let s = format!("{} disappears!", npc.npc_name(false).capitalize());
+            state.msg_queue.push_back(Message::new(0, sq, &s, ""));
+        }
     }
 
     return (1.0, true);
 }
 
 fn do_move(state: &mut GameState, game_obj_db: &mut GameObjectDB, dir: &str, gui: &mut GameUI) -> f32 {
-    let mv = get_move_tuple(dir);
-    let sbi = state.curr_sidebar_info(game_obj_db);
-
+    let mv = get_move_tuple(dir);    
     let start_loc = game_obj_db.get(0).unwrap().get_loc();
     let start_tile = state.map[&start_loc];
     let next_loc = (start_loc.0 + mv.0, start_loc.1 + mv.1, start_loc.2);
@@ -1135,26 +1142,26 @@ fn do_move(state: &mut GameState, game_obj_db: &mut GameObjectDB, dir: &str, gui
         }
 
         match tile {
-            Tile::Water => state.msg_buff.push_back("You splash in the shallow water.".to_string()),
+            Tile::Water => state.msg_queue.push_back(Message::new(0, next_loc, "You splash in the shallow water.", "You splash in the shallow water.")),
             Tile::DeepWater => {
                 if start_tile != Tile::DeepWater {
-                    state.msg_buff.push_back("You wade into the flow.".to_string());                    		
+                    state.msg_queue.push_back(Message::new(0, next_loc, "You wade into the flow.", "You wade into the flow."))
                 }
             },
-            Tile::Well => state.msg_buff.push_back("A well.".to_string()),
-            Tile::Lava => state.msg_buff.push_back("MOLTEN LAVA!".to_string()),
-            Tile::FirePit => state.msg_buff.push_back("You step into the fire!".to_string()),
-            Tile::OldFirePit(n) => state.msg_buff.push_back(firepit_msg(n).to_string()),
-            Tile::Portal => state.msg_buff.push_back("Where could this lead?".to_string()),
+            Tile::Well => state.msg_queue.push_back(Message::new(0, next_loc, "There is a well here.", "There is a well here.")),
+            Tile::Lava => state.msg_queue.push_back(Message::new(0, next_loc, "MOLTEN LAVA!", "MOLTEN LAVA!")),
+            Tile::FirePit => state.msg_queue.push_back(Message::new(0, next_loc, "You've stepped in the fire!", "You've stepped in the fire!")),
+            Tile::OldFirePit(n) => state.msg_queue.push_back(Message::new(0, next_loc, firepit_msg(n), "You feel the remains of an old firepit.")),
+            Tile::Portal => state.msg_queue.push_back(Message::new(0, next_loc, "Where could this lead?", "")),
             Tile::Shrine(stype) => {
                 match stype {
-                    ShrineType::Woden =>state.msg_buff.push_back("A shrine to Woden.".to_string()),
-                    ShrineType::Crawler => state.msg_buff.push_back("The misshapen altar makes your skin crawl.".to_string()),
+                    ShrineType::Woden => state.msg_queue.push_back(Message::new(0, next_loc, "A shrine to Woden.", "")),
+                    ShrineType::Crawler => state.msg_queue.push_back(Message::new(0, next_loc, "The misshappen altar makes your skin crawl.", "You have a feeling of unease.")),
                 }
             },
             _ => {
                 if state.aura_sqs.contains(&next_loc) && !state.aura_sqs.contains(&start_loc) {
-                    state.msg_buff.push_back("You feel a sense of peace.".to_string())             
+                    state.msg_queue.push_back(Message::new(0, next_loc, "You feel a sense of peace.", "You feel a sense of peace."))
                 }
             },            
         }
@@ -1162,13 +1169,14 @@ fn do_move(state: &mut GameState, game_obj_db: &mut GameObjectDB, dir: &str, gui
         let items = game_obj_db.descs_at_loc(&next_loc);
         let item_count = items.len();                        
         if item_count == 1 {
-            let s = format!("You see {} here.", items[0]);
-            state.msg_buff.push_back(s);
+            let s1 = format!("You see {} here.", items[0]);
+            let s2 = format!("You feel {} here.", items[0]);
+            state.msg_queue.push_back(Message::new(0, next_loc, &s1, &s2));
         } else if item_count == 2 {
             let s = format!("You see {} and {} here.", items[0], items[1]);
-            state.msg_buff.push_back(s);
+            state.msg_queue.push_back(Message::new(0, next_loc, &s, "There is something on the ground."));            
         } else if item_count > 2 {
-            state.msg_buff.push_back("There are several items here.".to_string())
+            state.msg_queue.push_back(Message::new(0, next_loc, "There are several items here.", "You feel several items on the ground."));
         }
         
         return cost;
@@ -1177,12 +1185,12 @@ fn do_move(state: &mut GameState, game_obj_db: &mut GameObjectDB, dir: &str, gui
         do_open(state, next_loc, game_obj_db);
         return 1.0;
     } else if tile == Tile::Door(DoorState::Locked) {  
-        state.msg_buff.push_back("The door is locked.".to_string());
+        state.msg_queue.push_back(Message::new(0, next_loc, "You door is locked.", "The door is locked."));
         return 1.0;
     } else if tile == Tile::Gate(DoorState::Closed) || tile == Tile::Gate(DoorState::Locked) {
-        state.msg_buff.push_back("A portcullis bars your way.".to_string())
+        state.msg_queue.push_back(Message::new(0, next_loc, "A portcullis bars your way.", "A portcullis bars your way."));        
     } else  {
-        state.msg_buff.push_back("You cannot go that way.".to_string())
+        state.msg_queue.push_back(Message::new(0, next_loc, "You cannot go that way.", "You cannot go that way."));
     }
 
     0.0
@@ -1239,13 +1247,13 @@ fn bash(state: &mut GameState, loc: (i32, i32, i8), game_obj_db: &mut GameObject
         floodfill_noise(state, game_obj_db, loc, 10, 0);
         let player = game_obj_db.player().unwrap();
         if player.ability_check(Ability::Str) > 17 {
-            state.msg_buff.push_back("BAM! You knock down the door!".to_string());
+            state.msg_queue.push_back(Message::info("BAM! You knock down the door!"));
             state.map.insert(loc, Tile::Door(DoorState::Broken));           
         } else {
-            state.msg_buff.push_back("The door holds firm.".to_string());
+            state.msg_queue.push_back(Message::info("The door holds firm."));
         }        
     } else if tile == Tile::Wall || tile == Tile::WoodWall {
-        state.msg_buff.push_back("Ouch! You slam yourself into the wall!".to_string());
+        state.msg_queue.push_back(Message::info("Ouch! You slam yourself into the wall!"));
         let player = game_obj_db.player().unwrap();
         player.damaged(state, rand::thread_rng().gen_range(1, 6), battle::DamageType::Bludgeoning, 0, "a wall");
     } else if  game_obj_db.blocking_obj_at(&loc) {
@@ -1253,7 +1261,7 @@ fn bash(state: &mut GameState, loc: (i32, i32, i8), game_obj_db: &mut GameObject
         battle::knock_back(state, game_obj_db, loc);
     } else {
         // I should perhaps move them?
-        state.msg_buff.push_back("You flail about in a silly fashion.".to_string());
+        state.msg_queue.push_back(Message::info("You flail about in a silly fashion."));
     }
     
     1.0
@@ -1289,9 +1297,9 @@ fn chat_with(state: &mut GameState, gui: &mut GameUI, loc: (i32, i32, i8), game_
         }           
     } else {
         if let Tile::Door(_) = state.map[&loc] {
-            state.msg_buff.push_back("The door is ignoring you.".to_string());
+            state.msg_queue.push_back(Message::info("The door is ignoring you."));
         } else {
-            state.msg_buff.push_back("Oh no, talking to yourself?".to_string());
+            state.msg_queue.push_back(Message::info("Oh no, talking to yourself?"));            
         } 
     }
 
@@ -1343,7 +1351,7 @@ fn show_inventory(gui: &mut GameUI, state: &mut GameState, game_obj_db: &mut Gam
 
     if menu.is_empty() && purse == 0 {
         let sbi = state.curr_sidebar_info(game_obj_db);
-        state.msg_buff.push_back("You are empty handed.".to_string());
+        state.msg_queue.push_back(Message::info("You are empty handed."));
     } else {
         let mut m: Vec<(String, bool)> = menu.iter().map(|m| (m.0.to_string(), m.1)).collect();        
         if purse > 0 {
@@ -1415,20 +1423,20 @@ fn wiz_command(state: &mut GameState, gui: &mut GameUI, game_obj_db: &mut GameOb
             mf.add_monster("goblin", loc, game_obj_db);
         } else if result == "dump level" {
             if player_loc.2 == 0 {
-                state.msg_buff.push_back("Uhh the wilderness is too big to dump.".to_string());
+                state.msg_queue.push_back(Message::info("Uhh the wilderness is too big to dump."));
             } else {
                 dump_level(state, player_loc.2);
             }
         } else if pieces.len() != 2 {
-            state.msg_buff.push_back("Invalid wizard command.".to_string());            
+            state.msg_queue.push_back(Message::info("Invalid wizard command."));
         } else if pieces[0] == "turn" {
             let num = pieces[1].parse::<u32>();
             match num {
                 Ok(v) => state.turn = v,
-                Err(_) => state.msg_buff.push_back("Invalid wizard command.".to_string()),
+                Err(_) => state.msg_queue.push_back(Message::info("Invalid wizard command.")),
             }
         } else {
-            state.msg_buff.push_back("Invalid wizard command.".to_string());
+            state.msg_queue.push_back(Message::info("Invalid wizard command."));
         }
     }
 }
@@ -1510,24 +1518,29 @@ fn fov_to_tiles(state: &mut GameState, game_obj_db: &GameObjectDB, visible: &[((
 fn kill_screen(state: &mut GameState, gui: &mut GameUI, game_obj_db: &mut GameObjectDB, msg: &str) {
     let sbi = state.curr_sidebar_info(game_obj_db);
     if msg.is_empty() {
-        state.msg_buff.push_back("Oh no! You have died@!".to_string());
+        state.msg_queue.push_back(Message::info("Oh no! You have died!"));
     } else {
         let s = format!("Oh no! You have been killed by {}!", msg);
-        state.msg_buff.push_back(s);
+        state.msg_queue.push_back(Message::info(&s));        
     }
     
     let s = format!("Farewell, {}.", game_obj_db.get(0).unwrap().get_fullname());
-    state.msg_buff.push_back(s);
+    state.msg_queue.push_back(Message::info(&s));
     let sbi = state.curr_sidebar_info(game_obj_db);
-    gui.update(&mut state.msg_buff, Some(&sbi));
+
+    let mut msgs = VecDeque::new();
+    while !state.msg_queue.is_empty() {
+        let msg = state.msg_queue.pop_front().unwrap();
+        msgs.push_back(msg.text);
+    }
+    gui.update(&mut msgs, Some(&sbi));
     gui.pause_for_more();
 }
 
 // Herein lies the main game loop
 fn run_game_loop(gui: &mut GameUI, state: &mut GameState, game_obj_db: &mut GameObjectDB, dialogue: &DialogueLibrary, monster_fac: &MonsterFactory) -> Result<(), ExitReason> {    
     update_view(state, game_obj_db, gui);
-    state.msg_buff.clear();
-
+    
     loop {
         state.animation_pause = false;
         let mut curr_energy = 0.0;
@@ -1556,10 +1569,10 @@ fn run_game_loop(gui: &mut GameUI, state: &mut GameState, game_obj_db: &mut Game
             if effects > 0 {
                 let sbi = state.curr_sidebar_info(game_obj_db);
                 effects::apply_effects(state, 0, game_obj_db, effects);
-                while !state.msg_buff.is_empty() {
-                    let msg = state.msg_buff.pop_front().unwrap();
-                    gui.update(&mut state.msg_buff, Some(&sbi));
-                }
+                
+                if !state.msg_queue.is_empty() {
+                    update_view(state, game_obj_db, gui);
+                }                
             }
 
             check_event_queue(state, game_obj_db, gui)?;
@@ -1621,7 +1634,7 @@ fn run_game_loop(gui: &mut GameUI, state: &mut GameState, game_obj_db: &mut Game
                 // dead ones.
                 game_obj_db.check_for_dead_npcs();
                 game_obj_db.update_listeners(state, EventType::Update);
-                if !skip_turn || !state.msg_buff.is_empty() {
+                if !skip_turn || !state.msg_queue.is_empty() {
                     update_view(state, game_obj_db, gui);
                 }
             }
@@ -1655,7 +1668,7 @@ fn run_game_loop(gui: &mut GameUI, state: &mut GameState, game_obj_db: &mut Game
 
         state.turn += 1;
 
-        if !skip_turn || !state.msg_buff.is_empty() {
+        if !skip_turn || !state.msg_queue.is_empty() {
             update_view(state, game_obj_db, gui);
         }
 
@@ -1682,7 +1695,7 @@ fn check_event_queue(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui:
                 let level = p.level;
                 let sbi = state.curr_sidebar_info(game_obj_db);                    
                 let s = format!("Welcome to level {}!", level);
-                state.msg_buff.push_back(s);
+                state.msg_queue.push_back(Message::info(&s));                
             },
             (EventType::DeathOf(npc_id), _, _, _) => {
                 game_obj_db.update_listeners(state, EventType::DeathOf(npc_id));
@@ -1717,17 +1730,17 @@ fn update_view(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mut 
     // this is semi-temporary code. Eventually msg_queue will replace msg_buff
     // I don't know about the distance calculation for noise. A floodfill like I'm doing
     // to alert monsters is probably better but more complicated.
+    let mut msgs = VecDeque::new();
     while !state.msg_queue.is_empty() {
         let msg = state.msg_queue.pop_front().unwrap();
-        if state.curr_visible.contains(&msg.loc) {
-            state.msg_buff.push_back(msg.text);
+        if state.curr_visible.contains(&msg.loc) || (msg.obj_id == 0 && msg.loc == (-1, -1, -1)) {
+            msgs.push_back(msg.text);
         } else if !msg.alt_text.is_empty() && util::distance(player_loc.0, player_loc.1, msg.loc.0, msg.loc.1) < 12.0 {
-            state.msg_buff.push_back(msg.alt_text);
+            msgs.push_back(msg.alt_text);            
         }
     }
 
-    gui.update(&mut state.msg_buff, Some(&sbi));
-    state.msg_buff.clear();
+    gui.update(&mut msgs, Some(&sbi));
     //let write_screen_duration = write_screen_start.elapsed();
     //println!("Time for write_screen(): {:?}", write_screen_duration); 
 }
@@ -1787,7 +1800,7 @@ fn main() {
             
             let sbi = state.curr_sidebar_info(&mut game_obj_db);
             let msg = format!("Welcome back, {}!", player_name);
-            state.msg_buff.push_back(msg);
+            state.msg_queue.push_back(Message::info(&msg));
         } else {
             // need to dump some sort of message for corrupted game file
             return;
@@ -1805,7 +1818,7 @@ fn main() {
         
         //state.write_msg_buff("Welcome, adventurer!");
         let sbi = state.curr_sidebar_info(&mut game_obj_db);
-        state.msg_buff.push_back("Welcome, adventurer!".to_string());
+        state.msg_queue.push_back(Message::info("Welcome, adventurer."));        
     }
     
     // for _ in 0..20 {

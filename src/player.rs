@@ -19,7 +19,7 @@ use std::collections::{HashMap, HashSet};
 use rand::Rng;
 use serde::{Serialize, Deserialize};
 
-use super::{EventResponse, EventType, GameState, Status};
+use super::{EventResponse, EventType, GameState, Message, Status};
 use crate::battle::DamageType;
 use crate::display;
 use crate::effects::HasStatuses;
@@ -115,10 +115,10 @@ impl Player {
         // This should be here and is a dumb calculation because vision radius will be
         // affected by say torches. It should be moved to end-of-turn stuff in the gameloop
         if prev_vr == 99 && self.vision_radius == 9 && loc.2 == 0 {
-            state.msg_buff.push_back("The sun is beginning to set.".to_string());
+            state.msg_queue.push_back(Message::new(0, loc, "The sun is beginning to set.", ""));            
         }
         if prev_vr == 5 && self.vision_radius == 7 && loc.2 == 0 {
-            state.msg_buff.push_back("Sunrise soon.".to_string());
+            state.msg_queue.push_back(Message::new(0, loc, "Sunrise soon.", ""));            
         }
     }
 
@@ -608,7 +608,7 @@ impl Person for Player {
         }
 
         if dmg_type == DamageType::Poison {
-            state.msg_buff.push_back("You feel ill.".to_string());            
+            state.msg_queue.push_back(Message::info("You feel ill."));
         }
     }
 

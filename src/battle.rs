@@ -19,7 +19,7 @@ extern crate serde;
 use rand::Rng;
 use serde::{Serialize, Deserialize};
 
-use super::{GameObject, GameState, Status};
+use super::{GameObject, GameState, Message, Status};
 use crate::effects;
 use crate::npc;
 use crate::player;
@@ -42,6 +42,7 @@ pub enum DamageType {
 pub fn player_attacks(state: &mut GameState, opponent_id: usize, game_obj_db: &mut GameObjectDB) {
     let mut rng = rand::thread_rng();
     let npc = game_obj_db.get(opponent_id).unwrap();
+    let npc_loc = npc.get_loc();
     let invisible_opponent = npc.hidden();
 
     // Fetch the attack bonuses for the player's weapon. Do it here so that Player needs to know
@@ -79,7 +80,7 @@ pub fn player_attacks(state: &mut GameState, opponent_id: usize, game_obj_db: &m
     let foe = game_obj_db.npc(opponent_id).unwrap();
     if attack_roll >= foe.ac as i8 {
         let s = format!("You hit {}!", foe.npc_name(false));
-        state.msg_buff.push_front(s);
+        state.msg_queue.push_back(Message::new(opponent_id, npc_loc, &s, "You hit something!"));
         
         let dmg_roll: u8 = (0..num_dmg_die).map(|_| rng.gen_range(1, weapon_dmg_dice + 1)).sum();
         let dmg_total = dmg_roll as i8 + weapon_attack_bonus + str_mod;    
@@ -100,7 +101,7 @@ pub fn player_attacks(state: &mut GameState, opponent_id: usize, game_obj_db: &m
             format!("You miss {}!", foe.npc_name(false))
         };
 
-        state.msg_buff.push_back(s);
+        state.msg_queue.push_back(Message::new(opponent_id, npc_loc, &s, "You miss entirely!"));
     }
     
     if xp_earned > 0 {
@@ -112,6 +113,7 @@ pub fn player_attacks(state: &mut GameState, opponent_id: usize, game_obj_db: &m
 pub fn monster_attacks_player(state: &mut GameState, monster_id: usize, game_obj_db: &mut GameObjectDB) {
     let mut rng = rand::thread_rng();
     let npc = game_obj_db.npc(monster_id).unwrap();
+    let monster_loc = npc.get_loc();
     let monster_name_indef = npc.npc_name(true);
     let monster_name = npc.npc_name(false);
     let attack_mod = npc.attack_mod;
@@ -122,6 +124,7 @@ pub fn monster_attacks_player(state: &mut GameState, monster_id: usize, game_obj
     let monster_attributes = npc.attributes;
 
     let player = game_obj_db.player().unwrap();
+    let player_loc = player.get_loc();
     let mut attack_roll = rng.gen_range(1, 21) + attack_mod;
     if player.base_info.hidden {
         attack_roll -= 5;
@@ -129,7 +132,7 @@ pub fn monster_attacks_player(state: &mut GameState, monster_id: usize, game_obj
     
     if attack_roll >= player.ac {
         let s = format!("{} hits you!", monster_name.capitalize());
-        state.msg_buff.push_back(s);
+        state.msg_queue.push_back(Message::new(monster_id, monster_loc, &s, "You are hit!"));
         let dmg_roll: u8 = (0..dmg_dice).map(|_| rng.gen_range(1, dmg_die + 1)).sum();
         let dmg_total = (dmg_roll + dmg_bonus) as i8;
         if dmg_total > 0 {
@@ -139,15 +142,15 @@ pub fn monster_attacks_player(state: &mut GameState, monster_id: usize, game_obj
             // Are there any relevant extra effects from the monster's attack?
             if monster_attributes & npc::MA_WEAK_VENOMOUS > 0 {
                 let con_save = player.ability_check(Ability::Con);
-                if con_save <= monster_dc {                    
-                    state.msg_buff.push_back("You feel ill.".to_string());
+                if con_save <= monster_dc {
+                    state.msg_queue.push_back(Message::new(0, player_loc, "You feel ill.", "You feel ill."));
                     effects::add_status(player, Status::WeakVenom(monster_dc));
                 }
             }
         }
     } else {
         let s = format!("{} misses you!", monster_name.capitalize());
-        state.msg_buff.push_back(s);
+        state.msg_queue.push_back(Message::new(monster_id, monster_loc, &s, "Something misses you!"));
     }
 }
 
@@ -159,36 +162,37 @@ pub fn knock_back(state: &mut GameState, game_obj_db: &mut GameObjectDB, target_
 
     let npc_id = game_obj_db.npc_at(&target_loc).unwrap();
     let target = game_obj_db.npc(npc_id).unwrap();
+    let target_loc = target.get_loc();
     let target_size = target.size();
     let target_str_check = target.ability_check(Ability::Str);
     let target_name = target.npc_name(false);
 
     if target_size > player_size {
         let s = format!("You fruitlessly hurl yourself at {}.", target_name);
-        state.msg_buff.push_back(s);
+        state.msg_queue.push_back(Message::new(npc_id, target_loc, &s, "You collide with something much larger than yourself!"));
     } else if str_check > target_str_check {
         let d = (target_loc.0 - player_loc.0, target_loc.1 - player_loc.1, target_loc.2 - player_loc.2);
         let new_loc = (target_loc.0 + d.0, target_loc.1 + d.1, target_loc.2 + d.2);
         
         let s = format!("You bash {}!", target_name);
-        state.msg_buff.push_back(s);
-        
+        state.msg_queue.push_back(Message::new(npc_id, target_loc, &s, "You bash into something!"));
+
         if !state.map[&new_loc].passable() {
             let s = format!("{} does not move.", target_name.capitalize());
-            state.msg_buff.push_back(s);
-        } else if let Some(bystander_id) = game_obj_db.npc_at(&new_loc) {
+            state.msg_queue.push_back(Message::new(npc_id, target_loc, &s, "Whatever you hit doesn't move."));        
+        } else if let Some(bystander_id) = game_obj_db.npc_at(&target_loc) {
             let bystander = game_obj_db.npc(bystander_id).unwrap();
             let name = bystander.npc_name(false);
             let s = format!("{} blunders into {}!", target_name.capitalize(), name);
-            state.msg_buff.push_back(s);
+            state.msg_queue.push_back(Message::new(npc_id, target_loc, &s, ""));            
         } else {
             let s = format!("{} staggers back!", target_name.capitalize());
-            state.msg_buff.push_back(s);
+            state.msg_queue.push_back(Message::new(npc_id, target_loc, &s, "Something staggers!"));
             super::take_step(state, game_obj_db, npc_id, target_loc, new_loc);
             state.animation_pause = true;
         }
     } else {
         let s = util::format_msg(npc_id, "hold", "[pronoun] ground!", game_obj_db);
-        state.msg_buff.push_back(s);
+        state.msg_queue.push_back(Message::new(npc_id, target_loc, &s, "You bash something but they do not move!"));
     }
 }

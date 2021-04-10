@@ -21,7 +21,7 @@ use std::u128;
 use rand::{Rng, prelude::SliceRandom};
 use serde::{Serialize, Deserialize};
 
-use super::GameState;
+use super::{GameState, Message};
 use crate::battle::DamageType;
 use crate::game_obj::{Ability, GameObject, GameObjectDB, Person};
 use crate::util;
@@ -49,7 +49,7 @@ fn blink(state: &mut GameState, obj_id: usize, game_obj_db: &mut GameObjectDB) {
 
     let mut rng = rand::thread_rng();
     if sqs.is_empty() {
-        state.msg_buff.push_back("The magic fizzles".to_string());
+        state.msg_queue.push_back(Message::new(obj_id, loc, "The magic fizzles", ""));
     } else {
         let landing_spot = sqs.choose(&mut rng).unwrap();
         // I should probably call lands_on_sq() too?

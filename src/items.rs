@@ -17,7 +17,7 @@ extern crate serde;
 
 use serde::{Serialize, Deserialize};
 
-use super::{EventResponse, EventType, GameState, PLAYER_INV};
+use super::{EventResponse, EventType, GameState, Message, PLAYER_INV};
 
 use crate::battle::DamageType;
 use crate::display;
@@ -317,6 +317,9 @@ impl GameObject for Item {
     }
 
     fn receive_event(&mut self, event: EventType, state: &mut GameState, player_loc: (i32, i32, i8)) -> Option<EventResponse> {
+        let obj_id = self.obj_id();
+        let loc = self.get_loc();
+
         match event {
             EventType::Update => {
                 // right now light sources are the only things in the game which times like this
@@ -324,35 +327,35 @@ impl GameObject for Item {
 				// with the calculation if the light source is on another level of the dungeon
                 // Note this currently isn't working for a monster carrying a lit light source (or, eventually
                 // other items that may have charges)
-                if self.charges > 0 && (self.get_loc() == PLAYER_INV || self.get_loc().2 == player_loc.2) {
-                    self.mark_lit_sqs(state, self.get_loc(), player_loc);
+                if self.charges > 0 && (loc == PLAYER_INV || self.get_loc().2 == player_loc.2) {
+                    self.mark_lit_sqs(state, loc, player_loc);
 				}                
             },
 			EventType::EndOfTurn => {
 				self.charges -= 1;
                 
 				if self.charges == 150 {
-					let s = if self.get_loc() == PLAYER_INV {
+					let s = if loc == PLAYER_INV {
 						format!("Your {} flickers.", self.base_info.name)					
 					} else {
 						format!("The {} flickers.", self.base_info.name)
 					};
 					self.aura -= 2;
-                    state.msg_buff.push_back(s.to_string());
+                    state.msg_queue.push_back(Message::new(obj_id, loc, &s, ""));
 				} else if self.charges == 25 {
 					let s = if self.get_loc() == PLAYER_INV {
 						format!("Your {} seems about to go out.", self.base_info.name)					
 					} else {
 						format!("The {} seems about to out.", self.base_info.name)
 					};
-                    state.msg_buff.push_back(s.to_string());                    
+                    state.msg_queue.push_back(Message::new(obj_id, loc, &s, ""));
 				} else if self.charges == 0 {
 					let s = if self.get_loc() == PLAYER_INV {
 						format!("Your {} has gone out!", self.base_info.name)					
 					} else {
 						format!("The {} has gone out!", self.base_info.name)
 					};
-                    state.msg_buff.push_back(s.to_string());
+                    state.msg_queue.push_back(Message::new(obj_id, loc, &s, ""));
 
                     let er = EventResponse::new(self.obj_id(), EventType::LightExpired);
 					return Some(er);

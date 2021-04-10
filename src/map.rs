@@ -19,7 +19,7 @@ extern crate serde;
 
 use serde::{Serialize, Deserialize};
 
-use super::{EventResponse, EventType, GameState, Map};
+use super::{EventResponse, EventType, GameState, Map, Message};
 
 use crate::display;
 use crate::fov;
@@ -147,7 +147,7 @@ impl SpecialSquare {
 	fn handle_triggered_event(&mut self, state: &mut GameState, loc: (i32, i32, i8), obj_id: usize) {
 		if let Tile::Gate(_) = self.tile {
 			self.active = !self.active;
-			state.msg_buff.push_back("You hear a metallic grinding.".to_string());
+			state.msg_queue.push_back(Message::new(obj_id, loc, "You hear a metallic grinding.", "You hear a metallic grinding."));
 			if self.active {
 				state.queued_events.push_back((EventType::GateClosed, loc, obj_id, None));
 				state.map.insert(loc, Tile::Gate(DoorState::Closed));
@@ -170,10 +170,9 @@ impl SpecialSquare {
 
 	fn stepped_on(&mut self, state: &mut GameState, obj_id: usize) -> Option<EventResponse> {
 		if self.tile == Tile::TeleportTrap {
-			state.msg_buff.push_back("A feeling of vertigo.".to_string());
 			return Some(EventResponse::new(obj_id, EventType::TrapRevealed));
 		}  else {
-			state.msg_buff.push_back("Click.".to_string());
+			state.msg_queue.push_back(Message::new(obj_id, self.get_loc(), "Click.", "Click."));
 			self.active = !self.active;
 
 			if let Some(target) = self.target {
