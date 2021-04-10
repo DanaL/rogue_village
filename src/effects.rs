@@ -104,6 +104,7 @@ pub enum Status {
     Invisible(u32),
     FadeAfter(u32), // used for illusions that will disappear after a certain time or when their creator dies
     CoolingDown(u16, u32),
+    ConfusedUntil(u32),
 }
 
 pub trait HasStatuses {
@@ -163,6 +164,17 @@ pub fn add_status<T: HasStatuses + GameObject>(person: &mut T, status: Status) {
         }
     }
 
+    if let Status::ConfusedUntil(time) = status {
+        for j in 0..statuses.len() {
+            if let Status::ConfusedUntil(prev_time) = statuses[j] {
+                if time > prev_time {
+                    statuses[j] = status;
+                    return;
+                }
+            }
+        }
+    }
+
     // Generally don't allow the player to have more than one status effect of the same type.
     for s in statuses.iter() {
         if *s == status {
@@ -182,12 +194,11 @@ pub fn remove_status<T: HasStatuses + GameObject>(person: &mut T, status: Status
     }
 }
 
-pub fn check_statuses<T: HasStatuses + GameObject + Person>(person: &mut T, state: &mut GameState) -> Option<Vec<String>> {
+pub fn check_statuses<T: HasStatuses + GameObject + Person>(person: &mut T, state: &mut GameState) {
     let obj_id = person.obj_id();
     let con_check = person.ability_check(Ability::Con); // gotta do this here for borrow checker reasons...
     let statuses = person.get_statuses().unwrap();
-    let mut messages = Vec::new();
-
+    
     let mut reveal = false;
     let mut killed = false;
     let mut j = 0;
@@ -203,7 +214,7 @@ pub fn check_statuses<T: HasStatuses + GameObject + Person>(person: &mut T, stat
                 if time <= state.turn {
                     statuses.remove(j);
                     if obj_id == 0 {
-                        messages.push("Your vision clears!".to_string());
+                        state.msg_queue.push_back(Message::info("Your vision clears!"));
                     }
                     continue;
                 }
@@ -212,7 +223,7 @@ pub fn check_statuses<T: HasStatuses + GameObject + Person>(person: &mut T, stat
                 if time <= state.turn {
                     statuses.remove(j);
                     if obj_id == 0 {
-                        messages.push("A curse lifts!".to_string());
+                        state.msg_queue.push_back(Message::info("A curse lifts!"));                        
                     }
                     continue;
                 }
@@ -221,7 +232,7 @@ pub fn check_statuses<T: HasStatuses + GameObject + Person>(person: &mut T, stat
                 if time <= state.turn {
                     statuses.remove(j);
                     if obj_id == 0 {
-                        messages.push("You awake feeling refreshed!".to_string());
+                        state.msg_queue.push_back(Message::info("You awake feeling refreshed."));                        
                     }
                     continue;
                 }
@@ -229,7 +240,7 @@ pub fn check_statuses<T: HasStatuses + GameObject + Person>(person: &mut T, stat
             Status::WeakVenom(dc) => {
                 if con_check >= dc {
                     if obj_id == 0 {
-                        messages.push("You feel better".to_string());
+                        state.msg_queue.push_back(Message::info("You feel better!"));
                     }
                     statuses.remove(j);                    
                 }
@@ -250,6 +261,14 @@ pub fn check_statuses<T: HasStatuses + GameObject + Person>(person: &mut T, stat
                     statuses.remove(j);
                 }
             }
+            Status::ConfusedUntil(time) => {
+                if time <= state.turn {
+                    statuses.remove(j);
+                    if obj_id == 0 {
+                        state.msg_queue.push_back(Message::info("You shake off your confusion."));
+                    }
+                }
+            }
         }
 
         j += 1;
@@ -258,10 +277,10 @@ pub fn check_statuses<T: HasStatuses + GameObject + Person>(person: &mut T, stat
     if reveal {
         person.reveal();
         if obj_id == 0 {
-            messages.push("You reappear!".to_string());
+            state.msg_queue.push_back(Message::info("You reappear!"));            
         } else {
             let s = format!("The {} re-appears!", person.get_fullname());
-            messages.push(s.to_string());
+            state.msg_queue.push_back(Message::new(obj_id, person.get_loc(), &s, ""));    
         }
     }
 
@@ -269,12 +288,6 @@ pub fn check_statuses<T: HasStatuses + GameObject + Person>(person: &mut T, stat
         let name = person.get_fullname();
         person.mark_dead();
         let s = format!("The {} evaporates into mist!", name);
-        messages.push(s.to_string());
-    }
-
-    if messages.is_empty() {
-        None
-    } else {
-        Some(messages)
+        state.msg_queue.push_back(Message::new(obj_id, person.get_loc(), &s, ""));         
     }
 }

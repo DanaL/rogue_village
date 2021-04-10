@@ -167,6 +167,25 @@ pub fn apply_weak_poison(state: &mut GameState, victim_id: usize, game_obj_db: &
     }
 }
 
+pub fn apply_confusion(state: &mut GameState, victim_id: usize, game_obj_db: &mut GameObjectDB, dc: u8) {
+    if victim_id == 0 {
+        let p = game_obj_db.player().unwrap();
+        let con_save = p.ability_check(Ability::Apt);
+        if con_save <= dc {
+            let until = state.turn + rand::thread_rng().gen_range(10, 16);
+            effects::add_status(p, Status::ConfusedUntil(until));
+            state.msg_queue.push_back(Message::info("Your head swims!"));
+        }        
+    } else {
+        let npc = game_obj_db.npc(victim_id).unwrap();
+        let con_save = npc.ability_check(Ability::Apt);
+        if con_save <= dc {
+            let until = state.turn + rand::thread_rng().gen_range(10, 16);
+            effects::add_status(npc, Status::ConfusedUntil(until));
+        }
+    }
+}
+
 pub fn knock_back(state: &mut GameState, game_obj_db: &mut GameObjectDB, target_loc: (i32, i32, i8)) {
     let p = game_obj_db.player().unwrap();
     let player_size = p.size();

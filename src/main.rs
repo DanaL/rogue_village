@@ -191,15 +191,17 @@ impl GameState {
         };
         
         let mut poisoned = false;
+        let mut confused = false;
         for s in player.statuses.iter() {
             match s {
                 Status::WeakVenom(_) => { poisoned = true; },
+                Status::ConfusedUntil(_) => { confused = true; },
                 _ => { },
             }
         }
 
         SidebarInfo::new(player.get_fullname(), player.curr_hp, player.max_hp, self.turn, player.ac,
-        player.purse, weapon_name, loc.2 as u8, poisoned)
+            player.purse, weapon_name, loc.2 as u8, poisoned, confused)
     }
 
     // I made life difficult for myself by deciding that Turn 0 of the game is 8:00am T_T
@@ -1126,7 +1128,7 @@ pub fn take_step(state: &mut GameState, game_obj_db: &mut GameObjectDB, obj_id: 
 }
 
 fn do_move(state: &mut GameState, game_obj_db: &mut GameObjectDB, dir: &str, gui: &mut GameUI) -> f32 {
-    let mv = get_move_tuple(dir);    
+    let mv = get_move_tuple(dir);
     let start_loc = game_obj_db.get(0).unwrap().get_loc();
     let start_tile = state.map[&start_loc];
     let next_loc = (start_loc.0 + mv.0, start_loc.1 + mv.1, start_loc.2);

@@ -75,11 +75,12 @@ pub struct SidebarInfo {
 	weapon: String,
 	curr_level: u8,
 	poisoned: bool,
+	confused: bool,
 }
 
 impl SidebarInfo {
-	pub fn new(name: String, curr_hp: u8, max_hp: u8, turn: u32, ac: u8, zorkmids: u32, weapon: String, curr_level: u8, poisoned: bool) -> SidebarInfo {
-		SidebarInfo { name, curr_hp, max_hp, turn, ac, zorkmids, weapon, curr_level, poisoned, }
+	pub fn new(name: String, curr_hp: u8, max_hp: u8, turn: u32, ac: u8, zorkmids: u32, weapon: String, curr_level: u8, poisoned: bool, confused: bool) -> SidebarInfo {
+		SidebarInfo { name, curr_hp, max_hp, turn, ac, zorkmids, weapon, curr_level, poisoned, confused, }
 	}
 }
 
@@ -671,8 +672,13 @@ impl<'a, 'b> GameUI<'a, 'b> {
 			}
 		}
 
+		let mut effects_line = 19;
 		if sbi.poisoned {
-			self.write_sidebar_line("POISONED", fov_w, 19, tuple_to_sdl2_color(&GREEN), 0);	
+			self.write_sidebar_line("POISONED", fov_w, effects_line, tuple_to_sdl2_color(&GREEN), 0);
+			effects_line -= 1;
+		}
+		if sbi.confused {
+			self.write_sidebar_line("CONFUSED", fov_w, effects_line, tuple_to_sdl2_color(&PINK), 0);
 		}
 
 		let s = if sbi.curr_level == 0 {

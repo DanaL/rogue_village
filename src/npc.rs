@@ -439,6 +439,7 @@ fn plant_behaviour(npc_id: usize, state: &mut GameState, game_obj_db: &mut GameO
         let s = format!("{} releases spores!", npc.npc_name(false).capitalize());
         state.msg_queue.push_back(Message::new(npc_id, npc_loc, &s, "Something releases spores into the air!"));
         battle::apply_weak_poison(state, 0, game_obj_db, npc_dc);
+        battle::apply_confusion(state, 0, game_obj_db, npc_dc);
     }
 }
 
