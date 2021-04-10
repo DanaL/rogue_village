@@ -434,9 +434,11 @@ pub fn take_turn(npc_id: usize, state: &mut GameState, game_obj_db: &mut GameObj
 fn plant_behaviour(npc_id: usize, state: &mut GameState, game_obj_db: &mut GameObjectDB, npc_loc: (i32, i32, i8)) {
     let player_loc = game_obj_db.get(0).unwrap().get_loc();
     let npc = game_obj_db.npc(npc_id).unwrap();
+    let npc_dc = npc.edc;
     if util::are_adj(npc_loc, player_loc) {
         let s = format!("{} releases spores!", npc.npc_name(false).capitalize());
         state.msg_queue.push_back(Message::new(npc_id, npc_loc, &s, "Something releases spores into the air!"));
+        battle::apply_weak_poison(state, 0, game_obj_db, npc_dc);
     }
 }
 

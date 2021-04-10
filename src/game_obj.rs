@@ -343,8 +343,8 @@ impl GameObjectDB {
                         },
                         _ => { /* Should maybe panic! here? */ },
                     }
-                }                
-            }            
+                }
+            }
         }
     }
 

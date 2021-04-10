@@ -141,16 +141,29 @@ pub fn monster_attacks_player(state: &mut GameState, monster_id: usize, game_obj
 
             // Are there any relevant extra effects from the monster's attack?
             if monster_attributes & npc::MA_WEAK_VENOMOUS > 0 {
-                let con_save = player.ability_check(Ability::Con);
-                if con_save <= monster_dc {
-                    state.msg_queue.push_back(Message::new(0, player_loc, "You feel ill.", "You feel ill."));
-                    effects::add_status(player, Status::WeakVenom(monster_dc));
-                }
+                apply_weak_poison(state, 0, game_obj_db, monster_dc);                
             }
         }
     } else {
         let s = format!("{} misses you!", monster_name.capitalize());
         state.msg_queue.push_back(Message::new(monster_id, monster_loc, &s, "Something misses you!"));
+    }
+}
+
+pub fn apply_weak_poison(state: &mut GameState, victim_id: usize, game_obj_db: &mut GameObjectDB, dc: u8) {
+    if victim_id == 0 {
+        let p = game_obj_db.player().unwrap();
+        let con_save = p.ability_check(Ability::Con);
+        if con_save <= dc {
+            effects::add_status(p, Status::WeakVenom(dc));
+            state.msg_queue.push_back(Message::info("You feel ill."));
+        }        
+    } else {
+        let npc = game_obj_db.npc(victim_id).unwrap();
+        let con_save = npc.ability_check(Ability::Con);
+        if con_save <= dc {
+            effects::add_status(npc, Status::WeakVenom(dc));
+        }
     }
 }
 
