@@ -746,7 +746,7 @@ fn build_test_dungeon(world_info: &mut WorldInfo, map: &mut Map, entrance: (i32,
     map.insert((entrance.0+3, entrance.1+4, 1), Tile::Door(DoorState::Locked));
 
     let loc = (entrance.0 + 3, entrance.1 + 5, 1);
-    monster_fac.add_monster("goblin", loc, game_obj_db);
+    monster_fac.add_monster("fungal growth", loc, game_obj_db);
     map.insert((entrance.0, entrance.1, 1), Tile::StairsUp);
 
 }

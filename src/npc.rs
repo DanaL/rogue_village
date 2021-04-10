@@ -60,6 +60,7 @@ pub const MA_WEBSLINGER: u128        = 0x00000100;
 pub const MA_MINOR_BLACK_MAGIC: u128 = 0x00000200;
 pub const MA_MINOR_TRICKERY: u128    = 0x00000400;
 pub const MA_ILLUSION: u128          = 0x00000800;
+pub const MA_CONFUSION: u128         = 0x00001000;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum Venue {
@@ -118,6 +119,7 @@ pub enum NPCPersonality {
     Villager,
     SimpleMonster,
     BasicUndead,
+    Plant,
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
@@ -127,6 +129,7 @@ pub enum Behaviour {
     Wander,
     Guard((i32, i32, i8)),
     Defend(usize),
+    Plant,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -413,12 +416,8 @@ pub fn take_turn(npc_id: usize, state: &mut GameState, game_obj_db: &mut GameObj
     };
     
     match curr_behaviour {
-        Behaviour::Hunt => {
-            hunt_player(npc_id, npc_loc, state, game_obj_db);
-        },
-        Behaviour::Wander => {
-            wander(npc_id, state, game_obj_db, npc_loc);
-        },
+        Behaviour::Hunt => hunt_player(npc_id, npc_loc, state, game_obj_db),
+        Behaviour::Wander => wander(npc_id, state, game_obj_db, npc_loc),
         Behaviour::Idle => {
             if npc_mode == NPCPersonality::Villager {
                 villager_schedule(npc_id, state, game_obj_db, npc_loc);
@@ -427,7 +426,17 @@ pub fn take_turn(npc_id: usize, state: &mut GameState, game_obj_db: &mut GameObj
                 idle_monster(npc_id, state, game_obj_db, npc_loc);
             }
         },
+        Behaviour::Plant => plant_behaviour(npc_id, state, game_obj_db, npc_loc),
         Behaviour::Guard(_) | Behaviour:: Defend(_) => panic!("These are not implemented yet!"),
+    }
+}
+
+fn plant_behaviour(npc_id: usize, state: &mut GameState, game_obj_db: &mut GameObjectDB, npc_loc: (i32, i32, i8)) {
+    let player_loc = game_obj_db.get(0).unwrap().get_loc();
+    let npc = game_obj_db.npc(npc_id).unwrap();
+    if util::are_adj(npc_loc, player_loc) {
+        let s = format!("{} releases spores!", npc.npc_name(false).capitalize());
+        state.msg_queue.push_back(Message::new(npc_id, npc_loc, &s, "Something releases spores into the air!"));
     }
 }
 
@@ -978,6 +987,7 @@ impl MonsterFactory {
         match text {
             "SimpleMonster" => NPCPersonality::SimpleMonster,
             "BasicUndead" => NPCPersonality::BasicUndead,
+            "Plant" => NPCPersonality::Plant,
             _ => {
                 panic!("{}", format!("Unknown personality: {}", text));
             }
@@ -1018,6 +1028,7 @@ impl MonsterFactory {
             "hunt" => Behaviour::Hunt,
             "idle" => Behaviour::Idle,
             "wander" => Behaviour::Wander,
+            "plant" => Behaviour::Plant,
             _ => {
                 panic!("{}", format!("Unknown behaviour: {}!", text));
             }
@@ -1059,6 +1070,16 @@ impl MonsterFactory {
                 "MA_WEBSLINGER" => MA_WEBSLINGER,
                 "MA_MINOR_BLACK_MAGIC" => MA_MINOR_BLACK_MAGIC,
                 "MA_MINOR_TRICKERY" => MA_MINOR_TRICKERY,
+                "SPORES" => {
+                    let roll = rand::thread_rng().gen_range(0.0, 1.0);
+                    if roll < 0.4 {
+                        MA_WEAK_VENOMOUS
+                    } else if roll < 0.8 {
+                        MA_CONFUSION
+                    } else {
+                        MA_WEAK_VENOMOUS | MA_CONFUSION
+                    }
+                },
                 "NONE" => 0,
                 _ => {
                     panic!("{}", format!("Unknown attribute: {}!", a));
