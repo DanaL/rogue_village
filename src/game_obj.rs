@@ -620,6 +620,14 @@ impl GameObjectDB {
     }
 
     pub fn drop_npc_inventory(&mut self, npc: &mut NPC) {
+        if npc.attributes & npc::MA_LEAVE_CORPSE > 0 {
+            let mut pieces = npc.get_corpse(self);
+            while !pieces.is_empty() {
+                let piece = pieces.remove(0);
+                self.add(piece);
+            }
+        }
+
         let loc = npc.get_loc();
         while !npc.inventory.is_empty() {
             let mut obj = npc.inventory.remove(0);
@@ -661,7 +669,7 @@ impl GameObjectDB {
 
         for id in corpses.iter() {
             let npc = self.remove(*id);
-            if let GameObjects::NPC(mut npc) = npc {
+            if let GameObjects::NPC(mut npc) = npc {                
                 self.drop_npc_inventory(&mut npc);
             }            
         }

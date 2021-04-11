@@ -769,6 +769,10 @@ fn use_item(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mut Gam
                 }
             }
 
+            if item_type == ItemType::Food {
+                state.msg_queue.push_back(Message::info("Om nom nom."));
+            }
+
             if effects > 0 {
                 effects::apply_effects(state, 0, game_obj_db, effects);                
             }

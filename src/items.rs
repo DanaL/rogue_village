@@ -195,6 +195,12 @@ impl Item {
                 
                 Some(GameObjects::Item(a))
             },
+            "piece of mushroom" => {
+                let mut m = Item::new(game_obj_db.next_id(), '%', display::LIGHT_BLUE, display::BLUE, name, ItemType::Food, 0, true, 0);
+                m.attributes |= IA_CONSUMABLE;
+
+                Some(GameObjects::Item(m))
+            },
             _ => None,
         }
     }
@@ -254,7 +260,7 @@ impl Item {
 
     pub fn useable(&self) -> bool {
         self.item_type == ItemType::Light || self.item_type == ItemType::Potion ||
-            self.item_type == ItemType::Scroll
+            self.item_type == ItemType::Scroll || self.item_type == ItemType::Food
     }
 
     pub fn stackable(&self) -> bool {

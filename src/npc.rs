@@ -61,6 +61,7 @@ pub const MA_MINOR_BLACK_MAGIC: u128 = 0x00000200;
 pub const MA_MINOR_TRICKERY: u128    = 0x00000400;
 pub const MA_ILLUSION: u128          = 0x00000800;
 pub const MA_CONFUSION: u128         = 0x00001000;
+pub const MA_LEAVE_CORPSE: u128      = 0x00002000;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum Venue {
@@ -249,6 +250,19 @@ impl NPC {
         line
     }
 
+    pub fn get_corpse(&self, game_obj_db: &mut GameObjectDB) -> Vec<GameObjects> {
+        let mut pieces = Vec::new();
+        if self.get_fullname() == "fungal growth" {
+            for _ in 0..rand::thread_rng().gen_range(1, 4) {
+                let mut m = Item::get_item(game_obj_db, "piece of mushroom").unwrap();
+                m.set_loc(self.get_loc());
+                pieces.push(m);
+            }
+        }
+    
+        pieces
+    }
+
     // At the moment, just using the voice to determine the name, although maybe
     // I'll later need a bit for anonymous vs named
     pub fn npc_name(&self, indef: bool) -> String {
@@ -267,7 +281,7 @@ impl NPC {
         } else {
             format!("{} dies!", self.npc_name(false).capitalize())        
         }
-    }
+    }    
 }
 
 impl GameObject for NPC {
@@ -322,7 +336,7 @@ impl GameObject for NPC {
     }
 }
 
-impl Person for NPC {
+impl Person for NPC {    
     fn damaged(&mut self, state: &mut GameState, amount: u8, dmg_type: DamageType, assailant_id: usize, _assailant_name: &str) {
         if self.attributes & MA_ILLUSION > 0 {
             if rand::thread_rng().gen_range(0.0, 1.0) <= 0.75 {
@@ -352,12 +366,12 @@ impl Person for NPC {
             let msg = Message::new(self.obj_id(), self.get_loc(), &self.death_msg(assailant_id), "You think you've landed a fatal blow!");
             state.msg_queue.push_back(msg);
             
-            state.queued_events.push_back((EventType::DeathOf(self.obj_id()), self.get_loc(), self.obj_id(), None));            
+            state.queued_events.push_back((EventType::DeathOf(self.obj_id()), self.get_loc(), self.obj_id(), None));
         } else {
             self.curr_hp -= adjusted_dmg;
         }
     }
-
+    
     fn get_hp(&self) -> (u8, u8) {
         (self.curr_hp, self.max_hp)
     }
@@ -1075,6 +1089,7 @@ impl MonsterFactory {
                 "MA_WEBSLINGER" => MA_WEBSLINGER,
                 "MA_MINOR_BLACK_MAGIC" => MA_MINOR_BLACK_MAGIC,
                 "MA_MINOR_TRICKERY" => MA_MINOR_TRICKERY,
+                "MA_LEAVE_CORPSE" => MA_LEAVE_CORPSE,
                 "SPORES" => {
                     let roll = rand::thread_rng().gen_range(0.0, 1.0);
                     if roll < 0.4 {
