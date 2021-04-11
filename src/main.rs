@@ -981,7 +981,7 @@ fn firepit_msg(num: u8) -> &'static str {
     }
 }
 
-fn maybe_fight(state: &mut GameState, game_obj_db: &mut GameObjectDB, loc: (i32, i32, i8), gui: &mut GameUI) -> f32 {
+fn maybe_fight(state: &mut GameState, game_obj_db: &mut GameObjectDB, loc: (i32, i32, i8), gui: &mut GameUI, confused: bool) -> f32 {
     if let Some(npc_id) = game_obj_db.npc_at(&loc) {
         let npc = game_obj_db.get_mut(npc_id).unwrap();
         let (npc_name, attitude) = if let GameObjects::NPC(other) = npc {
@@ -989,6 +989,11 @@ fn maybe_fight(state: &mut GameState, game_obj_db: &mut GameObjectDB, loc: (i32,
         } else {
             ("".to_string(), Attitude::Indifferent)
         };
+
+        if confused {
+            battle::player_attacks(state, npc_id, game_obj_db);
+            return 1.0;
+        }
         
         match attitude {
             Attitude::Hostile => {
@@ -1128,14 +1133,42 @@ pub fn take_step(state: &mut GameState, game_obj_db: &mut GameObjectDB, obj_id: 
 }
 
 fn do_move(state: &mut GameState, game_obj_db: &mut GameObjectDB, dir: &str, gui: &mut GameUI) -> f32 {
-    let mv = get_move_tuple(dir);
+    let player = game_obj_db.player().unwrap();
+    let mut confused = false;
+    for s in player.statuses.iter() {
+        match s {
+            Status::ConfusedUntil(_) => { confused = true; break; },
+            _ => { },
+        }
+    }
+
+    
+    // if the player is confused, they walk in their intended direction 1/5 of the time, otherwise
+    // they stagger in a random direction.
+    let mv = if confused && rand::thread_rng().gen_range(0.0, 1.0) < 0.2 {
+        state.msg_queue.push_back(Message::info("You stagger."));
+        let roll = rand::thread_rng().gen_range(0, 8);
+        match roll {
+            0 => get_move_tuple("n"),
+            1 => get_move_tuple("e"),
+            2 => get_move_tuple("s"),
+            3 => get_move_tuple("w"),
+            4 => get_move_tuple("ne"),
+            5 => get_move_tuple("nw"),
+            6 => get_move_tuple("se"),
+            _ => get_move_tuple("sw"),
+        }        
+    } else {
+        get_move_tuple(dir)
+    };
+
     let start_loc = game_obj_db.get(0).unwrap().get_loc();
     let start_tile = state.map[&start_loc];
     let next_loc = (start_loc.0 + mv.0, start_loc.1 + mv.1, start_loc.2);
     let tile = state.map[&next_loc].clone();
     
     if game_obj_db.blocking_obj_at(&next_loc) {
-        return maybe_fight(state, game_obj_db, next_loc, gui);            
+        return maybe_fight(state, game_obj_db, next_loc, gui, confused);            
     } else if tile.passable() {
         let (cost, moved) = take_step(state, game_obj_db, 0, start_loc, next_loc);
 
