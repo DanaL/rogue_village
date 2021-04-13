@@ -124,7 +124,6 @@ pub fn monster_attacks_player(state: &mut GameState, monster_id: usize, game_obj
     let monster_attributes = npc.attributes;
 
     let player = game_obj_db.player().unwrap();
-    let player_loc = player.get_loc();
     let mut attack_roll = rng.gen_range(1, 21) + attack_mod;
     if player.base_info.hidden {
         attack_roll -= 5;

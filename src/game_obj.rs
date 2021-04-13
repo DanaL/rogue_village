@@ -20,7 +20,6 @@ use std::collections::{HashMap, HashSet, VecDeque};
 
 use super::{EventResponse, EventType, GameState, PLAYER_INV};
 use crate::battle::DamageType;
-use crate::display::GameUI;
 use crate::effects;
 use crate::items::{Item, GoldPile};
 use crate::map::{SpecialSquare, Tile};
@@ -573,7 +572,7 @@ impl GameObjectDB {
         }
     }
 
-    pub fn do_npc_turns(&mut self, state: &mut GameState, gui: &mut GameUI) {
+    pub fn do_npc_turns(&mut self, state: &mut GameState) {
         let player_loc = self.get(0).unwrap().get_loc();
         let npcs = self.listeners.iter()
                         .filter(|i| i.1 == EventType::TakeTurn)

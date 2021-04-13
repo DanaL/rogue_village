@@ -411,8 +411,7 @@ fn item_hits_ground(mut obj: GameObjects, loc: (i32, i32, i8), game_obj_db: &mut
 fn drop_stack(state: &mut GameState, game_obj_db: &mut GameObjectDB, loc: (i32, i32, i8), slot: char, count: u32) -> f32 {
     let player = game_obj_db.player().unwrap();
     let result = player.inv_remove_from_slot(slot, count);
-    let sbi = state.curr_sidebar_info(game_obj_db);
-
+    
     match result {
         Ok(pile) => {
             if !pile.is_empty() {
@@ -517,8 +516,7 @@ fn search(state: &mut GameState, game_obj_db: &mut GameObjectDB) {
 fn pick_up(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mut GameUI) -> f32 {
     let player_loc = game_obj_db.get(0).unwrap().get_loc();
     let things = game_obj_db.things_at_loc(player_loc);
-    let sbi = state.curr_sidebar_info(game_obj_db);
-
+    
     if things.is_empty() {
         state.msg_queue.push_back(Message::info("There is nothing here."));        
         return 0.0;
@@ -696,7 +694,6 @@ fn toggle_item(state: &mut GameState, slot: char, game_obj_db: &mut GameObjectDB
 }
 
 fn toggle_equipment(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mut GameUI) -> f32 {
-    let sbi = state.curr_sidebar_info(game_obj_db);
     let player = game_obj_db.player().unwrap();
     let slots = player.inv_slots_used();
     
@@ -847,7 +844,7 @@ fn get_move_tuple(mv: &str) -> (i32, i32) {
     }
 }
 
-fn do_open(state: &mut GameState, loc: (i32, i32, i8), game_obj_db: &mut GameObjectDB) {
+fn do_open(state: &mut GameState, loc: (i32, i32, i8)) {
     let tile = &state.map[&loc];
     match tile {
         Tile::Door(DoorState::Open) | Tile::Door(DoorState::Broken) => state.msg_queue.push_back(Message::info("That door is already open.")),
@@ -960,7 +957,7 @@ fn check_closed_gate(state: &mut GameState, game_obj_db: &mut GameObjectDB, loc:
                 game_obj_db.set_to_loc(npc_id, landing_spot);
                 
                 let s = format!("{} is shoved out of the way by the falling gate!", npc_name.with_def_article());
-                state.msg_queue.push_back(Message::new(npc_id, start_loc, "&s", ""));
+                state.msg_queue.push_back(Message::new(npc_id, start_loc, &s, ""));
                 
                 game_obj_db.remove_from_loc(npc_id, start_loc);                    
                 game_obj_db.stepped_on_event(state, landing_spot);
@@ -1221,7 +1218,7 @@ fn do_move(state: &mut GameState, game_obj_db: &mut GameObjectDB, dir: &str, gui
         return cost;
     } else if tile == Tile::Door(DoorState::Closed) {
         // Bump to open doors. I might make this an option later
-        do_open(state, next_loc, game_obj_db);
+        do_open(state, next_loc);
         return 1.0;
     } else if tile == Tile::Door(DoorState::Locked) {  
         state.msg_queue.push_back(Message::new(0, next_loc, "You door is locked.", "The door is locked."));
@@ -1238,7 +1235,7 @@ fn do_move(state: &mut GameState, game_obj_db: &mut GameObjectDB, dir: &str, gui
 // I don't know how real noise works but when I want to alert monsters to something noisy a player did, I'm
 // going to floodfill out to a certain radius. (Which closed doors muffling the noise)
 // Another semi-duplicate implementation of floodfill but this one does work a little differently than the others.
-fn floodfill_noise(state: &mut GameState, game_obj_db: &mut GameObjectDB, centre: (i32, i32, i8), radius: u8, actor_id: usize) {
+fn floodfill_noise(state: &mut GameState, game_obj_db: &mut GameObjectDB, centre: (i32, i32, i8), radius: u8, _actor_id: usize) {
     // find start point
     let mut q = VecDeque::new();
     let mut visited = HashSet::new();
@@ -1389,7 +1386,6 @@ fn show_inventory(gui: &mut GameUI, state: &mut GameState, game_obj_db: &mut Gam
     };
 
     if menu.is_empty() && purse == 0 {
-        let sbi = state.curr_sidebar_info(game_obj_db);
         state.msg_queue.push_back(Message::info("You are empty handed."));
     } else {
         let mut m: Vec<(String, bool)> = menu.iter().map(|m| (m.0.to_string(), m.1)).collect();        
@@ -1555,7 +1551,6 @@ fn fov_to_tiles(state: &mut GameState, game_obj_db: &GameObjectDB, visible: &[((
 }
 
 fn kill_screen(state: &mut GameState, gui: &mut GameUI, game_obj_db: &mut GameObjectDB, msg: &str) {
-    let sbi = state.curr_sidebar_info(game_obj_db);
     if msg.is_empty() {
         state.msg_queue.push_back(Message::info("Oh no! You have died!"));
     } else {
@@ -1606,7 +1601,6 @@ fn run_game_loop(gui: &mut GameUI, state: &mut GameState, game_obj_db: &mut Game
             }
             
             if effects > 0 {
-                let sbi = state.curr_sidebar_info(game_obj_db);
                 effects::apply_effects(state, 0, game_obj_db, effects);
                 
                 if !state.msg_queue.is_empty() {
@@ -1635,7 +1629,7 @@ fn run_game_loop(gui: &mut GameUI, state: &mut GameState, game_obj_db: &mut Game
                 Cmd::Move(dir) => energy_cost = do_move(state, game_obj_db, &dir, gui),
                 Cmd::MsgHistory => show_message_history(state, gui),
                 Cmd::Open(loc) => { 
-                    do_open(state, loc, game_obj_db);
+                    do_open(state, loc);
                     energy_cost = 1.0;
                 },
                 Cmd::Pass => {
@@ -1693,7 +1687,7 @@ fn run_game_loop(gui: &mut GameUI, state: &mut GameState, game_obj_db: &mut Game
         let p = game_obj_db.player().unwrap();
         effects::check_statuses(p, state);
 
-        game_obj_db.do_npc_turns(state, gui);
+        game_obj_db.do_npc_turns(state);
         game_obj_db.update_listeners(state, EventType::Update);
         game_obj_db.update_listeners(state, EventType::EndOfTurn);
         
@@ -1732,7 +1726,6 @@ fn check_event_queue(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui:
                 let p = game_obj_db.player().unwrap();
                 p.level_up();
                 let level = p.level;
-                let sbi = state.curr_sidebar_info(game_obj_db);                    
                 let s = format!("Welcome to level {}!", level);
                 state.msg_queue.push_back(Message::info(&s));                
             },
@@ -1837,7 +1830,6 @@ fn main() {
             state = saved_objs.0;
             game_obj_db = saved_objs.1;
             
-            let sbi = state.curr_sidebar_info(&mut game_obj_db);
             let msg = format!("Welcome back, {}!", player_name);
             state.msg_queue.push_back(Message::info(&msg));
         } else {
@@ -1855,8 +1847,6 @@ fn main() {
 
         start_new_game(&state, &mut game_obj_db, &mut gui, player_name);
         
-        //state.write_msg_buff("Welcome, adventurer!");
-        let sbi = state.curr_sidebar_info(&mut game_obj_db);
         state.msg_queue.push_back(Message::info("Welcome, adventurer."));        
     }
     

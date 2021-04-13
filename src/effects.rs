@@ -59,7 +59,7 @@ fn blink(state: &mut GameState, obj_id: usize, game_obj_db: &mut GameObjectDB) {
 
 // Minor healing can boost the entity's HP above their max,
 // but it if's already at or over max it will have no further effect
-fn minor_healing(state: &mut GameState, user: &mut dyn Person) {
+fn minor_healing(user: &mut dyn Person) {
     let (curr_hp, max_hp) = user.get_hp();
 
     let amt = rand::thread_rng().gen_range(5, 11);
@@ -76,7 +76,7 @@ fn weak_venom(state: &mut GameState, victim: &mut dyn Person) {
 pub fn apply_effects(state: &mut GameState, obj_id: usize, game_obj_db: &mut GameObjectDB, effects: u128) {
     if effects & EF_MINOR_HEAL > 0 {
         if let Some(user) = game_obj_db.as_person(obj_id) {
-            minor_healing(state, user);
+            minor_healing(user);
         }        
     }
 
