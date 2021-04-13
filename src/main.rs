@@ -192,16 +192,18 @@ impl GameState {
         
         let mut poisoned = false;
         let mut confused = false;
+        let mut paralyzed = false;
         for s in player.statuses.iter() {
             match s {
                 Status::WeakVenom(_) => { poisoned = true; },
                 Status::ConfusedUntil(_) => { confused = true; },
+                Status::Paralyzed(_) => { paralyzed = true; },
                 _ => { },
             }
         }
 
         SidebarInfo::new(player.get_fullname(), player.curr_hp, player.max_hp, self.turn, player.ac,
-            player.purse, weapon_name, loc.2 as u8, poisoned, confused)
+            player.purse, weapon_name, loc.2 as u8, poisoned, confused, paralyzed)
     }
 
     // I made life difficult for myself by deciding that Turn 0 of the game is 8:00am T_T
@@ -1594,6 +1596,7 @@ fn run_game_loop(gui: &mut GameUI, state: &mut GameState, game_obj_db: &mut Game
                 match status {
                     Status::PassUntil(_) => skip_turn = true,
                     Status::RestAtInn(_) => skip_turn = true,
+                    Status::Paralyzed(_) => skip_turn = true,
                     Status::WeakVenom(_) => effects |= effects::EF_WEAK_VENOM,
                     Status::BlindUntil(_) => { }, // blindness is handled when we check the player's vision radius
                     _ => { },

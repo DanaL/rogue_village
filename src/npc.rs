@@ -62,6 +62,7 @@ pub const MA_MINOR_TRICKERY: u128    = 0x00000400;
 pub const MA_ILLUSION: u128          = 0x00000800;
 pub const MA_CONFUSION: u128         = 0x00001000;
 pub const MA_LEAVE_CORPSE: u128      = 0x00002000;
+pub const MA_PARALYZE: u128          = 0x00004000;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum Venue {
@@ -1090,6 +1091,7 @@ impl MonsterFactory {
                 "MA_MINOR_BLACK_MAGIC" => MA_MINOR_BLACK_MAGIC,
                 "MA_MINOR_TRICKERY" => MA_MINOR_TRICKERY,
                 "MA_LEAVE_CORPSE" => MA_LEAVE_CORPSE,
+                "MA_PARALYZE" => MA_PARALYZE,
                 "SPORES" => {
                     let roll = rand::thread_rng().gen_range(0.0, 1.0);
                     if roll < 0.4 {

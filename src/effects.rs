@@ -105,6 +105,7 @@ pub enum Status {
     FadeAfter(u32), // used for illusions that will disappear after a certain time or when their creator dies
     CoolingDown(u16, u32),
     ConfusedUntil(u32),
+    Paralyzed(u8),
 }
 
 pub trait HasStatuses {
@@ -241,6 +242,14 @@ pub fn check_statuses<T: HasStatuses + GameObject + Person>(person: &mut T, stat
                 if con_check >= dc {
                     if obj_id == 0 {
                         state.msg_queue.push_back(Message::info("You feel better!"));
+                    }
+                    statuses.remove(j);                    
+                }
+            },
+            Status::Paralyzed(dc) => {
+                if con_check >= dc {
+                    if obj_id == 0 {
+                        state.msg_queue.push_back(Message::info("Your muscles work again!"));
                     }
                     statuses.remove(j);                    
                 }

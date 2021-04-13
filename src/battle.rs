@@ -142,10 +142,30 @@ pub fn monster_attacks_player(state: &mut GameState, monster_id: usize, game_obj
             if monster_attributes & npc::MA_WEAK_VENOMOUS > 0 {
                 apply_weak_poison(state, 0, game_obj_db, monster_dc);                
             }
+            if monster_attributes & npc::MA_PARALYZE > 0 {
+                paralyze(state, 0, game_obj_db, monster_dc);
+            }
         }
     } else {
         let s = format!("{} misses you!", monster_name.capitalize());
         state.msg_queue.push_back(Message::new(monster_id, monster_loc, &s, "Something misses you!"));
+    }
+}
+
+pub fn paralyze(state: &mut GameState, victim_id: usize, game_obj_db: &mut GameObjectDB, dc: u8) {
+    if victim_id == 0 {
+        let p = game_obj_db.player().unwrap();
+        let con_save = p.ability_check(Ability::Con);
+        if con_save <= dc {
+            effects::add_status(p, Status::Paralyzed(dc));
+            state.msg_queue.push_back(Message::info("You cannot move!"));
+        }        
+    } else {
+        let npc = game_obj_db.npc(victim_id).unwrap();
+        let con_save = npc.ability_check(Ability::Con);
+        if con_save <= dc {
+            effects::add_status(npc, Status::Paralyzed(dc));
+        }
     }
 }
 
