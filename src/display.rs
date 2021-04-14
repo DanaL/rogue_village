@@ -105,7 +105,7 @@ pub struct GameUI<'a, 'b> {
 	surface_cache: HashMap<(char, Color), Surface<'a>>,
 	msg_line: String,
 	messages: VecDeque<(String, bool)>,
-	message_history: VecDeque<String>,
+	message_history: VecDeque<(String, u8)>,
 }
 
 impl<'a, 'b> GameUI<'a, 'b> {
@@ -790,14 +790,20 @@ impl<'a, 'b> GameUI<'a, 'b> {
 	}
 
 	pub fn show_message_history(&mut self) {
-		let mut lines = Vec::new();
+		let mut history = Vec::new();
 		for j in 0..self.message_history.len() {
-			let s = self.message_history[j].to_string();
-			lines.push(s);
+			if self.message_history[j].1 == 1 {
+				let s = self.message_history[j].0.to_string();
+				history.push(s);
+			} else {
+				let s = format!("{} (x{})", self.message_history[j].0, self.message_history[j].1);
+				history.push(s);
+			}
+			
 		}
 		
-		let fuck_off: Vec<&str> = lines.iter().map(AsRef::as_ref).collect();
-		self.write_long_msg(&fuck_off, true);
+		let lines: Vec<&str> = history.iter().map(AsRef::as_ref).collect();
+		self.write_long_msg(&lines, true);
 	}
 
 	pub fn update(&mut self, msg_queue: &mut VecDeque<String>, sbi: Option<&SidebarInfo>) {
@@ -813,9 +819,13 @@ impl<'a, 'b> GameUI<'a, 'b> {
 		while !msg_queue.is_empty() {
 			let item = msg_queue.pop_front().unwrap();
 			
-			self.message_history.push_front(item.clone());
-			if self.message_history.len() > 60 {
-				self.message_history.pop_back();
+			if !self.message_history.is_empty() && self.message_history[0].0 == item {
+				self.message_history[0].1 += 1;
+			} else {
+				self.message_history.push_front((item.clone(), 1));
+				if self.message_history.len() > 60 {
+					self.message_history.pop_back();
+				}
 			}
 
 			if msg.len() + item.len() + 1 >=  SCREEN_WIDTH as usize - 2 {
