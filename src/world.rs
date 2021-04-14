@@ -747,7 +747,7 @@ fn build_test_dungeon(world_info: &mut WorldInfo, map: &mut Map, entrance: (i32,
 
     let loc = (entrance.0 + 3, entrance.1 + 5, 1);
 
-    monster_fac.add_monster("ghoul", loc, game_obj_db);
+    monster_fac.add_monster("goblin", loc, game_obj_db);
     map.insert((entrance.0, entrance.1, 1), Tile::StairsUp);
 }
 

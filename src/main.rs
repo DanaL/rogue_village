@@ -220,10 +220,6 @@ impl GameState {
     }
 }
 
-fn show_message_history(state: &GameState, gui: &mut GameUI) {
-    
-}
-
 fn title_screen(gui: &mut GameUI) {
     let mut lines = vec!["Welcome to Rogue Village 0.0.1!", ""];
     lines.push("");
@@ -1630,7 +1626,7 @@ fn run_game_loop(gui: &mut GameUI, state: &mut GameState, game_obj_db: &mut Game
                 Cmd::Down => energy_cost = take_stairs(state, game_obj_db, true),
                 Cmd::DropItem => energy_cost = drop_item(state, game_obj_db, gui),  
                 Cmd::Move(dir) => energy_cost = do_move(state, game_obj_db, &dir, gui),
-                Cmd::MsgHistory => show_message_history(state, gui),
+                Cmd::MsgHistory => gui.show_message_history(),
                 Cmd::Open(loc) => { 
                     do_open(state, loc);
                     energy_cost = 1.0;

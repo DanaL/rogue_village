@@ -105,6 +105,7 @@ pub struct GameUI<'a, 'b> {
 	surface_cache: HashMap<(char, Color), Surface<'a>>,
 	msg_line: String,
 	messages: VecDeque<(String, bool)>,
+	message_history: VecDeque<String>,
 }
 
 impl<'a, 'b> GameUI<'a, 'b> {
@@ -135,6 +136,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 			surface_cache: HashMap::new(),
 			msg_line: "".to_string(),
 			messages: VecDeque::new(),
+			message_history: VecDeque::new(),
 		};
 
 		Ok(gui)
@@ -787,6 +789,17 @@ impl<'a, 'b> GameUI<'a, 'b> {
 		}
 	}
 
+	pub fn show_message_history(&mut self) {
+		let mut lines = Vec::new();
+		for j in 0..self.message_history.len() {
+			let s = self.message_history[j].to_string();
+			lines.push(s);
+		}
+		
+		let fuck_off: Vec<&str> = lines.iter().map(AsRef::as_ref).collect();
+		self.write_long_msg(&fuck_off, true);
+	}
+
 	pub fn update(&mut self, msg_queue: &mut VecDeque<String>, sbi: Option<&SidebarInfo>) {
 		// Un-highlight the previous messages
 		let mut j = 0;
@@ -799,6 +812,12 @@ impl<'a, 'b> GameUI<'a, 'b> {
 		let mut msg = "".to_string();		
 		while !msg_queue.is_empty() {
 			let item = msg_queue.pop_front().unwrap();
+			
+			self.message_history.push_front(item.clone());
+			if self.message_history.len() > 60 {
+				self.message_history.pop_back();
+			}
+
 			if msg.len() + item.len() + 1 >=  SCREEN_WIDTH as usize - 2 {
 				self.messages.push_front((msg, true));
 				msg = "".to_string();
