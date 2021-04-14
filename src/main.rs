@@ -902,7 +902,7 @@ fn take_stairs(state: &mut GameState, game_obj_db: &mut GameObjectDB, down: bool
             state.msg_queue.push_back(Message::info("You climb the stairway."));
             game_obj_db.set_to_loc(0, (player_loc.0, player_loc.1, player_loc.2 - 1));
             
-            if player_loc.2 == 0 {
+            if player_loc.2 == 1 {
                 state.msg_queue.push_back(Message::info("Fresh air!"));
             }
 
