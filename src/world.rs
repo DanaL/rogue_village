@@ -698,7 +698,7 @@ fn add_river_to_level(tiles: &mut Vec<Tile>, height: usize, width: usize, top:bo
             break;
         }
     }
-    river.dedup();
+    river.dedup(); // remove consecutive, repeated elements
     
     let mut pts_drawn = Vec::new();
     for pt in river.iter() {
@@ -745,9 +745,18 @@ fn build_test_dungeon(world_info: &mut WorldInfo, map: &mut Map, entrance: (i32,
 
     map.insert((entrance.0+3, entrance.1+4, 1), Tile::Door(DoorState::Locked));
 
+    let m = Item::mushroom(game_obj_db, (entrance.0 + 6, entrance.1 + 3, 1));
+    game_obj_db.add(m);
+
+    let m = Item::mushroom(game_obj_db, (entrance.0 + 7, entrance.1 + 3, 1));
+    game_obj_db.add(m);
+
+    let m = Item::mushroom(game_obj_db, (entrance.0 + 7, entrance.1 + 2, 1));
+    game_obj_db.add(m);
+
     let loc = (entrance.0 + 3, entrance.1 + 5, 1);
 
-    monster_fac.add_monster("ogre", loc, game_obj_db);
+    monster_fac.add_monster("goblin", loc, game_obj_db);
     map.insert((entrance.0, entrance.1, 1), Tile::StairsUp);
 }
 

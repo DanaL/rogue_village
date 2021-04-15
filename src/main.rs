@@ -1203,11 +1203,11 @@ fn do_move(state: &mut GameState, game_obj_db: &mut GameObjectDB, dir: &str, gui
         let items = game_obj_db.descs_at_loc(&next_loc);
         let item_count = items.len();                        
         if item_count == 1 {
-            let s1 = format!("You see {} here.", items[0]);
+            let s1 = format!("There is {} here.", items[0]);
             let s2 = format!("You feel {} here.", items[0]);
             state.msg_queue.push_back(Message::new(0, next_loc, &s1, &s2));
         } else if item_count == 2 {
-            let s = format!("You see {} and {} here.", items[0], items[1]);
+            let s = format!("There are {} and {} here.", items[0], items[1]);
             state.msg_queue.push_back(Message::new(0, next_loc, &s, "There is something on the ground."));            
         } else if item_count > 2 {
             state.msg_queue.push_back(Message::new(0, next_loc, "There are several items here.", "You feel several items on the ground."));

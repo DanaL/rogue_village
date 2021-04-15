@@ -26,6 +26,7 @@ use crate::fov;
 use crate::game_obj::{GameObject, GameObjectBase, GameObjectDB, GameObjects};
 use crate::map::Tile;
 use std::u128;
+use rand::Rng;
 
 // Some bitmasks so that I can store various extra item attributes beyond
 // just the item type enum. (Ie., heavy armour, two-handed, etc)
@@ -220,6 +221,23 @@ impl Item {
         rubble.set_loc(loc);
         
         GameObjects::Item(rubble)
+    }
+
+    pub fn mushroom(game_obj_db: &mut GameObjectDB, loc: (i32, i32, i8)) -> GameObjects {
+        let roll = rand::thread_rng().gen_range(0.0, 1.0);
+        let (lit_colour, colour) = if roll < 0.33 {
+            (display::GREEN, display::DARK_GREEN)
+        } else if roll < 0.66 {
+            (display::PINK, display::PURPLE)        
+        } else {
+            (display::LIGHT_BLUE, display::BLUE)
+        };
+
+        let mut mushroom = Item::new(game_obj_db.next_id(), '"',lit_colour, colour, "mushroom", ItemType::Obstacle, 0, false, 0);
+        mushroom.attributes |= IA_IMMOBILE;
+        mushroom.set_loc(loc);
+
+        GameObjects::Item(mushroom)
     }
 
     pub fn desc(&self) -> String {
