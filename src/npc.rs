@@ -63,6 +63,7 @@ pub const MA_ILLUSION: u128          = 0x00000800;
 pub const MA_CONFUSION: u128         = 0x00001000;
 pub const MA_LEAVE_CORPSE: u128      = 0x00002000;
 pub const MA_PARALYZE: u128          = 0x00004000;
+pub const MA_SMASH_DOORS: u128       = 0x00008000;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum Venue {
@@ -113,6 +114,7 @@ pub enum Action {
     OpenDoor((i32, i32, i8)),
     CloseDoor((i32, i32, i8)),
     UnlockDoor((i32, i32, i8)),
+    SmashDoor((i32, i32, i8)),
     Attack((i32, i32, i8)),
 }
 
@@ -557,6 +559,22 @@ fn unlock_door(npc_id: usize, loc: (i32, i32, i8), npc_loc: (i32, i32, i8), stat
     state.msg_queue.push_back(msg);
 }
 
+fn smash_door(npc_id: usize, loc: (i32, i32, i8), npc_loc: (i32, i32, i8), state: &mut GameState, npc_name: String, game_obj_db: &mut GameObjectDB) {    
+    let npc = game_obj_db.npc(npc_id).unwrap();
+    if npc.ability_check(Ability::Str) > 17 {
+        state.map.insert(loc, Tile::Door(DoorState::Broken));
+        let s = format!("{} smashes down the door.", npc_name);
+        let msg = Message::new(npc_id, npc_loc, &s, "Wham! You hear wood rending!");
+        state.msg_queue.push_back(msg);
+        npc.plan.push_front(Action::Move(loc));
+    } else {
+        let s = format!("{} slams into the door.", npc_name);
+        let msg = Message::new(npc_id, npc_loc, &s, "Wham! Something slams against a door!");
+        state.msg_queue.push_back(msg);
+        npc.plan.push_front(Action::SmashDoor(loc));
+    }
+}
+
 fn close_door(loc: (i32, i32, i8), state: &mut GameState, game_obj_db: &mut GameObjectDB, npc_id: usize, npc_loc: (i32, i32, i8), npc_name: String) {
     if game_obj_db.blocking_obj_at(&loc) {
         let msg = Message::new(npc_id, npc_loc, "\"Please don't stand in the doorway.\"", "\"Please don't stand in the doorway.\"");
@@ -591,6 +609,7 @@ fn follow_plan(npc_id: usize, state: &mut GameState, game_obj_db: &mut GameObjec
             Action::OpenDoor(loc) => open_door(npc_id, loc, npc_loc, state, npc_name),
             Action::CloseDoor(loc) => close_door(loc, state, game_obj_db, npc_id, npc_loc, npc_name),
             Action::UnlockDoor(loc) => unlock_door(npc_id, loc, npc_loc, state, npc_name),
+            Action::SmashDoor(loc) => smash_door(npc_id, loc, npc_loc, state, npc_name, game_obj_db),
             Action::Attack(_loc) => battle::monster_attacks_player(state, npc_id, game_obj_db),
         }
     }
@@ -599,6 +618,7 @@ fn follow_plan(npc_id: usize, state: &mut GameState, game_obj_db: &mut GameObjec
 fn try_to_move_to_loc(npc_id: usize, goal_loc: (i32, i32, i8), state: &mut GameState, game_obj_db: &mut GameObjectDB) {
     let blocking_object = game_obj_db.blocking_obj_at(&goal_loc);
     let npc = game_obj_db.npc(npc_id).unwrap();
+    let attributes = npc.attributes;
     let npc_loc = npc.get_loc();
     let npc_mode = npc.mode;
     let npc_name = npc.npc_name(false).capitalize();
@@ -617,9 +637,11 @@ fn try_to_move_to_loc(npc_id: usize, goal_loc: (i32, i32, i8), state: &mut GameS
     } else if state.map[&goal_loc] == Tile::Door(DoorState::Closed) {
         npc.plan.push_front(Action::Move(goal_loc));
         open_door(npc_id, goal_loc, npc_loc, state, npc_name);
-    } else if state.map[&goal_loc] == Tile::Door(DoorState::Locked) {
+    } else if state.map[&goal_loc] == Tile::Door(DoorState::Locked) && attributes & MA_UNLOCK_DOORS > 0 {
         npc.plan.push_front(Action::Move(goal_loc));
         unlock_door(npc_id, goal_loc, npc_loc, state, npc_name);
+    } else if state.map[&goal_loc] == Tile::Door(DoorState::Locked) && attributes & MA_SMASH_DOORS > 0 {
+        smash_door(npc_id, goal_loc, npc_loc, state, npc_name, game_obj_db);
     } else {
         // Villagers will close doors after they pass through them
         if npc_mode == NPCPersonality::Villager {
@@ -735,7 +757,7 @@ fn calc_plan_to_move(npc_id: usize, state: &GameState, game_obj_db: &mut GameObj
     if npc.attributes & MA_OPEN_DOORS > 0 {
         passable.insert(Tile::Door(DoorState::Closed), 2.0);
     }
-    if npc.attributes & MA_UNLOCK_DOORS > 0 {
+    if npc.attributes & (MA_UNLOCK_DOORS | MA_SMASH_DOORS) > 0 {
         passable.insert(Tile::Door(DoorState::Locked), 2.5);
     }
     passable.insert(Tile::StoneFloor, 1.0);
@@ -1092,6 +1114,7 @@ impl MonsterFactory {
                 "MA_MINOR_TRICKERY" => MA_MINOR_TRICKERY,
                 "MA_LEAVE_CORPSE" => MA_LEAVE_CORPSE,
                 "MA_PARALYZE" => MA_PARALYZE,
+                "MA_SMASH_DOORS" => MA_SMASH_DOORS,
                 "SPORES" => {
                     let roll = rand::thread_rng().gen_range(0.0, 1.0);
                     if roll < 0.4 {
