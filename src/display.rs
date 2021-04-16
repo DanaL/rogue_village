@@ -58,6 +58,7 @@ pub const YELLOW: Colour = (255, 225, 53);
 pub const YELLOW_ORANGE: Colour = (255, 159, 0);
 pub const PINK: Colour = (255, 20, 147);
 pub const PURPLE: Colour = (138,43,226);
+pub const LIGHT_PURPLE: Colour = (178, 102, 255);
 
 const SCREEN_WIDTH: u32 = 58;
 const SCREEN_HEIGHT: u32 = 25;

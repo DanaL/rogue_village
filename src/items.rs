@@ -21,6 +21,7 @@ use super::{EventResponse, EventType, GameState, Message, PLAYER_INV};
 
 use crate::battle::DamageType;
 use crate::display;
+use crate::display::Colour;
 use crate::effects;
 use crate::fov;
 use crate::game_obj::{GameObject, GameObjectBase, GameObjectDB, GameObjects};
@@ -228,7 +229,7 @@ impl Item {
         let (lit_colour, colour) = if roll < 0.33 {
             (display::GREEN, display::DARK_GREEN)
         } else if roll < 0.66 {
-            (display::PINK, display::PURPLE)        
+            (display::LIGHT_PURPLE, display::PURPLE)        
         } else {
             (display::LIGHT_BLUE, display::BLUE)
         };
@@ -292,7 +293,7 @@ impl Item {
         }
     }
 
-	fn mark_lit_sqs(&self, state: &mut GameState, loc: (i32, i32, i8), player_loc: (i32, i32, i8)) {
+	fn mark_lit_sqs(&self, state: &mut GameState, loc: (i32, i32, i8), player_loc: (i32, i32, i8), colour: Colour) {
 		let location = if loc == PLAYER_INV {
 			player_loc
 		} else {
@@ -300,8 +301,10 @@ impl Item {
 		};
 
 		let lit = fov::calc_fov(state, location, self.aura, true);
-		for sq in lit {			
-			state.lit_sqs.insert(sq, display::WHITE);			
+		for sq in lit {
+            if !state.lit_sqs.contains_key(&sq) {
+			    state.lit_sqs.insert(sq, colour);
+            }		
 		}		
 	}
 }
@@ -355,7 +358,12 @@ impl GameObject for Item {
                 // Note this currently isn't working for a monster carrying a lit light source (or, eventually
                 // other items that may have charges)
                 if self.charges > 0 && (loc == PLAYER_INV || self.get_loc().2 == player_loc.2) {
-                    self.mark_lit_sqs(state, loc, player_loc);
+                    let colour = if self.base_info.name == "torch" {
+                        display::WHITE
+                    } else {
+                        self.base_info.lit_colour
+                    };
+                    self.mark_lit_sqs(state, loc, player_loc, colour);
 				}                
             },
 			EventType::EndOfTurn => {

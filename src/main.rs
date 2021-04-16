@@ -1523,16 +1523,26 @@ fn fov_to_tiles(state: &mut GameState, game_obj_db: &GameObjectDB, visible: &[((
             } else {
                 state.tile_memory.insert(vis.0, state.map[&vis.0]);
                 
-                // I wanted to make tochlight squares be coloured different so this is a slight
-                // kludge. Although perhaps later I might use it to differentiate between a player
-                // walking through the dungeon with a light vs relying on darkvision, etc
+                // I will probably eventually get rid of having auras light squares at some point
                 if state.aura_sqs.contains(&vis.0) && state.map[&vis.0] == Tile::StoneFloor {
                     Tile::ColourFloor(display::LIGHT_BLUE)
                 } else if state.lit_sqs.contains_key(&vis.0) {
-                    match state.map[&vis.0] {
-                        Tile::StoneFloor => Tile::ColourFloor(display::YELLOW),
-                        Tile::Trigger => Tile::ColourFloor(display::YELLOW_ORANGE),
-                        _ => state.map[&vis.0],
+                    let colour = state.lit_sqs[&vis.0];
+
+                    // Fuckery here because I want a torch to colour only floors squares, but for things 
+                    // like mushrooms, I later decided I wanted them to light up stone walls as well.
+                    if colour == display::WHITE {
+                        match state.map[&vis.0] {
+                            Tile::StoneFloor => Tile::ColourFloor(display::YELLOW),
+                            Tile::Trigger => Tile::ColourFloor(display::YELLOW_ORANGE),
+                            _ => state.map[&vis.0],
+                        }
+                    } else {
+                        match state.map[&vis.0] {
+                            Tile::StoneFloor => Tile::ColourFloor(colour),
+                            Tile::Trigger => Tile::ColourFloor(colour),
+                            _ => state.map[&vis.0],
+                        }
                     }
                 } else {
                     state.map[&vis.0]

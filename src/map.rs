@@ -22,6 +22,7 @@ use serde::{Serialize, Deserialize};
 use super::{EventResponse, EventType, GameState, Map, Message};
 
 use crate::display;
+use crate::display::Colour;
 use crate::fov;
 use crate::game_obj::{GameObject, GameObjectBase, GameObjectDB, GameObjects};
 
@@ -58,9 +59,9 @@ pub enum Tile {
 	SnowPeak,
 	Gate(DoorState),
 	StoneFloor,
-	ColourFloor((u8, u8, u8)),
-	Creature((u8, u8, u8), char), // ie., NPCs
-	Thing((u8, u8, u8), (u8, u8, u8), char), // ie., items
+	ColourFloor(Colour),
+	Creature(Colour, char), // ie., NPCs
+	Thing(Colour, Colour, char), // ie., items
 	Separator,
 	Bullet(char),
 	Lava,
