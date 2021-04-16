@@ -51,7 +51,7 @@ use serde::{Serialize, Deserialize};
 
 use npc::{Attitude, MonsterFactory, Venue};
 use dialogue::DialogueLibrary;
-use display::{GameUI, SidebarInfo, WHITE};
+use display::{Colour, GameUI, SidebarInfo, WHITE};
 use effects::{HasStatuses, Status};
 use game_obj::{Ability, GameObject, GameObjectDB, GameObjects, Person};
 use items::{GoldPile, IA_CONSUMABLE, ItemType};
@@ -159,7 +159,7 @@ pub struct GameState {
     turn: u32,
     world_info: WorldInfo,
     tile_memory: HashMap<(i32, i32, i8), Tile>,
-    lit_sqs: HashSet<(i32, i32, i8)>, // by light sources independent of player
+    lit_sqs: HashMap<(i32, i32, i8), Colour>, // by light sources independent of player
     aura_sqs: HashSet<(i32, i32, i8)>, // areas of special effects
     queued_events: VecDeque<(EventType, (i32, i32, i8), usize, Option<String>)>, // events queue during a turn that should be resolved at the end of turn
     animation_pause: bool,
@@ -174,7 +174,7 @@ impl GameState {
             turn: 0,
             world_info: world_info,
             tile_memory: HashMap::new(),
-            lit_sqs: HashSet::new(),
+            lit_sqs: HashMap::new(),
             aura_sqs: HashSet::new(),
             queued_events: VecDeque::new(),
             animation_pause: false,
