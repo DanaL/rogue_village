@@ -139,7 +139,7 @@ impl SpecialSquare {
 			let in_aura = fov::calc_fov(state, loc, self.radius, true);
 			for sq in in_aura {				
 				state.aura_sqs.insert(sq);
-				state.lit_sqs.insert(sq);				
+				state.lit_sqs.insert(sq, display::LIGHT_BLUE);				
 			}
 		}
 	}
@@ -229,7 +229,7 @@ impl GameObject for SpecialSquare {
 			},
 			EventType::SteppedOn => return self.stepped_on(state, obj_id),
 			EventType::LitUp => {
-				let lit = state.lit_sqs.contains(&loc);
+				let lit = state.lit_sqs.contains_key(&loc);
 				self.handle_litup(state, lit, loc, obj_id);
 			},
 			EventType::Triggered => {

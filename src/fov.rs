@@ -130,7 +130,7 @@ fn mark_visible(r1: i32, c1: i32, r2: i32, c2: i32, sq_radius: i32,
 
 			let dr = r - r1;
 			let dc = c - c1;
-			if dr * dr + dc * dc <= sq_radius || state.lit_sqs.contains(&(r, c, depth)) {
+			if dr * dr + dc * dc <= sq_radius || state.lit_sqs.contains_key(&(r, c, depth)) {
 				visible.insert((r, c, depth));
 			}
 			
@@ -168,7 +168,7 @@ fn mark_visible(r1: i32, c1: i32, r2: i32, c2: i32, sq_radius: i32,
 
 			let dr = r - r1;
 			let dc = c - c1;
-			if dr * dr + dc * dc <= sq_radius || state.lit_sqs.contains(&(r, c, depth)) {
+			if dr * dr + dc * dc <= sq_radius || state.lit_sqs.contains_key(&(r, c, depth)) {
 				visible.insert((r, c, depth));
 			}
 

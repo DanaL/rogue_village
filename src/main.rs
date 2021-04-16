@@ -1528,7 +1528,7 @@ fn fov_to_tiles(state: &mut GameState, game_obj_db: &GameObjectDB, visible: &[((
                 // walking through the dungeon with a light vs relying on darkvision, etc
                 if state.aura_sqs.contains(&vis.0) && state.map[&vis.0] == Tile::StoneFloor {
                     Tile::ColourFloor(display::LIGHT_BLUE)
-                } else if state.lit_sqs.contains(&vis.0) {
+                } else if state.lit_sqs.contains_key(&vis.0) {
                     match state.map[&vis.0] {
                         Tile::StoneFloor => Tile::ColourFloor(display::YELLOW),
                         Tile::Trigger => Tile::ColourFloor(display::YELLOW_ORANGE),
