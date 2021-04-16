@@ -223,7 +223,7 @@ impl Item {
         GameObjects::Item(rubble)
     }
 
-    pub fn mushroom(game_obj_db: &mut GameObjectDB, loc: (i32, i32, i8)) -> GameObjects {
+    pub fn mushroom(game_obj_db: &mut GameObjectDB, loc: (i32, i32, i8)) {
         let roll = rand::thread_rng().gen_range(0.0, 1.0);
         let (lit_colour, colour) = if roll < 0.33 {
             (display::GREEN, display::DARK_GREEN)
@@ -234,10 +234,13 @@ impl Item {
         };
 
         let mut mushroom = Item::new(game_obj_db.next_id(), '"',lit_colour, colour, "mushroom", ItemType::Obstacle, 0, false, 0);
+        let id = mushroom.obj_id();
         mushroom.attributes |= IA_IMMOBILE;
+        mushroom.charges = 1;
+        mushroom.aura = 1;        
         mushroom.set_loc(loc);
-
-        GameObjects::Item(mushroom)
+        game_obj_db.add(GameObjects::Item(mushroom));
+        game_obj_db.listeners.insert((id, EventType::Update));
     }
 
     pub fn desc(&self) -> String {
