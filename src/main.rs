@@ -513,10 +513,10 @@ fn search(state: &mut GameState, game_obj_db: &mut GameObjectDB) {
 // Not yet handling when there are no inventory slots yet
 fn pick_up(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mut GameUI) -> f32 {
     let player_loc = game_obj_db.get(0).unwrap().get_loc();
-    let things = game_obj_db.things_at_loc(player_loc);
+    let things = game_obj_db.items_to_pick_up(player_loc);
     
     if things.is_empty() {
-        state.msg_queue.push_back(Message::info("There is nothing here."));        
+        state.msg_queue.push_back(Message::info("There is nothing to pick up here."));        
         return 0.0;
     } else if things.len() == 1 {
         let obj = game_obj_db.get(things[0]).unwrap();

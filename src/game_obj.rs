@@ -430,6 +430,28 @@ impl GameObjectDB {
         }
     }
 
+    pub fn items_to_pick_up(&self, loc: (i32, i32, i8)) -> Vec<usize> {
+        if self.obj_locs.contains_key(&loc) {
+            let mut ids = Vec::new();
+            for id in self.obj_locs[&loc].iter() {
+                if *id == 0 || self.objects[&id].hidden() { continue; }
+                match &self.objects[&id] {
+                    GameObjects::Item(item) => {
+                        if item.attributes & items::IA_IMMOBILE == 0 {
+                            ids.push(*id);
+                        }
+                    },
+                    GameObjects::GoldPile(_) => ids.push(*id),
+                    _ => { continue; },
+                }                
+            }
+            
+            ids
+        } else {
+            Vec::new()
+        }
+    }
+
     pub fn things_at_loc(&self, loc: (i32, i32, i8)) -> Vec<usize> {
         if self.obj_locs.contains_key(&loc) {
             let mut ids = Vec::new();
