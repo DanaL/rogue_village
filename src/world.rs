@@ -745,8 +745,8 @@ fn build_test_dungeon(world_info: &mut WorldInfo, map: &mut Map, entrance: (i32,
 
     map.insert((entrance.0+3, entrance.1+4, 1), Tile::Door(DoorState::Locked));
 
-    Item::mushroom(game_obj_db, (entrance.0 + 6, entrance.1 + 3, 1));
-    Item::mushroom(game_obj_db, (entrance.0 + 7, entrance.1 + 3, 1));
+    //Item::mushroom(game_obj_db, (entrance.0 + 6, entrance.1 + 3, 1));
+    //Item::mushroom(game_obj_db, (entrance.0 + 7, entrance.1 + 3, 1));
     Item::mushroom(game_obj_db, (entrance.0 + 7, entrance.1 + 2, 1));
     
     let loc = (entrance.0 + 3, entrance.1 + 5, 1);

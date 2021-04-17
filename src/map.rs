@@ -60,6 +60,7 @@ pub enum Tile {
 	Gate(DoorState),
 	StoneFloor,
 	ColourFloor(Colour),
+	LitWall(Colour),
 	Creature(Colour, char), // ie., NPCs
 	Thing(Colour, Colour, char), // ie., items
 	Separator,
@@ -73,7 +74,6 @@ pub enum Tile {
 	Spring,
     Portal,
     Fog,
-	BoulderTrap((u8, u8, u8), bool, bool, (usize, usize), (i32, i32)),
 	StairsUp,
 	StairsDown,
 	Shrine(ShrineType),

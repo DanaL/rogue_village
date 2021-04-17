@@ -1541,6 +1541,7 @@ fn fov_to_tiles(state: &mut GameState, game_obj_db: &GameObjectDB, visible: &[((
                         match state.map[&vis.0] {
                             Tile::StoneFloor => Tile::ColourFloor(colour),
                             Tile::Trigger => Tile::ColourFloor(colour),
+                            Tile::Wall => Tile::LitWall(colour),
                             _ => state.map[&vis.0],
                         }
                     }
