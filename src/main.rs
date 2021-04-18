@@ -1254,7 +1254,14 @@ fn do_move(state: &mut GameState, game_obj_db: &mut GameObjectDB, dir: &str, gui
         let items = game_obj_db.descs_at_loc(&next_loc);
         let item_count = items.len();                        
         if item_count == 1 {
-            let s1 = format!("There is {} here.", items[0]);
+            // Bit of a hacky way to check if the lone item on the square is actually a stack
+            // and use correct grammar
+            let s1 = if items[0].chars().next().unwrap().is_digit(10) {
+                format!("There are {} here.", items[0])
+            } else {
+                format!("There is {} here.", items[0])
+            };
+            
             let s2 = format!("You feel {} here.", items[0]);
             state.msg_queue.push_back(Message::new(0, next_loc, &s1, &s2));
         } else if item_count == 2 {
