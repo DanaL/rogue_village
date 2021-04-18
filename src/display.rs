@@ -262,7 +262,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 		}		
 	}
 
-	fn select_dir(&mut self, prompt: &str, state: &GameState, game_obj_db: &mut GameObjectDB) -> Option<(i32, i32, i8)> {
+	pub fn select_dir(&mut self, prompt: &str, state: &GameState, game_obj_db: &mut GameObjectDB) -> Option<(i32, i32, i8)> {
 		match self.pick_direction(prompt, Some(&state.curr_sidebar_info(game_obj_db))) {
 			Some(dir) => {
 				let loc = game_obj_db.get(0).unwrap().get_loc();

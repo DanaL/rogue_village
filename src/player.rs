@@ -211,6 +211,17 @@ impl Player {
     }
     */
 
+    pub fn confused(&self) -> bool {
+        for s in self.statuses.iter() {
+            match s {
+                Status::ConfusedUntil(_) => { return true; },
+                _ => { },
+            }
+        }
+
+        false
+    }
+
     pub fn inv_slots_used(&self) -> HashSet<char> {
         let mut slots = HashSet::new();
         for i in self.inventory.iter() {
@@ -385,6 +396,8 @@ impl Player {
                     true
                 } else if highlight == 1 && i.useable() {
                     true
+                } else if highlight == 1 && i.item_type == ItemType::Weapon && i.equiped {
+                    true
                 } else if highlight == 2 && i.equipable() {
                     true
                 } else {
@@ -438,7 +451,7 @@ impl Player {
     pub fn readied_weapon(&self) -> Option<(&Item, String)> {
         for j in 0..self.inventory.len() {
             if let GameObjects::Item(item) = &self.inventory[j] {
-                let name = item.get_fullname();
+                let name = item.base_info.name.clone();
                 if item.equiped && item.item_type == ItemType::Weapon {
                     return Some((&item, name))
                 }

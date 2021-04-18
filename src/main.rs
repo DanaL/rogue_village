@@ -49,18 +49,17 @@ use std::time::Instant;
 use rand::{Rng, prelude::SliceRandom, thread_rng};
 use serde::{Serialize, Deserialize};
 
-use npc::{Attitude, MonsterFactory, Venue};
+use battle::DamageType;
 use dialogue::DialogueLibrary;
 use display::{Colour, GameUI, SidebarInfo, WHITE};
 use effects::{HasStatuses, Status};
 use game_obj::{Ability, GameObject, GameObjectDB, GameObjects, Person};
-use items::{GoldPile, IA_CONSUMABLE, ItemType};
+use items::{GoldPile, IA_CONSUMABLE, IA_IMMOBILE, Item, ItemType};
 use map::{DoorState, ShrineType, Tile};
+use npc::{Attitude, MA_WEBSLINGER, MonsterFactory, Venue};
 use player::{Player};
 use util::StringUtils;
 use world::WorldInfo;
-use items::IA_IMMOBILE;
-use npc::MA_WEBSLINGER;
 
 const MSG_HISTORY_LENGTH: usize = 50;
 const FOV_WIDTH: usize = 41;
@@ -719,6 +718,7 @@ fn toggle_equipment(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: 
 fn use_item(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mut GameUI) -> f32 {
     let sbi = state.curr_sidebar_info(game_obj_db);        
     let player = game_obj_db.player().unwrap();
+    let confused = player.confused();
     let slots = player.inv_slots_used();
     
     if slots.is_empty() {
@@ -735,10 +735,10 @@ fn use_item(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mut Gam
         
         let obj = player.inv_item_in_slot(ch).unwrap();
         let obj_id = obj.obj_id();
-        let (useable, item_type, consumable, effects) = if let GameObjects::Item(item) = &obj {
-            (item.useable(), item.item_type, item.attributes & IA_CONSUMABLE > 0, item.effects)
+        let (useable, item_type, consumable, effects, equiped) = if let GameObjects::Item(item) = &obj {
+            (item.useable(), item.item_type, item.attributes & IA_CONSUMABLE > 0, item.effects, item.equiped)
         } else {
-            (false, ItemType::Weapon, false, 0)
+            (false, ItemType::Weapon, false, 0, false)
         };
         
         let (desc, text) = if let GameObjects::Item(item) = &obj {
@@ -778,6 +778,18 @@ fn use_item(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mut Gam
             }
 
             return 1.0;
+        } else if item_type == ItemType::Weapon && !equiped {
+            state.msg_queue.push_back(Message::info("You aren't wielding that."));
+        } else if item_type == ItemType::Weapon && equiped {
+            if let Some(loc) = gui.select_dir("Use it where?", state, game_obj_db) {
+                return if game_obj_db.blocking_obj_at(&loc) { 
+                     maybe_fight(state, game_obj_db, loc, gui, confused)
+                } else {
+                    use_weapon_as_tool(state, game_obj_db, loc)
+                };
+            } else {
+                state.msg_queue.push_back(Message::info("Never mind."));
+            }
         } else if !text.is_empty() {
             gui.popup_msg(&desc, &text, Some(&sbi));
         } else {
@@ -790,7 +802,53 @@ fn use_item(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mut Gam
     0.0
 }
 
-fn use_light(state: &mut GameState, slot: char,game_obj_db: &mut GameObjectDB) -> (usize, bool) {
+fn use_weapon_as_tool(state: &mut GameState, game_obj_db: &mut GameObjectDB, loc: (i32, i32, i8)) -> f32 {
+    let obstacles = game_obj_db.obstacles_at_loc(loc);
+    let web_count = obstacles.iter().filter(|o| o.get_fullname() == "web").count();
+    let obstacle_info: Vec<(usize, u8, String)> = obstacles.iter()
+                                    .map(|o| (o.obj_id(), o.item_dc, o.get_fullname())).collect();
+
+    for oi in obstacle_info.iter() {
+        if oi.2 == "web" {
+            let p = game_obj_db.player().unwrap();
+            if p.ability_check(Ability::Str) < oi.1 {
+                state.msg_queue.push_back(Message::info("You hack away at the web but it remains intact."));
+            } else {
+                state.msg_queue.push_back(Message::info("You clear out the web."));
+                game_obj_db.remove(oi.0);
+            }
+
+            return 1.0;
+        } else if oi.2 == "mushroom" {
+            let p = game_obj_db.player().unwrap();
+            let w = p.readied_weapon().unwrap().0;
+            if w.dmg_type == DamageType::Slashing {
+                state.msg_queue.push_back(Message::info("You chop the mushroom to pieces."));
+                for _ in 0..rand::thread_rng().gen_range(1, 4) {
+                    let mut m = Item::get_item(game_obj_db, "piece of mushroom").unwrap();
+                    m.set_loc(loc);
+                    game_obj_db.add(m);
+                }
+            } else {
+                state.msg_queue.push_back(Message::info("You clear out the mushroom."));
+            }
+
+            game_obj_db.remove(oi.0);
+            
+            return 1.0;
+        }
+    }
+
+    let p = game_obj_db.player().unwrap();
+    if let Some(wi) = p.readied_weapon() {
+        let s = format!("There's nothing to use your {} for.", wi.1);
+        state.msg_queue.push_back(Message::info(&s));
+    }
+
+    0.0
+}
+
+fn use_light(state: &mut GameState, slot: char, game_obj_db: &mut GameObjectDB) -> (usize, bool) {
     let player = game_obj_db.player().unwrap();
     let next_slot = player.next_slot; // We might need to give the item a new inventory slot
     let was_in_stack = player.inv_count_in_slot(slot) > 1;
@@ -1133,15 +1191,8 @@ pub fn take_step(state: &mut GameState, game_obj_db: &mut GameObjectDB, obj_id: 
 
 fn do_move(state: &mut GameState, game_obj_db: &mut GameObjectDB, dir: &str, gui: &mut GameUI) -> f32 {
     let player = game_obj_db.player().unwrap();
-    let mut confused = false;
-    for s in player.statuses.iter() {
-        match s {
-            Status::ConfusedUntil(_) => { confused = true; break; },
-            _ => { },
-        }
-    }
+    let confused = player.confused();
 
-    
     // if the player is confused, they walk in their intended direction 1/5 of the time, otherwise
     // they stagger in a random direction.
     let mv = if confused && rand::thread_rng().gen_range(0.0, 1.0) < 0.2 {
@@ -1167,7 +1218,7 @@ fn do_move(state: &mut GameState, game_obj_db: &mut GameObjectDB, dir: &str, gui
     let tile = state.map[&next_loc].clone();
     
     if game_obj_db.blocking_obj_at(&next_loc) {
-        return maybe_fight(state, game_obj_db, next_loc, gui, confused);            
+        return maybe_fight(state, game_obj_db, next_loc, gui, confused);
     } else if tile.passable() {
         let (cost, moved) = take_step(state, game_obj_db, 0, start_loc, next_loc);
 
