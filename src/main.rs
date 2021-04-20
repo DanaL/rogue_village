@@ -1511,7 +1511,7 @@ fn wiz_command(state: &mut GameState, gui: &mut GameUI, game_obj_db: &mut GameOb
             game_obj_db.add(poh);
         } else if result == "goblin" {
             let loc = (player_loc.0, player_loc.1 - 1, player_loc.2);
-            mf.add_monster("goblin", loc, game_obj_db);
+            mf.monster("goblin", loc, game_obj_db);
         } else if result == "dump level" {
             if player_loc.2 == 0 {
                 state.msg_queue.push_back(Message::info("Uhh the wilderness is too big to dump."));

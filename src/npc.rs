@@ -1021,7 +1021,8 @@ pub fn pick_villager_name(used_names: &HashSet<String>) -> String {
 pub struct MonsterFactory {
     // AC, HP, ch, colour, behaviour, attack_mod, dmg_dice, dmg_die, dmg_bonus, level, attributes, xp_value, active,
     // active_behaviour, inactive_behaviour, size,
-    table: HashMap<String, (u8, u8, char, (u8, u8, u8), NPCPersonality, u8, u8, u8, u8, u8, u128, u32, bool, Behaviour, Behaviour, u8, u8, u128)>, 
+    table: HashMap<String, (u8, u8, char, (u8, u8, u8), NPCPersonality, u8, u8, u8, u8, u8, u128, u32, bool, Behaviour, Behaviour, u8, u8, u128)>,
+    index_by_lvl: HashMap<u8, Vec<String>>,
 }
 
 impl MonsterFactory {
@@ -1159,14 +1160,22 @@ impl MonsterFactory {
     }
 
     pub fn init() -> MonsterFactory {
-        let mut mf = MonsterFactory { table: HashMap::new() };
+        let mut mf = MonsterFactory { table: HashMap::new(), index_by_lvl: HashMap::new(), };
 
         let contents = fs::read_to_string("monsters.txt")
             .expect("Unable to find building templates file!");
         let lines = contents.split('\n').collect::<Vec<&str>>();
         for line in lines.iter().skip(1) {
             let entry = MonsterFactory::parse_line(line);
-            mf.table.insert(entry.0, entry.1);
+
+            let name = entry.0;
+            let level = entry.1.9;
+            mf.table.insert(name.clone(), entry.1);
+
+            mf.index_by_lvl
+              .entry(level)
+              .or_insert(Vec::new())
+              .push(name.clone());
         }
 
         mf
@@ -1223,7 +1232,7 @@ impl MonsterFactory {
         items
     }
 
-    pub fn add_monster(&self, name: &str, loc: (i32, i32, i8), game_obj_db: &mut GameObjectDB) {
+    pub fn monster(&self, name: &str, loc: (i32, i32, i8), game_obj_db: &mut GameObjectDB) {
         if !self.table.contains_key(name) {
             panic!("{}", format!("Unknown monster: {}!!", name));
         }
@@ -1248,7 +1257,15 @@ impl MonsterFactory {
         game_obj_db.listeners.insert((obj_id, EventType::TakeTurn));
     }
 
-    pub fn pick_monster_level(dungeon_level: u8) -> u8 {
+    pub fn monster_for_dungeon(&self, loc: (i32, i32, i8), game_obj_db: &mut GameObjectDB) {
+        let monster_level = MonsterFactory::rnd_monster_level(loc.2 as u8);
+        let options = self.index_by_lvl[&monster_level].len();
+        let choice = rand::thread_rng().gen_range(0, options);
+        let name = &self.index_by_lvl[&monster_level][choice];
+        self.monster(name, loc, game_obj_db);
+    }
+
+    fn rnd_monster_level(dungeon_level: u8) -> u8 {
         if dungeon_level == 1 {
             return 1;
         }
@@ -1260,6 +1277,10 @@ impl MonsterFactory {
 
         if dungeon_level > 3 && guass < dungeon_level as f32 - 3.0 {
             guass = dungeon_level as f32 - 3.0;
+        }
+
+        if guass > 4.0 {
+            guass = 4.0;
         }
 
         guass as u8
