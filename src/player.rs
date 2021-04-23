@@ -136,7 +136,7 @@ impl Player {
         let mut p = Player { base_info: GameObjectBase::new(0, (-1, -1, -1), false, '@', display::WHITE, display::WHITE, true, name),
                 max_hp: (15 + stat_to_mod(stats[1])) as u8, curr_hp: (15 + stat_to_mod(stats[1])) as u8,
                 vision_radius: default_vision_radius, str: stats[0], con: stats[1], dex: stats[2], chr, apt, role: Role::Warrior, xp: 0, level: 1, max_depth: 0, 
-                ac: 10, purse: 20, readied_weapon: "".to_string(), energy: 1.0, energy_restore: 1.0, inventory: Vec::new(), next_slot: 'a', hit_die: 10,
+                ac: 10, purse: 20, readied_weapon: "".to_string(), energy: 1.0, energy_restore: 1.5, inventory: Vec::new(), next_slot: 'a', hit_die: 10,
                 stealth_score: 10, statuses: Vec::new(), size: 2,
         };
         

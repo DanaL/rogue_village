@@ -281,6 +281,19 @@ impl<'a, 'b> GameUI<'a, 'b> {
 	}
 
 	pub fn select_target(&mut self, state: &GameState, game_obj_db: &mut GameObjectDB, prompt: &str) {
+		let player_loc = game_obj_db.player().unwrap().get_loc();
+
+		let mut npc_indexes = Vec::new();
+		for i in 0..self.v_matrix.len() {
+			if self.v_matrix[i].1 && self.v_matrix[i].0 != map::Tile::Blank {
+				let loc = fov_coord_to_map_loc(i as i32, player_loc);
+				if let Some(_) = game_obj_db.npc_at(&loc) {
+					npc_indexes.push(i);
+				}
+			}
+		}
+		let mut npc_target = 0;
+
 		let sbi = state.curr_sidebar_info(game_obj_db);
 		let start = ((FOV_HEIGHT / 2) as i32, (FOV_WIDTH / 2) as i32);
 		let mut loc = ((FOV_HEIGHT / 2) as i32, (FOV_WIDTH / 2) as i32);
@@ -296,6 +309,14 @@ impl<'a, 'b> GameUI<'a, 'b> {
 				match event {
 					Event::KeyDown {keycode: Some(Keycode::Return), .. } => { return; },
 					Event::KeyDown {keycode: Some(Keycode::Escape), .. } => { self.v_matrix = orig_vmatrix; return },
+					Event::KeyDown {keycode: Some(Keycode::Tab), .. } => {
+						if !npc_indexes.is_empty() {
+							npc_target = (npc_target + 1 ) % npc_indexes.len();
+							let i = npc_indexes[npc_target];
+							let row = i / FOV_WIDTH;
+							loc = (row as i32, (i - row * FOV_WIDTH) as i32);
+						}
+					},
 					Event::TextInput { text:val, .. } => {
 						let delta = if val == "k" {
 							(-1, 0)
@@ -328,7 +349,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 			let target_line = util::bresenham(start.0, start.1, loc.0, loc.1);
 			if target_line != prev_line {
 				let mut new_vm = orig_vmatrix.clone();
-				for sq in target_line.iter() {
+				for sq in target_line.iter().skip(1) {
 					let i = sq.0 * FOV_WIDTH as i32 + sq.1;
 					let vmi = &orig_vmatrix[i as usize];
 					let sq_info = sq_info_for_tile(&vmi.0, vmi.1);
@@ -1014,6 +1035,15 @@ impl<'a, 'b> GameUI<'a, 'b> {
 			}
 		}
 	}
+}
+
+fn fov_coord_to_map_loc(i: i32, player_loc: (i32, i32, i8)) -> (i32, i32, i8) {
+	let centre_r = FOV_HEIGHT as i32 / 2;
+	let centre_c = FOV_WIDTH as i32 / 2;
+	let row = i / FOV_WIDTH as i32;	
+	let fov_loc = (row  - centre_r, i - row * FOV_WIDTH as i32 - centre_c);
+
+	(player_loc.0 + fov_loc.0, player_loc.1 + fov_loc.1 , player_loc.2)
 }
 
 fn sq_info_for_tile(tile: &map::Tile, lit: bool) -> (char, Colour, Colour) {
