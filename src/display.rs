@@ -42,6 +42,7 @@ pub const WHITE: Colour = (255, 255, 255);
 pub const GREY: Colour = (136, 136, 136);
 pub const LIGHT_GREY: Colour = (220, 220, 220);
 pub const DARK_GREY: Colour = (72, 73, 75);
+pub const GRANITE: Colour = (169, 169, 169);
 pub const GREEN: Colour = (144, 238, 144);
 pub const DARK_GREEN: Colour = (0, 71, 49);
 pub const LIGHT_BROWN: Colour = (150, 75, 0);
@@ -1052,6 +1053,13 @@ fn sq_info_for_tile(tile: &map::Tile, lit: bool) -> (char, Colour, Colour) {
 		map::Tile::Wall => {
 			if lit {
 				('#', BLACK, GREY)
+			} else {
+				('#', BLACK, DARK_GREY)
+			}
+		},
+		map::Tile::GraniteWall => {
+			if lit {
+				('#', BLACK, GRANITE)
 			} else {
 				('#', BLACK, DARK_GREY)
 			}

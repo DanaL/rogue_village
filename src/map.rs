@@ -45,6 +45,7 @@ pub enum Tile {
 	Blank,
 	Wall,
 	WoodWall,
+	GraniteWall,
 	Door(DoorState),
 	Tree,
 	Dirt,
@@ -87,13 +88,13 @@ pub enum Tile {
 impl Tile {
 	pub fn clear(&self) -> bool {
 		!matches!(self,
-			Tile::Wall | Tile::Blank | Tile::Mountain | Tile::SnowPeak |
+			Tile::Wall | Tile::GraniteWall | Tile::Blank | Tile::Mountain | Tile::SnowPeak |
 			Tile::Door(DoorState::Closed) | Tile::Door(DoorState::Locked) | Tile::WoodWall)
 	}
 
 	pub fn passable(&self) -> bool {
 		!matches!(self,
-			Tile::Wall | Tile::Blank | Tile::WorldEdge |
+			Tile::Wall | Tile::GraniteWall | Tile::Blank | Tile::WorldEdge |
 			Tile::Mountain | Tile::SnowPeak | Tile::Gate(DoorState::Closed) | Tile::Gate(DoorState::Locked) |
 			Tile::Door(DoorState::Closed) | Tile::Door(DoorState::Locked) | Tile::WoodWall | Tile::Window(_) |
 			Tile::UndergroundRiver)
@@ -101,7 +102,7 @@ impl Tile {
 
 	pub fn passable_dry_land(&self) -> bool {
 		!matches!(self,
-			Tile::Wall | Tile::Blank | Tile::WorldEdge |
+			Tile::Wall | Tile::GraniteWall | Tile::Blank | Tile::WorldEdge |
 			Tile::Mountain | Tile::SnowPeak | Tile::Gate(DoorState::Closed) | Tile::Gate(DoorState::Locked) | 
 			Tile::Door(DoorState::Closed) | Tile::Door(DoorState::Locked) | Tile::WoodWall | Tile::Window(_) | 
 			Tile::DeepWater | Tile::UndergroundRiver)

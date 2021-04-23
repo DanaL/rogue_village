@@ -466,7 +466,7 @@ fn connect_rooms(sqs: &mut Vec<Tile>, height: usize, width: usize) {
     let mut q = VecDeque::new();
     let mut visited = HashSet::new();
     for j in 0..sqs.len() {
-        if sqs[j] == Tile::Wall { continue; }
+        if sqs[j] == Tile::Wall || sqs[j]  == Tile::GraniteWall{ continue; }
         let r = j / width;
         let c = j - r * width;
         let start = (r as i32, c as i32);
@@ -499,7 +499,7 @@ fn connect_rooms(sqs: &mut Vec<Tile>, height: usize, width: usize) {
                     continue;
                 }
                 let i = n.0 as usize * width + n.1 as usize;
-                if sqs[i] != Tile::Wall {
+                if !(sqs[i] == Tile::Wall || sqs[i] == Tile::GraniteWall) {
                     rooms[room_d].insert(n);
                     if !visited.contains(&n) {
                         q.push_back(n);

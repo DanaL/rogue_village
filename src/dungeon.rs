@@ -729,5 +729,12 @@ pub fn draw_level(width: usize, height: usize) -> (Vec<Tile>, Vec<Vault>) {
         }
     }
 
+    // For a bit of variety, switch up roughly 1/3 of wall tiles to granite walls
+    for j in 0..level.len() {
+        if level[j] == Tile::Wall && rand::thread_rng().gen_range(0.0, 1.0) < 0.33 {
+            level[j] = Tile::GraniteWall;
+        }
+    }
+    
     (level, vaults)
 }
