@@ -81,6 +81,7 @@ pub enum Tile {
 	TeleportTrap,
 	UndergroundRiver,
 	Well,
+	Highlight(Colour, Colour, char),
 }
 
 impl Tile {

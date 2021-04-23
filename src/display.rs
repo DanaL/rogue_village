@@ -57,6 +57,7 @@ pub const GOLD: Colour = (255, 215, 0);
 pub const YELLOW: Colour = (255, 225, 53);
 pub const YELLOW_ORANGE: Colour = (255, 159, 0);
 pub const PINK: Colour = (255, 20, 147);
+pub const HIGHLIGHT_PINK: Colour = (231, 84, 128);
 pub const PURPLE: Colour = (138,43,226);
 pub const LIGHT_PURPLE: Colour = (178, 102, 255);
 
@@ -279,6 +280,69 @@ impl<'a, 'b> GameUI<'a, 'b> {
 		}
 	}
 
+	pub fn select_target(&mut self, state: &GameState, game_obj_db: &mut GameObjectDB, prompt: &str) {
+		let sbi = state.curr_sidebar_info(game_obj_db);
+		let start = ((FOV_HEIGHT / 2) as i32, (FOV_WIDTH / 2) as i32);
+		let mut loc = ((FOV_HEIGHT / 2) as i32, (FOV_WIDTH / 2) as i32);
+		let orig_vmatrix = self.v_matrix.clone();
+		let mut prev_line = vec![start];
+		loop {
+			let mut events = Vec::new();
+			for event in self.event_pump.poll_iter() {
+				events.push(event);
+			}
+
+			for event in events {
+				match event {
+					Event::KeyDown {keycode: Some(Keycode::Return), .. } => { return; },
+					Event::KeyDown {keycode: Some(Keycode::Escape), .. } => { self.v_matrix = orig_vmatrix; return },
+					Event::TextInput { text:val, .. } => {
+						let delta = if val == "k" {
+							(-1, 0)
+						} else if val == "j" {
+							(1, 0)
+						} else if val == "l" {
+							(0, 1)
+						} else if val == "h" {
+							(0, -1)
+						} else if val == "y" {
+							(-1, -1)
+						} else if val == "u" {
+							(-1, 1)
+						} else if val == "b" {
+							(1, -1)
+						} else {
+							(1, 1)
+						};
+
+						let next = (loc.0 + delta.0, loc.1 + delta.1);
+						let i = next.0 * FOV_WIDTH as i32 + next.1;						
+						if i >= 0 && (i as usize) < orig_vmatrix.len() && orig_vmatrix[i as usize].0 != map::Tile::Blank {
+							loc = next;
+						}
+					},
+					_ => { println!("continue."); },
+				}
+			}
+
+			let target_line = util::bresenham(start.0, start.1, loc.0, loc.1);
+			if target_line != prev_line {
+				let mut new_vm = orig_vmatrix.clone();
+				for sq in target_line.iter() {
+					let i = sq.0 * FOV_WIDTH as i32 + sq.1;
+					let vmi = &orig_vmatrix[i as usize];
+					let sq_info = sq_info_for_tile(&vmi.0, vmi.1);
+					new_vm[i as usize] = (map::Tile::Highlight(BLACK, HIGHLIGHT_PINK, sq_info.0), true);
+				}
+				self.v_matrix = new_vm;
+				self.draw_frame(prompt, Some(&sbi), true);
+				prev_line = target_line;
+			}
+
+			::std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 60));
+		}
+	}
+
 	pub fn get_command(&mut self, state: &GameState, game_obj_db: &mut GameObjectDB) -> Cmd {
 		loop {
 			// I collect the events into a vector and then loop over them so that I can
@@ -355,6 +419,9 @@ impl<'a, 'b> GameUI<'a, 'b> {
 							return Cmd::DropItem;
 						} else if val == "s" {
 							return Cmd::Search;
+						} else if val == "T" {
+							self.select_target(state, game_obj_db, "Select target:");
+							continue;
 						} else if val == ">" {
 							return Cmd::Down;
 						} else if val == "<" {
@@ -1185,5 +1252,6 @@ fn sq_info_for_tile(tile: &map::Tile, lit: bool) -> (char, Colour, Colour) {
 				('~', DARK_BLUE, BLACK)
 			}
 		},
+		map::Tile::Highlight(fg_colour, bg_colour, ch) => (*ch, *fg_colour, *bg_colour),
 	}
 }
