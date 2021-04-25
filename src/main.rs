@@ -835,6 +835,11 @@ fn use_wand(state: &mut GameState, slot: char, game_obj_db: &mut GameObjectDB, g
 
     area_of_effect(state, game_obj_db, gui, &sqs_affected, effects);
 
+    let player = game_obj_db.player().unwrap();
+    if let GameObjects::Item(wand) = player.inv_item_in_slot(slot).unwrap() {
+        wand.charges -= 1;
+    }
+
     0.0
 }
 
