@@ -83,6 +83,7 @@ pub enum Tile {
 	UndergroundRiver,
 	Well,
 	Highlight(Colour, Colour, char),
+	Ice,
 }
 
 impl Tile {

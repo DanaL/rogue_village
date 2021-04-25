@@ -1330,5 +1330,12 @@ fn sq_info_for_tile(tile: &map::Tile, lit: bool) -> (char, Colour, Colour) {
 			}
 		},
 		map::Tile::Highlight(fg_colour, bg_colour, ch) => (*ch, *fg_colour, *bg_colour),
+		map::Tile::Ice => {
+			if lit {
+				('.', LIGHT_BLUE, BLACK)
+			} else {
+				('.', LIGHT_GREY, BLACK)
+			}
+		}
 	}
 }

@@ -845,6 +845,17 @@ fn use_wand(state: &mut GameState, slot: char, game_obj_db: &mut GameObjectDB, g
 
 fn area_of_effect(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mut GameUI, affected_sqs: &Vec<(i32, i32, i8)>, effects: u128) {
     gui.draw_effects(state, game_obj_db, affected_sqs, effects);
+
+    for sq in affected_sqs.iter() {
+        if effects & effects::EF_FROST > 0 {
+            // this should be moved to the effects module for reuse by other things like spells, dragon breath, etc
+            if state.map[&sq] == Tile::Water || state.map[&sq] == Tile::DeepWater || state.map[&sq] == Tile::UndergroundRiver {
+                state.map.insert(*sq, Tile::Ice);
+                state.msg_queue.push_back(Message::new(0, *sq, "The water freezes over!", "You hear a cracking sound."));
+                // need to add in an event for the ice to later melt
+            }
+        }
+    }
 }
 
 fn use_weapon_as_tool(state: &mut GameState, game_obj_db: &mut GameObjectDB, loc: (i32, i32, i8)) -> f32 {
@@ -1272,15 +1283,16 @@ fn do_move(state: &mut GameState, game_obj_db: &mut GameObjectDB, dir: &str, gui
         }
 
         match tile {
-            Tile::Water => state.msg_queue.push_back(Message::new(0, next_loc, "You splash in the shallow water.", "You splash in the shallow water.")),
+            Tile::Water => state.msg_queue.push_back(Message::info("You splash in the shallow water.")),
             Tile::DeepWater => {
                 if start_tile != Tile::DeepWater {
-                    state.msg_queue.push_back(Message::new(0, next_loc, "You wade into the flow.", "You wade into the flow."))
+                    state.msg_queue.push_back(Message::info("You wade into the flow."))
                 }
             },
-            Tile::Well => state.msg_queue.push_back(Message::new(0, next_loc, "There is a well here.", "There is a well here.")),
-            Tile::Lava => state.msg_queue.push_back(Message::new(0, next_loc, "MOLTEN LAVA!", "MOLTEN LAVA!")),
-            Tile::FirePit => state.msg_queue.push_back(Message::new(0, next_loc, "You've stepped in the fire!", "You've stepped in the fire!")),
+            Tile::Ice => state.msg_queue.push_back(Message::info("The ice is slippery!")),
+            Tile::Well => state.msg_queue.push_back(Message::info("There is a well here.")),
+            Tile::Lava => state.msg_queue.push_back(Message::info("MOLTEN LAVA!")),
+            Tile::FirePit => state.msg_queue.push_back(Message::info("You've stepped in the fire!")),
             Tile::OldFirePit(n) => state.msg_queue.push_back(Message::new(0, next_loc, firepit_msg(n), "You feel the remains of an old firepit.")),
             Tile::Portal => state.msg_queue.push_back(Message::new(0, next_loc, "Where could this lead?", "")),
             Tile::Shrine(stype) => {
