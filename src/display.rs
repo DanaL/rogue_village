@@ -483,9 +483,6 @@ impl<'a, 'b> GameUI<'a, 'b> {
 							return Cmd::DropItem;
 						} else if val == "s" {
 							return Cmd::Search;
-						} else if val == "T" {
-							self.select_target(state, game_obj_db, "Select target:");
-							continue;
 						} else if val == ">" {
 							return Cmd::Down;
 						} else if val == "<" {

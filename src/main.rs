@@ -809,16 +809,19 @@ fn use_wand(state: &mut GameState, slot: char, game_obj_db: &mut GameObjectDB, g
     let player_loc = player.get_loc();
     let obj = player.inv_item_in_slot(slot).unwrap();
     
+    let mut range = 0;
     if let GameObjects::Item(wand) = obj {
         if wand.charges == 0 {
             state.msg_queue.push_back(Message::info("The wand is out of charges!"));
             return 1.0;
         }
+
+        range = wand.range;
     }
 
     let sqs_affected = if let Some(target) = gui.select_target(state, game_obj_db, "Select target:") {
         let beam = util::bresenham(player_loc.0, player_loc.1, target.0, target.1);
-        beam.iter().skip(1)
+        beam.iter().skip(1).take(range as usize)
             .map(|loc| (loc.0, loc.1, player_loc.2))
             .collect::<Vec<(i32, i32, i8)>>()            
     } else {
