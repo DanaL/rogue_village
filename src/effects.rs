@@ -30,6 +30,7 @@ pub const EF_MINOR_HEAL: u128     = 0x00000001;
 pub const EF_BLINK: u128          = 0x00000002;
 pub const EF_WEAK_VENOM: u128     = 0x00000004;
 pub const EF_WEAK_BLINDNESS: u128 = 0x00000008;
+pub const EF_FROST: u128          = 0x00000010;
 
 // Short range, untargeted teleport
 fn blink(state: &mut GameState, obj_id: usize, game_obj_db: &mut GameObjectDB) {

@@ -752,7 +752,7 @@ fn use_item(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mut Gam
         };
         
         if item_type == ItemType::Wand {
-            return use_wand(state, ch, game_obj_db, gui);
+            return use_wand(state, ch, game_obj_db, gui, effects);
         } else if useable {
             if item_type == ItemType::Light {
                 let (item_id, active) = use_light(state, ch, game_obj_db);
@@ -804,26 +804,39 @@ fn use_item(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mut Gam
     0.0
 }
 
-fn use_wand(state: &mut GameState, slot: char, game_obj_db: &mut GameObjectDB, gui: &mut GameUI) -> f32 {
+fn use_wand(state: &mut GameState, slot: char, game_obj_db: &mut GameObjectDB, gui: &mut GameUI, effects: u128) -> f32 {
     let player = game_obj_db.player().unwrap();
+    let player_loc = player.get_loc();
     let obj = player.inv_item_in_slot(slot).unwrap();
-    let obj_id = obj.obj_id();
-    let name = obj.get_fullname();
-
+    
     if let GameObjects::Item(wand) = obj {
         if wand.charges == 0 {
             state.msg_queue.push_back(Message::info("The wand is out of charges!"));
             return 1.0;
         }
-
-        if let Some(target) = gui.select_target(state, game_obj_db, "Select target:") {
-            return 1.0;
-        } else {
-            state.msg_queue.push_back(Message::info("Never mind."));
-        }
     }
 
+    let sqs_affected = if let Some(target) = gui.select_target(state, game_obj_db, "Select target:") {
+        let beam = util::bresenham(player_loc.0, player_loc.1, target.0, target.1);
+        beam.iter().skip(1)
+            .map(|loc| (loc.0, loc.1, player_loc.2)).collect::<Vec<(i32, i32, i8)>>()            
+    } else {
+        Vec::new()
+    };
+    
+    if sqs_affected.is_empty() {
+        state.msg_queue.push_back(Message::info("Never mind."));
+        return 0.0;
+    }
+
+        //wand.charges -= 1;
+
+
     0.0
+}
+
+fn area_of_effect(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mut GameUI, affected_sqs: &Vec<(i32, i32, i8)>, effects: u128) {
+
 }
 
 fn use_weapon_as_tool(state: &mut GameState, game_obj_db: &mut GameObjectDB, loc: (i32, i32, i8)) -> f32 {

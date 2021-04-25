@@ -37,7 +37,6 @@ pub const IA_HEAVY_ARMOUR: u128 = 0x00000004;
 pub const IA_CONSUMABLE: u128   = 0x00000010;
 pub const IA_TWO_HANDED: u128   = 0x00000020;
 pub const IA_IMMOBILE: u128     = 0x00000040;
-pub const IA_FROST: u128        = 0x00000080;
 
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ItemType {
@@ -207,7 +206,7 @@ impl Item {
             },
             "wand of frost" => {
                 let mut w = Item::new(game_obj_db.next_id(), '-', display::WHITE, display::LIGHT_GREY, name, ItemType::Wand, 1, false, 150);
-                w.attributes |= IA_FROST;
+                w.effects |= effects::EF_FROST;
                 w.charges = rand::thread_rng().gen_range(4, 9);
                 w.range = 8;
 
