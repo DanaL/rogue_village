@@ -819,7 +819,8 @@ fn use_wand(state: &mut GameState, slot: char, game_obj_db: &mut GameObjectDB, g
     let sqs_affected = if let Some(target) = gui.select_target(state, game_obj_db, "Select target:") {
         let beam = util::bresenham(player_loc.0, player_loc.1, target.0, target.1);
         beam.iter().skip(1)
-            .map(|loc| (loc.0, loc.1, player_loc.2)).collect::<Vec<(i32, i32, i8)>>()            
+            .map(|loc| (loc.0, loc.1, player_loc.2))
+            .collect::<Vec<(i32, i32, i8)>>()            
     } else {
         Vec::new()
     };
@@ -829,14 +830,13 @@ fn use_wand(state: &mut GameState, slot: char, game_obj_db: &mut GameObjectDB, g
         return 0.0;
     }
 
-        //wand.charges -= 1;
-
+    area_of_effect(state, game_obj_db, gui, &sqs_affected, effects);
 
     0.0
 }
 
 fn area_of_effect(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mut GameUI, affected_sqs: &Vec<(i32, i32, i8)>, effects: u128) {
-
+    gui.draw_effects(state, game_obj_db, affected_sqs, effects);
 }
 
 fn use_weapon_as_tool(state: &mut GameState, game_obj_db: &mut GameObjectDB, loc: (i32, i32, i8)) -> f32 {

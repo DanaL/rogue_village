@@ -13,11 +13,14 @@
 // You should have received a copy of the GNU General Public License
 // along with RogueVillage.  If not, see <https://www.gnu.org/licenses/>.
 
+extern crate rand;
 extern crate sdl2;
 
+use rand::Rng;
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::time::Duration;
 
+use crate::effects;
 use crate::game_obj::{GameObject, GameObjectDB};
 use crate::map;
 use crate::map::{Tile, DoorState};
@@ -68,6 +71,7 @@ const BACKSPACE_CH: char = '\u{0008}';
 const DEFAULT_FONT: &'static str = "DejaVuSansMono.ttf";
 const SM_FONT_PT: u16 = 18;
 const LG_FONT_PT: u16 = 25;
+const ANIMATION_DELAY: u64 = 75;
 
 #[derive(Debug)]
 pub struct SidebarInfo {
@@ -281,6 +285,36 @@ impl<'a, 'b> GameUI<'a, 'b> {
 		}
 	}
 
+	pub fn draw_effects(&mut self, state: &GameState, game_obj_db: &mut GameObjectDB, sqs_affected: &Vec<(i32, i32, i8)>, effect: u128) {
+		let sbi = state.curr_sidebar_info(game_obj_db);
+		let player_loc = game_obj_db.player().unwrap().get_loc();
+		let center = (FOV_HEIGHT / 2, FOV_WIDTH / 2);
+		let orig_vmatrix = self.v_matrix.clone();
+
+		for sq in sqs_affected.iter() {
+			let loc = (sq.0 - player_loc.0 + center.0 as i32, sq.1 - player_loc.1 + center.1 as i32);
+
+			let colour = if effect & effects::EF_FROST > 0 {
+				let roll = rand::thread_rng().gen_range(0.0, 1.0);
+				if roll <= 0.6 {
+					WHITE
+				} else if roll <= 0.8 {
+					BLUE
+				} else {
+					LIGHT_BLUE
+				}				
+			} else {
+				PINK
+			};
+
+			let i = loc.0 as usize * FOV_WIDTH + loc.1 as usize;
+			let tile = map::Tile::Highlight(colour, BLACK, '*');
+			self.v_matrix[i] = (tile, true);
+			self.draw_frame("", Some(&sbi), true);
+			::std::thread::sleep(Duration::from_millis(ANIMATION_DELAY));
+		}
+	}
+
 	pub fn select_target(&mut self, state: &GameState, game_obj_db: &mut GameObjectDB, prompt: &str) -> Option<(i32, i32, i8)> {
 		let player_loc = game_obj_db.player().unwrap().get_loc();
 
@@ -310,7 +344,11 @@ impl<'a, 'b> GameUI<'a, 'b> {
 
 			for event in events {
 				match event {
-					Event::KeyDown {keycode: Some(Keycode::Return), .. } => { self.v_matrix = orig_vmatrix; return Some((loc.0, loc.1, player_loc.2)); },
+					Event::KeyDown {keycode: Some(Keycode::Return), .. } => { 
+						self.v_matrix = orig_vmatrix;
+						let x = loc.0 * FOV_WIDTH as i32 + loc.1;
+						return Some(fov_coord_to_map_loc(x, player_loc)); 
+					},
 					Event::KeyDown {keycode: Some(Keycode::Escape), .. } => { self.v_matrix = orig_vmatrix; return None; },
 					Event::KeyDown {keycode: Some(Keycode::Tab), .. } => {
 						if !npc_indexes.is_empty() {
