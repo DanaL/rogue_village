@@ -281,7 +281,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 		}
 	}
 
-	pub fn select_target(&mut self, state: &GameState, game_obj_db: &mut GameObjectDB, prompt: &str) {
+	pub fn select_target(&mut self, state: &GameState, game_obj_db: &mut GameObjectDB, prompt: &str) -> Option<(i32, i32, i8)> {
 		let player_loc = game_obj_db.player().unwrap().get_loc();
 
 		let mut npc_indexes = Vec::new();
@@ -300,6 +300,8 @@ impl<'a, 'b> GameUI<'a, 'b> {
 		let mut loc = ((FOV_HEIGHT / 2) as i32, (FOV_WIDTH / 2) as i32);
 		let orig_vmatrix = self.v_matrix.clone();
 		let mut prev_line = vec![start];
+
+		self.draw_frame(prompt, Some(&sbi), true);
 		loop {
 			let mut events = Vec::new();
 			for event in self.event_pump.poll_iter() {
@@ -308,8 +310,8 @@ impl<'a, 'b> GameUI<'a, 'b> {
 
 			for event in events {
 				match event {
-					Event::KeyDown {keycode: Some(Keycode::Return), .. } => { return; },
-					Event::KeyDown {keycode: Some(Keycode::Escape), .. } => { self.v_matrix = orig_vmatrix; return },
+					Event::KeyDown {keycode: Some(Keycode::Return), .. } => { self.v_matrix = orig_vmatrix; return Some((loc.0, loc.1, player_loc.2)); },
+					Event::KeyDown {keycode: Some(Keycode::Escape), .. } => { self.v_matrix = orig_vmatrix; return None; },
 					Event::KeyDown {keycode: Some(Keycode::Tab), .. } => {
 						if !npc_indexes.is_empty() {
 							npc_target = (npc_target + 1 ) % npc_indexes.len();
@@ -343,7 +345,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 							loc = next;
 						}
 					},
-					_ => { println!("continue."); },
+					_ => { },
 				}
 			}
 
@@ -363,6 +365,8 @@ impl<'a, 'b> GameUI<'a, 'b> {
 
 			::std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 60));
 		}
+
+		None
 	}
 
 	pub fn get_command(&mut self, state: &GameState, game_obj_db: &mut GameObjectDB) -> Cmd {

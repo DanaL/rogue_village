@@ -751,7 +751,9 @@ fn use_item(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mut Gam
             ("".to_string(), "".to_string())
         };
         
-        if useable {
+        if item_type == ItemType::Wand {
+            return use_wand(state, ch, game_obj_db, gui);
+        } else if useable {
             if item_type == ItemType::Light {
                 let (item_id, active) = use_light(state, ch, game_obj_db);
                 
@@ -785,7 +787,7 @@ fn use_item(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mut Gam
                 return if game_obj_db.blocking_obj_at(&loc) { 
                      maybe_fight(state, game_obj_db, loc, gui, confused)
                 } else {
-                    use_weapon_as_tool(state, game_obj_db, loc)
+                    return use_weapon_as_tool(state, game_obj_db, loc)
                 };
             } else {
                 state.msg_queue.push_back(Message::info("Never mind."));
@@ -797,6 +799,28 @@ fn use_item(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mut Gam
         }       
     } else {
         state.msg_queue.push_back(Message::info("Never mind."));
+    }
+
+    0.0
+}
+
+fn use_wand(state: &mut GameState, slot: char, game_obj_db: &mut GameObjectDB, gui: &mut GameUI) -> f32 {
+    let player = game_obj_db.player().unwrap();
+    let obj = player.inv_item_in_slot(slot).unwrap();
+    let obj_id = obj.obj_id();
+    let name = obj.get_fullname();
+
+    if let GameObjects::Item(wand) = obj {
+        if wand.charges == 0 {
+            state.msg_queue.push_back(Message::info("The wand is out of charges!"));
+            return 1.0;
+        }
+
+        if let Some(target) = gui.select_target(state, game_obj_db, "Select target:") {
+            return 1.0;
+        } else {
+            state.msg_queue.push_back(Message::info("Never mind."));
+        }
     }
 
     0.0

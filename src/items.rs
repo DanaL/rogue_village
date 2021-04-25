@@ -37,6 +37,7 @@ pub const IA_HEAVY_ARMOUR: u128 = 0x00000004;
 pub const IA_CONSUMABLE: u128   = 0x00000010;
 pub const IA_TWO_HANDED: u128   = 0x00000020;
 pub const IA_IMMOBILE: u128     = 0x00000040;
+pub const IA_FROST: u128        = 0x00000080;
 
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ItemType {
@@ -52,6 +53,7 @@ pub enum ItemType {
     Scroll,
     Obstacle,
     Ammunition,
+    Wand,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -203,6 +205,14 @@ impl Item {
 
                 Some(GameObjects::Item(m))
             },
+            "wand of frost" => {
+                let mut w = Item::new(game_obj_db.next_id(), '-', display::WHITE, display::LIGHT_GREY, name, ItemType::Wand, 1, false, 150);
+                w.attributes |= IA_FROST;
+                w.charges = rand::thread_rng().gen_range(4, 9);
+                w.range = 8;
+
+                Some(GameObjects::Item(w))
+            }
             _ => None,
         }
     }
@@ -282,7 +292,8 @@ impl Item {
 
     pub fn useable(&self) -> bool {
         self.item_type == ItemType::Light || self.item_type == ItemType::Potion ||
-            self.item_type == ItemType::Scroll || self.item_type == ItemType::Food
+            self.item_type == ItemType::Scroll || self.item_type == ItemType::Food ||
+            self.item_type == ItemType::Wand
     }
 
     pub fn stackable(&self) -> bool {
