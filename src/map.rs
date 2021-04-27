@@ -93,6 +93,11 @@ impl Tile {
 			Tile::Door(DoorState::Closed) | Tile::Door(DoorState::Locked) | Tile::WoodWall)
 	}
 
+	pub fn solid(&self) -> bool {
+		matches!(self, Tile::Wall | Tile::GraniteWall | Tile::WorldEdge | Tile::Mountain | Tile::SnowPeak | Tile::Door(DoorState::Closed) | 
+			Tile::Door(DoorState::Locked) | Tile::WoodWall | Tile::Window(_))
+	}
+
 	pub fn passable(&self) -> bool {
 		!matches!(self,
 			Tile::Wall | Tile::GraniteWall | Tile::Blank | Tile::WorldEdge |

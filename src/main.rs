@@ -819,14 +819,26 @@ fn use_wand(state: &mut GameState, slot: char, game_obj_db: &mut GameObjectDB, g
         range = wand.range;
     }
 
-    let sqs_affected = if let Some(target) = gui.select_target(state, game_obj_db, "Select target:") {
-        let beam = util::bresenham(player_loc.0, player_loc.1, target.0, target.1);
-        beam.iter().skip(1).take(range as usize)
-            .map(|loc| (loc.0, loc.1, player_loc.2))
-            .collect::<Vec<(i32, i32, i8)>>()            
+    let mut target = if let Some(coord) = gui.select_target(state, game_obj_db, "Select target:") {
+        coord
     } else {
-        Vec::new()
+        state.msg_queue.push_back(Message::info("Never mind."));
+        return 0.0;
     };
+
+    // The player could select a square that is less than the range of the wand, but wands always shoot their
+    // beam to their full length, so scale the line out if needed
+    let d = util::distance(player_loc.0, player_loc.1, target.0, target.1);
+    if d < range as f64 {
+        let r = f64::round((target.0 - player_loc.0) as f64 * range as f64 / d + player_loc.0 as f64) as i32;
+        let c = f64::round((target.1 - player_loc.1) as f64 * range as f64 / d + player_loc.1 as f64) as i32;
+        target = (r, c, player_loc.2);
+    }
+     
+    let beam = util::bresenham(player_loc.0, player_loc.1, target.0, target.1);
+    let sqs_affected = beam.iter().skip(1).take(range as usize)
+            .map(|loc| (loc.0, loc.1, player_loc.2))
+            .collect::<Vec<(i32, i32, i8)>>();
     
     if sqs_affected.is_empty() {
         state.msg_queue.push_back(Message::info("Never mind."));
@@ -843,10 +855,9 @@ fn use_wand(state: &mut GameState, slot: char, game_obj_db: &mut GameObjectDB, g
     0.0
 }
 
-fn area_of_effect(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mut GameUI, affected_sqs: &Vec<(i32, i32, i8)>, effects: u128) {
-    gui.draw_effects(state, game_obj_db, affected_sqs, effects);
-
-    for sq in affected_sqs.iter() {
+fn area_of_effect(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mut GameUI, sqs_in_area: &Vec<(i32, i32, i8)>, effects: u128) {    
+    let mut affected_sqs = Vec::new();
+    for sq in sqs_in_area.iter() {
         if effects & effects::EF_FROST > 0 {
             // this should be moved to the effects module for reuse by other things like spells, dragon breath, etc
             if state.map[&sq] == Tile::Water || state.map[&sq] == Tile::DeepWater || state.map[&sq] == Tile::UndergroundRiver {
@@ -855,7 +866,14 @@ fn area_of_effect(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &m
                 // need to add in an event for the ice to later melt
             }
         }
+        affected_sqs.push(*sq);
+
+        if state.map[&sq].solid() {
+            break;
+        }
     }
+
+    gui.draw_effects(state, game_obj_db, &affected_sqs, effects);
 }
 
 fn use_weapon_as_tool(state: &mut GameState, game_obj_db: &mut GameObjectDB, loc: (i32, i32, i8)) -> f32 {
