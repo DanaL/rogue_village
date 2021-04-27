@@ -826,6 +826,8 @@ fn use_wand(state: &mut GameState, slot: char, game_obj_db: &mut GameObjectDB, g
         return 0.0;
     };
 
+    state.msg_queue.push_back(Message::info("You zap the wand!"));
+    
     // The player could select a square that is less than the range of the wand, but wands always shoot their
     // beam to their full length, so scale the line out if needed
     let d = util::distance(player_loc.0, player_loc.1, target.0, target.1);
@@ -852,7 +854,7 @@ fn use_wand(state: &mut GameState, slot: char, game_obj_db: &mut GameObjectDB, g
         wand.charges -= 1;
     }
 
-    0.0
+    1.0
 }
 
 fn area_of_effect(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mut GameUI, sqs_in_area: &Vec<(i32, i32, i8)>, effects: u128) {    
