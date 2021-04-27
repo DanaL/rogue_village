@@ -24,6 +24,7 @@ use serde::{Serialize, Deserialize};
 use super::{GameState, Message};
 use crate::battle::DamageType;
 use crate::game_obj::{Ability, GameObject, GameObjectDB, Person};
+use crate::map::Tile;
 use crate::util;
 
 pub const EF_MINOR_HEAL: u128     = 0x00000001;
@@ -31,6 +32,19 @@ pub const EF_BLINK: u128          = 0x00000002;
 pub const EF_WEAK_VENOM: u128     = 0x00000004;
 pub const EF_WEAK_BLINDNESS: u128 = 0x00000008;
 pub const EF_FROST: u128          = 0x00000010;
+
+pub fn frost(state: &mut GameState, game_obj_db: &mut GameObjectDB, loc: (i32, i32, i8)) {
+    if state.map[&loc] == Tile::Water || state.map[&loc] == Tile::DeepWater || state.map[&loc] == Tile::UndergroundRiver {
+        state.map.insert(loc, Tile::Ice);
+        state.msg_queue.push_back(Message::new(0, loc, "The water freezes over!", "You hear a cracking sound."));
+        // need to add in an event for the ice to later melt
+    }
+
+    if let Some(victim) = game_obj_db.person_at(loc) {
+        let dmg = rand::thread_rng().gen_range(1, 9) + rand::thread_rng().gen_range(1, 9) + rand::thread_rng().gen_range(1, 9);
+        victim.damaged(state, dmg, DamageType::Cold, 0, "frost");
+    }
+}
 
 // Short range, untargeted teleport
 fn blink(state: &mut GameState, obj_id: usize, game_obj_db: &mut GameObjectDB) {

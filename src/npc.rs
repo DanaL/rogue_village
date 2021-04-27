@@ -359,6 +359,11 @@ impl Person for NPC {
         match dmg_type {
             DamageType::Slashing => if self.attributes & MA_RESIST_SLASH != 0 { adjusted_dmg /= 2; },
             DamageType::Piercing => if self.attributes & MA_RESIST_PIERCE != 0 { adjusted_dmg /= 2; },
+            DamageType::Cold => { 
+                let s = format!("{} is frozen!", self.npc_name(false).capitalize());
+                let msg = Message::new(self.obj_id(), self.get_loc(), &s, "You hear a gasp.");
+                state.msg_queue.push_back(msg);
+            },
             _ => { },
         }
 

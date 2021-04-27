@@ -363,6 +363,27 @@ impl GameObjectDB {
         }
     }
 
+    pub fn person_at(&mut self, loc: (i32, i32, i8)) -> Option<&mut dyn Person> {
+        if !self.obj_locs.contains_key(&loc) {
+            return None;
+        }
+
+        let mut people = Vec::new();
+        for id in self.obj_locs[&loc].iter() {
+            match self.get(*id).unwrap() {
+                GameObjects::Player(_) => { people.push(*id); break },
+                GameObjects::NPC(_) => { people.push(*id); break },
+                _ => { },
+            }            
+        }
+
+        if !people.is_empty() {
+            self.as_person(people[0])
+        } else {
+            None
+        }
+    }
+
     pub fn as_person(&mut self, obj_id: usize) -> Option<&mut dyn Person> {
         match self.get_mut(obj_id).unwrap() {
             GameObjects::Player(p) => return Some(p),

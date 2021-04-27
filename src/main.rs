@@ -827,7 +827,7 @@ fn use_wand(state: &mut GameState, slot: char, game_obj_db: &mut GameObjectDB, g
     };
 
     state.msg_queue.push_back(Message::info("You zap the wand!"));
-    
+
     // The player could select a square that is less than the range of the wand, but wands always shoot their
     // beam to their full length, so scale the line out if needed
     let d = util::distance(player_loc.0, player_loc.1, target.0, target.1);
@@ -861,13 +861,9 @@ fn area_of_effect(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &m
     let mut affected_sqs = Vec::new();
     for sq in sqs_in_area.iter() {
         if effects & effects::EF_FROST > 0 {
-            // this should be moved to the effects module for reuse by other things like spells, dragon breath, etc
-            if state.map[&sq] == Tile::Water || state.map[&sq] == Tile::DeepWater || state.map[&sq] == Tile::UndergroundRiver {
-                state.map.insert(*sq, Tile::Ice);
-                state.msg_queue.push_back(Message::new(0, *sq, "The water freezes over!", "You hear a cracking sound."));
-                // need to add in an event for the ice to later melt
-            }
+            effects::frost(state, game_obj_db, *sq);
         }
+
         affected_sqs.push(*sq);
 
         if state.map[&sq].solid() {
