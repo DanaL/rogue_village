@@ -861,7 +861,7 @@ fn area_of_effect(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &m
     let mut affected_sqs = Vec::new();
     for sq in sqs_in_area.iter() {
         if effects & effects::EF_FROST > 0 {
-            effects::frost(state, game_obj_db, *sq);
+            effects::frost(state, game_obj_db, *sq, 0);
         }
 
         affected_sqs.push(*sq);

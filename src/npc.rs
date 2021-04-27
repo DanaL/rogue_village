@@ -329,7 +329,7 @@ impl GameObject for NPC {
                 // Illusions go away when their creator dies (I'm assuming here the illusion will only be wired up to listen for the
                 // death of the person who created it)
                 let s = format!("{} vanishes in a puff of mist!", self.npc_name(false).capitalize());
-                let msg = Message::new(self.obj_id(), self.get_loc(), &s, "");
+                let msg = Message::new(self.base_info.object_id, self.get_loc(), &s, "");
                 state.msg_queue.push_back(msg);
                 self.alive = false;
             }
@@ -343,14 +343,14 @@ impl Person for NPC {
     fn damaged(&mut self, state: &mut GameState, amount: u8, dmg_type: DamageType, assailant_id: usize, _assailant_name: &str) {
         if self.attributes & MA_ILLUSION > 0 {
             if rand::thread_rng().gen_range(0.0, 1.0) <= 0.75 {
-                let msg = Message::new(self.obj_id(), self.get_loc(), "Your weapon seems to pass right through them!", "");
+                let msg = Message::new(self.base_info.object_id, self.get_loc(), "Your weapon seems to pass right through them!", "");
                 state.msg_queue.push_back(msg);
             } else {
                 let s = format!("{} vanishes in a puff of mist!", self.npc_name(false).capitalize());
-                let msg = Message::new(self.obj_id(), self.get_loc(), &s, "");
+                let msg = Message::new(self.base_info.object_id, self.get_loc(), &s, "");
                 state.msg_queue.push_back(msg);
                 self.alive = false;
-                state.queued_events.push_back((EventType::DeathOf(self.obj_id()), self.get_loc(), self.obj_id(), None));
+                state.queued_events.push_back((EventType::DeathOf(self.base_info.object_id), self.get_loc(), self.base_info.object_id, None));
             }
             return;
         }
@@ -361,7 +361,7 @@ impl Person for NPC {
             DamageType::Piercing => if self.attributes & MA_RESIST_PIERCE != 0 { adjusted_dmg /= 2; },
             DamageType::Cold => { 
                 let s = format!("{} is frozen!", self.npc_name(false).capitalize());
-                let msg = Message::new(self.obj_id(), self.get_loc(), &s, "You hear a gasp.");
+                let msg = Message::new(self.base_info.object_id, self.get_loc(), &s, "You hear a gasp.");
                 state.msg_queue.push_back(msg);
             },
             _ => { },
@@ -371,10 +371,10 @@ impl Person for NPC {
 
         if adjusted_dmg >= curr_hp {
             self.alive = false;
-            let msg = Message::new(self.obj_id(), self.get_loc(), &self.death_msg(assailant_id), "You think you've landed a fatal blow!");
+            let msg = Message::new(self.base_info.object_id, self.get_loc(), &self.death_msg(assailant_id), "You think you've landed a fatal blow!");
             state.msg_queue.push_back(msg);
             
-            state.queued_events.push_back((EventType::DeathOf(self.obj_id()), self.get_loc(), self.obj_id(), None));
+            state.queued_events.push_back((EventType::DeathOf(self.base_info.object_id), self.get_loc(), self.base_info.object_id, None));
         } else {
             self.curr_hp -= adjusted_dmg;
         }
@@ -407,6 +407,10 @@ impl Person for NPC {
     fn mark_dead(&mut self) {
         self.alive = false;
     }
+
+    fn alive(&self) -> bool {
+        self.alive
+    }
 }
 
 impl HasStatuses for NPC {
@@ -428,7 +432,6 @@ fn pick_pronouns() -> Pronouns {
 
 pub fn take_turn(npc_id: usize, state: &mut GameState, game_obj_db: &mut GameObjectDB) {  
     let npc = game_obj_db.npc(npc_id).unwrap();
-    let npc_id = npc.obj_id();
     let npc_loc = npc.get_loc();
     let npc_mode = npc.mode;
     let curr_behaviour = if npc.active {
@@ -1257,7 +1260,7 @@ impl MonsterFactory {
             npc.inventory.push(item);
         }
 
-        let obj_id = npc.obj_id();
+        let obj_id = GameObject::obj_id(&npc);
         game_obj_db.add(GameObjects::NPC(npc));
         game_obj_db.listeners.insert((obj_id, EventType::TakeTurn));
     }

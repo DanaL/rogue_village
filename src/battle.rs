@@ -85,7 +85,6 @@ pub fn player_attacks(state: &mut GameState, opponent_id: usize, game_obj_db: &m
         let dmg_roll: u8 = (0..num_dmg_die).map(|_| rng.gen_range(1, weapon_dmg_dice + 1)).sum();
         let dmg_total = dmg_roll as i8 + weapon_attack_bonus + str_mod;    
         if dmg_total > 0 {
-            //let monster = npc.npc.as_mut().unwrap();
             foe.damaged(state, dmg_total as u8, dmg_type, 0, "player");
             
             // I don't know if this is the best spot for this? But for now, if the monsters is no longer

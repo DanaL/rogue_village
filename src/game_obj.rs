@@ -363,25 +363,20 @@ impl GameObjectDB {
         }
     }
 
-    pub fn person_at(&mut self, loc: (i32, i32, i8)) -> Option<&mut dyn Person> {
+    pub fn person_at(&mut self, loc: (i32, i32, i8)) -> Option<usize> {
         if !self.obj_locs.contains_key(&loc) {
             return None;
         }
 
-        let mut people = Vec::new();
         for id in self.obj_locs[&loc].iter() {
             match self.get(*id).unwrap() {
-                GameObjects::Player(_) => { people.push(*id); break },
-                GameObjects::NPC(_) => { people.push(*id); break },
+                GameObjects::Player(_) => { return Some(*id); },
+                GameObjects::NPC(_) => { return Some(*id); },
                 _ => { },
             }            
         }
 
-        if !people.is_empty() {
-            self.as_person(people[0])
-        } else {
-            None
-        }
+        None
     }
 
     pub fn as_person(&mut self, obj_id: usize) -> Option<&mut dyn Person> {
@@ -727,4 +722,5 @@ pub trait Person {
     fn attributes(&self) -> u128;
     fn size(&self) -> u8;
     fn mark_dead(&mut self);
+    fn alive(&self) -> bool;    
 }

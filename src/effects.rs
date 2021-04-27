@@ -33,16 +33,39 @@ pub const EF_WEAK_VENOM: u128     = 0x00000004;
 pub const EF_WEAK_BLINDNESS: u128 = 0x00000008;
 pub const EF_FROST: u128          = 0x00000010;
 
-pub fn frost(state: &mut GameState, game_obj_db: &mut GameObjectDB, loc: (i32, i32, i8)) {
+fn apply_xp(state: &mut GameState, game_obj_db: &mut GameObjectDB, xp: u32) {
+    let player = game_obj_db.player().unwrap();
+    player.add_xp(xp, state, (0, 0, 0));
+}
+
+pub fn frost(state: &mut GameState, game_obj_db: &mut GameObjectDB, loc: (i32, i32, i8), src_obj_id: usize) {
     if state.map[&loc] == Tile::Water || state.map[&loc] == Tile::DeepWater || state.map[&loc] == Tile::UndergroundRiver {
         state.map.insert(loc, Tile::Ice);
         state.msg_queue.push_back(Message::new(0, loc, "The water freezes over!", "You hear a cracking sound."));
         // need to add in an event for the ice to later melt
     }
 
-    if let Some(victim) = game_obj_db.person_at(loc) {
+    let mut killed_by_effect = None; 
+    if let Some(victim_id) = game_obj_db.person_at(loc) {
         let dmg = rand::thread_rng().gen_range(1, 9) + rand::thread_rng().gen_range(1, 9) + rand::thread_rng().gen_range(1, 9);
+        let victim = game_obj_db.as_person(victim_id).unwrap();
         victim.damaged(state, dmg, DamageType::Cold, 0, "frost");
+
+        if !victim.alive() {
+            killed_by_effect = Some(victim_id)
+        } 
+    }
+
+    if let Some(id) = killed_by_effect {
+        let xp = if let Some(npc) = game_obj_db.npc(id) {
+            npc.xp_value
+        } else {
+            0
+        };
+
+        if xp > 0 {
+            apply_xp(state, game_obj_db, xp);
+        }
     }
 }
 

@@ -668,6 +668,10 @@ impl Person for Player {
     fn mark_dead(&mut self) {
         // does nothing for the Player right now
     }
+
+    fn alive(&self) -> bool {
+        true
+    }
 }
 
 impl GameObject for Player {
