@@ -745,7 +745,7 @@ fn build_test_dungeon(world_info: &mut WorldInfo, map: &mut Map, entrance: (i32,
     Item::mushroom(game_obj_db, (entrance.0 + 7, entrance.1 + 2, 1));
     
     let loc = (entrance.0 + 3, entrance.1 + 5, 1);
-    monster_fac.monster("goblin", loc, game_obj_db);
+    monster_fac.monster("fungal growth", loc, game_obj_db);
     map.insert((entrance.0, entrance.1, 1), Tile::StairsUp);
 }
 

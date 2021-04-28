@@ -104,7 +104,7 @@ impl Player {
             }
         }
 
-        if self.blind() {
+        if self.has_status(Status::Blind) {
             self.vision_radius = 0;           
         }
 
@@ -216,24 +216,14 @@ impl Player {
     }
     */
 
-    pub fn confused(&self) -> bool {
+    pub fn has_status(&self, status: Status) -> bool {
         for s in self.statuses.iter() {
-            if s.0 == Status::Confused {
+            if s.0 == status {
                 return true;
             }            
         }
 
-        false
-    }
-
-    pub fn flying(&self) -> bool {
-        for s in self.statuses.iter() {
-            if s.0 == Status::Flying {
-                return true;
-            }
-        }
-
-        false
+        false 
     }
 
     pub fn inv_slots_used(&self) -> HashSet<char> {
@@ -556,26 +546,6 @@ impl Player {
         
         // Need to differentiate between dex and str based weapons but for now...
         roll + stat_to_mod(self.str)    
-    }
-
-    pub fn bane(&self) -> bool {
-        for s in self.statuses.iter() {
-            if s.0 == Status::Bane {
-                return true;
-            }
-        }
-
-        false
-    }
-
-    pub fn blind(&self) -> bool {
-        for s in self.statuses.iter() {
-            if s.0 == Status::Blind {
-                return true;
-            }
-        }
-        
-        false
     }
 
     // The player will regain HP on their own every X turns (see the game loop in main.rs)

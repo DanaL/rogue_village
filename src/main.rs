@@ -189,18 +189,10 @@ impl GameState {
             None => "Empty handed".to_string(),
         };
         
-        let mut poisoned = false;
-        let mut confused = false;
-        let mut paralyzed = false;
-        for s in player.statuses.iter() {
-            match s.0 {
-                Status::WeakVenom => { poisoned = true; },
-                Status::Confused => { confused = true; },
-                Status::Paralyzed => { paralyzed = true; },
-                _ => { },
-            }
-        }
-
+        let mut poisoned = player.has_status(Status::WeakVenom);
+        let mut confused = player.has_status(Status::Confused);
+        let mut paralyzed = player.has_status(Status::Paralyzed);
+        
         SidebarInfo::new(player.get_fullname(), player.curr_hp, player.max_hp, self.turn, player.ac,
             player.purse, weapon_name, loc.2 as u8, poisoned, confused, paralyzed)
     }
@@ -718,7 +710,7 @@ fn toggle_equipment(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: 
 fn use_item(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mut GameUI) -> f32 {
     let sbi = state.curr_sidebar_info(game_obj_db);        
     let player = game_obj_db.player().unwrap();
-    let confused = player.confused();
+    let confused = player.has_status(Status::Confused);
     let slots = player.inv_slots_used();
     
     if slots.is_empty() {
@@ -1263,8 +1255,8 @@ pub fn take_step(state: &mut GameState, game_obj_db: &mut GameObjectDB, obj_id: 
 
 fn do_move(state: &mut GameState, game_obj_db: &mut GameObjectDB, dir: &str, gui: &mut GameUI) -> f32 {
     let player = game_obj_db.player().unwrap();
-    let confused = player.confused();
-    let flying = player.flying();
+    let confused = player.has_status(Status::Confused);
+    let flying = player.has_status(Status::Flying);
 
     // if the player is confused, they walk in their intended direction 1/5 of the time, otherwise
     // they stagger in a random direction.

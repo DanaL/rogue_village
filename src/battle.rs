@@ -52,8 +52,8 @@ pub fn player_attacks(state: &mut GameState, opponent_id: usize, game_obj_db: &m
     let num_dmg_die;
     let dmg_type;
     let player = game_obj_db.player().unwrap();
-    let blind = player.blind();
-    let baned = player.bane();
+    let blind = player.has_status(Status::Blind);
+    let baned = player.has_status(Status::Bane);
     if let Some(weapon_info) = player.readied_weapon() {
         weapon_attack_bonus = weapon_info.0.attack_bonus;
         dmg_type = weapon_info.0.dmg_type;
