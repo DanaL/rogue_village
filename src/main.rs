@@ -189,12 +189,13 @@ impl GameState {
             None => "Empty handed".to_string(),
         };
         
-        let mut poisoned = player.has_status(Status::WeakVenom);
-        let mut confused = player.has_status(Status::Confused);
-        let mut paralyzed = player.has_status(Status::Paralyzed);
+        let poisoned = player.has_status(Status::WeakVenom);
+        let confused = player.has_status(Status::Confused);
+        let paralyzed = player.has_status(Status::Paralyzed);
+        let flying = player.has_status(Status::Flying);
         
         SidebarInfo::new(player.get_fullname(), player.curr_hp, player.max_hp, self.turn, player.ac,
-            player.purse, weapon_name, loc.2 as u8, poisoned, confused, paralyzed)
+            player.purse, weapon_name, loc.2 as u8, poisoned, confused, paralyzed, flying)
     }
 
     // I made life difficult for myself by deciding that Turn 0 of the game is 8:00am T_T
