@@ -74,7 +74,7 @@ fn rent_room(state: &mut GameState, game_obj_db: &mut GameObjectDB) {
         player.purse -= 10;
         
         let checkout = state.turn + 2880; // renting a room is basically passing for 8 hours
-        effects::add_status(player, Status::RestAtInn(checkout));
+        effects::add_status(player, Status::RestAtInn, checkout);
 
         state.msg_queue.push_back(Message::info("You check in."));
     }

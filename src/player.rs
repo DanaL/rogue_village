@@ -70,7 +70,7 @@ pub struct Player {
     pub next_slot: char,
     pub hit_die: u8,
     pub stealth_score: u8,
-    pub statuses: Vec<Status>,
+    pub statuses: Vec<(Status, u32)>,
     pub size: u8,
 }
 
@@ -104,11 +104,8 @@ impl Player {
             }
         }
 
-        for status in &self.statuses {
-            match status {
-                Status::BlindUntil(_) => { self.vision_radius = 0 ;},
-                _ => { },
-            }
+        if self.blind() {
+            self.vision_radius = 0;           
         }
 
         // Announce sunrise and sunset if the player is on the surface
@@ -221,10 +218,9 @@ impl Player {
 
     pub fn confused(&self) -> bool {
         for s in self.statuses.iter() {
-            match s {
-                Status::ConfusedUntil(_) => { return true; },
-                _ => { },
-            }
+            if s.0 == Status::Confused {
+                return true;
+            }            
         }
 
         false
@@ -232,9 +228,8 @@ impl Player {
 
     pub fn flying(&self) -> bool {
         for s in self.statuses.iter() {
-            match s {
-                Status::Flying(_) => { return true; },
-                _ => { },
+            if s.0 == Status::Flying {
+                return true;
             }
         }
 
@@ -564,22 +559,16 @@ impl Player {
     }
 
     pub fn bane(&self) -> bool {
-        for status in self.statuses.iter() {
-            match status {
-                Status::Bane(_) => return true,
-                _ => { },
-            }
+        if s.0 == Status::Bane {
+            return true;
         }
 
         false
     }
 
     pub fn blind(&self) -> bool {
-        for status in self.statuses.iter() {
-            match status {
-                Status::BlindUntil(_) => return true,
-                _ => { },
-            }
+        if s.0 == Status::Blind {
+            return true;
         }
 
         false
@@ -731,7 +720,7 @@ impl GameObject for Player {
 }
 
 impl HasStatuses for Player {
-    fn get_statuses(&mut self) -> Option<&mut Vec<Status>> {
+    fn get_statuses(&mut self) -> Option<&mut Vec<(Status, u32)>> {
         return Some(&mut self.statuses)
     }
 }

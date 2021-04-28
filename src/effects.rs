@@ -146,25 +146,25 @@ pub const AB_CREATE_PHANTASM: u16 = 0;
 
 #[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum Status {
-    PassUntil(u32),
-    RestAtInn(u32),
-    WeakVenom(u8),
-    BlindUntil(u32),
-    Bane(u32),
-    Invisible(u32),
-    FadeAfter(u32), // used for illusions that will disappear after a certain time or when their creator dies
-    CoolingDown(u16, u32),
-    ConfusedUntil(u32),
-    Paralyzed(u8),
-    Flying(u32),
+    Passing,
+    RestAtInn,
+    WeakVenom,
+    Blind,
+    Bane,
+    Invisible,
+    FadeAfter, // used for illusions that will disappear after a certain time or when their creator dies
+    CoolingDown(u128),
+    Confused,
+    Paralyzed,
+    Flying,
 }
 
 pub trait HasStatuses {
-    fn get_statuses(&mut self) -> Option<&mut Vec<Status>>;
+    fn get_statuses(&mut self) -> Option<&mut Vec<(Status, u32)>>;
 }
 
-pub fn add_status<T: HasStatuses + GameObject>(person: &mut T, status: Status) {
-    if let Status::Invisible(_) = status  {
+pub fn add_status<T: HasStatuses + GameObject>(person: &mut T, status: Status, time: u32) {
+    if status == Status::Invisible {
         person.hide();
     }
 
@@ -172,6 +172,13 @@ pub fn add_status<T: HasStatuses + GameObject>(person: &mut T, status: Status) {
 
     // BlindUtil and other statuses we want to merge. Ie., if someone has BlindUntil(100) and then
     // gets further blinded, replace the current status with the one that's further in the future.
+    for j in 0..statuses.len() {
+        if status == Status::Blind && statuses[j].0 == Status::Blind && time > statuses[j].1 {
+            statuses[j].1 = time;
+        }
+    }
+    
+    /*
     if let Status::BlindUntil(new_time) = status {
         for j in 0..statuses.len() {
             if let Status::BlindUntil(prev_time) = statuses[j] {
@@ -244,15 +251,15 @@ pub fn add_status<T: HasStatuses + GameObject>(person: &mut T, status: Status) {
             return;
         }
     }
-
-    statuses.push(status);
+    */
+    statuses.push((status, time));
 }
 
 pub fn remove_status<T: HasStatuses + GameObject>(person: &mut T, status: Status) {
     let statuses = person.get_statuses().unwrap();
-    statuses.retain(|s| *s != status);
+    statuses.retain(|s| *s.0 != status);
 
-    if let Status::Invisible(_) = status {
+    if status == Status::Invisible {
         person.reveal();
     }
 }
@@ -262,6 +269,7 @@ pub fn check_statuses<T: HasStatuses + GameObject + Person>(person: &mut T, stat
     let con_check = person.ability_check(Ability::Con); // gotta do this here for borrow checker reasons...
     let statuses = person.get_statuses().unwrap();
     
+    /*
     let mut reveal = false;
     let mut killed = false;
     let mut j = 0;
@@ -371,4 +379,5 @@ pub fn check_statuses<T: HasStatuses + GameObject + Person>(person: &mut T, stat
         let s = format!("The {} evaporates into mist!", name);
         state.msg_queue.push_back(Message::new(obj_id, person.get_loc(), &s, ""));         
     }
+    */
 }
