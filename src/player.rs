@@ -559,18 +559,22 @@ impl Player {
     }
 
     pub fn bane(&self) -> bool {
-        if s.0 == Status::Bane {
-            return true;
+        for s in self.statuses.iter() {
+            if s.0 == Status::Bane {
+                return true;
+            }
         }
 
         false
     }
 
     pub fn blind(&self) -> bool {
-        if s.0 == Status::Blind {
-            return true;
+        for s in self.statuses.iter() {
+            if s.0 == Status::Blind {
+                return true;
+            }
         }
-
+        
         false
     }
 

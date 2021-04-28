@@ -167,7 +167,7 @@ pub struct NPC {
     pub size: u8,
     pub pronouns: Pronouns,
     pub rarity: u8,
-    pub statuses: Vec<Status>,
+    pub statuses: Vec<(Status, u32)>,
 }
 
 impl NPC {
@@ -414,7 +414,7 @@ impl Person for NPC {
 }
 
 impl HasStatuses for NPC {
-    fn get_statuses(&mut self) -> Option<&mut Vec<Status>> {
+    fn get_statuses(&mut self) -> Option<&mut Vec<(Status, u32)>> {
         return Some(&mut self.statuses)
     }
 }
@@ -822,7 +822,7 @@ fn minor_black_magic(npc_id: usize, state: &mut GameState, game_obj_db: &mut Gam
         state.msg_queue.push_back(Message::new(npc_id, npc_loc, &s, "You hear mumbling."));
         state.msg_queue.push_back(Message::new(npc_id, player_loc, "A shroud falls over your eyes!", "A shroud falls over your eyes!"));
         let player = game_obj_db.player().unwrap();
-        effects::add_status(player, Status::BlindUntil(state.turn + rand::thread_rng().gen_range(3, 6)));
+        effects::add_status(player, Status::Blind, state.turn + rand::thread_rng().gen_range(3, 6));
         return true;
     }
 
@@ -831,7 +831,7 @@ fn minor_black_magic(npc_id: usize, state: &mut GameState, game_obj_db: &mut Gam
         state.msg_queue.push_back(Message::new(npc_id, npc_loc, &s, "You hear mumbling."));
         state.msg_queue.push_back(Message::new(npc_id, npc_loc, "You have been cursed!", "You have been cursed!"));
         let player = game_obj_db.player().unwrap();
-        effects::add_status(player, Status::Bane(state.turn + rand::thread_rng().gen_range(3, 6)));
+        effects::add_status(player, Status::Bane, state.turn + rand::thread_rng().gen_range(3, 6));
         return true;
     }
 
@@ -862,7 +862,7 @@ fn create_phantasm(npc_id: usize, state: &mut GameState, game_obj_db: &mut GameO
         game_obj_db.listeners.insert((pid, EventType::DeathOf(npc_id)));
 
         let npc = game_obj_db.npc(pid).unwrap();
-        effects::add_status(npc, Status::FadeAfter(state.turn + 10));
+        effects::add_status(npc, Status::FadeAfter, state.turn + 10);
 
         let s = format!("Another {} appears!", name);
         state.msg_queue.push_back(Message::new(pid, phantasm_loc, &s, ""));
@@ -887,11 +887,11 @@ fn minor_trickery(npc_id: usize, state: &mut GameState, game_obj_db: &mut GameOb
     let mut invisible = false;
     let mut cast_phantasm = false;
     for status in npc.get_statuses().unwrap().iter() {
-        if let Status::Invisible(_) = status {
+        if status.0 == Status::Invisible {
             invisible = true;
             break;
         }
-        if let Status::CoolingDown(AB_CREATE_PHANTASM, _) = status {
+        if status.0 == Status::CoolingDown(AB_CREATE_PHANTASM) {
             cast_phantasm = true;
             break;
         }
@@ -908,7 +908,7 @@ fn minor_trickery(npc_id: usize, state: &mut GameState, game_obj_db: &mut GameOb
     if sees_player && !invisible && rand::thread_rng().gen_range(0.0, 1.0) < 0.33 {
         let s = format!("{} disappears!", npc_name.capitalize());
         state.msg_queue.push_back(Message::new(npc_id, npc_loc, &s, ""));
-        effects::add_status(npc, Status::Invisible(state.turn + rand::thread_rng().gen_range(5, 8)));
+        effects::add_status(npc, Status::Invisible, state.turn + rand::thread_rng().gen_range(5, 8));
         return true;
     }
 
@@ -919,7 +919,7 @@ fn minor_trickery(npc_id: usize, state: &mut GameState, game_obj_db: &mut GameOb
         create_phantasm(npc_id, state, game_obj_db, player_loc);
 
         let npc = game_obj_db.npc(npc_id).unwrap();
-        effects::add_status(npc, Status::CoolingDown(AB_CREATE_PHANTASM, state.turn + 10));
+        effects::add_status(npc, Status::CoolingDown(AB_CREATE_PHANTASM), state.turn + 10);
         return true;
     }
 

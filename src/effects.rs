@@ -132,17 +132,17 @@ pub fn apply_effects(state: &mut GameState, obj_id: usize, game_obj_db: &mut Gam
     if effects & EF_LEVITATION > 0 {
         if obj_id == 0 {
             let player = game_obj_db.player().unwrap();
-            add_status(player, Status::Flying(state.turn + 50));
+            add_status(player, Status::Flying, state.turn + 50);
             state.msg_queue.push_back(Message::info("You begin to float."));
         } else {
             let npc = game_obj_db.npc(obj_id).unwrap();
-            add_status(npc, Status::Flying(state.turn + 50));
+            add_status(npc, Status::Flying, state.turn + 50);
         }        
     }
 }
 
 // Constants used to track abilities that have cool down times
-pub const AB_CREATE_PHANTASM: u16 = 0;
+pub const AB_CREATE_PHANTASM: u128 = 0;
 
 #[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum Status {
@@ -175,70 +175,31 @@ pub fn add_status<T: HasStatuses + GameObject>(person: &mut T, status: Status, t
     for j in 0..statuses.len() {
         if status == Status::Blind && statuses[j].0 == Status::Blind && time > statuses[j].1 {
             statuses[j].1 = time;
+            return;
+        }
+        if status == Status::Bane && statuses[j].0 == Status::Bane && time > statuses[j].1 {
+            statuses[j].1 = time;
+            return;
+        }
+        if status == Status::Invisible && statuses[j].0 == Status::Invisible && time > statuses[j].1 {
+            statuses[j].1 = time;
+            return;
+        }
+        if status == Status::Confused && statuses[j].0 == Status::Confused && time > statuses[j].1 {
+            statuses[j].1 = time;
+            return;
+        }
+        if status == Status::Flying && statuses[j].0 == Status::Flying && time > statuses[j].1 {
+            statuses[j].1 = time;
+            return;
         }
     }
     
-    /*
-    if let Status::BlindUntil(new_time) = status {
+    if let Status::CoolingDown(ability) = status {
         for j in 0..statuses.len() {
-            if let Status::BlindUntil(prev_time) = statuses[j] {
-                if new_time > prev_time {
-                    statuses[j] = status;
-                    return;
-                }
-            }
-        }
-    }
-
-    if let Status::Bane(new_time) = status {
-        for j in 0..statuses.len() {
-            if let Status::Bane(prev_time) = statuses[j] {
-                if new_time > prev_time {
-                    statuses[j] = status;
-                    return;
-                }
-            }
-        }
-    }
-
-    if let Status::Invisible(new_time) = status {
-        for j in 0..statuses.len() {
-            if let Status::Invisible(prev_time) = statuses[j] {
-                if new_time > prev_time {
-                    statuses[j] = status;
-                    return;
-                }
-            }
-        }
-    }
-
-    if let Status::CoolingDown(ability, time) = status {
-        for j in 0..statuses.len() {
-            if let Status::CoolingDown(curr_ability, curr_time) = statuses[j] {
-                if ability == curr_ability && time > curr_time {
-                    statuses[j] = status;
-                    return;
-                }
-            }
-        }
-    }
-
-    if let Status::ConfusedUntil(time) = status {
-        for j in 0..statuses.len() {
-            if let Status::ConfusedUntil(prev_time) = statuses[j] {
-                if time > prev_time {
-                    statuses[j] = status;
-                    return;
-                }
-            }
-        }
-    }
-
-    if let Status::Flying(time) = status {
-        for j in 0..statuses.len() {
-            if let Status::Flying(prev_time) = statuses[j] {
-                if time > prev_time {
-                    statuses[j] = status;
+            if let Status::CoolingDown(curr_ability) = statuses[j].0 {
+                if ability == curr_ability && time > statuses[j].1 {
+                    statuses[j].1 = time;
                     return;
                 }
             }
@@ -247,17 +208,17 @@ pub fn add_status<T: HasStatuses + GameObject>(person: &mut T, status: Status, t
 
     // Generally don't allow the player to have more than one status effect of the same type.
     for s in statuses.iter() {
-        if *s == status {
+        if s.0 == status {
             return;
         }
     }
-    */
+    
     statuses.push((status, time));
 }
 
 pub fn remove_status<T: HasStatuses + GameObject>(person: &mut T, status: Status) {
     let statuses = person.get_statuses().unwrap();
-    statuses.retain(|s| *s.0 != status);
+    statuses.retain(|s| s.0 != status);
 
     if status == Status::Invisible {
         person.reveal();
@@ -266,98 +227,82 @@ pub fn remove_status<T: HasStatuses + GameObject>(person: &mut T, status: Status
 
 pub fn check_statuses<T: HasStatuses + GameObject + Person>(person: &mut T, state: &mut GameState) {
     let obj_id = person.obj_id();
-    let con_check = person.ability_check(Ability::Con); // gotta do this here for borrow checker reasons...
+    let con_check = person.ability_check(Ability::Con) as u32; // gotta do this here for borrow checker reasons...
     let statuses = person.get_statuses().unwrap();
     
-    /*
     let mut reveal = false;
     let mut killed = false;
     let mut j = 0;
     while j < statuses.len() {
-        match statuses[j] {
-            Status::PassUntil(time) => {
-                if time <= state.turn {
-                    statuses.remove(j);
-                    continue;
-                }
-            },
-            Status::BlindUntil(time) => {
-                if time <= state.turn {
-                    statuses.remove(j);
-                    if obj_id == 0 {
-                        state.msg_queue.push_back(Message::info("Your vision clears!"));
-                    }
-                    continue;
-                }
-            },
-            Status::Bane(time) => {
-                if time <= state.turn {
-                    statuses.remove(j);
-                    if obj_id == 0 {
-                        state.msg_queue.push_back(Message::info("A curse lifts!"));                        
-                    }
-                    continue;
-                }
-            },
-            Status::RestAtInn(time) => {
-                if time <= state.turn {
-                    statuses.remove(j);
-                    if obj_id == 0 {
-                        state.msg_queue.push_back(Message::info("You awake feeling refreshed."));                        
-                    }
-                    continue;
-                }
-            },
-            Status::WeakVenom(dc) => {
-                if con_check >= dc {
-                    if obj_id == 0 {
-                        state.msg_queue.push_back(Message::info("You feel better!"));
-                    }
-                    statuses.remove(j);                    
-                }
-            },
-            Status::Paralyzed(dc) => {
-                if con_check >= dc {
-                    if obj_id == 0 {
-                        state.msg_queue.push_back(Message::info("Your muscles work again!"));
-                    }
-                    statuses.remove(j);                    
-                }
-            },
-            Status::Invisible(time) => {
-                if time <= state.turn {
-                    statuses.remove(j);
-                    reveal = true;
-                }
-            },            
-            Status::FadeAfter(time) => {
-                if time <= state.turn {
-                    killed = true;
-                }
-            },
-            Status::CoolingDown(_, time) => {
-                if time <= state.turn {
-                    statuses.remove(j);
-                }
-            },
-            Status::ConfusedUntil(time) => {
-                if time <= state.turn {
-                    statuses.remove(j);
-                    if obj_id == 0 {
-                        state.msg_queue.push_back(Message::info("You shake off your confusion."));
-                    }
-                }
-            },
-            Status::Flying(time) => {
-                if time <= state.turn {
-                    statuses.remove(j);
-                    if obj_id == 0 {
-                        state.msg_queue.push_back(Message::info("Your flight ends."));
-                    }
-
-                    // Hmm should trigger the effect of landing on a square here but that may be tricky :/
-                }
-            },            
+        if statuses[j].0 == Status::Passing && statuses[j].1 <= state.turn {
+            statuses.remove(j);
+            continue;
+        }
+        if statuses[j].0 == Status::Blind && statuses[j].1 <= state.turn {
+            statuses.remove(j);
+            if obj_id == 0 {
+                state.msg_queue.push_back(Message::info("Your vision clears!"));
+            }
+            continue;
+        }
+        if statuses[j].0 == Status::Bane && statuses[j].1 <= state.turn {
+            statuses.remove(j);
+            if obj_id == 0 {
+                state.msg_queue.push_back(Message::info("A curse lifts!"));
+            }
+            continue;
+        }
+        if statuses[j].0 == Status::RestAtInn && statuses[j].1 <= state.turn {
+            statuses.remove(j);
+            if obj_id == 0 {
+                state.msg_queue.push_back(Message::info("You awake feeling refreshed."));
+            }
+            continue;
+        }
+        if statuses[j].0 == Status::WeakVenom && con_check > statuses[j].1 {
+            statuses.remove(j);
+            if obj_id == 0 {
+                state.msg_queue.push_back(Message::info("You feel better!"));
+            }
+            continue;
+        }
+        if statuses[j].0 == Status::Paralyzed && con_check > statuses[j].1 {
+            statuses.remove(j);
+            if obj_id == 0 {
+                state.msg_queue.push_back(Message::info("You muscles work again!"));
+            }
+            continue;
+        }
+        if statuses[j].0 == Status::Invisible && statuses[j].1 <= state.turn {
+            statuses.remove(j);
+            reveal = true;
+            continue;
+        }
+        if statuses[j].0 == Status::FadeAfter && statuses[j].1 <= state.turn {
+            statuses.remove(j);
+            killed = true;
+            continue;
+        }
+        if let Status::CoolingDown(_) = statuses[j].0 {
+            if statuses[j].1 <= state.turn {                
+                statuses.remove(j);
+                continue;
+            }
+        }
+        if statuses[j].0 == Status::Confused && statuses[j].1 <= state.turn {
+            statuses.remove(j);
+            if obj_id == 0 {
+                state.msg_queue.push_back(Message::info("You shake off your confusion."));
+            }
+            continue;
+        }
+        if statuses[j].0 == Status::Flying && statuses[j].1 <= state.turn {
+            statuses.remove(j);
+            if obj_id == 0 {
+                state.msg_queue.push_back(Message::info("Your flight ends."));
+            }
+            continue;
+            // Hmm should trigger the effect of landing on a square here but that may be tricky :/
         }
 
         j += 1;
@@ -378,6 +323,5 @@ pub fn check_statuses<T: HasStatuses + GameObject + Person>(person: &mut T, stat
         person.mark_dead();
         let s = format!("The {} evaporates into mist!", name);
         state.msg_queue.push_back(Message::new(obj_id, person.get_loc(), &s, ""));         
-    }
-    */
+    }    
 }

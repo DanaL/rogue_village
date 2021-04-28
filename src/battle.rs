@@ -156,14 +156,14 @@ pub fn paralyze(state: &mut GameState, victim_id: usize, game_obj_db: &mut GameO
         let p = game_obj_db.player().unwrap();
         let con_save = p.ability_check(Ability::Con);
         if con_save <= dc {
-            effects::add_status(p, Status::Paralyzed(dc));
+            effects::add_status(p, Status::Paralyzed, dc as u32);
             state.msg_queue.push_back(Message::info("You cannot move!"));
         }        
     } else {
         let npc = game_obj_db.npc(victim_id).unwrap();
         let con_save = npc.ability_check(Ability::Con);
         if con_save <= dc {
-            effects::add_status(npc, Status::Paralyzed(dc));
+            effects::add_status(npc, Status::Paralyzed, dc as u32);
         }
     }
 }
@@ -173,14 +173,14 @@ pub fn apply_weak_poison(state: &mut GameState, victim_id: usize, game_obj_db: &
         let p = game_obj_db.player().unwrap();
         let con_save = p.ability_check(Ability::Con);
         if con_save <= dc {
-            effects::add_status(p, Status::WeakVenom(dc));
+            effects::add_status(p, Status::WeakVenom, dc as u32);
             state.msg_queue.push_back(Message::info("You feel ill."));
         }        
     } else {
         let npc = game_obj_db.npc(victim_id).unwrap();
         let con_save = npc.ability_check(Ability::Con);
         if con_save <= dc {
-            effects::add_status(npc, Status::WeakVenom(dc));
+            effects::add_status(npc, Status::WeakVenom, dc as u32);
         }
     }
 }
@@ -191,7 +191,7 @@ pub fn apply_confusion(state: &mut GameState, victim_id: usize, game_obj_db: &mu
         let con_save = p.ability_check(Ability::Apt);
         if con_save <= dc {
             let until = state.turn + rand::thread_rng().gen_range(10, 16);
-            effects::add_status(p, Status::ConfusedUntil(until));
+            effects::add_status(p, Status::Confused, until);
             state.msg_queue.push_back(Message::info("Your head swims!"));
         }        
     } else {
@@ -199,7 +199,7 @@ pub fn apply_confusion(state: &mut GameState, victim_id: usize, game_obj_db: &mu
         let con_save = npc.ability_check(Ability::Apt);
         if con_save <= dc {
             let until = state.turn + rand::thread_rng().gen_range(10, 16);
-            effects::add_status(npc, Status::ConfusedUntil(until));
+            effects::add_status(npc, Status::Confused, until);
         }
     }
 }
@@ -238,7 +238,7 @@ pub fn knock_back(state: &mut GameState, game_obj_db: &mut GameObjectDB, target_
         } else {
             let s = format!("{} staggers back!", target_name.capitalize());
             state.msg_queue.push_back(Message::new(npc_id, target_loc, &s, "Something staggers!"));
-            super::take_step(state, game_obj_db, npc_id, target_loc, new_loc);
+            super::take_step(state, game_obj_db, npc_id, target_loc, new_loc, false);
             state.animation_pause = true;
         }
     } else {

@@ -193,10 +193,10 @@ impl GameState {
         let mut confused = false;
         let mut paralyzed = false;
         for s in player.statuses.iter() {
-            match s {
-                Status::WeakVenom(_) => { poisoned = true; },
-                Status::ConfusedUntil(_) => { confused = true; },
-                Status::Paralyzed(_) => { paralyzed = true; },
+            match s.0 {
+                Status::WeakVenom => { poisoned = true; },
+                Status::Confused => { confused = true; },
+                Status::Paralyzed => { paralyzed = true; },
                 _ => { },
             }
         }
@@ -1732,12 +1732,12 @@ fn run_game_loop(gui: &mut GameUI, state: &mut GameState, game_obj_db: &mut Game
             // After their turn we'll check to see if the statuses have ended.
             let p = game_obj_db.player().unwrap();
             for status in p.get_statuses().unwrap().iter() {
-                match status {
-                    Status::PassUntil(_) => skip_turn = true,
-                    Status::RestAtInn(_) => skip_turn = true,
-                    Status::Paralyzed(_) => skip_turn = true,
-                    Status::WeakVenom(_) => effects |= effects::EF_WEAK_VENOM,
-                    Status::BlindUntil(_) => { }, // blindness is handled when we check the player's vision radius
+                match status.0 {
+                    Status::Passing => skip_turn = true,
+                    Status::RestAtInn => skip_turn = true,
+                    Status::Paralyzed => skip_turn = true,
+                    Status::WeakVenom => effects |= effects::EF_WEAK_VENOM,
+                    Status::Blind => { }, // blindness is handled when we check the player's vision radius
                     _ => { },
                 }                
             }
