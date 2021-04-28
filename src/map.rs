@@ -106,6 +106,10 @@ impl Tile {
 			Tile::UndergroundRiver)
 	}
 
+	pub fn can_be_flown_over(&self) -> bool {
+		self.passable() || *self == Tile::UndergroundRiver
+	}
+
 	pub fn passable_dry_land(&self) -> bool {
 		!matches!(self,
 			Tile::Wall | Tile::GraniteWall | Tile::Blank | Tile::WorldEdge |

@@ -1183,14 +1183,14 @@ fn land_on_location(state: &mut GameState, game_obj_db: &mut GameObjectDB, loc: 
     // }
 }
 
-fn check_for_obstacles(state: &mut GameState, game_obj_db: &mut GameObjectDB, obj_id: usize, loc: (i32, i32, i8)) -> f32 {
+fn check_for_obstacles(state: &mut GameState, game_obj_db: &mut GameObjectDB, obj_id: usize, loc: (i32, i32, i8), flying: bool) -> f32 {
     let obstacles = game_obj_db.obstacles_at_loc(loc);
     let web_count = obstacles.iter().filter(|o| o.get_fullname() == "web").count();
     let obstacle_info: Vec<(usize, u8, String)> = obstacles.iter()
                                     .map(|o| (o.obj_id(), o.item_dc, o.get_fullname())).collect();
 
     for oi in obstacle_info.iter() {
-        if oi.2 == "web" {
+        if !flying && oi.2 == "web" {
             let agent = game_obj_db.as_person(obj_id).unwrap();
 
             // I dunno if one spider can get caught in another spider's web but in my game, if you can spin a web
@@ -1216,7 +1216,7 @@ fn check_for_obstacles(state: &mut GameState, game_obj_db: &mut GameObjectDB, ob
                     state.msg_queue.push_back(Message::new(obj_id, loc, &msg, ""));                    
                 }            
             }
-        } else if oi.2 == "rubble" {
+        } else if !flying && oi.2 == "rubble" {
             let agent = game_obj_db.as_person(obj_id).unwrap();
             if agent.ability_check(Ability::Dex) <= 12 {            
                 let msg = util::format_msg(obj_id, "stumble", "over the rubble!", game_obj_db);
@@ -1229,8 +1229,8 @@ fn check_for_obstacles(state: &mut GameState, game_obj_db: &mut GameObjectDB, ob
     0.0
 }
 
-pub fn take_step(state: &mut GameState, game_obj_db: &mut GameObjectDB, obj_id: usize, start_loc: (i32, i32, i8), next_loc: (i32, i32, i8)) -> (f32, bool) {    
-    let cost = check_for_obstacles(state, game_obj_db, obj_id, start_loc);
+pub fn take_step(state: &mut GameState, game_obj_db: &mut GameObjectDB, obj_id: usize, start_loc: (i32, i32, i8), next_loc: (i32, i32, i8), flying: bool) -> (f32, bool) {    
+    let cost = check_for_obstacles(state, game_obj_db, obj_id, start_loc, flying);
     if cost > 0.0 { return (cost, false); }
 
     game_obj_db.set_to_loc(obj_id, next_loc);
@@ -1264,6 +1264,7 @@ pub fn take_step(state: &mut GameState, game_obj_db: &mut GameObjectDB, obj_id: 
 fn do_move(state: &mut GameState, game_obj_db: &mut GameObjectDB, dir: &str, gui: &mut GameUI) -> f32 {
     let player = game_obj_db.player().unwrap();
     let confused = player.confused();
+    let flying = player.flying();
 
     // if the player is confused, they walk in their intended direction 1/5 of the time, otherwise
     // they stagger in a random direction.
@@ -1291,8 +1292,8 @@ fn do_move(state: &mut GameState, game_obj_db: &mut GameObjectDB, dir: &str, gui
     
     if game_obj_db.blocking_obj_at(&next_loc) {
         return maybe_fight(state, game_obj_db, next_loc, gui, confused);
-    } else if tile.passable() {
-        let (cost, moved) = take_step(state, game_obj_db, 0, start_loc, next_loc);
+    } else if tile.passable() || (tile.can_be_flown_over() && flying) {
+        let (cost, moved) = take_step(state, game_obj_db, 0, start_loc, next_loc, flying);
 
         if !moved {
             return cost;
@@ -1305,10 +1306,10 @@ fn do_move(state: &mut GameState, game_obj_db: &mut GameObjectDB, dir: &str, gui
                     state.msg_queue.push_back(Message::info("You wade into the flow."))
                 }
             },
-            Tile::Ice => state.msg_queue.push_back(Message::info("The ice is slippery!")),
-            Tile::Well => state.msg_queue.push_back(Message::info("There is a well here.")),
-            Tile::Lava => state.msg_queue.push_back(Message::info("MOLTEN LAVA!")),
-            Tile::FirePit => state.msg_queue.push_back(Message::info("You've stepped in the fire!")),
+            Tile::Ice => if !flying { state.msg_queue.push_back(Message::info("The ice is slippery!")) },
+            Tile::Well => if !flying { state.msg_queue.push_back(Message::info("There is a well here.")) },
+            Tile::Lava => if !flying { state.msg_queue.push_back(Message::info("MOLTEN LAVA!")) },
+            Tile::FirePit => if !flying { state.msg_queue.push_back(Message::info("You've stepped in the fire!")) },
             Tile::OldFirePit(n) => state.msg_queue.push_back(Message::new(0, next_loc, firepit_msg(n), "You feel the remains of an old firepit.")),
             Tile::Portal => state.msg_queue.push_back(Message::new(0, next_loc, "Where could this lead?", "")),
             Tile::Shrine(stype) => {

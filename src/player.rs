@@ -179,8 +179,12 @@ impl Player {
             }
         }
         
-        if let Some(GameObjects::Item(wand)) = Item::get_item(game_obj_db, "wand of frost") {
-            p.add_to_inv(GameObjects::Item(wand));
+        // if let Some(GameObjects::Item(wand)) = Item::get_item(game_obj_db, "wand of frost") {
+        //     p.add_to_inv(GameObjects::Item(wand));
+        // }
+
+        if let Some(GameObjects::Item(potion)) = Item::get_item(game_obj_db, "potion of levitation") {
+            p.add_to_inv(GameObjects::Item(potion));
         }
 
         p.calc_gear_effects();
@@ -219,6 +223,17 @@ impl Player {
         for s in self.statuses.iter() {
             match s {
                 Status::ConfusedUntil(_) => { return true; },
+                _ => { },
+            }
+        }
+
+        false
+    }
+
+    pub fn flying(&self) -> bool {
+        for s in self.statuses.iter() {
+            match s {
+                Status::Flying(_) => { return true; },
                 _ => { },
             }
         }

@@ -32,6 +32,7 @@ pub const EF_BLINK: u128          = 0x00000002;
 pub const EF_WEAK_VENOM: u128     = 0x00000004;
 pub const EF_WEAK_BLINDNESS: u128 = 0x00000008;
 pub const EF_FROST: u128          = 0x00000010;
+pub const EF_LEVITATION: u128     = 0x00000020;
 
 fn apply_xp(state: &mut GameState, game_obj_db: &mut GameObjectDB, xp: u32) {
     let player = game_obj_db.player().unwrap();
@@ -127,6 +128,17 @@ pub fn apply_effects(state: &mut GameState, obj_id: usize, game_obj_db: &mut Gam
             weak_venom(state, victim);
         }
     }
+
+    if effects & EF_LEVITATION > 0 {
+        if obj_id == 0 {
+            let player = game_obj_db.player().unwrap();
+            add_status(player, Status::Flying(state.turn + 50));
+            state.msg_queue.push_back(Message::info("You begin to float."));
+        } else {
+            let npc = game_obj_db.npc(obj_id).unwrap();
+            add_status(npc, Status::Flying(state.turn + 50));
+        }        
+    }
 }
 
 // Constants used to track abilities that have cool down times
@@ -144,6 +156,7 @@ pub enum Status {
     CoolingDown(u16, u32),
     ConfusedUntil(u32),
     Paralyzed(u8),
+    Flying(u32),
 }
 
 pub trait HasStatuses {
@@ -206,6 +219,17 @@ pub fn add_status<T: HasStatuses + GameObject>(person: &mut T, status: Status) {
     if let Status::ConfusedUntil(time) = status {
         for j in 0..statuses.len() {
             if let Status::ConfusedUntil(prev_time) = statuses[j] {
+                if time > prev_time {
+                    statuses[j] = status;
+                    return;
+                }
+            }
+        }
+    }
+
+    if let Status::Flying(time) = status {
+        for j in 0..statuses.len() {
+            if let Status::Flying(prev_time) = statuses[j] {
                 if time > prev_time {
                     statuses[j] = status;
                     return;
@@ -302,12 +326,12 @@ pub fn check_statuses<T: HasStatuses + GameObject + Person>(person: &mut T, stat
                 if time <= state.turn {
                     killed = true;
                 }
-            }
+            },
             Status::CoolingDown(_, time) => {
                 if time <= state.turn {
                     statuses.remove(j);
                 }
-            }
+            },
             Status::ConfusedUntil(time) => {
                 if time <= state.turn {
                     statuses.remove(j);
@@ -315,7 +339,17 @@ pub fn check_statuses<T: HasStatuses + GameObject + Person>(person: &mut T, stat
                         state.msg_queue.push_back(Message::info("You shake off your confusion."));
                     }
                 }
-            }
+            },
+            Status::Flying(time) => {
+                if time <= state.turn {
+                    statuses.remove(j);
+                    if obj_id == 0 {
+                        state.msg_queue.push_back(Message::info("Your flight ends."));
+                    }
+
+                    // Hmm should trigger the effect of landing on a square here but that may be tricky :/
+                }
+            },            
         }
 
         j += 1;

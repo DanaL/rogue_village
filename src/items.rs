@@ -183,6 +183,13 @@ impl Item {
                 
                 Some(GameObjects::Item(i))
             },
+            "potion of levitation" => {
+                let mut i = Item::new(game_obj_db.next_id(), '!',display::WHITE, display::LIGHT_GREY, name, ItemType::Potion, 2, true, 10);
+                i.attributes |= IA_CONSUMABLE;
+                i.effects |= effects::EF_LEVITATION;
+                
+                Some(GameObjects::Item(i))
+            },
             "scroll of blink" => {
                 let mut i = Item::new(game_obj_db.next_id(), '?',display::WHITE, display::LIGHT_GREY, name, ItemType::Scroll, 1, true, 20);
                 i.attributes |= IA_CONSUMABLE;

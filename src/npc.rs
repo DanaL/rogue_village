@@ -658,7 +658,7 @@ fn try_to_move_to_loc(npc_id: usize, goal_loc: (i32, i32, i8), state: &mut GameS
             }
         }
 
-        super::take_step(state, game_obj_db, npc_id, npc_loc, goal_loc);
+        super::take_step(state, game_obj_db, npc_id, npc_loc, goal_loc, false);
     }
 }
 
