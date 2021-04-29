@@ -112,8 +112,7 @@ pub struct GameUI<'a, 'b> {
 	canvas: WindowCanvas,
 	event_pump: EventPump,
 	pub v_matrix: [(Tile, bool); FOV_HEIGHT * FOV_WIDTH],
-	surface_cache: HashMap<(char, Colour
-	), Surface<'a>>,
+	surface_cache: HashMap<(char, Colour, Colour), Surface<'a>>,
 	msg_line: String,
 	messages: VecDeque<(String, bool)>,
 	message_history: VecDeque<(String, u8)>,
@@ -862,23 +861,14 @@ impl<'a, 'b> GameUI<'a, 'b> {
 				let ti = sq_info_for_tile(&self.v_matrix[row * FOV_WIDTH + col].0, self.v_matrix[row * FOV_WIDTH + col].1);
 				let (ch, fg_colour, bg_colour) = ti;
 
-				//if !self.surface_cache.contains_key(&ti) {					
-					// let surface = if ch == '#' {
-					// 	self.font.render_char(ch)
-					// 	//.blended(LIGHT_GREY)
-					// 	.shaded(BLACK, char_colour)
-					// 	.expect("Error creating character!")
-					// } else {
-					// 	self.font.render_char(ch)
-					// 	.blended(char_colour)
-					// 	.expect("Error creating character!")
-					// };
-				let surface = self.font.render_char(ch)
+				if !self.surface_cache.contains_key(&ti) {					
+					let s = self.font.render_char(ch)
 										.shaded(fg_colour, bg_colour)
 										.expect("Error creating character");
-				//	self.surface_cache.insert(ti, s);
-				//}
-				//let surface = self.surface_cache.get(&ti).unwrap();
+					self.surface_cache.insert(ti, s);
+				}
+				
+				let surface = self.surface_cache.get(&ti).unwrap();
 				
 				if !textures.contains_key(&ti) {
 					let texture = texture_creator.create_texture_from_surface(&surface)
