@@ -1261,7 +1261,7 @@ fn do_move(state: &mut GameState, game_obj_db: &mut GameObjectDB, dir: &str, gui
 
     // if the player is confused, they walk in their intended direction 1/5 of the time, otherwise
     // they stagger in a random direction.
-    let mv = if confused && rand::thread_rng().gen_range(0.0, 1.0) < 0.2 {
+    let mv = if confused && rand::thread_rng().gen_range(0.0, 1.0) < 0.8 {
         state.msg_queue.push_back(Message::info("You stagger."));
         let roll = rand::thread_rng().gen_range(0, 8);
         match roll {
@@ -1293,9 +1293,9 @@ fn do_move(state: &mut GameState, game_obj_db: &mut GameObjectDB, dir: &str, gui
         }
 
         match tile {
-            Tile::Water => state.msg_queue.push_back(Message::info("You splash in the shallow water.")),
+            Tile::Water => if !flying { state.msg_queue.push_back(Message::info("You splash in the shallow water." )) },
             Tile::DeepWater => {
-                if start_tile != Tile::DeepWater {
+                if !flying && start_tile != Tile::DeepWater {
                     state.msg_queue.push_back(Message::info("You wade into the flow."))
                 }
             },

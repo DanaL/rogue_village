@@ -232,8 +232,7 @@ pub fn check_statuses<T: HasStatuses + GameObject + Person>(person: &mut T, stat
     
     let mut reveal = false;
     let mut killed = false;
-    let mut j = 0;
-    while j < statuses.len() {
+    for j in 0..statuses.len() {
         if statuses[j].0 == Status::Passing && statuses[j].1 <= state.turn {
             statuses.remove(j);
             continue;
@@ -296,16 +295,19 @@ pub fn check_statuses<T: HasStatuses + GameObject + Person>(person: &mut T, stat
             }
             continue;
         }
-        if statuses[j].0 == Status::Flying && statuses[j].1 <= state.turn {
-            statuses.remove(j);
-            if obj_id == 0 {
-                state.msg_queue.push_back(Message::info("Your flight ends."));
+        if statuses[j].0 == Status::Flying {
+            if statuses[j].1 <= state.turn {
+                statuses.remove(j);
+                if obj_id == 0 {
+                    state.msg_queue.push_back(Message::info("Your flight ends."));
+                }
+                continue;
+            } else if statuses[j].1 - state.turn == 10 && obj_id == 0 {
+                state.msg_queue.push_back(Message::info("You wobble in the air."));
+                continue;
             }
-            continue;
             // Hmm should trigger the effect of landing on a square here but that may be tricky :/
         }
-
-        j += 1;
     }
 
     if reveal {
