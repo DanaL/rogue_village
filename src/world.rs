@@ -757,6 +757,8 @@ fn build_dungeon(world_info: &mut WorldInfo, map: &mut Map, entrance: (i32, i32,
     let mut vaults = HashMap::new();
     let max_level = 5;
     let mut dungeon = Vec::new();
+
+    let mut river_levels = Vec::new();
     for n in 0..max_level {
         let result = dungeon::draw_level(width, height);
         let mut level = result.0;
@@ -767,13 +769,14 @@ fn build_dungeon(world_info: &mut WorldInfo, map: &mut Map, entrance: (i32, i32,
             connect_rooms(&mut level, height, width);
             world_info.facts.push(Fact::new("caves".to_string(), 0, (0, 0, n as i8 + 1)));
         }
-        if n > 2 && rng.gen_range(0, 10) == 0 {
+        if n > 1 && rng.gen_range(0, 2) == 0 {
             // I should guarantee some means of crossing the river further up the dungeon
             add_river_to_level(&mut level, height, width, true, Tile::UndergroundRiver);
             if rng.gen_range(0, 3) == 0 {
                 add_river_to_level(&mut level, height, width, false, Tile::UndergroundRiver);
             }
             world_info.facts.push(Fact::new("river".to_string(), 0, (0, 0, n as i8 + 1)));
+            river_levels.push(n);
         }
         
         // TODO: I should probably clean out vaults that are mostly destroyed by caves
@@ -781,6 +784,7 @@ fn build_dungeon(world_info: &mut WorldInfo, map: &mut Map, entrance: (i32, i32,
         floor_sqs.insert(n, HashSet::new());
         vaults.insert(n, result.1); // vaults are rooms with only one entrance, which are useful for setting puzzles        
     }
+    println!("Rivers on: {:?}", river_levels);
 
     let stairs = set_stairs(&mut dungeon, width, height);
     // Copy the dungeon onto the world map
@@ -828,8 +832,24 @@ fn build_dungeon(world_info: &mut WorldInfo, map: &mut Map, entrance: (i32, i32,
         }
     }
 
-    decorate_levels(world_info, map, max_level as i8, &mut floor_sqs, game_obj_db, vaults);
+    //decorate_levels(world_info, map, max_level as i8, &mut floor_sqs, game_obj_db, vaults);
     populate_levels(world_info, max_level as i8, &floor_sqs, game_obj_db, monster_fac);
+
+    // if there is a river on a level, make sure the player is able to find a way to cross it on 
+    // an earlier level
+    for river_on in river_levels.iter() {
+        let level = rand::thread_rng().gen_range(1, river_on);
+        let loc = random_sq(&floor_sqs[&level]);
+
+        let mut item = if rand::thread_rng().gen_range(0.0, 1.0) < 0.75 {
+            Item::get_item(game_obj_db, "potion of levitation").unwrap()
+        } else {
+            Item::get_item(game_obj_db, "wand of frost").unwrap()            
+        };
+
+        item.set_loc(loc);
+        game_obj_db.add(item);
+    }
 }
 
 pub fn generate_world(game_obj_db: &mut GameObjectDB, monster_fac: &MonsterFactory, player_name: &str) -> (Map, WorldInfo) {
