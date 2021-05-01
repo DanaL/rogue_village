@@ -834,6 +834,7 @@ fn build_dungeon(world_info: &mut WorldInfo, map: &mut Map, entrance: (i32, i32,
 
     //decorate_levels(world_info, map, max_level as i8, &mut floor_sqs, game_obj_db, vaults);
     populate_levels(world_info, max_level as i8, &floor_sqs, game_obj_db, monster_fac);
+    seed_items(max_level, &floor_sqs, game_obj_db);
 
     // if there is a river on a level, make sure the player is able to find a way to cross it on 
     // an earlier level
@@ -849,6 +850,32 @@ fn build_dungeon(world_info: &mut WorldInfo, map: &mut Map, entrance: (i32, i32,
 
         item.set_loc(loc);
         game_obj_db.add(item);
+    }
+}
+
+fn seed_items(deepest_level: usize, floor_sqs: &HashMap<usize, HashSet<(i32, i32, i8)>>, game_obj_db: &mut GameObjectDB) {
+    for lvl in 0..deepest_level {
+        for _ in 0..5 {
+            let sq = random_sq(&floor_sqs[&lvl]);
+            let roll = rand::thread_rng().gen_range(0.0, 1.0);
+            let mut i = if roll < 0.20 {
+                Item::get_item(game_obj_db, "potion of healing").unwrap()
+            } else if roll < 0.4 {
+                Item::get_item(game_obj_db, "torch").unwrap()
+            } else if roll < 0.5 {
+                Item::get_item(game_obj_db, "shield").unwrap()
+            } else if roll < 0.6 {
+                Item::get_item(game_obj_db, "scroll of blink").unwrap()
+            } else if roll < 0.7 {
+                Item::get_item(game_obj_db, "longsword").unwrap()
+            } else {
+                let amt = rand::thread_rng().gen_range(10, 21);
+                GoldPile::make(game_obj_db, amt, (0, 0, 0))
+            };
+
+            i.set_loc(sq);
+            game_obj_db.add(i);
+        }
     }
 }
 
