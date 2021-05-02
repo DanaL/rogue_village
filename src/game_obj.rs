@@ -722,5 +722,6 @@ pub trait Person {
     fn attributes(&self) -> u128;
     fn size(&self) -> u8;
     fn mark_dead(&mut self);
-    fn alive(&self) -> bool;    
+    fn alive(&self) -> bool;
+    fn calc_ac(&mut self);
 }

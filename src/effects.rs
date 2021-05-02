@@ -33,6 +33,7 @@ pub const EF_WEAK_VENOM: u128     = 0x00000004;
 pub const EF_WEAK_BLINDNESS: u128 = 0x00000008;
 pub const EF_FROST: u128          = 0x00000010;
 pub const EF_LEVITATION: u128     = 0x00000020;
+pub const EF_PROTECTION: u128     = 0x00000040;
 
 fn apply_xp(state: &mut GameState, game_obj_db: &mut GameObjectDB, xp: u32) {
     let player = game_obj_db.player().unwrap();
@@ -137,7 +138,20 @@ pub fn apply_effects(state: &mut GameState, obj_id: usize, game_obj_db: &mut Gam
         } else {
             let npc = game_obj_db.npc(obj_id).unwrap();
             add_status(npc, Status::Flying, state.turn + 50);
-        }        
+        }
+    }
+
+    if effects & EF_PROTECTION > 0 {
+        if obj_id == 0 {
+            let player = game_obj_db.player().unwrap();
+            add_status(player, Status::Protection(5), state.turn + 30);
+            state.msg_queue.push_back(Message::info("A shimmering golden aura surrounds you!"));
+            player.calc_ac();
+        } else {
+            let npc = game_obj_db.npc(obj_id).unwrap();
+            add_status(npc, Status::Protection(5), state.turn + 30);
+            npc.calc_ac();
+        }
     }
 }
 
@@ -157,6 +171,7 @@ pub enum Status {
     Confused,
     Paralyzed,
     Flying,
+    Protection(i8),
 }
 
 pub trait HasStatuses {
@@ -232,6 +247,7 @@ pub fn check_statuses<T: HasStatuses + GameObject + Person>(person: &mut T, stat
     
     let mut reveal = false;
     let mut killed = false;
+    let mut calc_ac = false;
     for j in 0..statuses.len() {
         if statuses[j].0 == Status::Passing && statuses[j].1 <= state.turn {
             statuses.remove(j);
@@ -308,6 +324,29 @@ pub fn check_statuses<T: HasStatuses + GameObject + Person>(person: &mut T, stat
             }
             // Hmm should trigger the effect of landing on a square here but that may be tricky :/
         }
+        if let Status::Protection(ac_bonus) = statuses[j].0 {
+            if statuses[j].1 <= state.turn {
+                statuses.remove(j);
+                if obj_id == 0 {
+                    state.msg_queue.push_back(Message::info("The protective aura is completely gone!"));
+                }
+                calc_ac = true;
+                continue;
+            } else if statuses[j].1 - state.turn == 10 {
+                let time = statuses[j].1;
+                statuses.remove(j);
+                statuses.push((Status::Protection(3), time));
+                if obj_id == 0 {
+                    state.msg_queue.push_back(Message::info("The protective aura is beginning to fade."));
+                }
+                calc_ac = true;
+                continue;
+            }
+        }
+    }
+
+    if calc_ac {
+        person.calc_ac();
     }
 
     if reveal {

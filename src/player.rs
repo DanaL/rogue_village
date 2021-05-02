@@ -184,6 +184,10 @@ impl Player {
             p.add_to_inv(GameObjects::Item(potion));
         }
 
+        if let Some(GameObjects::Item(s)) = Item::get_item(game_obj_db, "scroll of protection") {
+            p.add_to_inv(GameObjects::Item(s));
+        }
+
         p.calc_gear_effects();
 
         game_obj_db.add(GameObjects::Player(p));
@@ -470,27 +474,6 @@ impl Player {
         self.calc_stealth();
     }
 
-    fn calc_ac(&mut self) {
-        let mut ac: i8 = 10;        
-        let (armour, attributes) = self.ac_mods_from_gear();
-        
-        // // Heavier armour types reduce the benefit you get from a higher dex
-        let mut dex_mod = stat_to_mod(self.dex);
-        if attributes & items::IA_MED_ARMOUR > 0 && dex_mod > 2 {
-            dex_mod = 2;
-        } else if attributes & items::IA_HEAVY_ARMOUR > 0 {
-            dex_mod = 0;
-        }
-
-        ac += dex_mod + armour;
-
-        self.ac = if ac < 0 {
-            0
-        } else {
-            ac as u8
-        };
-    }
-
     fn calc_stealth(&mut self) {
         let mut score = 10 + stat_to_mod(self.dex);
 
@@ -649,6 +632,33 @@ impl Person for Player {
 
     fn alive(&self) -> bool {
         true
+    }
+
+    fn calc_ac(&mut self) {
+        let mut ac: i8 = 10;        
+        let (armour, attributes) = self.ac_mods_from_gear();
+        
+        // // Heavier armour types reduce the benefit you get from a higher dex
+        let mut dex_mod = stat_to_mod(self.dex);
+        if attributes & items::IA_MED_ARMOUR > 0 && dex_mod > 2 {
+            dex_mod = 2;
+        } else if attributes & items::IA_HEAVY_ARMOUR > 0 {
+            dex_mod = 0;
+        }
+
+        ac += dex_mod + armour;
+
+        for j in 0..self.statuses.len() {
+            if let Status::Protection(ac_mod) = self.statuses[j].0 {
+                ac += ac_mod;
+            }
+        }
+
+        self.ac = if ac < 0 {
+            0
+        } else {
+            ac as u8
+        };
     }
 }
 

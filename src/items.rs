@@ -190,6 +190,13 @@ impl Item {
                 
                 Some(GameObjects::Item(i))
             },
+            "scroll of protection" => {
+                let mut i = Item::new(game_obj_db.next_id(), '?',display::WHITE, display::LIGHT_GREY, name, ItemType::Scroll, 1, true, 20);
+                i.attributes |= IA_CONSUMABLE;
+                i.effects |= effects::EF_PROTECTION;
+                
+                Some(GameObjects::Item(i))
+            },
             "scroll of blink" => {
                 let mut i = Item::new(game_obj_db.next_id(), '?',display::WHITE, display::LIGHT_GREY, name, ItemType::Scroll, 1, true, 20);
                 i.attributes |= IA_CONSUMABLE;

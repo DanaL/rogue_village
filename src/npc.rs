@@ -411,6 +411,10 @@ impl Person for NPC {
     fn alive(&self) -> bool {
         self.alive
     }
+
+    fn calc_ac(&mut self) {
+        // Don't yet have any monster abilities that'll boost their AC
+    }
 }
 
 impl HasStatuses for NPC {
