@@ -221,6 +221,17 @@ pub fn add_status<T: HasStatuses + GameObject>(person: &mut T, status: Status, t
         }
     }
 
+    if let Status::Protection(new_ac_mod) = status {
+        for j in 0..statuses.len() {
+            if let Status::Protection(curr_ac_mod) = statuses[j].0 {
+                if new_ac_mod > curr_ac_mod || time > statuses[j].1 {
+                    statuses.remove(j);
+                    break;
+                }
+            }
+        }
+    }
+
     // Generally don't allow the player to have more than one status effect of the same type.
     for s in statuses.iter() {
         if s.0 == status {

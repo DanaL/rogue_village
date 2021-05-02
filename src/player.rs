@@ -184,8 +184,10 @@ impl Player {
             p.add_to_inv(GameObjects::Item(potion));
         }
 
-        if let Some(GameObjects::Item(s)) = Item::get_item(game_obj_db, "scroll of protection") {
-            p.add_to_inv(GameObjects::Item(s));
+        for _ in 0..2 {
+            if let Some(GameObjects::Item(s)) = Item::get_item(game_obj_db, "scroll of protection") {
+                p.add_to_inv(GameObjects::Item(s));
+            }
         }
 
         p.calc_gear_effects();
