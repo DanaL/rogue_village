@@ -319,9 +319,7 @@ impl Item {
 
 		let lit = fov::calc_fov(state, location, self.aura, true);
 		for sq in lit {
-            if !state.lit_sqs.contains_key(&sq) {
-			    state.lit_sqs.insert(sq, colour);
-            }		
+            state.lit_sqs.entry(sq).or_insert(colour);
 		}		
 	}
 }

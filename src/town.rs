@@ -109,7 +109,7 @@ fn count_water_sqs(map: &Map, start_r: i32, start_c: i32, lot_r: i32, lot_c: i32
 // This requires that templates be squares. I think I understand how I could
 // modify that but it seems much simpler to just make all my templates 
 // squares (even if the building within is not)
-fn rotate(building: &Vec<char>, width: usize) -> Vec<char> {
+fn rotate(building: &[char], width: usize) -> Vec<char> {
     let mut indices = vec![0; width * width];
     let mut rotated = vec!['`'; width * width];
 
@@ -630,7 +630,7 @@ fn create_villager(voice: &str, tb: &mut TownBuildings, used_names: &HashSet<Str
 fn create_innkeeper(tb: &TownBuildings, used_names: &HashSet<String>, game_obj_db: &mut GameObjectDB) -> GameObjects {
     let inn_sqs: Vec<(i32, i32, i8)> = tb.tavern.iter().map(|s| *s).collect();
     let j = rand::thread_rng().gen_range(0, inn_sqs.len());    
-    let loc = inn_sqs.iter().nth(j).unwrap();
+    let loc = inn_sqs.get(j).unwrap();
 
     let voice = dialogue::rnd_innkeeper_voice();
     let mut innkeeper = NPC::villager(npc::pick_villager_name(used_names), *loc, Some(Venue::Tavern), &voice, game_obj_db);
@@ -644,7 +644,7 @@ fn create_innkeeper(tb: &TownBuildings, used_names: &HashSet<String>, game_obj_d
 fn create_grocer(tb: &TownBuildings, used_names: &HashSet<String>, game_obj_db: &mut GameObjectDB) -> GameObjects {
     let market_sqs: Vec<(i32, i32, i8)> = tb.market.iter().map(|s| *s).collect();
     let j = rand::thread_rng().gen_range(0, market_sqs.len());
-    let loc = market_sqs.iter().nth(j).unwrap();
+    let loc = market_sqs.get(j).unwrap();
 
     let mut grocer = NPC::villager(npc::pick_villager_name(used_names), *loc, Some(Venue::Market), "shopkeeper1", game_obj_db);
     if let GameObjects::NPC(npc) = &mut grocer {
@@ -737,8 +737,8 @@ pub fn create_town(map: &mut Map, game_obj_db: &mut GameObjectDB) -> WorldInfo {
         }
     }
     let mut template = Template::new(width, rows, no_rotate);
-    template.sqs = sqs.clone();
-    buildings.insert(curr_building.to_string(), template);
+    template.sqs = sqs;
+    buildings.insert(curr_building, template);
 
     let mut rng = rand::thread_rng();
     // // pick starting co-ordinates that are in the centre-ish part of the map

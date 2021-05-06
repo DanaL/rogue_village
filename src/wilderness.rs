@@ -287,7 +287,7 @@ fn count_neighbouring_terrain(map: &Map, loc: (i32, i32, i8), tile: Tile) -> u32
 // 50/50 mix of trees and grass
 fn lay_down_trees(map: &mut Map) -> Map {
 	let keys = map.keys()
-				  .map(|k| k.clone())
+				  .map(|k| *k)
 				  .collect::<Vec<(i32, i32, i8)>>();
 	
 	for k in &keys {
@@ -303,7 +303,7 @@ fn lay_down_trees(map: &mut Map) -> Map {
 		for k in &keys {
 			if map[k] == Tile::Grass {
 				let trees = count_neighbouring_terrain(&map, *k, Tile::Tree);
-				if trees >= 6 && trees <= 8 {
+				if (6..=8).contains(&trees) {
 					next_gen.insert(*k, Tile::Tree);
 				}
 			} else if map[k] == Tile::Tree {

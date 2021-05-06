@@ -39,7 +39,7 @@ fn apply_xp(state: &mut GameState, game_obj_db: &mut GameObjectDB, xp: u32) {
     player.add_xp(xp, state, (0, 0, 0));
 }
 
-pub fn frost(state: &mut GameState, game_obj_db: &mut GameObjectDB, loc: (i32, i32, i8), src_obj_id: usize) {
+pub fn frost(state: &mut GameState, game_obj_db: &mut GameObjectDB, loc: (i32, i32, i8), _src_obj_id: usize) {
     if state.map[&loc] == Tile::Water || state.map[&loc] == Tile::DeepWater || state.map[&loc] == Tile::UndergroundRiver {
         state.map.insert(loc, Tile::Ice);
         state.msg_queue.push_back(Message::new(0, loc, "The water freezes over!", "You hear a cracking sound."));

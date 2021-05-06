@@ -512,11 +512,7 @@ fn pick_up(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mut Game
         return 0.0;
     } else if things.len() == 1 {
         let obj = game_obj_db.get(things[0]).unwrap();
-        let zorkmids = if let GameObjects::GoldPile(_) = &obj {
-            true
-        } else {
-            false
-        };
+        let zorkmids = matches!(obj, GameObjects::GoldPile(_));
 
         if let GameObjects::Item(item) = obj {
             if item.attributes & IA_IMMOBILE > 0 {
@@ -622,7 +618,7 @@ fn toggle_item(state: &mut GameState, slot: char, game_obj_db: &mut GameObjectDB
     
     let mut swapping = false;
     if item_type == ItemType::Weapon {
-        if attributes & items::IA_TWO_HANDED > 0 && player.readied_obj_ids_of_type(ItemType::Shield).len() > 0 {
+        if attributes & items::IA_TWO_HANDED > 0 && !player.readied_obj_ids_of_type(ItemType::Shield).is_empty() {
             state.msg_queue.push_back(Message::info("You cannot wield that while using a shield."));
             return 0.0;
         }
@@ -693,7 +689,7 @@ fn toggle_equipment(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: 
     }
 
     let menu = player.inv_menu(2);
-    let cost = if let Some(ch) = gui.show_in_side_pane("Equip/unequip which?", &menu) {
+    if let Some(ch) = gui.show_in_side_pane("Equip/unequip which?", &menu) {
         if !slots.contains(&ch) {
             state.msg_queue.push_back(Message::info("You do not have that item!"));
             0.0
@@ -703,9 +699,7 @@ fn toggle_equipment(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: 
     } else {
         state.msg_queue.push_back(Message::info("Never mind."));
         0.0
-    };
-
-    cost
+    }
 }
 
 fn use_item(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mut GameUI) -> f32 {
@@ -850,7 +844,7 @@ fn use_wand(state: &mut GameState, slot: char, game_obj_db: &mut GameObjectDB, g
     1.0
 }
 
-fn area_of_effect(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mut GameUI, sqs_in_area: &Vec<(i32, i32, i8)>, effects: u128) {    
+fn area_of_effect(state: &mut GameState, game_obj_db: &mut GameObjectDB, gui: &mut GameUI, sqs_in_area: &[(i32, i32, i8)], effects: u128) {    
     let mut affected_sqs = Vec::new();
     for sq in sqs_in_area.iter() {
         if effects & effects::EF_FROST > 0 {
@@ -1251,7 +1245,7 @@ pub fn take_step(state: &mut GameState, game_obj_db: &mut GameObjectDB, obj_id: 
         }
     }
 
-    return (1.0, true);
+    (1.0, true)
 }
 
 fn do_move(state: &mut GameState, game_obj_db: &mut GameObjectDB, dir: &str, gui: &mut GameUI) -> f32 {
@@ -1281,7 +1275,7 @@ fn do_move(state: &mut GameState, game_obj_db: &mut GameObjectDB, dir: &str, gui
     let start_loc = game_obj_db.get(0).unwrap().get_loc();
     let start_tile = state.map[&start_loc];
     let next_loc = (start_loc.0 + mv.0, start_loc.1 + mv.1, start_loc.2);
-    let tile = state.map[&next_loc].clone();
+    let tile = state.map[&next_loc];
     
     if game_obj_db.blocking_obj_at(&next_loc) {
         return maybe_fight(state, game_obj_db, next_loc, gui, confused);
@@ -1513,7 +1507,7 @@ fn show_inventory(gui: &mut GameUI, state: &mut GameState, game_obj_db: &mut Gam
     } else {
         let mut m: Vec<(String, bool)> = menu.iter().map(|m| (m.0.to_string(), m.1)).collect();        
         if purse > 0 {
-            m.insert(0, (money.to_string(), true));
+            m.insert(0, (money, true));
         }
         
         gui.show_in_side_pane("You are carrying:", &m);

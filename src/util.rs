@@ -68,7 +68,7 @@ pub fn split_msg(text: &str) -> Vec<String> {
 	}
 
 	if !word.is_empty() {
-		words.push(word.to_string());
+		words.push(word);
 	}
 
 	words
@@ -76,7 +76,7 @@ pub fn split_msg(text: &str) -> Vec<String> {
 
 pub fn distance(x1: i32, y1: i32, x2: i32, y2: i32) -> f64 {
 	let d = (i32::abs(i32::pow(x1 - x2, 2)) + i32::abs(i32::pow(y1 - y2, 2))) as f64;
-	return d.sqrt();
+	d.sqrt()
 }
 
 pub fn are_adj(a: (i32, i32, i8), b: (i32, i32, i8)) -> bool {

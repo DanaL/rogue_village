@@ -223,9 +223,7 @@ fn random_sq<T: Copy>(sqs: &HashSet<T>) -> T {
     let mut rng = rand::thread_rng();
     let items = sqs.iter().copied();
                 
-    let item = items.choose(&mut rng).unwrap();
-
-    item.clone()
+    items.choose(&mut rng).unwrap()
 }
 
 fn set_stairs(dungeon: &mut Vec<Vec<Tile>>, width: usize, height: usize) -> (usize, usize) {
@@ -270,7 +268,7 @@ fn random_open_adj(open: &HashSet<(i32, i32, i8)>, loc: (i32, i32, i8)) -> Optio
                            .filter(|adj| open.contains(&adj))
                            .collect::<Vec<(i32, i32, i8)>>();
 
-    if options.len() > 0 {
+    if !options.is_empty() {
         Some(options[rng.gen_range(0, options.len())])
     } else {
         None
@@ -433,12 +431,10 @@ fn decorate_levels(world_info: &mut WorldInfo, map: &mut Map, deepest_level: i8,
 fn populate_levels(_world_info: &mut WorldInfo, deepest_level: i8, floor_sqs: &HashMap<usize, HashSet<(i32, i32, i8)>>,
             game_obj_db: &mut GameObjectDB, monster_fac: &MonsterFactory) {
     let mut curr_level = deepest_level;
-    //let mut rng = rand::thread_rng();
+
     while curr_level > 0 {
         let level_index = curr_level as usize - 1;
 
-        let loc = random_sq(&floor_sqs[&level_index]);
-        
         for _ in 0..10 {
             let loc = random_sq(&floor_sqs[&level_index]);
             monster_fac.monster_for_dungeon(loc, game_obj_db);
@@ -447,7 +443,7 @@ fn populate_levels(_world_info: &mut WorldInfo, deepest_level: i8, floor_sqs: &H
     }
 }
 
-fn find_room_id(rooms: &Vec<HashSet<(i32, i32)>>, pt: &(i32, i32)) -> Option<usize> {
+fn find_room_id(rooms: &[HashSet<(i32, i32)>], pt: &(i32, i32)) -> Option<usize> {
     for room_id in 0..rooms.len() {
         if rooms[room_id].contains(pt) {
             return Some(room_id);
@@ -528,7 +524,7 @@ fn connect_rooms(sqs: &mut Vec<Tile>, height: usize, width: usize) {
     // Okay, now for each cave aside from the main one, find the sq nearest the main
     // and draw a tunnel to it.
     let mut main_area: Vec<(i32, i32)> = rooms[largest_id].iter().map(|s| *s).collect();
-    main_area.sort();
+    main_area.sort_unstable();
     let mut room_ids = (0..rooms.len()).collect::<Vec<usize>>();
     room_ids.retain(|v| *v != largest_id);
 
@@ -568,9 +564,9 @@ fn connect_rooms(sqs: &mut Vec<Tile>, height: usize, width: usize) {
     }
 }
 
-fn closest_point(pt: &(i32, i32), room: &Vec<(i32, i32)>) -> ((i32, i32), i32) {
+fn closest_point(pt: &(i32, i32), room: &[(i32, i32)]) -> ((i32, i32), i32) {
     let mut shortest = i32::MAX;
-    let mut nearest = *room.iter().nth(0).unwrap();
+    let mut nearest = *room.get(0).unwrap();
     for other_pt in room.iter() {
         let d = (pt.0 - other_pt.0) * (pt.0 - other_pt.0) + (pt.1 - other_pt.1) * (pt.1 - other_pt.1);
         if d < shortest {
@@ -582,7 +578,7 @@ fn closest_point(pt: &(i32, i32), room: &Vec<(i32, i32)>) -> ((i32, i32), i32) {
     (nearest, shortest)
 }
 
-fn count_neighbours(sqs: &Vec<bool>, row: usize, col: usize, height: usize, width: usize) -> u8 {
+fn count_neighbours(sqs: &[bool], row: usize, col: usize, height: usize, width: usize) -> u8 {
     let mut sum = 0;
     for adj in util::ADJ.iter() {
         let nr = row as i32 + adj.0;

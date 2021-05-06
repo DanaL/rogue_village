@@ -317,7 +317,7 @@ impl GameObjectDB {
             }
         }
 
-        return false;
+        false
     }
 
     pub fn stepped_on_event(&mut self, state: &mut GameState, loc: (i32, i32, i8)) {
@@ -381,8 +381,8 @@ impl GameObjectDB {
 
     pub fn as_person(&mut self, obj_id: usize) -> Option<&mut dyn Person> {
         match self.get_mut(obj_id).unwrap() {
-            GameObjects::Player(p) => return Some(p),
-            GameObjects::NPC(npc) => return Some(npc),
+            GameObjects::Player(p) => Some(p),
+            GameObjects::NPC(npc) => Some(npc),
             _ => None,
         }      
     }
@@ -558,14 +558,11 @@ impl GameObjectDB {
             // (and thus in the GameObjs structure) while some mgiht be in the player's
             // inventory.
             if let Some(obj) = self.get_mut(obj_id) {        
-                match obj.receive_event(event_type, state, ploc) {
-                    Some(response) => {
-                        if response.event_type == EventType::LightExpired {
-                            to_remove.push((obj_id, false));                        
-                        }
-                    },
-                    _ => { },
-                }
+                if let Some(response) = obj.receive_event(event_type, state, ploc) {
+                    if response.event_type == EventType::LightExpired {
+                        to_remove.push((obj_id, false));                        
+                    }
+                }                
             } else {
                 let p = self.player().unwrap();
                 if let Some(obj) = p.inv_obj_of_id(obj_id) {

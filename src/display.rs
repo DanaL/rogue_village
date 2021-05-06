@@ -68,7 +68,7 @@ pub const LIGHT_PURPLE: Colour = (178, 102, 255);
 const SCREEN_WIDTH: u32 = 58;
 const SCREEN_HEIGHT: u32 = 25;
 const BACKSPACE_CH: char = '\u{0008}';
-const DEFAULT_FONT: &'static str = "DejaVuSansMono.ttf";
+const DEFAULT_FONT: &str = "DejaVuSansMono.ttf";
 const SM_FONT_PT: u16 = 18;
 const LG_FONT_PT: u16 = 25;
 const ANIMATION_DELAY: u64 = 75;
@@ -289,7 +289,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 		let sbi = state.curr_sidebar_info(game_obj_db);
 		let player_loc = game_obj_db.player().unwrap().get_loc();
 		let center = (FOV_HEIGHT / 2, FOV_WIDTH / 2);
-		let orig_vmatrix = self.v_matrix.clone();
+		//let orig_vmatrix = self.v_matrix.clone();
 
 		for sq in sqs_affected.iter() {
 			let loc = (sq.0 - player_loc.0 + center.0 as i32, sq.1 - player_loc.1 + center.1 as i32);
@@ -403,8 +403,6 @@ impl<'a, 'b> GameUI<'a, 'b> {
 
 			::std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 60));
 		}
-
-		None
 	}
 
 	pub fn get_command(&mut self, state: &GameState, game_obj_db: &mut GameObjectDB) -> Cmd {
@@ -1304,11 +1302,7 @@ fn sq_info_for_tile(tile: &map::Tile, lit: bool) -> (char, Colour, Colour) {
 			}
 		},
 		map::Tile::Trigger => {
-			if lit {
-				('.', DARK_GREY, BLACK)
-			} else {
-				('.', DARK_GREY, BLACK)
-			}
+			('.', DARK_GREY, BLACK)						
 		},
 		map::Tile::TeleportTrap => {
 			if lit {
