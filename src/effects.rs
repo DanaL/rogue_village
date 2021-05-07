@@ -335,7 +335,7 @@ pub fn check_statuses<T: HasStatuses + GameObject + Person>(person: &mut T, stat
             }
             // Hmm should trigger the effect of landing on a square here but that may be tricky :/
         }
-        if let Status::Protection(ac_bonus) = statuses[j].0 {
+        if let Status::Protection(_) = statuses[j].0 {
             if statuses[j].1 <= state.turn {
                 statuses.remove(j);
                 if obj_id == 0 {

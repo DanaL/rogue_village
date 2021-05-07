@@ -256,9 +256,7 @@ impl GameObjectDB {
     }
 
     pub fn set_to_loc(&mut self, obj_id: usize, loc: (i32, i32, i8)) {
-        if !self.obj_locs.contains_key(&loc) {
-            self.obj_locs.insert(loc, VecDeque::new());
-        } 
+        self.obj_locs.entry(loc).or_insert(VecDeque::new());
 
         self.obj_locs.get_mut(&loc).unwrap().push_front(obj_id);
         if self.objects.contains_key(&obj_id) {

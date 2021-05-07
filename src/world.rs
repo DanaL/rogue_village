@@ -393,7 +393,7 @@ fn light_triggered_gate(_world_info: &mut WorldInfo, map: &mut Map, floors: &mut
 }
 
 fn add_vault(world_info: &mut WorldInfo, map: &mut Map, floors: &mut HashSet<(i32, i32, i8)>,
-            game_obj_db: &mut GameObjectDB, vaults: &Vec<Vault>, level: i8) {
+            game_obj_db: &mut GameObjectDB, vaults: &[Vault], level: i8) {
     // In the real game, I want to make sure I never create a gated vault in a room with the upstairs 
     // because that would result in a dungeon where the player probably can't progress without magic
     let mut rng = rand::thread_rng();

@@ -660,7 +660,7 @@ fn create_grocer(tb: &TownBuildings, used_names: &HashSet<String>, game_obj_db: 
 fn create_smith(tb: &TownBuildings, used_names: &HashSet<String>, game_obj_db: &mut GameObjectDB) -> GameObjects {
     let smith_sqs: Vec<(i32, i32, i8)> = tb.smithy.iter().map(|s| *s).collect();
     let j = rand::thread_rng().gen_range(0, smith_sqs.len());
-    let loc = smith_sqs.iter().nth(j).unwrap();
+    let loc = smith_sqs.get(j).unwrap();
 
     let mut smith = NPC::villager(npc::pick_villager_name(used_names), *loc, Some(Venue::Smithy), "smith1", game_obj_db);
     if let GameObjects::NPC(npc) = &mut smith {

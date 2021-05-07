@@ -303,7 +303,7 @@ fn lay_down_trees(map: &mut Map) -> Map {
 		for k in &keys {
 			if map[k] == Tile::Grass {
 				let trees = count_neighbouring_terrain(&map, *k, Tile::Tree);
-				if (6..=8).contains(&trees) {
+				if trees >= 6 && trees <= 8 {
 					next_gen.insert(*k, Tile::Tree);
 				}
 			} else if map[k] == Tile::Tree {

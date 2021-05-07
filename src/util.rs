@@ -259,9 +259,9 @@ impl StringUtils for String {
 				result.push('s');
 			}
 
-			for j in 1..words.len() {
+			for word in words.iter().skip(1) {
 				result.push(' ');
-				result.push_str(words[j]);
+				result.push_str(word);
 			}
 
 			result
