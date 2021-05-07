@@ -384,7 +384,7 @@ impl Person for NPC {
         (self.curr_hp, self.max_hp)
     }
 
-    fn add_hp(&mut self, amt: u8) {
+    fn add_hp(&mut self, _: &mut GameState, amt: u8) {
         self.curr_hp += amt;        
     }
 

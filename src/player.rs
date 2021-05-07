@@ -593,7 +593,13 @@ impl Person for Player {
         (self.curr_hp, self.max_hp)
     }
 
-    fn add_hp(&mut self, amt: u8) {
+    fn add_hp(&mut self, state: &mut GameState, amt: u8) {
+        if self.curr_hp < self.max_hp {
+            state.msg_queue.push_back(Message::info("You feel better."));
+        }
+        
+        // At the moment, I'm allowing the player's HP to rise above their max from healing, but
+        // I don't know if I'll leave that in as a permanent feature
         self.curr_hp += amt;
     }
 
