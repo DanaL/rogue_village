@@ -232,7 +232,7 @@ impl NPC {
         let context = if let Some(curr_agenda) = self.curr_agenda_item(state) {
             // Eventually maybe voice lines for every context?
             if curr_agenda.label == "working" {
-                curr_agenda.label.to_string()
+                curr_agenda.label
             } else if curr_agenda.label == "supper" || curr_agenda.label == "lunch" {
                 extra_info.insert("#meal#".to_string(), curr_agenda.label);
                 "".to_string()
@@ -391,9 +391,7 @@ impl Person for NPC {
     // I'm not (yet) giving monsters individual stats yet, so for ability checks 
     // just use their attack mod for now
     fn ability_check(&self, _ability: Ability) -> u8 {
-        let roll = rand::thread_rng().gen_range(1, 21) + self.attack_mod;
-
-        roll
+        rand::thread_rng().gen_range(1, 21) + self.attack_mod
     }
 
     fn attributes(&self) -> u128 {
@@ -419,7 +417,7 @@ impl Person for NPC {
 
 impl HasStatuses for NPC {
     fn get_statuses(&mut self) -> Option<&mut Vec<(Status, u32)>> {
-        return Some(&mut self.statuses)
+        Some(&mut self.statuses)
     }
 }
 
@@ -639,9 +637,8 @@ fn try_to_move_to_loc(npc_id: usize, goal_loc: (i32, i32, i8), state: &mut GameS
         println!("Hmm I'm trying to move to my own location...");
     }   
     if blocking_object {
-        match npc_mode {
-            NPCPersonality::Villager => state.msg_queue.push_back(Message::new(npc_id, goal_loc, "\"Excuse me.\"", "\"Excuse me.\"")),
-            _ => { }
+        if npc_mode == NPCPersonality::Villager {
+            state.msg_queue.push_back(Message::new(npc_id, goal_loc, "\"Excuse me.\"", "\"Excuse me.\""));            
         }
         // if someone/something is blocking path, clear the current plan which should trigger 
         // creating a new plan
@@ -806,7 +803,7 @@ fn spin_webs(state: &mut GameState, game_obj_db: &mut GameObjectDB, loc: (i32, i
     state.msg_queue.push_back(Message::new(npc_id, loc, &s, ""));    
 }
 
-fn minor_black_magic(npc_id: usize, state: &mut GameState, game_obj_db: &mut GameObjectDB, player_loc: (i32, i32, i8), sees_player: bool, adj: bool) -> bool {
+fn minor_black_magic(npc_id: usize, state: &mut GameState, game_obj_db: &mut GameObjectDB, player_loc: (i32, i32, i8), sees_player: bool, _adj: bool) -> bool {
     let npc = game_obj_db.npc(npc_id).unwrap();
     let npc_loc = npc.get_loc();
     let npc_name = npc.npc_name(false);
@@ -1009,9 +1006,10 @@ fn can_see_player(state: &GameState, game_obj_db: &mut GameObjectDB, loc: (i32, 
 
 fn in_location(state: &GameState, loc: (i32, i32, i8), sqs: &HashSet<(i32, i32, i8)>, indoors: bool) -> bool {
     if indoors {
-        let indoor_sqs = HashSet::from(sqs.iter()
-                                          .filter(|sq| state.map[&sq].indoors())
-                                          .collect::<HashSet<&(i32, i32, i8)>>());
+        let indoor_sqs = sqs.iter()
+                            .filter(|sq| state.map[&sq].indoors())
+                            .collect::<HashSet<&(i32, i32, i8)>>();
+                                          
         indoor_sqs.contains(&loc)
     } else {
         sqs.contains(&loc)
@@ -1153,7 +1151,7 @@ impl MonsterFactory {
         let level = pieces[1].trim().parse::<u8>().expect("Incorrectly formatted line in monster file!");
         let ac = pieces[2].trim().parse::<u8>().expect("Incorrectly formatted line in monster file!");
         let hp = pieces[3].trim().parse::<u8>().expect("Incorrectly formatted line in monster file!");
-        let ch = pieces[4].trim().chars().nth(0).unwrap();
+        let ch = pieces[4].trim().chars().next().unwrap();
         let colour = MonsterFactory::to_colour(pieces[5].trim());
         let personality = MonsterFactory::to_personality(pieces[6].trim());
         let attack_mod = pieces[7].trim().parse::<u8>().expect("Incorrectly formatted line in monster file!");

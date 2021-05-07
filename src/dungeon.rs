@@ -47,8 +47,7 @@ fn pick_room() -> (Vec<Vec<Tile>>, usize, usize) {
         let row = vec![Tile::Wall; width + 2];
         room.push(row);
         for _ in 0..height {
-            let mut row = Vec::new();
-            row.push(Tile::Wall);
+            let mut row = vec![Tile::Wall];
             for _ in 0..width {
                 row.push(Tile::StoneFloor);
             }
@@ -110,7 +109,7 @@ fn pick_room() -> (Vec<Vec<Tile>>, usize, usize) {
     (room, height, width)
 }
 
-fn copy_room(room: &Vec<Vec<Tile>>) -> Vec<Vec<Tile>> {
+fn copy_room(room: &[Vec<Tile>]) -> Vec<Vec<Tile>> {
     let mut room2 = Vec::new();
     for row in room {
         let mut row2 = Vec::new();
@@ -123,7 +122,7 @@ fn copy_room(room: &Vec<Vec<Tile>>) -> Vec<Vec<Tile>> {
     room2
 }
 
-fn draw_room(level: &mut Vec<Tile>, row: usize, col: usize, room: &Vec<Vec<Tile>>, width: usize) {
+fn draw_room(level: &mut Vec<Tile>, row: usize, col: usize, room: &[Vec<Tile>], width: usize) {
     let mut curr_row = row;
     for line in room {
         for curr_col in 0..line.len() {
@@ -165,7 +164,7 @@ fn add_doorway_horizonal(level: &mut Vec<Tile>, row: usize, lo: usize, hi: usize
         }
     }
 
-    if options.len() > 0 {        
+    if !options.is_empty() {        
         let x = rng.gen_range(0, options.len());
         let col = options[x];
         if rng.gen_range(0.0, 1.0) < 0.8 {
@@ -199,7 +198,7 @@ fn add_doorway_vertical(level: &mut Vec<Tile>, col: usize, lo: usize, hi: usize,
         }
     }
 
-    if options.len() > 0 {        
+    if !options.is_empty() {        
         let x = rng.gen_range(0, options.len());
         let row = options[x];
         if rng.gen_range(0.0, 1.0) < 0.8 {
@@ -234,7 +233,7 @@ fn place_room(level: &mut Vec<Tile>, rooms: &mut Vec<(Vec<Vec<Tile>>, usize, usi
 
     // We'll try a few times per side to place the new room
     let num_of_tries = 5;
-    while sides.len() > 0 {
+    while !sides.is_empty() {
         let side = sides.pop().unwrap();        
         if side == 'n' {
             for _ in 0..num_of_tries {
@@ -378,7 +377,7 @@ fn add_extra_door_to_horizontal_wall(level: &mut Vec<Tile>, width: usize, row: u
             options.push(col);
         }
     }
-    if !already_connected && options.len() > 0 {
+    if !already_connected && !options.is_empty() {
         let x = rng.gen_range(0, options.len());
         let col = options[x];
         level[row * width + col] = Tile::Door(DoorState::Closed);
@@ -401,7 +400,7 @@ fn add_extra_door_to_vertical_wall(level: &mut Vec<Tile>, width: usize, col: usi
             options.push(row);
         }
     }
-    if !already_connected && options.len() > 0 {
+    if !already_connected && !options.is_empty() {
         let x = rng.gen_range(0, options.len());
         let row = options[x];
         level[row * width + col] = Tile::Door(DoorState::Closed);
@@ -633,7 +632,7 @@ fn try_to_add_corridor(level: &mut Vec<Tile>, rooms: &Vec<(Vec<Vec<Tile>>, usize
     }
 }
 
-fn find_vaults(level: &Vec<Tile>,  width: usize, rooms: Vec<(usize, usize, usize, usize)>) -> Vec<Vault> {
+fn find_vaults(level: &[Tile],  width: usize, rooms: Vec<(usize, usize, usize, usize)>) -> Vec<Vault> {
     let mut vaults = Vec::new();
 
     for room in rooms.iter() {        

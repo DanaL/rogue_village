@@ -28,7 +28,7 @@ use crate::items::{Item, ItemType};
 use crate::util::StringUtils;
 
 // This is similar to but not quite the same as the player inventory tool
-fn inventory_menu(inventory: &Vec<GameObjects>) -> Vec<(String, char, u8, u16)> {    
+fn inventory_menu(inventory: &[GameObjects]) -> Vec<(String, char, u8, u16)> {    
     let mut items: Vec<(String, char, u8, u16)> = Vec::new();
 
     let mut curr_slot = 'a';        
@@ -129,7 +129,7 @@ fn fill_flask(state: &mut GameState, game_obj_db: &mut GameObjectDB) {
     state.msg_queue.push_back(Message::info(&s));
 }
 
-fn buy_round(state: &mut GameState, game_obj_db: &mut GameObjectDB, patrons: &Vec<usize>) {
+fn buy_round(state: &mut GameState, game_obj_db: &mut GameObjectDB, patrons: &[usize]) {
     let player = game_obj_db.player().unwrap();
 
     if player.purse < patrons.len() as u32 {
@@ -316,7 +316,7 @@ fn check_smith_inventory(state: &mut GameState, smith_id: usize, game_obj_db: &m
                     to_remove.push(j);
                 }
             }
-            to_remove.sort();
+            to_remove.sort_unstable();
             to_remove.reverse();
             for j in to_remove {
                 npc.inventory.remove(j);
@@ -387,7 +387,7 @@ fn check_grocer_inventory(state: &mut GameState, grocer_id: usize, game_obj_db: 
                     to_remove.push(j);
                 }
             }
-            to_remove.sort();
+            to_remove.sort_unstable();
             to_remove.reverse();
             for j in to_remove {
                 npc.inventory.remove(j);
@@ -469,7 +469,7 @@ pub fn talk_to_grocer(state: &mut GameState, grocer_id: usize, game_obj_db: &mut
             else {
                 s.push_str(", ");
                 s.push_str(&item.3.to_string());
-                s.push_str("$");
+                s.push('$');
             }
             store_menu.push_str(&s);            
         }
@@ -540,7 +540,7 @@ fn purchase_from_smith(state: &mut GameState, smith_id: usize, name: String, pre
             else {
                 s.push_str(", ");
                 s.push_str(&item.3.to_string());
-                s.push_str("$");
+                s.push('$');
             }
             store_menu.push_str(&s);            
         }
@@ -600,7 +600,7 @@ pub fn talk_to_smith(state: &mut GameState, smith_id: usize, game_obj_db: &mut G
     let answer = gui.popup_menu(&name, &msg, &options, Some(&sbi));
     if let Some(ch) = answer {
         if ch == 'a' {
-            made_purchase = purchase_from_smith(state, smith_id, name.clone(), &preamble, game_obj_db, gui);
+            made_purchase = purchase_from_smith(state, smith_id, name, &preamble, game_obj_db, gui);
         } else if ch == 'b' {
             repair_gear(state, game_obj_db, gui);
         } 

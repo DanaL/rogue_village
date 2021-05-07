@@ -254,8 +254,7 @@ impl Player {
         }
 
         if index >= 0 {
-            let obj = self.inventory.get_mut(index as usize);
-            obj
+            self.inventory.get_mut(index as usize)            
         } else {
             None
         }
@@ -404,9 +403,7 @@ impl Player {
                 let name = i.get_fullname();
                 let h = if highlight == 0 {
                     true
-                } else if highlight == 1 && i.useable() {
-                    true
-                } else if highlight == 1 && i.item_type == ItemType::Weapon && i.equiped {
+                } else if highlight == 1 && (i.useable() ||  i.item_type == ItemType::Weapon && i.equiped) {
                     true
                 } else if highlight == 2 && i.equipable() {
                     true
@@ -707,7 +704,7 @@ impl GameObject for Player {
 
 impl HasStatuses for Player {
     fn get_statuses(&mut self) -> Option<&mut Vec<(Status, u32)>> {
-        return Some(&mut self.statuses)
+        Some(&mut self.statuses)
     }
 }
 
