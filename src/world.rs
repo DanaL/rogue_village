@@ -864,6 +864,8 @@ fn seed_items(deepest_level: usize, floor_sqs: &HashMap<usize, HashSet<(i32, i32
                 Item::get_item(game_obj_db, "scroll of blink").unwrap()
             } else if roll < 0.7 {
                 Item::get_item(game_obj_db, "longsword").unwrap()
+            } else if roll < 0.8 {
+                Item::get_item(game_obj_db, "scroll of protection").unwrap()
             } else {
                 let amt = rand::thread_rng().gen_range(10, 21);
                 GoldPile::make(game_obj_db, amt, (0, 0, 0))
