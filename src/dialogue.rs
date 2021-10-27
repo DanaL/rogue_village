@@ -32,7 +32,7 @@ pub fn read_dialogue_lib() -> DialogueLibrary {
         .expect("Unable to find dialogue file!");
     
     let mut curr_voice = "";
-    for line in contents.split('\n') {        
+    for line in contents.lines() {        
         if line.starts_with("voice:") {
             let pieces: Vec<&str> = line.split(':').collect();
             curr_voice = pieces[1];

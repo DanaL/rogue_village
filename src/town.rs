@@ -710,7 +710,9 @@ pub fn create_town(map: &mut Map, game_obj_db: &mut GameObjectDB) -> WorldInfo {
     let mut buildings = HashMap::new();
     let contents = fs::read_to_string("buildings.txt")
         .expect("Unable to find building templates file!");
-    let lines = contents.split('\n').collect::<Vec<&str>>();
+    let lines = contents
+        .lines()
+        .collect::<Vec<&str>>();
     let mut curr_building: String = "".to_string();
     let mut width: usize = 0;
     let mut sqs: Vec<char> = Vec::new();
@@ -728,7 +730,7 @@ pub fn create_town(map: &mut Map, game_obj_db: &mut GameObjectDB) -> WorldInfo {
             rows = 0;
             sqs = Vec::new();
             no_rotate = false;
-        } else if line == "no rotate" {
+        } else if line == "no rotate" {            
             no_rotate = true;
         } else {
             width = line.len();
